@@ -5,7 +5,7 @@ import { UserPlus, Search } from 'lucide-react'
 const FinalCTA = () => {
   return (
     <section className="py-24 border-t bg-muted/20">
-      <div className="container mx-auto px-4 lg:px-8 text-center max-w-4xl">
+      <div className="container max-w-4xl mx-auto px-3 sm:px-8 lg:px-12 text-center">
         <h2 className="text-4xl md:text-5xl font-extrabold mb-8 text-foreground leading-tight">
           Ready to Build Your Future?
         </h2>

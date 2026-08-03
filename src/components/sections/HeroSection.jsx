@@ -5,8 +5,8 @@ import { Link } from 'react-router-dom'
 
 const HeroSection = () => {
   return (
-    <section className="relative pt-20 pb-16 lg:pt-32 lg:pb-24 overflow-hidden">
-      <div className="container max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
+    <section className="relative pt-20 pb-16 lg:pt-20 lg:pb-24 overflow-hidden">
+      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
         <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
 
           {/* Left Side: Content */}

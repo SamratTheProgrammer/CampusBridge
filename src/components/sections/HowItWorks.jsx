@@ -1,5 +1,5 @@
-import React from 'react'
-import { motion } from 'framer-motion'
+import React, { useRef } from 'react'
+import { motion, useScroll } from 'framer-motion'
 import { UserPlus, FileText, Search, UserCheck, MessageCircle, TrendingUp } from 'lucide-react'
 
 const steps = [
@@ -12,9 +12,15 @@ const steps = [
 ]
 
 const HowItWorks = () => {
+  const containerRef = useRef(null)
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start center", "end center"]
+  })
+
   return (
-    <section className="py-24 overflow-hidden relative">
-      <div className="container mx-auto px-4 lg:px-8">
+    <section ref={containerRef} className="py-24 overflow-hidden relative">
+      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">How CampusBridge Works</h2>
           <p className="text-lg text-muted-foreground">
@@ -24,7 +30,12 @@ const HowItWorks = () => {
 
         <div className="relative max-w-4xl mx-auto">
           {/* Vertical Timeline Line */}
-          <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-1 bg-border -translate-x-1/2 rounded-full hidden md:block" />
+          <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-1 bg-border -translate-x-1/2 rounded-full hidden md:block overflow-hidden">
+            <motion.div 
+              className="absolute top-0 left-0 right-0 bottom-0 bg-primary origin-top rounded-full"
+              style={{ scaleY: scrollYProgress }}
+            />
+          </div>
 
           <div className="space-y-12 md:space-y-0">
             {steps.map((step, index) => {

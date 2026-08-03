@@ -4,8 +4,8 @@ import { Send } from 'lucide-react'
 
 const Newsletter = () => {
   return (
-    <section className="py-24 px-4 lg:px-8">
-      <div className="container mx-auto">
+    <section className="py-24">
+      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

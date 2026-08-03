@@ -8,6 +8,8 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import OTPVerification from './pages/auth/OTPVerification'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import PageTransition from './components/PageTransition'
+import { AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 
 // Dashboard Layout & Pages
@@ -21,6 +23,8 @@ import Events from './pages/dashboard/Events'
 import Messages from './pages/dashboard/Messages'
 import Jobs from './pages/dashboard/Jobs'
 import Settings from './pages/dashboard/Settings'
+import Applications from './pages/dashboard/Applications'
+import Saved from './pages/dashboard/Saved'
 
 function ScrollToHash() {
   const { hash } = useLocation()
@@ -37,14 +41,15 @@ function ScrollToHash() {
   return null
 }
 
-function App() {
+function AnimatedRoutes() {
+  const location = useLocation()
+  
   return (
-    <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
-      <Router>
-        <ScrollToHash />
-        <Routes>
-          {/* Public Routes with Navbar and Footer */}
-          <Route path="/" element={
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Public Routes with Navbar and Footer */}
+        <Route path="/" element={
+          <PageTransition>
             <div className="flex flex-col min-h-screen">
               <Navbar />
               <main className="flex-1">
@@ -52,28 +57,39 @@ function App() {
               </main>
               <Footer />
             </div>
-          } />
-          
-          <Route path="/login" element={<div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><Login /></main><Footer /></div>} />
-          <Route path="/signup" element={<div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><SignUp /></main><Footer /></div>} />
-          <Route path="/forgot-password" element={<div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><ForgotPassword /></main><Footer /></div>} />
-          <Route path="/otp" element={<div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><OTPVerification /></main><Footer /></div>} />
+          </PageTransition>
+        } />
+        
+        <Route path="/login" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><Login /></main><Footer /></div></PageTransition>} />
+        <Route path="/signup" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><SignUp /></main><Footer /></div></PageTransition>} />
+        <Route path="/forgot-password" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><ForgotPassword /></main><Footer /></div></PageTransition>} />
+        <Route path="/otp" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><OTPVerification /></main><Footer /></div></PageTransition>} />
 
-          {/* Authenticated Dashboard Routes */}
-          <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<DashboardHome />} />
-            <Route path="alumni" element={<AlumniDirectory />} />
-            <Route path="alumni/:id" element={<AlumniProfile />} />
-            <Route path="mentorship" element={<MentorshipRequests />} />
-            <Route path="jobs" element={<Jobs />} />
-            <Route path="jobs/:id" element={<JobDetails />} />
-            <Route path="events" element={<Events />} />
-            <Route path="messages" element={<Messages />} />
-            <Route path="applications" element={<div className="p-4">Applications</div>} />
-            <Route path="saved" element={<div className="p-4">Saved</div>} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-        </Routes>
+        {/* Authenticated Dashboard Routes */}
+        <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
+          <Route index element={<DashboardHome />} />
+          <Route path="alumni" element={<AlumniDirectory />} />
+          <Route path="alumni/:id" element={<AlumniProfile />} />
+          <Route path="mentorship" element={<MentorshipRequests />} />
+          <Route path="jobs" element={<Jobs />} />
+          <Route path="jobs/:id" element={<JobDetails />} />
+          <Route path="events" element={<Events />} />
+          <Route path="messages" element={<Messages />} />
+          <Route path="applications" element={<Applications />} />
+          <Route path="saved" element={<Saved />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+      </Routes>
+    </AnimatePresence>
+  )
+}
+
+function App() {
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
+      <Router>
+        <ScrollToHash />
+        <AnimatedRoutes />
         <Toaster position="bottom-right" />
       </Router>
     </ThemeProvider>

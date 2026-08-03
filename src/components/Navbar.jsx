@@ -11,6 +11,71 @@ const Navbar = () => {
   const { theme, setTheme } = useTheme()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
+  const [activeSection, setActiveSection] = useState('home')
+
+  const navLinks = [
+    { name: 'Home', path: '/#home', id: 'home' },
+    { name: 'Alumni', path: '/#alumni', id: 'alumni' },
+    { name: 'Mentorship', path: '/#mentorship', id: 'mentorship' },
+    { name: 'Jobs', path: '/#jobs', id: 'jobs' },
+    { name: 'Events', path: '/#events', id: 'events' },
+    { name: 'Resources', path: '/#resources', id: 'resources' },
+    { name: 'About', path: '/#about', id: 'about' },
+  ]
+
+  // Handle scroll detection and active nav link
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20)
+
+      // Only run scrollspy if on the home page
+      if (window.location.pathname === '/') {
+        let current = 'home'
+        let minDistance = Infinity
+        for (const link of navLinks) {
+          const element = document.getElementById(link.id)
+          if (element) {
+            const rect = element.getBoundingClientRect()
+            if (rect.top <= 300) {
+              const distance = 300 - rect.top
+              if (distance < minDistance) {
+                minDistance = distance
+                current = link.id
+              }
+            }
+          }
+        }
+        setActiveSection(current)
+      }
+    }
+    window.addEventListener('scroll', handleScroll)
+    handleScroll() // Trigger once on mount
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const handleNavClick = (e, path, id) => {
+    if (path.startsWith('/#') && window.location.pathname === '/') {
+      e.preventDefault()
+      const element = document.getElementById(id)
+      if (element) {
+        const offset = 80 // navbar height
+        const bodyRect = document.body.getBoundingClientRect().top
+        const elementRect = element.getBoundingClientRect().top
+        const elementPosition = elementRect - bodyRect
+        const offsetPosition = elementPosition - offset
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        })
+        
+        window.history.pushState(null, '', path)
+        setActiveSection(id)
+      }
+      setIsMobileMenuOpen(false)
+    }
+  }
 
   // Handle Ctrl+K / Cmd+K shortcut
   useEffect(() => {
@@ -24,46 +89,54 @@ const Navbar = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const navLinks = [
-    { name: 'Home', path: '/#home' },
-    { name: 'Alumni', path: '/#alumni' },
-    { name: 'Mentorship', path: '/#mentorship' },
-    { name: 'Jobs', path: '/#jobs' },
-    { name: 'Events', path: '/#events' },
-    { name: 'Resources', path: '/#resources' },
-    { name: 'About', path: '/#about' },
-  ]
-
   return (
     <>
-      <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
+      <nav
+        className={`sticky top-0 z-50 w-full transition-all duration-300 ${isScrolled
+            ? 'border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm py-0'
+            : 'bg-transparent border-transparent py-2'
+          }`}
+      >
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
           <div className="flex h-16 items-center justify-between">
-            
+
             {/* Logo */}
             <div className="flex items-center gap-2">
               <Link to="/" className="flex items-center">
-                <img src={logoLight} alt="CampusBridge" className="h-12 md:h-24 w-auto block dark:hidden" />
-                <img src={logoDark} alt="CampusBridge" className="h-12 md:h-24 w-auto hidden dark:block" />
+                <img src={logoLight} alt="CampusBridge" className="h-24 md:h-24 w-auto block dark:hidden" />
+                <img src={logoDark} alt="CampusBridge" className="h-24 md:h-24 w-auto hidden dark:block" />
               </Link>
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-6">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.path}
-                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-                >
-                  {link.name}
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                const isActive = activeSection === link.id && window.location.pathname === '/'
+                return (
+                  <Link
+                    key={link.name}
+                    to={link.path}
+                    onClick={(e) => handleNavClick(e, link.path, link.id)}
+                    className={`text-base font-medium transition-colors relative px-1 py-1 ${
+                      isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {link.name}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeNavIndicator"
+                        className="absolute -bottom-1.5 left-0 right-0 h-0.5 bg-primary rounded-full"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                  </Link>
+                )
+              })}
             </div>
 
             {/* Right Side Actions */}
             <div className="hidden lg:flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => setIsSearchOpen(true)}
                 className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors bg-muted/50 px-3 py-1.5 rounded-full border border-border/50 hover:border-border"
               >
@@ -122,16 +195,21 @@ const Navbar = () => {
               className="lg:hidden border-t border-border/40 bg-background overflow-hidden"
             >
               <div className="flex flex-col px-6 py-4 space-y-4">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.name}
-                    to={link.path}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-base font-medium text-muted-foreground hover:text-primary"
-                  >
-                    {link.name}
-                  </Link>
-                ))}
+                {navLinks.map((link) => {
+                  const isActive = activeSection === link.id && window.location.pathname === '/'
+                  return (
+                    <Link
+                      key={link.name}
+                      to={link.path}
+                      onClick={(e) => handleNavClick(e, link.path, link.id)}
+                      className={`text-base font-medium transition-colors ${
+                        isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {link.name}
+                    </Link>
+                  )
+                })}
                 <div className="pt-4 border-t border-border/40 flex flex-col gap-3">
                   <Link
                     to="/login"

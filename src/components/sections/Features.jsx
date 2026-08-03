@@ -57,7 +57,7 @@ const Features = () => {
 
   return (
     <section className="py-24 bg-muted/20">
-      <div className="container mx-auto px-4 lg:px-8">
+      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">Why Choose CampusBridge?</h2>
           <p className="text-lg text-muted-foreground">

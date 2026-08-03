@@ -44,7 +44,7 @@ const alumni = [
 const FeaturedAlumni = () => {
   return (
     <section className="py-24 bg-muted/20">
-      <div className="container mx-auto px-4 lg:px-8">
+      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
         <div className="flex flex-col items-center text-center mb-12 gap-4">
           <div className="max-w-2xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Featured Alumni</h2>

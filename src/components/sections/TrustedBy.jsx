@@ -7,13 +7,13 @@ const TrustedBy = () => {
     { name: 'Amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg' },
     { name: 'Adobe', logo: 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Adobe_Corporate_Logo.png' },
     { name: 'IBM', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/51/IBM_logo.svg' },
-    { name: 'TCS', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tata_Consultancy_Services_Logo.svg/512px-Tata_Consultancy_Services_Logo.svg.png' },
+    { name: 'TCS', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg' },
     { name: 'Infosys', logo: 'https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg' },
   ]
 
   return (
     <section className="py-12 border-y bg-muted/30">
-      <div className="container mx-auto px-4 lg:px-8 text-center">
+      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12 text-center">
         <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-8">
           Trusted by alumni working at top companies
         </p>
