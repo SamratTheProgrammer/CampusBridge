@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, PlayCircle } from 'lucide-react'
+import { ArrowRight, PlayCircle, LayoutDashboard, Users, Briefcase, MessageSquare, Bell } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const HeroSection = () => {

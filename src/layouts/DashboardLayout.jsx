@@ -63,12 +63,12 @@ const DashboardLayout = () => {
             </button>
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
               <img 
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
+                src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
                 alt="Profile" 
                 className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
               />
               <div className="hidden lg:block text-sm">
-                <p className="font-semibold text-foreground leading-none mb-1">Ananya Dey</p>
+                <p className="font-semibold text-foreground leading-none mb-1">Samrat Saha</p>
                 <p className="text-xs text-muted-foreground leading-none">MCA Student</p>
               </div>
             </div>

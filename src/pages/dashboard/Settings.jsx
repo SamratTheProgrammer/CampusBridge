@@ -78,7 +78,7 @@ const Settings = () => {
               
               <div className="flex items-center gap-6 mb-6">
                 <img 
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
+                  src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
                   alt="Profile" 
                   className="w-20 h-20 rounded-full object-cover border border-border/50"
                 />
@@ -90,11 +90,11 @@ const Settings = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">First Name</label>
-                  <input type="text" defaultValue="Ananya" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <input type="text" defaultValue="Samrat" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Last Name</label>
-                  <input type="text" defaultValue="Dey" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <input type="text" defaultValue="Saha" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm font-medium text-foreground">Headline (Tagline)</label>
@@ -106,7 +106,7 @@ const Settings = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Contact Email</label>
-                  <input type="email" defaultValue="ananya.dey@example.com" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <input type="email" defaultValue="samrat.saha@example.com" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm font-medium text-foreground">About Me</label>
@@ -240,7 +240,7 @@ const Settings = () => {
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm text-foreground">Ananya_Dey_Resume.pdf</p>
+                      <p className="font-semibold text-sm text-foreground">Samrat_Saha_Resume.pdf</p>
                       <p className="text-xs text-muted-foreground">Uploaded on 2 May 2024 • 1.2 MB</p>
                     </div>
                   </div>

@@ -4,6 +4,8 @@ import { Moon, Sun, Menu, X, Search } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import { motion, AnimatePresence } from 'framer-motion'
 import SearchModal from './SearchModal'
+import logoLight from '../assets/CampusLogoLight.png'
+import logoDark from '../assets/CampusLogoDark.png'
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme()
@@ -40,11 +42,9 @@ const Navbar = () => {
             
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <Link to="/" className="flex items-center gap-2">
-                <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                </div>
-                <span className="font-bold text-xl tracking-tight">CampusBridge</span>
+              <Link to="/" className="flex items-center">
+                <img src={logoLight} alt="CampusBridge" className="h-12 md:h-24 w-auto block dark:hidden" />
+                <img src={logoDark} alt="CampusBridge" className="h-12 md:h-24 w-auto hidden dark:block" />
               </Link>
             </div>
 

@@ -11,7 +11,7 @@ const Messages = () => {
   ]
 
   const chatHistory = [
-    { id: 1, sender: 'Arjun', text: 'Hey Ananya, how are you?', time: '10:30 AM', isMe: false },
+    { id: 1, sender: 'Arjun', text: 'Hey Samrat, how are you?', time: '10:30 AM', isMe: false },
     { id: 2, sender: 'Me', text: "I'm good! Thank you so much.", time: '10:31 AM', isMe: true },
     { id: 3, sender: 'Arjun', text: 'I saw your profile. You have great projects!', time: '10:32 AM', isMe: false },
     { id: 4, sender: 'Me', text: "Thank you! I'd love to learn from your experience.", time: '10:33 AM', isMe: true },

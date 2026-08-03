@@ -72,12 +72,12 @@ const DashboardHome = () => {
           <div className="px-4 pb-4 relative text-center">
             <div className="flex justify-center -mt-8 mb-3">
               <img 
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
+                src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
                 alt="Profile" 
                 className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card"
               />
             </div>
-            <h3 className="font-bold text-foreground">Ananya Dey</h3>
+            <h3 className="font-bold text-foreground">Samrat Saha</h3>
             <p className="text-xs text-muted-foreground mb-4">MCA Student • Seeking internships</p>
             
             <div className="border-t border-border/40 pt-4 flex justify-between text-sm">
@@ -112,7 +112,7 @@ const DashboardHome = () => {
         <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex gap-4 mb-4">
             <img 
-              src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
+              src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
               alt="Profile" 
               className="w-12 h-12 rounded-full object-cover shrink-0"
             />
