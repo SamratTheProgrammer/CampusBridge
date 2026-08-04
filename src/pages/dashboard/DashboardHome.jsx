@@ -59,7 +59,7 @@ const DashboardHome = () => {
     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-8 max-w-7xl mx-auto">
       
       {/* Left Column (Profile & Quick Stats) */}
-      <div className="hidden md:block md:col-span-3 space-y-6">
+      <div className="hidden md:block md:col-span-3 space-y-6 sticky top-24 self-start">
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
           <div className="h-16 bg-muted relative">
@@ -199,7 +199,7 @@ const DashboardHome = () => {
       </div>
 
       {/* Right Column (Widgets) */}
-      <div className="hidden lg:block md:col-span-3 space-y-6">
+      <div className="hidden lg:block md:col-span-3 space-y-6 sticky top-24 self-start">
         {/* Recommended Mentors */}
         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">

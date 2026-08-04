@@ -2,17 +2,22 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
+import footerBg from '../assets/footer-logo.png'
 
 const Footer = () => {
   return (
-    <footer className="bg-background border-t pt-16 pb-8">
-      <div className="container mx-auto px-4 lg:px-8">
+    <footer 
+      className="bg-background border-t pt-16 pb-8 bg-cover bg-center bg-no-repeat relative"
+      style={{ backgroundImage: `url(${footerBg})` }}
+    >
+      <div className="absolute inset-0 bg-background/90 dark:bg-background/80"></div>
+      <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
           {/* Brand & Socials */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center mb-4">
-              <img src={logoLight} alt="CampusBridge" className="h-12 md:h-14 w-auto block dark:hidden" />
-              <img src={logoDark} alt="CampusBridge" className="h-12 md:h-14 w-auto hidden dark:block" />
+            <Link to="/" className="flex items-center ">
+              <img src={logoLight} alt="CampusBridge" className="h-12 md:h-24 w-auto block dark:hidden" />
+              <img src={logoDark} alt="CampusBridge" className="h-12 md:h-24 w-auto hidden dark:block" />
             </Link>
             <p className="text-muted-foreground mb-6 max-w-sm">
               Empowering students and alumni to connect, grow, and build successful careers together.

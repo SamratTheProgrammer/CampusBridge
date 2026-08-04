@@ -1,13 +1,70 @@
-import React, { useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import React, { useState, useEffect, useRef } from 'react'
+import { Outlet, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/dashboard/Sidebar'
-import { Search, Bell, Menu, Sun, Moon } from 'lucide-react'
+import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucide-react'
 import { useTheme } from '../components/ThemeProvider'
+
+const MOCK_ALUMNI = [
+  { id: 1, name: 'Arjun Mehta', role: 'Software Engineer', company: 'Google' },
+  { id: 2, name: 'Sneha Roy', role: 'Data Scientist', company: 'Microsoft' },
+  { id: 3, name: 'Rohit Sharma', role: 'Product Manager', company: 'Amazon' },
+  { id: 4, name: 'Priya Singh', role: 'UX Designer', company: 'Adobe' },
+  { id: 5, name: 'Karan Verma', role: 'Cloud Engineer', company: 'AWS' }
+]
+
+const MOCK_JOBS = [
+  { id: 1, title: 'Frontend Developer', company: 'Microsoft' },
+  { id: 2, title: 'Software Engineering Intern', company: 'Google' },
+  { id: 3, title: 'Data Analyst Intern', company: 'Flipkart' },
+  { id: 4, title: 'Backend Engineer', company: 'Amazon' },
+  { id: 5, title: 'Product Designer', company: 'Adobe' },
+  { id: 6, title: 'DevOps Intern', company: 'Atlassian' }
+]
+
+const MOCK_EVENTS = [
+  { id: 1, title: 'Alumni Mentorship Meet', type: 'Virtual Event' },
+  { id: 2, title: 'AI/ML Career Path', type: 'Virtual Event' },
+  { id: 3, title: 'Web Development Workshop', type: 'Seminar Hall, Block A' }
+]
 
 const DashboardLayout = () => {
   const { theme, setTheme } = useTheme()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const navigate = useNavigate()
+  const searchRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  const filteredAlumni = MOCK_ALUMNI.filter(alumni => 
+    alumni.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    alumni.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    alumni.company.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredJobs = MOCK_JOBS.filter(job => 
+    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    job.company.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredEvents = MOCK_EVENTS.filter(event => 
+    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    event.type.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const hasResults = filteredAlumni.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -40,13 +97,113 @@ const DashboardLayout = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="hidden sm:flex items-center bg-muted/50 border border-border/50 rounded-lg px-3 py-2 w-full max-w-md focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
-              <Search className="w-4 h-4 text-muted-foreground mr-2" />
-              <input 
-                type="text" 
-                placeholder="Search for alumni, jobs, events..." 
-                className="bg-transparent border-none outline-none text-sm w-full text-foreground placeholder:text-muted-foreground"
-              />
+            <div ref={searchRef} className="hidden sm:block relative flex-1 max-w-md">
+              <div className="flex items-center bg-muted/50 border border-border/50 rounded-lg px-3 py-2 w-full focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+                <Search className="w-4 h-4 text-muted-foreground mr-2 animate-pulse" />
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setIsDropdownOpen(true)
+                  }}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  placeholder="Search for alumni, jobs, events..." 
+                  className="bg-transparent border-none outline-none text-sm w-full text-foreground placeholder:text-muted-foreground"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline transition-colors px-1"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              
+              {isDropdownOpen && searchQuery && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-xl z-50 max-h-[380px] overflow-y-auto divide-y divide-border/40 scrollbar-none animate-in fade-in slide-in-from-top-1 duration-200">
+                  
+                  {filteredAlumni.length > 0 && (
+                    <div className="p-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5" /> Alumni
+                      </div>
+                      <div className="space-y-0.5 mt-1">
+                        {filteredAlumni.map(alumni => (
+                          <button
+                            key={alumni.id}
+                            onClick={() => {
+                              navigate(`/dashboard/alumni/${alumni.id}`)
+                              setSearchQuery('')
+                              setIsDropdownOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                          >
+                            <span className="font-semibold text-foreground">{alumni.name}</span>
+                            <span className="text-xs text-muted-foreground">{alumni.role} at {alumni.company}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredJobs.length > 0 && (
+                    <div className="p-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
+                        <Briefcase className="w-3.5 h-3.5" /> Jobs
+                      </div>
+                      <div className="space-y-0.5 mt-1">
+                        {filteredJobs.map(job => (
+                          <button
+                            key={job.id}
+                            onClick={() => {
+                              navigate(`/dashboard/jobs/${job.id}`)
+                              setSearchQuery('')
+                              setIsDropdownOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                          >
+                            <span className="font-semibold text-foreground">{job.title}</span>
+                            <span className="text-xs text-muted-foreground">{job.company}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredEvents.length > 0 && (
+                    <div className="p-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" /> Events
+                      </div>
+                      <div className="space-y-0.5 mt-1">
+                        {filteredEvents.map(event => (
+                          <button
+                            key={event.id}
+                            onClick={() => {
+                              navigate(`/dashboard/events`)
+                              setSearchQuery('')
+                              setIsDropdownOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                          >
+                            <span className="font-semibold text-foreground">{event.title}</span>
+                            <span className="text-xs text-muted-foreground">{event.type}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!hasResults && (
+                    <div className="p-6 text-center text-sm text-muted-foreground">
+                      No results found for "{searchQuery}"
+                    </div>
+                  )}
+
+                </div>
+              )}
             </div>
           </div>
 
@@ -76,7 +233,7 @@ const DashboardLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-8 overflow-x-hidden">
+        <main className="flex-1 p-4 sm:p-8">
           <Outlet />
         </main>
       </div>

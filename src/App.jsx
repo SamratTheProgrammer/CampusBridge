@@ -26,6 +26,23 @@ import Settings from './pages/dashboard/Settings'
 import Applications from './pages/dashboard/Applications'
 import Saved from './pages/dashboard/Saved'
 
+// Admin Layout & Pages
+import AdminLayout from './layouts/AdminLayout'
+import AdminLogin from './pages/admin/AdminLogin'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminUserManagement from './pages/admin/AdminUserManagement'
+import AdminVerification from './pages/admin/AdminVerification'
+import AdminMentorship from './pages/admin/AdminMentorship'
+import AdminJobs from './pages/admin/AdminJobs'
+import AdminCompanies from './pages/admin/AdminCompanies'
+import AdminEvents from './pages/admin/AdminEvents'
+import AdminCommunities from './pages/admin/AdminCommunities'
+import AdminAnnouncements from './pages/admin/AdminAnnouncements'
+import AdminAnalytics from './pages/admin/AdminAnalytics'
+import AdminNotifications from './pages/admin/AdminNotifications'
+import AdminSettings from './pages/admin/AdminSettings'
+import AdminActivityLogs from './pages/admin/AdminActivityLogs'
+
 function ScrollToHash() {
   const { hash } = useLocation()
   useEffect(() => {
@@ -78,6 +95,24 @@ function AnimatedRoutes() {
           <Route path="applications" element={<Applications />} />
           <Route path="saved" element={<Saved />} />
           <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Admin Routes */}
+        <Route path="/admin/login" element={<PageTransition><AdminLogin /></PageTransition>} />
+        <Route path="/admin" element={<PageTransition><AdminLayout /></PageTransition>}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<AdminUserManagement />} />
+          <Route path="verification" element={<AdminVerification />} />
+          <Route path="mentorship" element={<AdminMentorship />} />
+          <Route path="jobs" element={<AdminJobs />} />
+          <Route path="companies" element={<AdminCompanies />} />
+          <Route path="events" element={<AdminEvents />} />
+          <Route path="communities" element={<AdminCommunities />} />
+          <Route path="announcements" element={<AdminAnnouncements />} />
+          <Route path="analytics" element={<AdminAnalytics />} />
+          <Route path="notifications" element={<AdminNotifications />} />
+          <Route path="settings" element={<AdminSettings />} />
+          <Route path="logs" element={<AdminActivityLogs />} />
         </Route>
       </Routes>
     </AnimatePresence>
