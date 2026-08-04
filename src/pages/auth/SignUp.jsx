@@ -13,7 +13,11 @@ const SignUp = () => {
     e.preventDefault()
     // Dummy signup logic
     toast.success('Account created successfully!')
-    navigate('/dashboard')
+    if (selectedRole === 'mentor') {
+      navigate('/mentor-dashboard')
+    } else {
+      navigate('/dashboard')
+    }
   }
 
   return (

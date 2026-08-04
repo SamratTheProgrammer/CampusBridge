@@ -26,6 +26,19 @@ import Settings from './pages/dashboard/Settings'
 import Applications from './pages/dashboard/Applications'
 import Saved from './pages/dashboard/Saved'
 
+// Mentor Dashboard Layout & Pages
+import MentorDashboardLayout from './layouts/MentorDashboardLayout'
+import MentorHome from './pages/mentor-dashboard/MentorHome'
+import MyMentees from './pages/mentor-dashboard/MyMentees'
+import MentorRequests from './pages/mentor-dashboard/MentorshipRequests'
+import MentorJobs from './pages/mentor-dashboard/MentorJobs'
+import MentorEvents from './pages/mentor-dashboard/MentorEvents'
+import MentorPosts from './pages/mentor-dashboard/MentorPosts'
+import MentorMessages from './pages/mentor-dashboard/MentorMessages'
+import MentorAnalytics from './pages/mentor-dashboard/MentorAnalytics'
+import MentorProfilePage from './pages/mentor-dashboard/MentorProfilePage'
+import MentorSettings from './pages/mentor-dashboard/MentorSettings'
+
 // Admin Layout & Pages
 import AdminLayout from './layouts/AdminLayout'
 import AdminLogin from './pages/admin/AdminLogin'
@@ -95,6 +108,20 @@ function AnimatedRoutes() {
           <Route path="applications" element={<Applications />} />
           <Route path="saved" element={<Saved />} />
           <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Authenticated Mentor Dashboard Routes */}
+        <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
+          <Route index element={<MentorHome />} />
+          <Route path="profile" element={<MentorProfilePage />} />
+          <Route path="mentees" element={<MyMentees />} />
+          <Route path="requests" element={<MentorRequests />} />
+          <Route path="jobs" element={<MentorJobs />} />
+          <Route path="events" element={<MentorEvents />} />
+          <Route path="posts" element={<MentorPosts />} />
+          <Route path="messages" element={<MentorMessages />} />
+          <Route path="analytics" element={<MentorAnalytics />} />
+          <Route path="settings" element={<MentorSettings />} />
         </Route>
 
         {/* Admin Routes */}

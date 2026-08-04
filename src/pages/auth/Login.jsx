@@ -13,7 +13,11 @@ const Login = () => {
     e.preventDefault()
     // Dummy login logic
     toast.success('Logged in successfully!')
-    navigate('/dashboard')
+    if (selectedRole === 'mentor') {
+      navigate('/mentor-dashboard')
+    } else {
+      navigate('/dashboard')
+    }
   }
 
   return (
