@@ -1,10 +1,20 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, User } from 'lucide-react'
 
 const SignUp = () => {
-  const [selectedRole, setSelectedRole] = useState(null)
+  const location = useLocation()
+  const [selectedRole, setSelectedRole] = React.useState(location.state?.role || null)
+  const navigate = useNavigate()
+
+  const handleSignUp = (e) => {
+    e.preventDefault()
+    // Dummy signup logic
+    toast.success('Account created successfully!')
+    navigate('/dashboard')
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 py-12 overflow-hidden relative">
@@ -40,7 +50,7 @@ const SignUp = () => {
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Already have an account?<br />
-                  <Link to="/login" className="font-semibold text-primary hover:underline mt-1 inline-block">Sign in.</Link>
+                  <Link to="/login" state={{ role: 'mentor' }} className="font-semibold text-primary hover:underline mt-1 inline-block">Sign in.</Link>
                 </div>
               </div>
 
@@ -60,7 +70,7 @@ const SignUp = () => {
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Already have an account?<br />
-                  <Link to="/login" className="font-semibold text-primary hover:underline mt-1 inline-block">Sign in.</Link>
+                  <Link to="/login" state={{ role: 'student' }} className="font-semibold text-primary hover:underline mt-1 inline-block">Sign in.</Link>
                 </div>
               </div>
             </div>
@@ -94,7 +104,7 @@ const SignUp = () => {
               <p className="text-muted-foreground">Join CampusBridge to connect with your community</p>
             </div>
     
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={handleSignUp}>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Full Name</label>
                 <div className="relative">
@@ -103,7 +113,6 @@ const SignUp = () => {
                     type="text" 
                     placeholder="John Doe" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
-                    required
                   />
                 </div>
               </div>
@@ -116,7 +125,6 @@ const SignUp = () => {
                     type="email" 
                     placeholder="name@example.com" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
-                    required
                   />
                 </div>
               </div>
@@ -129,13 +137,12 @@ const SignUp = () => {
                     type="password" 
                     placeholder="••••••••" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
-                    required
                   />
                 </div>
               </div>
     
               <div className="flex items-center gap-2 pt-2">
-                <input type="checkbox" id="terms" className="rounded border-input text-primary focus:ring-primary h-4 w-4" required />
+                <input type="checkbox" id="terms" className="rounded border-input text-primary focus:ring-primary h-4 w-4" />
                 <label htmlFor="terms" className="text-sm text-muted-foreground">
                   I agree to the <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
                 </label>
@@ -172,7 +179,7 @@ const SignUp = () => {
     
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Already have an account?{' '}
-              <Link to="/login" className="font-medium text-primary hover:underline">
+              <Link to="/login" state={{ role: selectedRole }} className="font-medium text-primary hover:underline">
                 Sign in
               </Link>
             </p>

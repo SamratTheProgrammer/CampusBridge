@@ -1,10 +1,20 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, GraduationCap, Building2 } from 'lucide-react'
 
 const Login = () => {
-  const [selectedRole, setSelectedRole] = useState(null) // 'student' | 'mentor' | null
+  const location = useLocation()
+  const [selectedRole, setSelectedRole] = React.useState(location.state?.role || null) // 'student' | 'mentor' | null
+  const navigate = useNavigate()
+
+  const handleLogin = (e) => {
+    e.preventDefault()
+    // Dummy login logic
+    toast.success('Logged in successfully!')
+    navigate('/dashboard')
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 overflow-hidden relative">
@@ -44,7 +54,7 @@ const Login = () => {
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Don't have an account?<br />
-                  <Link to="/signup" className="font-semibold text-primary hover:underline mt-1 inline-block">
+                  <Link to="/signup" state={{ role: 'mentor' }} className="font-semibold text-primary hover:underline mt-1 inline-block">
                     Sign up.
                   </Link>
                 </div>
@@ -70,7 +80,7 @@ const Login = () => {
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Don't have an account?<br />
-                  <Link to="/signup" className="font-semibold text-primary hover:underline mt-1 inline-block">
+                  <Link to="/signup" state={{ role: 'student' }} className="font-semibold text-primary hover:underline mt-1 inline-block">
                     Sign up.
                   </Link>
                 </div>
@@ -111,7 +121,7 @@ const Login = () => {
               <p className="text-muted-foreground">Enter your credentials to access your account</p>
             </div>
 
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={handleLogin}>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Email</label>
                 <div className="relative">
@@ -120,7 +130,6 @@ const Login = () => {
                     type="email" 
                     placeholder="name@example.com" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
-                    required
                   />
                 </div>
               </div>
@@ -138,7 +147,6 @@ const Login = () => {
                     type="password" 
                     placeholder="••••••••" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
-                    required
                   />
                 </div>
               </div>
@@ -174,7 +182,7 @@ const Login = () => {
 
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Don't have an account?{' '}
-              <Link to="/signup" className="font-medium text-primary hover:underline">
+              <Link to="/signup" state={{ role: selectedRole }} className="font-medium text-primary hover:underline">
                 Sign up
               </Link>
             </p>

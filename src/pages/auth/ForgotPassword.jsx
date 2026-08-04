@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Mail, KeyRound } from 'lucide-react'
 
@@ -9,6 +10,7 @@ const ForgotPassword = () => {
   const handleSubmit = (e) => {
     e.preventDefault()
     // Navigate to OTP page for demo purposes
+    toast.success('Password reset instructions sent!')
     navigate('/otp')
   }
 
@@ -38,7 +40,6 @@ const ForgotPassword = () => {
                 type="email" 
                 placeholder="name@example.com" 
                 className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                required
               />
             </div>
           </div>
