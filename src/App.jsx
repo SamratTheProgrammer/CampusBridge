@@ -15,8 +15,8 @@ import { Toaster } from 'react-hot-toast'
 // Dashboard Layout & Pages
 import DashboardLayout from './layouts/DashboardLayout'
 import DashboardHome from './pages/dashboard/DashboardHome'
-import AlumniDirectory from './pages/dashboard/AlumniDirectory'
-import AlumniProfile from './pages/dashboard/AlumniProfile'
+import MentorDirectory from './pages/dashboard/MentorDirectory'
+import MentorProfile from './pages/dashboard/MentorProfile'
 import MentorshipRequests from './pages/dashboard/MentorshipRequests'
 import JobDetails from './pages/dashboard/JobDetails'
 import Events from './pages/dashboard/Events'
@@ -85,8 +85,8 @@ function AnimatedRoutes() {
         {/* Authenticated Dashboard Routes */}
         <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
           <Route index element={<DashboardHome />} />
-          <Route path="alumni" element={<AlumniDirectory />} />
-          <Route path="alumni/:id" element={<AlumniProfile />} />
+          <Route path="mentor" element={<MentorDirectory />} />
+          <Route path="mentor/:id" element={<MentorProfile />} />
           <Route path="mentorship" element={<MentorshipRequests />} />
           <Route path="jobs" element={<Jobs />} />
           <Route path="jobs/:id" element={<JobDetails />} />

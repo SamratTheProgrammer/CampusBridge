@@ -4,7 +4,7 @@ import TrustedBy from '../components/sections/TrustedBy'
 import Statistics from '../components/sections/Statistics'
 import Features from '../components/sections/Features'
 import HowItWorks from '../components/sections/HowItWorks'
-import FeaturedAlumni from '../components/sections/FeaturedAlumni'
+import FeaturedMentor from '../components/sections/FeaturedMentor'
 import MentorSpotlight from '../components/sections/MentorSpotlight'
 import JobOpportunities from '../components/sections/JobOpportunities'
 import Internships from '../components/sections/Internships'
@@ -24,7 +24,7 @@ const LandingPage = () => {
       <Statistics />
       <Features />
       <div id="about"><HowItWorks /></div>
-      <div id="alumni"><FeaturedAlumni /></div>
+      <div id="mentor"><FeaturedMentor /></div>
       <div id="mentorship"><MentorSpotlight /></div>
       <div id="jobs"><JobOpportunities /></div>
       <Internships />

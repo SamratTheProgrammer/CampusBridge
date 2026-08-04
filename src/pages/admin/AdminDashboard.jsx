@@ -17,7 +17,7 @@ import {
 const AdminDashboard = () => {
   const stats = [
     { title: 'Total Students', value: '12,456', trend: '+18.5%', isUp: true, icon: GraduationCap, color: 'text-blue-500 bg-blue-500/10' },
-    { title: 'Total Alumni', value: '8,912', trend: '+12.4%', isUp: true, icon: UserCheck, color: 'text-emerald-500 bg-emerald-500/10' },
+    { title: 'Total Mentor', value: '8,912', trend: '+12.4%', isUp: true, icon: UserCheck, color: 'text-emerald-500 bg-emerald-500/10' },
     { title: 'Active Mentors', value: '2,340', trend: '+8.6%', isUp: true, icon: HelpingHand, color: 'text-purple-500 bg-purple-500/10' },
     { title: 'Job Posts', value: '1,245', trend: '+14.2%', isUp: true, icon: Briefcase, color: 'text-amber-500 bg-amber-500/10' },
     { title: 'Internship Posts', value: '856', trend: '+9.1%', isUp: true, icon: Briefcase, color: 'text-indigo-500 bg-indigo-500/10' },
@@ -28,7 +28,7 @@ const AdminDashboard = () => {
 
   const recentActivity = [
     { id: 1, user: 'Rahul Sharma', action: 'joined as student', time: '2 mins ago', type: 'student' },
-    { id: 2, user: 'Priya Verma', action: 'verified as alumni', time: '15 mins ago', type: 'alumni' },
+    { id: 2, user: 'Priya Verma', action: 'verified as mentor', time: '15 mins ago', type: 'mentor' },
     { id: 3, user: 'TechNova Inc.', action: 'posted a job', time: '28 mins ago', type: 'job' },
     { id: 4, user: 'AI Workshop', action: 'event created', time: '1 hr ago', type: 'event' },
     { id: 5, user: 'Mentorship request', action: 'accepted by Rohan', time: '2 hrs ago', type: 'mentor' },
@@ -140,7 +140,7 @@ const AdminDashboard = () => {
               <circle cx="18" cy="18" r="15.915" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
               {/* Students (58%) */}
               <circle cx="18" cy="18" r="15.915" fill="none" stroke="hsl(var(--primary))" strokeWidth="3" strokeDasharray="58 42" strokeDashoffset="0" />
-              {/* Alumni (31%) */}
+              {/* Mentor (31%) */}
               <circle cx="18" cy="18" r="15.915" fill="none" stroke="currentColor" className="text-emerald-500" strokeWidth="3" strokeDasharray="31 69" strokeDashoffset="-58" />
               {/* Mentors (11%) */}
               <circle cx="18" cy="18" r="15.915" fill="none" stroke="currentColor" className="text-purple-500" strokeWidth="3" strokeDasharray="11 89" strokeDashoffset="-89" />
@@ -163,7 +163,7 @@ const AdminDashboard = () => {
             <div className="flex justify-between items-center text-xs">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-emerald-500 block"></span>
-                <span className="text-muted-foreground font-medium">Alumni</span>
+                <span className="text-muted-foreground font-medium">Mentor</span>
               </div>
               <span className="font-bold text-foreground">6,912 (31.7%)</span>
             </div>

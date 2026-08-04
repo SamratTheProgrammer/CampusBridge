@@ -4,7 +4,7 @@ import Sidebar from '../components/dashboard/Sidebar'
 import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucide-react'
 import { useTheme } from '../components/ThemeProvider'
 
-const MOCK_ALUMNI = [
+const MOCK_MENTOR = [
   { id: 1, name: 'Arjun Mehta', role: 'Software Engineer', company: 'Google' },
   { id: 2, name: 'Sneha Roy', role: 'Data Scientist', company: 'Microsoft' },
   { id: 3, name: 'Rohit Sharma', role: 'Product Manager', company: 'Amazon' },
@@ -22,7 +22,7 @@ const MOCK_JOBS = [
 ]
 
 const MOCK_EVENTS = [
-  { id: 1, title: 'Alumni Mentorship Meet', type: 'Virtual Event' },
+  { id: 1, title: 'Mentor Mentorship Meet', type: 'Virtual Event' },
   { id: 2, title: 'AI/ML Career Path', type: 'Virtual Event' },
   { id: 3, title: 'Web Development Workshop', type: 'Seminar Hall, Block A' }
 ]
@@ -48,10 +48,10 @@ const DashboardLayout = () => {
     }
   }, [])
 
-  const filteredAlumni = MOCK_ALUMNI.filter(alumni => 
-    alumni.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    alumni.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    alumni.company.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMentor = MOCK_MENTOR.filter(mentor => 
+    mentor.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    mentor.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    mentor.company.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const filteredJobs = MOCK_JOBS.filter(job => 
@@ -64,7 +64,7 @@ const DashboardLayout = () => {
     event.type.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const hasResults = filteredAlumni.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
+  const hasResults = filteredMentor.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -108,7 +108,7 @@ const DashboardLayout = () => {
                     setIsDropdownOpen(true)
                   }}
                   onFocus={() => setIsDropdownOpen(true)}
-                  placeholder="Search for alumni, jobs, events..." 
+                  placeholder="Search for mentor, jobs, events..." 
                   className="bg-transparent border-none outline-none text-sm w-full text-foreground placeholder:text-muted-foreground"
                 />
                 {searchQuery && (
@@ -124,24 +124,24 @@ const DashboardLayout = () => {
               {isDropdownOpen && searchQuery && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-xl z-50 max-h-[380px] overflow-y-auto divide-y divide-border/40 scrollbar-none animate-in fade-in slide-in-from-top-1 duration-200">
                   
-                  {filteredAlumni.length > 0 && (
+                  {filteredMentor.length > 0 && (
                     <div className="p-2">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" /> Alumni
+                        <Users className="w-3.5 h-3.5" /> Mentor
                       </div>
                       <div className="space-y-0.5 mt-1">
-                        {filteredAlumni.map(alumni => (
+                        {filteredMentor.map(mentor => (
                           <button
-                            key={alumni.id}
+                            key={mentor.id}
                             onClick={() => {
-                              navigate(`/dashboard/alumni/${alumni.id}`)
+                              navigate(`/dashboard/mentor/${mentor.id}`)
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
                             className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
                           >
-                            <span className="font-semibold text-foreground">{alumni.name}</span>
-                            <span className="text-xs text-muted-foreground">{alumni.role} at {alumni.company}</span>
+                            <span className="font-semibold text-foreground">{mentor.name}</span>
+                            <span className="text-xs text-muted-foreground">{mentor.role} at {mentor.company}</span>
                           </button>
                         ))}
                       </div>

@@ -77,8 +77,8 @@ const AdminVerification = () => {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Alumni Verification</h1>
-        <p className="text-muted-foreground text-sm mt-1">Verify credentials, work profiles, and graduation documentation submitted by alumni.</p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Mentor Verification</h1>
+        <p className="text-muted-foreground text-sm mt-1">Verify credentials, work profiles, and graduation documentation submitted by mentor.</p>
       </div>
 
       {/* Tabs */}
@@ -101,22 +101,22 @@ const AdminVerification = () => {
       {/* List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {currentList.length > 0 ? (
-          currentList.map((alumni) => (
-            <div key={alumni.id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full">
+          currentList.map((mentor) => (
+            <div key={mentor.id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full">
               <div className="flex gap-4">
                 <img 
-                  src={alumni.image} 
-                  alt={alumni.name} 
+                  src={mentor.image} 
+                  alt={mentor.name} 
                   className="w-14 h-14 rounded-full object-cover border border-border/40" 
                 />
                 <div className="space-y-1">
                   <h3 className="font-bold text-foreground flex items-center gap-1.5">
-                    {alumni.name}
-                    {alumni.status === 'Approved' && <ShieldCheck className="w-4.5 h-4.5 text-emerald-500 fill-emerald-500/10" />}
+                    {mentor.name}
+                    {mentor.status === 'Approved' && <ShieldCheck className="w-4.5 h-4.5 text-emerald-500 fill-emerald-500/10" />}
                   </h3>
-                  <p className="text-xs text-muted-foreground">{alumni.email}</p>
+                  <p className="text-xs text-muted-foreground">{mentor.email}</p>
                   <p className="text-xs font-semibold text-foreground bg-muted inline-block px-2.5 py-1 rounded-lg border border-border/50">
-                    {alumni.role} at {alumni.company}
+                    {mentor.role} at {mentor.company}
                   </p>
                 </div>
               </div>
@@ -124,11 +124,11 @@ const AdminVerification = () => {
               <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-border/40 text-xs">
                 <div>
                   <span className="text-muted-foreground block mb-0.5">Graduated</span>
-                  <span className="font-bold text-foreground">{alumni.gradYear}</span>
+                  <span className="font-bold text-foreground">{mentor.gradYear}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block mb-0.5">Experience</span>
-                  <span className="font-bold text-foreground">{alumni.experience}</span>
+                  <span className="font-bold text-foreground">{mentor.experience}</span>
                 </div>
               </div>
 
@@ -137,16 +137,16 @@ const AdminVerification = () => {
                   <FileText className="w-3.5 h-3.5" /> View Profile
                 </button>
 
-                {alumni.status === 'Pending' && (
+                {mentor.status === 'Pending' && (
                   <>
                     <button 
-                      onClick={() => handleAction(alumni.id, 'Approved', alumni.name)}
+                      onClick={() => handleAction(mentor.id, 'Approved', mentor.name)}
                       className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-500/10"
                     >
                       <Check className="w-3.5 h-3.5" /> Approve
                     </button>
                     <button 
-                      onClick={() => handleAction(alumni.id, 'Rejected', alumni.name)}
+                      onClick={() => handleAction(mentor.id, 'Rejected', mentor.name)}
                       className="px-4 py-2 bg-rose-500 text-white hover:bg-rose-600 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-rose-500/10"
                     >
                       <X className="w-3.5 h-3.5" /> Reject

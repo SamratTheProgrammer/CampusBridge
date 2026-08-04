@@ -2,8 +2,8 @@ import React from 'react'
 import { Search, Filter, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-const AlumniDirectory = () => {
-  const alumniList = [
+const MentorDirectory = () => {
+  const mentorList = [
     {
       id: 1,
       name: 'Arjun Mehta',
@@ -55,8 +55,8 @@ const AlumniDirectory = () => {
     <div className="max-w-5xl mx-auto space-y-8 pb-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Alumni Directory</h1>
-        <p className="text-muted-foreground">Find and connect with alumni from your college.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Mentor Directory</h1>
+        <p className="text-muted-foreground">Find and connect with mentor from your college.</p>
       </div>
 
       {/* Filters and Search */}
@@ -90,18 +90,18 @@ const AlumniDirectory = () => {
 
       {/* Directory List */}
       <div className="space-y-4">
-        {alumniList.map(alumni => (
-          <div key={alumni.id} className="bg-card border border-border/50 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:shadow-md transition-shadow">
+        {mentorList.map(mentor => (
+          <div key={mentor.id} className="bg-card border border-border/50 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:shadow-md transition-shadow">
             <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-              <img src={alumni.image} alt={alumni.name} className="w-16 h-16 rounded-full object-cover shrink-0" />
+              <img src={mentor.image} alt={mentor.name} className="w-16 h-16 rounded-full object-cover shrink-0" />
               <div>
-                <h3 className="text-lg font-bold text-foreground">{alumni.name}</h3>
-                <p className="text-sm font-medium text-foreground">{alumni.role} at {alumni.company}</p>
+                <h3 className="text-lg font-bold text-foreground">{mentor.name}</h3>
+                <p className="text-sm font-medium text-foreground">{mentor.role} at {mentor.company}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                  <MapPin className="w-3.5 h-3.5" /> {alumni.location}
+                  <MapPin className="w-3.5 h-3.5" /> {mentor.location}
                 </p>
                 <div className="flex flex-wrap gap-2 mt-3">
-                  {alumni.tags.map(tag => (
+                  {mentor.tags.map(tag => (
                     <span key={tag} className="bg-muted text-muted-foreground px-2.5 py-1 rounded-md text-[10px] font-medium border border-border/50">
                       {tag}
                     </span>
@@ -110,7 +110,7 @@ const AlumniDirectory = () => {
               </div>
             </div>
             <Link 
-              to={`/dashboard/alumni/${alumni.id}`}
+              to={`/dashboard/mentor/${mentor.id}`}
               className="text-primary font-medium text-sm border border-border/50 hover:border-primary/50 bg-background hover:bg-primary/5 px-6 py-2.5 rounded-xl transition-all text-center shrink-0"
             >
               View Profile
@@ -137,4 +137,4 @@ const AlumniDirectory = () => {
   )
 }
 
-export default AlumniDirectory
+export default MentorDirectory

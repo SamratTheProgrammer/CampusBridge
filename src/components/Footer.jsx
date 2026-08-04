@@ -20,7 +20,7 @@ const Footer = () => {
               <img src={logoDark} alt="CampusBridge" className="h-12 md:h-24 w-auto hidden dark:block" />
             </Link>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              Empowering students and alumni to connect, grow, and build successful careers together.
+              Empowering students and mentor to connect, grow, and build successful careers together.
             </p>
             <div className="flex items-center gap-4 text-muted-foreground">
               {/* GitHub */}

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, GraduationCap, Building2 } from 'lucide-react'
 
 const Login = () => {
-  const [selectedRole, setSelectedRole] = useState(null) // 'student' | 'alumni' | null
+  const [selectedRole, setSelectedRole] = useState(null) // 'student' | 'mentor' | null
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 overflow-hidden relative">
@@ -27,17 +27,17 @@ const Login = () => {
               {/* Vertical divider on desktop */}
               <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-border/50 -translate-x-1/2"></div>
               
-              {/* Alumni Side */}
+              {/* Mentor Side */}
               <div className="flex-1 flex flex-col items-center text-center px-6 md:px-16 py-6 md:py-4">
                 <div className="text-[10px] uppercase tracking-widest font-bold bg-primary/10 text-primary px-3 py-1 rounded-full mb-4">
-                  ALUMNI
+                  MENTOR
                 </div>
-                <h2 className="text-3xl font-bold mb-4 text-foreground tracking-tight">For <span className="italic">Alumni</span></h2>
+                <h2 className="text-3xl font-bold mb-4 text-foreground tracking-tight">For <span className="italic">Mentor</span></h2>
                 <p className="text-base text-muted-foreground mb-8 max-w-sm leading-relaxed">
                   Give back to your alma mater, mentor upcoming talent, and network with other professionals.
                 </p>
                 <button 
-                  onClick={() => setSelectedRole('alumni')}
+                  onClick={() => setSelectedRole('mentor')}
                   className="px-8 py-3 w-full max-w-[240px] bg-primary text-primary-foreground text-base font-medium rounded-lg hover:bg-primary/90 transition-all shadow-md shadow-primary/25 hover:-translate-y-0.5"
                 >
                   Login
@@ -58,7 +58,7 @@ const Login = () => {
                 <div className="text-[10px] uppercase tracking-widest font-bold bg-primary/10 text-primary px-3 py-1 rounded-full mb-4">
                   STUDENTS
                 </div>
-                <h2 className="text-3xl font-bold mb-4 text-foreground tracking-tight">For <span className="italic">Students</span></h2>
+                <h2 className="text-3xl font-bold mb-4 text-foreground tracking-tight">For <span className="italic">Students and Alumni</span></h2>
                 <p className="text-base text-muted-foreground mb-8 max-w-sm leading-relaxed">
                   Join the community, connect with mentors, discover job opportunities, and accelerate your career.
                 </p>
@@ -106,7 +106,7 @@ const Login = () => {
                 {selectedRole === 'student' ? <GraduationCap className="w-8 h-8 text-primary" /> : <Building2 className="w-8 h-8 text-primary" />}
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-                Welcome Back, {selectedRole === 'student' ? 'Student' : 'Alumni'}
+                Welcome Back, {selectedRole === 'student' ? 'Student & Alumni' : 'Mentor'}
               </h1>
               <p className="text-muted-foreground">Enter your credentials to access your account</p>
             </div>

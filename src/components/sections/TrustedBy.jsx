@@ -15,7 +15,7 @@ const TrustedBy = () => {
     <section className="py-12 border-y bg-muted/30">
       <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12 text-center">
         <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-8">
-          Trusted by alumni working at top companies
+          Trusted by mentor working at top companies
         </p>
         <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-8 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
           {companies.map((company) => (

@@ -17,13 +17,13 @@ const stories = [
     image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=256&q=80',
     quote: "Finding a mentor who actually understood the design industry was tough. Through this platform, I found someone who helped me revamp my portfolio entirely.",
     before: 'Self-taught Designer',
-    after: 'Mentored by Alumni'
+    after: 'Mentored by Mentor'
   },
   {
     name: 'Ahmad Rahman',
     role: 'Data Analyst @ Amazon',
     image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=256&q=80',
-    quote: "The job board here is incredible. These aren't just regular postings; they are roles shared by alumni who want to hire from their alma mater. It gave me a huge advantage.",
+    quote: "The job board here is incredible. These aren't just regular postings; they are roles shared by mentor who want to hire from their alma mater. It gave me a huge advantage.",
     before: 'Recent Grad',
     after: 'Fast-tracked Career'
   }

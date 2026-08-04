@@ -35,7 +35,7 @@ const Settings = () => {
               ></div>
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              Complete your profile to stand out to recruiters and alumni mentors.
+              Complete your profile to stand out to recruiters and mentor mentors.
             </p>
           </div>
           <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm shrink-0 flex items-center gap-2">

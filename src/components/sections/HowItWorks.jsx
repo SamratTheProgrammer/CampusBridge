@@ -5,7 +5,7 @@ import { UserPlus, FileText, Search, UserCheck, MessageCircle, TrendingUp } from
 const steps = [
   { icon: UserPlus, title: 'Create Account', description: 'Sign up in seconds using your university email.' },
   { icon: FileText, title: 'Complete Profile', description: 'Add your skills, interests, and current academic status.' },
-  { icon: Search, title: 'Find Alumni', description: 'Search for alumni working in your dream roles or companies.' },
+  { icon: Search, title: 'Find Mentor', description: 'Search for mentor working in your dream roles or companies.' },
   { icon: UserCheck, title: 'Request Mentorship', description: 'Send a personalized request for career guidance.' },
   { icon: MessageCircle, title: 'Chat & Connect', description: 'Have 1-on-1 conversations and get your resume reviewed.' },
   { icon: TrendingUp, title: 'Grow Career', description: 'Land internships, jobs, and build a lasting network.' },

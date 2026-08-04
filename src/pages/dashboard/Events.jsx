@@ -6,7 +6,7 @@ const Events = () => {
   const eventsList = [
     {
       id: 1,
-      title: 'Alumni Mentorship Meet',
+      title: 'Mentor Mentorship Meet',
       date: '10 May 2024',
       time: '6:00 PM',
       location: 'Virtual Event',
