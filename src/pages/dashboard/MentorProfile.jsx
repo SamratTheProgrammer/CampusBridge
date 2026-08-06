@@ -1,7 +1,11 @@
 import React from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
 
 const MentorProfile = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+
   return (
     <div className="max-w-5xl mx-auto pb-8">
       {/* Cover & Header Section */}
@@ -40,11 +44,17 @@ const MentorProfile = () => {
           </div>
           
           <div className="flex items-center gap-3">
-            <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm">
+            <button 
+              onClick={() => navigate(`/dashboard/mentor/${id || 1}/book`)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
+            >
+              <Calendar className="w-4 h-4" /> Book Session
+            </button>
+            <button className="bg-background border border-border/50 text-foreground hover:bg-muted px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm hidden sm:flex">
               <UserPlus className="w-4 h-4" /> Connect
             </button>
-            <button className="bg-background border border-border/50 text-foreground hover:bg-muted px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm">
-              <MessageSquare className="w-4 h-4" /> Message
+            <button className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm">
+              <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
             </button>
           </div>
         </div>

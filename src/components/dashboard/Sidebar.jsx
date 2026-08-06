@@ -22,7 +22,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'Mentor Directory', path: '/dashboard/mentor', icon: Users },
-    { name: 'Mentorship', path: '/dashboard/mentorship', icon: BookOpen },
+    { name: 'My Sessions', path: '/dashboard/sessions', icon: BookOpen },
     { name: 'Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase },
     { name: 'Events', path: '/dashboard/events', icon: Calendar },
     { name: 'Messages', path: '/dashboard/messages', icon: MessageSquare, badge: 5 },
