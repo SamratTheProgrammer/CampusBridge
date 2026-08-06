@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, GraduationCap, Building2 } from 'lucide-react'
 
 const Login = () => {
-  const [selectedRole, setSelectedRole] = useState(null) // 'student' | 'alumni' | null
+  const location = useLocation()
+  const [selectedRole, setSelectedRole] = useState(location.state?.role || null) // 'student' | 'alumni' | null
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 overflow-hidden relative">
@@ -44,7 +45,7 @@ const Login = () => {
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Don't have an account?<br />
-                  <Link to="/signup" className="font-semibold text-primary hover:underline mt-1 inline-block">
+                  <Link to="/signup" state={{ role: 'alumni' }} className="font-semibold text-primary hover:underline mt-1 inline-block">
                     Sign up.
                   </Link>
                 </div>
@@ -70,7 +71,7 @@ const Login = () => {
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Don't have an account?<br />
-                  <Link to="/signup" className="font-semibold text-primary hover:underline mt-1 inline-block">
+                  <Link to="/signup" state={{ role: 'student' }} className="font-semibold text-primary hover:underline mt-1 inline-block">
                     Sign up.
                   </Link>
                 </div>
@@ -174,7 +175,7 @@ const Login = () => {
 
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Don't have an account?{' '}
-              <Link to="/signup" className="font-medium text-primary hover:underline">
+              <Link to="/signup" state={{ role: selectedRole }} className="font-medium text-primary hover:underline">
                 Sign up
               </Link>
             </p>

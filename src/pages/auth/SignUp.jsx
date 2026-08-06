@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Mail, Lock, User } from 'lucide-react'
+import { ArrowLeft, Mail, Lock, User, AtSign } from 'lucide-react'
 
 const SignUp = () => {
-  const [selectedRole, setSelectedRole] = useState(null)
+  const location = useLocation()
+  const [selectedRole, setSelectedRole] = useState(location.state?.role || null)
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 py-12 overflow-hidden relative">
@@ -40,7 +41,7 @@ const SignUp = () => {
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Already have an account?<br />
-                  <Link to="/login" className="font-semibold text-primary hover:underline mt-1 inline-block">Sign in.</Link>
+                  <Link to="/login" state={{ role: 'alumni' }} className="font-semibold text-primary hover:underline mt-1 inline-block">Sign in.</Link>
                 </div>
               </div>
 
@@ -60,7 +61,7 @@ const SignUp = () => {
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Already have an account?<br />
-                  <Link to="/login" className="font-semibold text-primary hover:underline mt-1 inline-block">Sign in.</Link>
+                  <Link to="/login" state={{ role: 'student' }} className="font-semibold text-primary hover:underline mt-1 inline-block">Sign in.</Link>
                 </div>
               </div>
             </div>
@@ -102,6 +103,19 @@ const SignUp = () => {
                   <input 
                     type="text" 
                     placeholder="John Doe" 
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Username</label>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                  <input 
+                    type="text" 
+                    placeholder="johndoe123" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
                     required
                   />
@@ -172,7 +186,7 @@ const SignUp = () => {
     
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Already have an account?{' '}
-              <Link to="/login" className="font-medium text-primary hover:underline">
+              <Link to="/login" state={{ role: selectedRole }} className="font-medium text-primary hover:underline">
                 Sign in
               </Link>
             </p>

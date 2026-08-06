@@ -39,8 +39,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
             <img src={logoIcon} alt="CampusBridge" className="w-10 h-10 object-contain shrink-0 mx-auto" />
           ) : (
             <>
-              <img src={logoLight} alt="CampusBridge" className="h-20 w-auto block dark:hidden" />
-              <img src={logoDark} alt="CampusBridge" className="h-20 w-auto hidden dark:block" />
+              <img src={logoLight} alt="CampusBridge" className="h-12 w-auto block dark:hidden" />
+              <img src={logoDark} alt="CampusBridge" className="h-12 w-auto hidden dark:block" />
             </>
           )}
         </Link>

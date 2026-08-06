@@ -103,8 +103,8 @@ const Navbar = () => {
             {/* Logo */}
             <div className="flex items-center gap-2">
               <Link to="/" className="flex items-center">
-                <img src={logoLight} alt="CampusBridge" className="h-24 md:h-24 w-auto block dark:hidden" />
-                <img src={logoDark} alt="CampusBridge" className="h-24 md:h-24 w-auto hidden dark:block" />
+                <img src={logoLight} alt="CampusBridge" className="h-12 md:h-12 w-auto block dark:hidden" />
+                <img src={logoDark} alt="CampusBridge" className="h-12 md:h-12 w-auto hidden dark:block" />
               </Link>
             </div>
 
