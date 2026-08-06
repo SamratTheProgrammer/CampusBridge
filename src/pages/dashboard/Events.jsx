@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
+import CreateEventModal from '../../components/dashboard/CreateEventModal'
 
 const Events = () => {
   const [activeTab, setActiveTab] = useState('upcoming')
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false)
 
   const eventsList = [
     {
@@ -35,9 +37,17 @@ const Events = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Events</h1>
-        <p className="text-muted-foreground">Discover and register for upcoming events.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Events</h1>
+          <p className="text-muted-foreground">Discover and register for upcoming events.</p>
+        </div>
+        <button 
+          onClick={() => setIsEventModalOpen(true)}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm shrink-0"
+        >
+          + Create new event
+        </button>
       </div>
 
       <div className="flex items-center gap-6 border-b border-border/40">
@@ -93,6 +103,7 @@ const Events = () => {
           </div>
         )}
       </div>
+      <CreateEventModal isOpen={isEventModalOpen} onClose={() => setIsEventModalOpen(false)} />
     </div>
   )
 }

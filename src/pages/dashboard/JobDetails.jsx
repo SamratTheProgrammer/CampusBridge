@@ -1,8 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Bookmark, Share2 } from 'lucide-react'
+import JobApplicationModal from '../../components/dashboard/JobApplicationModal'
 
 const JobDetails = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const jobTitle = "Frontend Developer"
+  const company = "Microsoft"
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-8">
       {/* Top Nav */}
@@ -39,7 +43,10 @@ const JobDetails = () => {
 
         <div className="flex items-center justify-between mb-8 pb-8 border-b border-border/40">
           <p className="text-xs text-muted-foreground">Posted on 2 May 2024</p>
-          <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-2.5 rounded-xl font-medium transition-colors shadow-sm">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-2.5 rounded-xl font-medium transition-colors shadow-sm"
+          >
             Apply Now
           </button>
         </div>
@@ -77,6 +84,13 @@ const JobDetails = () => {
           </section>
         </div>
       </div>
+
+      <JobApplicationModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        jobTitle={jobTitle}
+        company={company}
+      />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('basic')
@@ -38,7 +39,7 @@ const Settings = () => {
               Complete your profile to stand out to recruiters and mentor mentors.
             </p>
           </div>
-          <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm shrink-0 flex items-center gap-2">
+          <button onClick={() => toast.success('Profile updated successfully!')} className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm shrink-0 flex items-center gap-2">
             <Save className="w-4 h-4" /> Save All Changes
           </button>
         </div>
@@ -82,9 +83,19 @@ const Settings = () => {
                   alt="Profile" 
                   className="w-20 h-20 rounded-full object-cover border border-border/50"
                 />
-                <button className="bg-muted text-foreground hover:bg-muted/80 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50">
+                <label className="bg-muted text-foreground hover:bg-muted/80 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50 cursor-pointer">
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        toast.success('Photo updated successfully!')
+                      }
+                    }} 
+                  />
                   Change Photo
-                </button>
+                </label>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -121,11 +132,11 @@ const Settings = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <h2 className="text-xl font-bold text-foreground">Experience</h2>
-                <button className="text-primary text-sm font-medium hover:underline">+ Add Experience</button>
+                <button onClick={() => toast.success('Add experience form opened!')} className="text-primary text-sm font-medium hover:underline">+ Add Experience</button>
               </div>
               
               <div className="border border-border/50 rounded-xl p-5 bg-muted/10 relative group">
-                <button className="absolute top-4 right-4 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">Edit</button>
+                <button onClick={() => toast.success('Edit experience form opened!')} className="absolute top-4 right-4 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">Edit</button>
                 <h3 className="font-bold text-foreground">Web Developer Intern</h3>
                 <p className="text-sm text-muted-foreground mb-3">Tech Solutions Inc. • Jun 2023 - Aug 2023</p>
                 <ul className="list-disc pl-5 text-sm text-foreground/80 space-y-1">
@@ -142,18 +153,18 @@ const Settings = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <h2 className="text-xl font-bold text-foreground">Education</h2>
-                <button className="text-primary text-sm font-medium hover:underline">+ Add Education</button>
+                <button onClick={() => toast.success('Add education form opened!')} className="text-primary text-sm font-medium hover:underline">+ Add Education</button>
               </div>
               
               <div className="border border-border/50 rounded-xl p-5 bg-muted/10 relative group">
-                <button className="absolute top-4 right-4 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">Edit</button>
+                <button onClick={() => toast.success('Edit education form opened!')} className="absolute top-4 right-4 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">Edit</button>
                 <h3 className="font-bold text-foreground">Master of Computer Applications (MCA)</h3>
                 <p className="text-sm text-muted-foreground mb-1">National Institute of Technology • 2022 - 2024</p>
                 <p className="text-sm font-medium text-foreground">CGPA: 8.5/10</p>
               </div>
 
               <div className="border border-border/50 rounded-xl p-5 bg-muted/10 relative group">
-                <button className="absolute top-4 right-4 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">Edit</button>
+                <button onClick={() => toast.success('Edit education form opened!')} className="absolute top-4 right-4 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">Edit</button>
                 <h3 className="font-bold text-foreground">Bachelor of Computer Applications (BCA)</h3>
                 <p className="text-sm text-muted-foreground mb-1">State University • 2019 - 2022</p>
                 <p className="text-sm font-medium text-foreground">CGPA: 8.2/10</p>
@@ -171,7 +182,7 @@ const Settings = () => {
                   <label className="text-sm font-medium text-foreground">Add a new skill</label>
                   <div className="flex gap-2">
                     <input type="text" placeholder="e.g. React, Python, Data Analysis" className="flex-1 bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
-                    <button className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors">Add</button>
+                    <button onClick={() => toast.success('Skill added successfully!')} className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors">Add</button>
                   </div>
                 </div>
 
@@ -181,7 +192,7 @@ const Settings = () => {
                     {['JavaScript', 'React.js', 'Node.js', 'Tailwind CSS', 'MongoDB', 'Git', 'Java', 'C++'].map(skill => (
                       <span key={skill} className="bg-muted border border-border/50 px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 text-foreground group">
                         {skill}
-                        <button className="text-muted-foreground hover:text-destructive group-hover:opacity-100 opacity-50 transition-all">&times;</button>
+                        <button onClick={() => toast.success('Skill removed!')} className="text-muted-foreground hover:text-destructive group-hover:opacity-100 opacity-50 transition-all">&times;</button>
                       </span>
                     ))}
                   </div>
@@ -213,24 +224,34 @@ const Settings = () => {
                   </p>
                   
                   <div className="flex flex-wrap gap-3">
-                    <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+                    <button onClick={() => toast.success('AI Resume Generator started!')} className="bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
                       <FileText className="w-4 h-4" /> Generate New Resume
                     </button>
-                    <button className="bg-background text-foreground border border-border/50 hover:bg-muted px-5 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+                    <button onClick={() => toast.success('Enhancing existing resume...')} className="bg-background text-foreground border border-border/50 hover:bg-muted px-5 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-primary" /> Enhance Existing
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div className="border-2 border-dashed border-border/50 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer mt-6">
+              <label className="block border-2 border-dashed border-border/50 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer mt-6">
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept=".pdf,.doc,.docx" 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      toast.success(`Uploaded ${e.target.files[0].name} successfully!`)
+                    }
+                  }} 
+                />
                 <Upload className="w-10 h-10 text-muted-foreground mb-4" />
                 <h3 className="font-bold text-foreground mb-1">Upload a Custom Resume</h3>
                 <p className="text-sm text-muted-foreground mb-4">Drag and drop your PDF here, or click to browse files.</p>
-                <button className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2 rounded-xl text-sm font-medium transition-colors">
+                <div className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2 rounded-xl text-sm font-medium transition-colors">
                   Browse Files
-                </button>
-              </div>
+                </div>
+              </label>
 
               <div className="mt-8 space-y-3">
                 <h4 className="text-sm font-bold text-foreground">Your Documents</h4>
@@ -245,8 +266,8 @@ const Settings = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button className="text-xs font-medium text-primary hover:underline px-2">Download</button>
-                    <button className="text-xs font-medium text-destructive hover:underline px-2">Delete</button>
+                    <button onClick={() => toast.success('Downloading resume...')} className="text-xs font-medium text-primary hover:underline px-2">Download</button>
+                    <button onClick={() => toast.success('Resume deleted!')} className="text-xs font-medium text-destructive hover:underline px-2">Delete</button>
                   </div>
                 </div>
                 
@@ -265,8 +286,8 @@ const Settings = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button className="text-xs font-medium text-primary hover:underline px-2">View</button>
-                    <button className="text-xs font-medium text-destructive hover:underline px-2">Delete</button>
+                    <button onClick={() => toast.success('Viewing AI generated resume...')} className="text-xs font-medium text-primary hover:underline px-2">View</button>
+                    <button onClick={() => toast.success('AI resume deleted!')} className="text-xs font-medium text-destructive hover:underline px-2">Delete</button>
                   </div>
                 </div>
               </div>
