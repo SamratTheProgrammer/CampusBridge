@@ -21,25 +21,25 @@ const Messages = () => {
 
   return (
     <div className="max-w-6xl mx-auto h-[calc(100vh-8rem)] flex bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
-      
+
       {/* Left Sidebar (Contacts) */}
       <div className="w-full sm:w-80 border-r border-border/40 flex flex-col h-full bg-card shrink-0">
         <div className="p-4 border-b border-border/40">
           <h2 className="text-xl font-bold text-foreground mb-4">Messages</h2>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search messages..."
               className="w-full pl-9 pr-4 py-2 bg-muted/50 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm text-foreground placeholder:text-muted-foreground"
             />
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           {contacts.map(contact => (
-            <div 
-              key={contact.id} 
+            <div
+              key={contact.id}
               className={`flex items-center gap-3 p-4 cursor-pointer transition-colors border-b border-border/40 last:border-b-0
                 ${contact.active ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/50 border-l-2 border-l-transparent'}`}
             >
@@ -92,8 +92,8 @@ const Messages = () => {
             <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[70%] ${msg.isMe ? 'order-1' : 'order-2'}`}>
                 <div className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm
-                  ${msg.isMe 
-                    ? 'bg-primary text-primary-foreground rounded-br-none' 
+                  ${msg.isMe
+                    ? 'bg-primary text-primary-foreground rounded-br-none'
                     : 'bg-card border border-border/40 text-foreground rounded-bl-none'}`}
                 >
                   {msg.text}
@@ -111,8 +111,8 @@ const Messages = () => {
           <div className="flex items-center gap-2">
             <button className="text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted transition-colors"><Paperclip className="w-5 h-5" /></button>
             <div className="flex-1 relative">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Type a message..."
                 className="w-full bg-muted/50 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all"
               />
