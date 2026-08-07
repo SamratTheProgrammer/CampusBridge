@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import userRoutes from './routes/userRoutes.js';
+import webhookRoutes from './routes/webhookRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 
 // Load env vars from the parent directory's .env file
 dotenv.config({ path: '../.env' });
@@ -12,10 +14,15 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
+
+// Mount webhook routes before express.json() so it can access the raw body
+app.use('/api/webhooks', webhookRoutes);
+
 app.use(express.json());
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {
