@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Linkedin, Github, Instagram, Facebook, Twitter, Globe } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -29,6 +29,7 @@ const MyProfile = () => {
 
   // Image crop states
   const [cropModalData, setCropModalData] = useState(null) // { src, type: 'dp' | 'cover' }
+  const [viewingImage, setViewingImage] = useState(null) // URL of image to view fullscreen
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -287,7 +288,8 @@ const MyProfile = () => {
           <img 
             src={coverPhotoUrl} 
             alt="Cover" 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover cursor-pointer"
+            onClick={() => setViewingImage(coverPhotoUrl)}
           />
           <input type="file" ref={coverPhotoInputRef} onChange={handleCoverPhotoSelect} accept="image/*" className="hidden" />
           <button 
@@ -306,7 +308,8 @@ const MyProfile = () => {
               <img 
                 src={profilePhotoUrl} 
                 alt="Profile" 
-                className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md"
+                className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md cursor-pointer"
+                onClick={() => setViewingImage(profilePhotoUrl)}
               />
               <input type="file" ref={profilePicInputRef} onChange={handleProfilePicSelect} accept="image/*" className="hidden" />
               <button 
@@ -328,12 +331,26 @@ const MyProfile = () => {
           </div>
           
           <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40">
-            <a href="#" className="flex items-center gap-2 bg-muted/50 hover:bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50">
-              <Briefcase className="w-4 h-4 text-[#0A66C2]" /> LinkedIn
-            </a>
-            <a href="#" className="flex items-center gap-2 bg-muted/50 hover:bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50">
-              <Code className="w-4 h-4" /> GitHub
-            </a>
+            {(dbUser?.socialLinks?.length > 0 || user?.unsafeMetadata?.socialLinks?.length > 0) ? (
+              (dbUser?.socialLinks || user?.unsafeMetadata?.socialLinks).map((link, i) => {
+                let Icon = Globe;
+                let colorClass = 'text-foreground';
+                if (link.platform === 'LinkedIn') { Icon = Linkedin; colorClass = 'text-[#0A66C2]'; }
+                if (link.platform === 'GitHub') { Icon = Github; }
+                if (link.platform === 'Instagram') { Icon = Instagram; colorClass = 'text-[#E1306C]'; }
+                if (link.platform === 'Facebook') { Icon = Facebook; colorClass = 'text-[#1877F2]'; }
+                if (link.platform === 'Twitter') { Icon = Twitter; colorClass = 'text-[#1DA1F2]'; }
+
+                return (
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-muted/50 hover:bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50 group">
+                    <Icon className={`w-4 h-4 ${colorClass} group-hover:scale-110 transition-transform`} /> 
+                    {link.platform}
+                  </a>
+                )
+              })
+            ) : (
+              <span className="text-xs text-muted-foreground italic">No social links added yet.</span>
+            )}
           </div>
         </div>
       </div>
@@ -566,6 +583,32 @@ const MyProfile = () => {
         </div>
       </div>
       
+      {/* Lightbox / Image Viewer */}
+      <AnimatePresence>
+        {viewingImage && (
+          <div 
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm cursor-zoom-out"
+            onClick={() => setViewingImage(null)}
+          >
+            <button 
+              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
+              onClick={() => setViewingImage(null)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <motion.img 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              src={viewingImage} 
+              alt="Full view" 
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Render Image Crop Modal if active */}
       <AnimatePresence>
         {cropModalData && (

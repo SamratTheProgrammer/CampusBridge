@@ -15,6 +15,9 @@ const Settings = () => {
   const [headline, setHeadline] = useState('')
   const [location, setLocation] = useState('')
   const [aboutMe, setAboutMe] = useState('')
+  const [socialLinks, setSocialLinks] = useState([])
+  const [showSocialForm, setShowSocialForm] = useState(false)
+  const [newSocial, setNewSocial] = useState({ platform: 'LinkedIn', url: '' })
   const [resumeUrl, setResumeUrl] = useState('')
   const [experience, setExperience] = useState([])
   const [education, setEducation] = useState([])
@@ -40,6 +43,7 @@ const Settings = () => {
       setHeadline(user.unsafeMetadata?.headline || '')
       setLocation(user.unsafeMetadata?.location || '')
       setAboutMe(user.unsafeMetadata?.aboutMe || '')
+      setSocialLinks(user.unsafeMetadata?.socialLinks || [])
       setResumeUrl(user.unsafeMetadata?.resumeUrl || '')
       setExperience(user.unsafeMetadata?.experience || [])
       setEducation(user.unsafeMetadata?.education || [])
@@ -56,6 +60,7 @@ const Settings = () => {
             setHeadline(data.headline || user.unsafeMetadata?.headline || '');
             setLocation(data.location || user.unsafeMetadata?.location || '');
             setAboutMe(data.aboutMe || user.unsafeMetadata?.aboutMe || '');
+            setSocialLinks(data.socialLinks?.length ? data.socialLinks : (user.unsafeMetadata?.socialLinks || []));
             setResumeUrl(data.resumeUrl || user.unsafeMetadata?.resumeUrl || '');
             setExperience(data.experience?.length ? data.experience : (user.unsafeMetadata?.experience || []));
             setEducation(data.education?.length ? data.education : (user.unsafeMetadata?.education || []));
@@ -104,6 +109,7 @@ const Settings = () => {
           headline,
           location,
           aboutMe,
+          socialLinks,
           resumeUrl,
           experience,
           education,
@@ -121,6 +127,7 @@ const Settings = () => {
           headline,
           location,
           aboutMe,
+          socialLinks,
           resumeUrl,
           experience,
           education,
@@ -358,6 +365,75 @@ const Settings = () => {
                   <label className="text-sm font-medium text-foreground">Location</label>
                   <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kolkata, India" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
+                <div className="space-y-4 sm:col-span-2 mt-4 pt-4 border-t border-border/40">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground">Social Media Links</label>
+                    <button 
+                      onClick={() => setShowSocialForm(!showSocialForm)} 
+                      className="text-primary text-sm font-medium hover:underline"
+                    >
+                      {showSocialForm ? 'Cancel' : '+ Add Link'}
+                    </button>
+                  </div>
+                  
+                  {showSocialForm && (
+                    <div className="bg-muted/10 border border-border/50 rounded-xl p-4 space-y-4">
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <select 
+                          value={newSocial.platform}
+                          onChange={(e) => setNewSocial({...newSocial, platform: e.target.value})}
+                          className="w-full sm:w-1/3 bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="LinkedIn">LinkedIn</option>
+                          <option value="GitHub">GitHub</option>
+                          <option value="Instagram">Instagram</option>
+                          <option value="Facebook">Facebook</option>
+                          <option value="Twitter">Twitter/X</option>
+                          <option value="Portfolio">Portfolio/Website</option>
+                        </select>
+                        <input 
+                          type="url" 
+                          placeholder="Paste URL here..." 
+                          value={newSocial.url}
+                          onChange={(e) => setNewSocial({...newSocial, url: e.target.value})}
+                          className="w-full sm:w-2/3 bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => {
+                          if (newSocial.url) {
+                            setSocialLinks([...socialLinks, newSocial])
+                            setNewSocial({ platform: 'LinkedIn', url: '' })
+                            setShowSocialForm(false)
+                          }
+                        }}
+                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                      >
+                        Add Link
+                      </button>
+                    </div>
+                  )}
+
+                  {socialLinks.length > 0 ? (
+                    <div className="flex flex-wrap gap-3">
+                      {socialLinks.map((link, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-muted/50 border border-border/50 rounded-lg px-3 py-1.5 group">
+                          <span className="text-xs font-semibold text-foreground/80">{link.platform}:</span>
+                          <span className="text-xs text-primary max-w-[150px] truncate">{link.url}</span>
+                          <button 
+                            onClick={() => setSocialLinks(socialLinks.filter((_, idx) => idx !== i))}
+                            className="ml-2 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    !showSocialForm && <p className="text-sm text-muted-foreground italic">No social links added yet.</p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Contact Email</label>
                   <input type="email" disabled value={user?.primaryEmailAddress?.emailAddress || ''} className="w-full bg-muted/50 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none text-sm text-foreground transition-all cursor-not-allowed" />

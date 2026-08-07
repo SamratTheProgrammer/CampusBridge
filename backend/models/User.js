@@ -45,6 +45,10 @@ const userSchema = new mongoose.Schema({
   resumeUrl: {
     type: String,
   },
+  socialLinks: [{
+    platform: String,
+    url: String
+  }],
   experience: [{
     title: String,
     company: String,
