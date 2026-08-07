@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useUser } from '@clerk/clerk-react'
+import toast from 'react-hot-toast'
 import { 
   Users, 
-  BookOpen, 
+  FileText, 
   Calendar, 
   MessageSquare,
   Image as ImageIcon,
@@ -14,38 +16,21 @@ import {
   MessageCircle,
   Share2,
   MoreHorizontal,
-  Check,
+  Loader2,
   X,
-  FileText
+  Palette,
+  Send,
+  Edit3,
+  Trash2,
+  Check,
+  BookOpen
 } from 'lucide-react'
 
 const MentorHome = () => {
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      author: {
-        name: 'Rohit Sharma',
-        role: 'Senior Software Engineer at Amazon',
-        image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-      },
-      time: '2 hours ago',
-      content: 'Just published a new guide on cracking system design interviews. Happy to review resumes of any of my mentees preparing for SDE roles this season! Let me know in the comments below. 👇',
-      likes: 124,
-      comments: 18,
-    },
-    {
-      id: 2,
-      author: {
-        name: 'Priya Singh',
-        role: 'UX Designer at Adobe',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&w=150&q=80',
-      },
-      time: '5 hours ago',
-      content: 'Thrilled to share that one of my mentees just landed an internship at Google! Consistent effort and portfolio reviews really pay off. Keep pushing everyone! ✨',
-      likes: 342,
-      comments: 45,
-    }
-  ])
+  const { user, isLoaded } = useUser()
+
+  const [posts, setPosts] = useState([])
+  const [recommendedMentors, setRecommendedMentors] = useState([])
 
   const pendingRequests = [
     { id: 1, name: 'Amit Kumar', course: 'B.Tech CS', interest: 'Frontend Dev', image: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&w=150&q=80' },
@@ -61,43 +46,309 @@ const MentorHome = () => {
     { id: 1, title: 'Frontend Developer Intern', applicants: 12 },
     { id: 2, title: 'Backend SDE', applicants: 8 },
   ]
+  
+  // Post Creation State
+  const [newPostContent, setNewPostContent] = useState('')
+  const [newPostImage, setNewPostImage] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [selectedGradient, setSelectedGradient] = useState('')
+  const [showGradients, setShowGradients] = useState(false)
+  const [isPosting, setIsPosting] = useState(false)
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+
+  // Comment State
+  const [activeCommentPostId, setActiveCommentPostId] = useState(null)
+  const [commentText, setCommentText] = useState('')
+  const [isCommenting, setIsCommenting] = useState(false)
+
+  const [activeDropdownId, setActiveDropdownId] = useState(null)
+  const [editingPostId, setEditingPostId] = useState(null)
+  const [editContent, setEditContent] = useState('')
+  const [postToDelete, setPostToDelete] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  
+  const fileInputRef = useRef(null)
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchPosts()
+    fetchMentors()
+  }, [])
+
+  const fetchPosts = async () => {
+    try {
+      const res = await fetch('/api/posts')
+      if (res.ok) {
+        const data = await res.json()
+        setPosts(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch posts', err)
+    } finally {
+      setIsLoadingPosts(false)
+    }
+  }
+
+  const fetchMentors = async () => {
+    try {
+      const res = await fetch('/api/users/mentors/suggested')
+      if (res.ok) {
+        const data = await res.json()
+        setRecommendedMentors(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch mentors', err)
+    }
+  }
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setNewPostImage(file)
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim() && !newPostImage) {
+      toast.error('Post cannot be empty')
+      return
+    }
+
+    setIsPosting(true)
+    try {
+      let imageUrl = null
+
+      // If there's an image, upload it to Cloudinary first
+      if (newPostImage) {
+        const formData = new FormData()
+        formData.append('file', newPostImage)
+        
+        const uploadRes = await fetch('/api/upload/image', {
+          method: 'POST',
+          body: formData
+        })
+        const uploadData = await uploadRes.json()
+        
+        if (uploadData.success) {
+          imageUrl = uploadData.url
+        } else {
+          toast.error('Failed to upload image')
+          setIsPosting(false)
+          return
+        }
+      }
+
+      // Create the post
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authorClerkId: user.id,
+          content: newPostContent,
+          imageUrl: imageUrl,
+          bgGradient: selectedGradient
+        })
+      })
+
+      if (res.ok) {
+        toast.success('Post created!')
+        setNewPostContent('')
+        setNewPostImage(null)
+        setImagePreview(null)
+        setSelectedGradient('')
+        setShowGradients(false)
+        fetchPosts() // refresh feed
+      } else {
+        toast.error('Failed to create post')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('An error occurred')
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  const handleDeletePost = (postId) => {
+    setPostToDelete(postId)
+    setActiveDropdownId(null)
+  }
+
+  const confirmDeletePost = async () => {
+    if (!postToDelete) return
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/posts/${postToDelete}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorClerkId: user.id })
+      })
+      if (res.ok) {
+        toast.success('Post deleted')
+        setPosts(posts.filter(p => p._id !== postToDelete))
+      } else {
+        toast.error('Failed to delete post')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to delete post')
+    } finally {
+      setIsDeleting(false)
+      setPostToDelete(null)
+    }
+  }
+
+  const handleSaveEdit = async (postId) => {
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorClerkId: user.id, content: editContent })
+      })
+      if (res.ok) {
+        toast.success('Post updated')
+        setPosts(posts.map(p => p._id === postId ? { ...p, content: editContent } : p))
+        setEditingPostId(null)
+        setEditContent('')
+      } else {
+        toast.error('Failed to update post')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to update post')
+    }
+  }
+
+  const handleLike = async (postId) => {
+    if (!user) return;
+    
+    // Optimistic UI update
+    setPosts(posts.map(p => {
+      if (p._id === postId) {
+        const hasLiked = p.likes.includes(user.id)
+        return {
+          ...p,
+          likes: hasLiked ? p.likes.filter(id => id !== user.id) : [...p.likes, user.id]
+        }
+      }
+      return p
+    }))
+
+    try {
+      await fetch(`/api/posts/${postId}/like`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user.id })
+      })
+    } catch (err) {
+      console.error('Failed to like post', err)
+      toast.error('Failed to like post')
+      fetchPosts() // Revert on failure
+    }
+  }
+
+  const handleComment = async (postId) => {
+    if (!commentText.trim() || !user) return;
+    setIsCommenting(true)
+    try {
+      const res = await fetch(`/api/posts/${postId}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorClerkId: user.id, content: commentText })
+      })
+      if (res.ok) {
+        setCommentText('')
+        fetchPosts() // refresh to get enriched comments
+      } else {
+        toast.error('Failed to post comment')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to post comment')
+    } finally {
+      setIsCommenting(false)
+    }
+  }
+
+  const handleShare = (postId) => {
+    navigator.clipboard.writeText(`${window.location.origin}/dashboard?post=${postId}`)
+    toast.success('Link copied to clipboard!')
+  }
+
+  const getAvatarFallback = (name) => {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random&color=fff&bold=true`
+  }
+
+  const recentOpportunities = [
+    { id: 1, role: 'SDE Intern', company: 'Google', location: 'Bangalore' },
+    { id: 2, role: 'Frontend Dev', company: 'Microsoft', location: 'Remote' },
+  ]
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = now - date
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+
+    if (minutes < 1) return `Just now`
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+    return `${days}d ago`
+  }
+
+  const backgroundGradients = [
+    'bg-gradient-to-r from-purple-500 to-indigo-500',
+    'bg-gradient-to-r from-pink-500 to-rose-500',
+    'bg-gradient-to-r from-cyan-500 to-blue-500',
+    'bg-gradient-to-r from-amber-500 to-orange-500',
+    'bg-gradient-to-r from-emerald-500 to-teal-500'
+  ]
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-8 max-w-7xl mx-auto">
-      
+
       {/* Left Column (Profile & Quick Stats) */}
       <div className="hidden md:block md:col-span-3 space-y-6 sticky top-24 self-start">
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
           <div className="h-16 bg-muted relative">
-            <img 
-              src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" 
-              alt="Cover" 
+            <img
+              src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"
+              alt="Cover"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="px-4 pb-4 relative text-center">
             <div className="flex justify-center -mt-8 mb-3">
               <img 
-                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
+                src={isLoaded && user ? (user.imageUrl || getAvatarFallback(user.fullName)) : getAvatarFallback('U')} 
                 alt="Profile" 
                 className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card"
               />
             </div>
-            <h3 className="font-bold text-foreground">Rohit Sharma</h3>
-            <p className="text-xs text-muted-foreground mb-4">Senior Software Engineer at Amazon</p>
-            
+            {isLoaded && user ? (
+              <>
+                <h3 className="font-bold text-foreground">{user.fullName || 'User'}</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {user.unsafeMetadata?.headline || (user.publicMetadata?.role === 'alumni' ? 'Alumni' : 'Mentor')}
+                </p>
+              </>
+            ) : (
+              <div className="space-y-2 mb-4 flex flex-col items-center">
+                <div className="h-4 w-24 bg-muted animate-pulse rounded"></div>
+                <div className="h-3 w-32 bg-muted animate-pulse rounded"></div>
+              </div>
+            )}
             <div className="border-t border-border/40 pt-4 flex justify-between text-sm">
-              <span className="text-muted-foreground font-medium">Students Mentored</span>
-              <span className="text-primary font-bold">48</span>
-            </div>
-            <div className="flex justify-between text-sm mt-2">
-              <span className="text-muted-foreground font-medium">Active Mentees</span>
-              <span className="text-primary font-bold">12</span>
+              <span className="text-muted-foreground font-medium">Profile Views</span>
+              <span className="text-primary font-bold">42</span>
             </div>
             <div className="flex justify-between text-sm mt-2">
               <span className="text-muted-foreground font-medium">Connections</span>
-              <span className="text-primary font-bold">326</span>
+              <span className="text-primary font-bold">128</span>
             </div>
           </div>
         </div>
@@ -121,35 +372,89 @@ const MentorHome = () => {
 
       {/* Main Column (Feed) */}
       <div className="col-span-1 md:col-span-6 space-y-6">
-        
+
         {/* Create Post */}
         <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex gap-4 mb-4">
-            <img 
-              src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
-              alt="Profile" 
+            <img
+              src={user?.imageUrl || getAvatarFallback(user?.fullName)}
+              alt="Profile"
               className="w-12 h-12 rounded-full object-cover shrink-0"
             />
-            <button className="flex-1 text-left bg-background border border-border/50 rounded-full px-4 text-muted-foreground hover:bg-muted/50 transition-colors">
-              Share something with your mentees...
-            </button>
+            <div className={`flex-1 rounded-xl overflow-hidden ${selectedGradient || 'bg-background border border-border/50'}`}>
+              <textarea 
+                value={newPostContent}
+                onChange={e => setNewPostContent(e.target.value)}
+                placeholder="Start a post..."
+                className={`w-full px-4 py-3 text-sm focus:outline-none resize-none min-h-[80px] ${
+                  selectedGradient 
+                    ? 'bg-transparent text-white placeholder:text-white/70 text-xl md:text-2xl font-bold text-center flex items-center justify-center min-h-[200px]' 
+                    : 'text-foreground bg-transparent'
+                }`}
+                style={selectedGradient ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : {}}
+              ></textarea>
+            </div>
           </div>
+          
+          {showGradients && !newPostImage && (
+            <div className="flex gap-2 mb-4 p-2 bg-muted/50 rounded-lg overflow-x-auto">
+              <button 
+                onClick={() => setSelectedGradient('')} 
+                className={`w-8 h-8 rounded-full bg-background border-2 shrink-0 ${!selectedGradient ? 'border-primary' : 'border-transparent'}`}
+              ></button>
+              {backgroundGradients.map((grad, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => setSelectedGradient(grad)} 
+                  className={`w-8 h-8 rounded-full ${grad} border-2 shrink-0 ${selectedGradient === grad ? 'border-primary ring-2 ring-background' : 'border-transparent'}`}
+                ></button>
+              ))}
+            </div>
+          )}
+
+          {imagePreview && !selectedGradient && (
+            <div className="mb-4 relative rounded-xl overflow-hidden bg-muted border border-border/50">
+              <button 
+                onClick={() => {
+                  setNewPostImage(null)
+                  setImagePreview(null)
+                }}
+                className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors z-10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-contain" />
+            </div>
+          )}
+
           <div className="flex items-center justify-between pt-2">
             <div className="flex gap-1 sm:gap-2">
-              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-blue-500 font-medium text-sm">
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleImageSelect} 
+                accept="image/*" 
+                className="hidden" 
+              />
+              <button onClick={() => { fileInputRef.current?.click(); setSelectedGradient(''); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-blue-500 font-medium text-sm">
                 <ImageIcon className="w-5 h-5" /> <span className="hidden sm:inline">Media</span>
               </button>
-              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-purple-500 font-medium text-sm">
-                <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">Add Job</span>
+              <button onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-sm">
+                <Palette className="w-5 h-5" /> <span className="hidden sm:inline">Background</span>
               </button>
               <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-orange-500 font-medium text-sm">
-                <CalendarIcon className="w-5 h-5" /> <span className="hidden sm:inline">Create Event</span>
+                <CalendarIcon className="w-5 h-5" /> <span className="hidden sm:inline">Event</span>
               </button>
-              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-green-500 font-medium text-sm">
-                <FileText className="w-5 h-5" /> <span className="hidden sm:inline">Upload Resource</span>
+              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-purple-500 font-medium text-sm">
+                <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">Job</span>
               </button>
             </div>
-            <button className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
+            <button 
+              onClick={handleCreatePost}
+              disabled={isPosting || (!newPostContent.trim() && !newPostImage)}
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+            >
+              {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
               Post
             </button>
           </div>
@@ -157,55 +462,199 @@ const MentorHome = () => {
 
         {/* Feed Posts */}
         <div className="space-y-6">
-          {posts.map(post => (
-            <motion.div 
-              key={post.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
-            >
-              <div className="p-4 sm:p-5">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex gap-3">
-                    <img src={post.author.image} alt={post.author.name} className="w-12 h-12 rounded-full object-cover" />
-                    <div>
-                      <h3 className="font-bold text-foreground text-sm">{post.author.name}</h3>
-                      <p className="text-xs text-muted-foreground">{post.author.role}</p>
-                      <p className="text-[10px] text-muted-foreground">{post.time}</p>
+          {isLoadingPosts ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : posts.length > 0 ? (
+            posts.map(post => {
+              const likesArray = Array.isArray(post.likes) ? post.likes : []
+              const commentsArray = Array.isArray(post.comments) ? post.comments : []
+              const hasLiked = user && likesArray.includes(user.id)
+              const likeCount = likesArray.length
+              const commentCount = commentsArray.length
+              const postAuthorDP = (post.authorClerkId === user?.id) ? user.imageUrl : (post.author?.image || getAvatarFallback(post.author?.name))
+              const showComments = activeCommentPostId === post._id
+
+              return (
+                <motion.div
+                  key={post._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+                >
+                  <div className="p-4 sm:p-5">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex gap-3">
+                        <img src={postAuthorDP} alt={post.author?.name} className="w-12 h-12 rounded-full object-cover" />
+                        <div>
+                          <h3 className="font-bold text-foreground text-sm">{post.author?.name}</h3>
+                          <p className="text-xs text-muted-foreground">{post.author?.role}</p>
+                          <p className="text-[10px] text-muted-foreground">{formatTime(post.createdAt)}</p>
+                        </div>
+                      </div>
+                      {post.authorClerkId === user?.id && (
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActiveDropdownId(activeDropdownId === post._id ? null : post._id)}
+                            className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors"
+                          >
+                            <MoreHorizontal className="w-5 h-5" />
+                          </button>
+                          {activeDropdownId === post._id && (
+                            <div className="absolute right-0 mt-2 w-36 bg-background border border-border/50 rounded-xl shadow-lg z-10 overflow-hidden">
+                              <button 
+                                onClick={() => {
+                                  setEditingPostId(post._id)
+                                  setEditContent(post.content)
+                                  setActiveDropdownId(null)
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors"
+                              >
+                                <Edit3 className="w-4 h-4" /> Edit
+                              </button>
+                              <button 
+                                onClick={() => handleDeletePost(post._id)}
+                                className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors border-t border-border/50"
+                              >
+                                <Trash2 className="w-4 h-4" /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {editingPostId === post._id ? (
+                      <div className="mb-4">
+                        <textarea 
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="w-full bg-background border border-primary/50 rounded-xl px-4 py-3 text-sm focus:outline-none resize-none min-h-[100px]"
+                        ></textarea>
+                        <div className="flex justify-end gap-2 mt-2">
+                          <button onClick={() => setEditingPostId(null)} className="px-3 py-1.5 text-xs font-medium bg-muted text-foreground rounded-lg hover:bg-muted/80">Cancel</button>
+                          <button onClick={() => handleSaveEdit(post._id)} className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">Save Changes</button>
+                        </div>
+                      </div>
+                    ) : post.bgGradient ? (
+                      <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
+                        <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
+                          {post.content}
+                        </h2>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
+                        {post.content}
+                      </p>
+                    )}
+                  </div>
+
+                  {post.imageUrl && !post.bgGradient && (
+                    <div className="w-full max-h-[500px] bg-muted overflow-hidden">
+                      <img src={post.imageUrl} alt="Post content" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+
+                  <div className="px-4 sm:px-5 py-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
+                      <div className="flex items-center gap-1">
+                        <span className="bg-blue-500 text-white rounded-full p-0.5"><Heart className="w-3 h-3 fill-current" /></span>
+                        <span>{likeCount}</span>
+                      </div>
+                      <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>
+                        {commentCount} comments
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
+                      <button 
+                        onClick={() => handleLike(post._id)}
+                        className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors font-medium text-sm ${hasLiked ? 'text-red-500' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                      >
+                        <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} /> Like
+                      </button>
+                      <button 
+                        onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
+                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted py-2 px-3 rounded-lg transition-colors font-medium text-sm"
+                      >
+                        <MessageCircle className="w-5 h-5" /> Comment
+                      </button>
+                      <button onClick={() => handleShare(post._id)} className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted py-2 px-3 rounded-lg transition-colors font-medium text-sm">
+                        <Share2 className="w-5 h-5" /> Share
+                      </button>
                     </div>
                   </div>
-                  <button className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors">
-                    <MoreHorizontal className="w-5 h-5" />
-                  </button>
-                </div>
-                
-                <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                  {post.content}
-                </p>
-              </div>
-              
-              <div className="px-4 sm:px-5 py-3">
-                <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
-                  <div className="flex items-center gap-1">
-                    <span className="bg-blue-500 text-white rounded-full p-0.5"><Heart className="w-3 h-3 fill-current" /></span>
-                    <span>{post.likes}</span>
-                  </div>
-                  <span>{post.comments} comments</span>
-                </div>
-                <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
-                  <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted py-2 px-3 rounded-lg transition-colors font-medium text-sm">
-                    <Heart className="w-5 h-5" /> Like
-                  </button>
-                  <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted py-2 px-3 rounded-lg transition-colors font-medium text-sm">
-                    <MessageCircle className="w-5 h-5" /> Comment
-                  </button>
-                  <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted py-2 px-3 rounded-lg transition-colors font-medium text-sm">
-                    <Share2 className="w-5 h-5" /> Share
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+
+                  <AnimatePresence>
+                    {showComments && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="border-t border-border/40 bg-muted/10 overflow-hidden"
+                      >
+                        <div className="p-4 sm:p-5 space-y-4">
+                          
+                          {/* Existing Comments */}
+                          <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                            {commentsArray.map(comment => (
+                              <div key={comment._id} className="flex gap-3">
+                                <img src={comment.author?.image || getAvatarFallback(comment.author?.name)} alt={comment.author?.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                                <div className="flex-1">
+                                  <div className="bg-background border border-border/50 rounded-2xl rounded-tl-none px-4 py-2.5">
+                                    <h4 className="font-bold text-xs text-foreground">{comment.author?.name}</h4>
+                                    <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap">{comment.content}</p>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1 ml-2 text-[10px] text-muted-foreground font-medium">
+                                    <span>{formatTime(comment.createdAt)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            {commentsArray.length === 0 && (
+                              <p className="text-xs text-muted-foreground text-center italic py-2">No comments yet. Be the first!</p>
+                            )}
+                          </div>
+
+                          {/* Comment Input */}
+                          <div className="flex gap-3 pt-2">
+                            <img src={user?.imageUrl || getAvatarFallback(user?.fullName)} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0 mt-1" />
+                            <div className="flex-1 relative">
+                              <textarea 
+                                value={commentText}
+                                onChange={e => setCommentText(e.target.value)}
+                                placeholder="Write a comment..."
+                                className="w-full bg-background border border-border/50 rounded-xl pl-4 pr-12 py-2.5 text-sm focus:outline-none focus:border-primary resize-none min-h-[44px]"
+                                rows="1"
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault()
+                                    handleComment(post._id)
+                                  }
+                                }}
+                              ></textarea>
+                              <button 
+                                onClick={() => handleComment(post._id)}
+                                disabled={isCommenting || !commentText.trim()}
+                                className="absolute right-2 top-2 p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
+                              >
+                                {isCommenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                </motion.div>
+              )
+            })
+          ) : (
+            <div className="text-center py-10 bg-card border border-border/50 rounded-2xl">
+              <p className="text-muted-foreground text-sm">No posts yet. Be the first to share something!</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -284,9 +733,44 @@ const MentorHome = () => {
 
       </div>
 
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {postToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card border border-border/50 rounded-2xl p-6 shadow-xl w-full max-w-sm"
+            >
+              <h3 className="text-xl font-bold text-foreground mb-2">Delete Post?</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Are you sure you want to delete this post? This action cannot be undone.
+              </p>
+              <div className="flex items-center gap-3 justify-end">
+                <button 
+                  onClick={() => setPostToDelete(null)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDeletePost}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   )
 }
 
 export default MentorHome
-

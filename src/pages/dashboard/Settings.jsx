@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe } from 'lucide-react'
-import { useUser } from '@clerk/clerk-react'
+import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin } from 'lucide-react'
+import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 
 const Settings = () => {
   const { user, isLoaded } = useUser()
+  const { sessions } = useSessionList()
+  const { session: currentSession } = useSession()
   const [activeTab, setActiveTab] = useState('basic')
   
   // Form State
@@ -32,6 +34,7 @@ const Settings = () => {
 
   useEffect(() => {
     if (user) {
+      // Set initial state from Clerk as a fallback
       setFirstName(user.firstName || '')
       setLastName(user.lastName || '')
       setHeadline(user.unsafeMetadata?.headline || '')
@@ -41,6 +44,28 @@ const Settings = () => {
       setExperience(user.unsafeMetadata?.experience || [])
       setEducation(user.unsafeMetadata?.education || [])
       setSkills(user.unsafeMetadata?.skills || [])
+
+      // Fetch from MongoDB for the source of truth
+      const fetchMongoProfile = async () => {
+        try {
+          const res = await fetch(`/api/users/${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setFirstName(data.firstName || user.firstName || '');
+            setLastName(data.lastName || user.lastName || '');
+            setHeadline(data.headline || user.unsafeMetadata?.headline || '');
+            setLocation(data.location || user.unsafeMetadata?.location || '');
+            setAboutMe(data.aboutMe || user.unsafeMetadata?.aboutMe || '');
+            setResumeUrl(data.resumeUrl || user.unsafeMetadata?.resumeUrl || '');
+            setExperience(data.experience?.length ? data.experience : (user.unsafeMetadata?.experience || []));
+            setEducation(data.education?.length ? data.education : (user.unsafeMetadata?.education || []));
+            setSkills(data.skills?.length ? data.skills : (user.unsafeMetadata?.skills || []));
+          }
+        } catch (error) {
+          console.error("Failed to fetch mongo profile:", error);
+        }
+      };
+      fetchMongoProfile();
     }
   }, [user])
 
@@ -60,6 +85,7 @@ const Settings = () => {
     if (!user) return
     setIsSaving(true)
     try {
+      // Save to Clerk (fallback/auth layer)
       await user.update({
         firstName,
         lastName,
@@ -74,6 +100,28 @@ const Settings = () => {
           skills
         }
       })
+
+      // Save to MongoDB (primary database layer)
+      const res = await fetch(`/api/users/${user.id}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          headline,
+          location,
+          aboutMe,
+          resumeUrl,
+          experience,
+          education,
+          skills
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to save to MongoDB');
+      }
+
       toast.success('Profile updated successfully!')
     } catch (err) {
       toast.error('Failed to save changes')
@@ -145,21 +193,30 @@ const Settings = () => {
     { id: 'privacy', label: 'Privacy & Security', icon: Lock },
   ]
 
+  const isBasicComplete = Boolean(
+    firstName?.trim() && 
+    lastName?.trim() && 
+    headline?.trim() && 
+    location?.trim() && 
+    aboutMe?.trim() && 
+    (user?.imageUrl && !user.imageUrl.includes('default'))
+  );
+  
+  const isExperienceComplete = experience.length > 0;
+  const isEducationComplete = education.length > 0;
+  const isSkillsComplete = skills.length > 0;
+  const isResumeComplete = Boolean(resumeUrl?.trim());
+
   const calculateProgress = () => {
-    const fields = [
-      firstName,
-      lastName,
-      user?.imageUrl && !user.imageUrl.includes('default'), // check if not default placeholder if possible, or just user.imageUrl
-      headline,
-      location,
-      aboutMe,
-      resumeUrl,
-      experience.length > 0,
-      education.length > 0,
-      skills.length > 0
-    ]
-    const filledCount = fields.filter(f => typeof f === 'string' ? f.trim().length > 0 : Boolean(f)).length
-    return Math.round((filledCount / fields.length) * 100)
+    const sections = [
+      isBasicComplete,
+      isExperienceComplete,
+      isEducationComplete,
+      isSkillsComplete,
+      isResumeComplete
+    ];
+    const completedCount = sections.filter(Boolean).length;
+    return Math.round((completedCount / sections.length) * 100);
   }
 
   const completionPercentage = calculateProgress()
@@ -215,16 +272,19 @@ const Settings = () => {
               <tab.icon className="w-5 h-5 shrink-0" />
               <span>{tab.label}</span>
               {/* Green checkmark if completed */}
-              {tab.id === 'basic' && (firstName && lastName) && (
+              {tab.id === 'basic' && isBasicComplete && (
                 <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
               )}
-              {tab.id === 'experience' && experience.length > 0 && (
+              {tab.id === 'experience' && isExperienceComplete && (
                 <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
               )}
-              {tab.id === 'education' && education.length > 0 && (
+              {tab.id === 'education' && isEducationComplete && (
                 <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
               )}
-              {tab.id === 'skills' && skills.length > 0 && (
+              {tab.id === 'skills' && isSkillsComplete && (
+                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+              )}
+              {tab.id === 'resume' && isResumeComplete && (
                 <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
               )}
             </button>
@@ -536,6 +596,68 @@ const Settings = () => {
                       <option>Recruiters & Mentors Only</option>
                       <option>Hidden</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Active Sessions */}
+                <div className="flex gap-4 p-4 bg-muted/30 border border-border/40 rounded-xl">
+                  <Laptop className="w-5 h-5 text-primary shrink-0" />
+                  <div className="w-full">
+                    <h4 className="font-semibold text-sm text-foreground">Active Devices</h4>
+                    <p className="text-xs text-muted-foreground mt-1 mb-4">Devices that are currently logged into your account.</p>
+                    <div className="space-y-3">
+                      {sessions?.map(session => (
+                        <div key={session.id} className="flex items-center justify-between p-3 bg-background border border-border/50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            {session.latestActivity?.isMobile ? <Smartphone className="w-4 h-4 text-muted-foreground" /> : <Laptop className="w-4 h-4 text-muted-foreground" />}
+                            <div>
+                              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                                {session.latestActivity?.browserName || 'Unknown Browser'} on {session.latestActivity?.deviceType || 'Unknown Device'}
+                                {session.id === currentSession?.id && <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold">This Device</span>}
+                              </p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <MapPin className="w-3 h-3" />
+                                {session.latestActivity?.city ? `${session.latestActivity.city}, ` : ''}{session.latestActivity?.country || 'Unknown Location'} • {session.latestActivity?.ipAddress || 'IP Hidden'}
+                              </p>
+                            </div>
+                          </div>
+                          {session.id !== currentSession?.id && (
+                            <button onClick={async () => {
+                              try {
+                                await session.revoke();
+                                toast.success("Session revoked successfully");
+                              } catch(e) {
+                                toast.error("Failed to revoke session");
+                              }
+                            }} className="text-xs font-medium text-destructive hover:underline px-2 py-1">Revoke</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delete Account */}
+                <div className="flex gap-4 p-4 border border-destructive/30 bg-destructive/5 rounded-xl mt-8">
+                  <Trash2 className="w-5 h-5 text-destructive shrink-0" />
+                  <div className="w-full">
+                    <h4 className="font-semibold text-sm text-destructive">Delete Account</h4>
+                    <p className="text-xs text-destructive/80 mt-1 mb-3">Permanently remove your account and all associated data. This action cannot be undone.</p>
+                    <button 
+                      onClick={async () => {
+                        if(window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
+                          try {
+                            await user.delete();
+                            toast.success("Account deleted successfully");
+                          } catch(e) {
+                            toast.error("Failed to delete account");
+                          }
+                        }
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    >
+                      Delete Account
+                    </button>
                   </div>
                 </div>
               </div>

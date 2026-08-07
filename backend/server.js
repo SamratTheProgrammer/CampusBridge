@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import userRoutes from './routes/userRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import postRoutes from './routes/postRoutes.js';
 
 // Load env vars from the parent directory's .env file
 dotenv.config({ path: '../.env' });
@@ -23,6 +24,7 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/posts', postRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {
