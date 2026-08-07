@@ -6,11 +6,20 @@ import Login from './pages/auth/Login'
 import SignUp from './pages/auth/SignUp'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import OTPVerification from './pages/auth/OTPVerification'
+import SSOCallback from './pages/auth/SSOCallback'
+import SyncUser from './pages/auth/SyncUser'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import PageTransition from './components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
+import { ClerkProvider } from '@clerk/clerk-react'
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Publishable Key")
+}
 
 // Dashboard Layout & Pages
 import DashboardLayout from './layouts/DashboardLayout'
@@ -97,6 +106,8 @@ function AnimatedRoutes() {
         <Route path="/signup" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><SignUp /></main><Footer /></div></PageTransition>} />
         <Route path="/forgot-password" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><ForgotPassword /></main><Footer /></div></PageTransition>} />
         <Route path="/otp" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><OTPVerification /></main><Footer /></div></PageTransition>} />
+        <Route path="/sso-callback" element={<SSOCallback />} />
+        <Route path="/sync-user" element={<SyncUser />} />
 
         {/* Authenticated Dashboard Routes */}
         <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
@@ -154,13 +165,15 @@ function AnimatedRoutes() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
-      <Router>
-        <ScrollToHash />
-        <AnimatedRoutes />
-        <Toaster position="bottom-right" />
-      </Router>
-    </ThemeProvider>
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
+        <Router>
+          <ScrollToHash />
+          <AnimatedRoutes />
+          <Toaster position="bottom-right" />
+        </Router>
+      </ThemeProvider>
+    </ClerkProvider>
   )
 }
 

@@ -1,9 +1,63 @@
-import React, { useState } from 'react'
-import { Bell, Lock, User, Save, Globe, Shield, CreditCard } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2 } from 'lucide-react'
+import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 
 const MentorSettings = () => {
+  const { user, isLoaded } = useUser()
   const [activeTab, setActiveTab] = useState('profile')
+  
+  // Form State
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.firstName || '')
+      setLastName(user.lastName || '')
+    }
+  }, [user])
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      await user.setProfileImage({ file })
+      toast.success('Profile picture updated!')
+    } catch (err) {
+      toast.error('Failed to update profile picture')
+      console.error(err)
+    }
+  }
+
+  const handleRemoveImage = async () => {
+    try {
+      // Clerk doesn't have a direct remove image method, but we can set it to null or use a default
+      toast.error('Direct removal is currently not supported. Please upload a new image.')
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault()
+    if (!user) return
+    setIsSaving(true)
+    try {
+      await user.update({
+        firstName,
+        lastName,
+      })
+      toast.success('Profile updated successfully!')
+    } catch (err) {
+      toast.error('Failed to save changes')
+      console.error(err)
+    } finally {
+      setIsSaving(false)
+    }
+  }
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -69,35 +123,63 @@ const MentorSettings = () => {
               
               <div className="flex items-center gap-6 pb-6 border-b border-border/40">
                 <img 
-                  src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
+                  src={user?.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
                   alt="Profile" 
                   className="w-20 h-20 rounded-full object-cover border-2 border-border"
                 />
                 <div className="space-y-2">
-                  <button className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleImageUpload} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                  >
                     Upload New Photo
                   </button>
-                  <button className="bg-background border border-border/50 text-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-muted transition-colors ml-3">
+                  <button 
+                    onClick={handleRemoveImage}
+                    className="bg-background border border-border/50 text-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-muted transition-colors ml-3"
+                  >
                     Remove
                   </button>
                 </div>
               </div>
 
-              <form onSubmit={handleSave} className="space-y-4 pt-2">
+              <form onSubmit={handleSaveProfile} className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1.5">First Name</label>
-                    <input type="text" defaultValue="Rohit" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <input 
+                      type="text" 
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1.5">Last Name</label>
-                    <input type="text" defaultValue="Sharma" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <input 
+                      type="text" 
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Email Address</label>
-                  <input type="email" defaultValue="rohit.sde@amazon.com" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input 
+                    type="email" 
+                    disabled 
+                    value={user?.primaryEmailAddress?.emailAddress || ''} 
+                    className="w-full px-3 py-2 bg-muted/50 border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-not-allowed" 
+                  />
                 </div>
 
                 <div>
@@ -106,8 +188,9 @@ const MentorSettings = () => {
                 </div>
 
                 <div className="pt-4 flex justify-end">
-                  <button type="submit" className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-sm">
-                    <Save className="w-4 h-4" /> Save Changes
+                  <button type="submit" disabled={isSaving} className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-sm disabled:opacity-70">
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
+                    Save Changes
                   </button>
                 </div>
               </form>

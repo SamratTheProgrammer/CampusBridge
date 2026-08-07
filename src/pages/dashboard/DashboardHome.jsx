@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import {
-  Users,
-  FileText,
-  Calendar,
+import { useUser } from '@clerk/clerk-react'
+import { 
+  Users, 
+  FileText, 
+  Calendar, 
   MessageSquare,
   Image as ImageIcon,
   Video,
@@ -17,6 +18,8 @@ import {
 } from 'lucide-react'
 
 const DashboardHome = () => {
+  const { user, isLoaded } = useUser()
+
   const [posts, setPosts] = useState([
     {
       id: 1,
@@ -71,15 +74,25 @@ const DashboardHome = () => {
           </div>
           <div className="px-4 pb-4 relative text-center">
             <div className="flex justify-center -mt-8 mb-3">
-              <img
-                src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"
-                alt="Profile"
+              <img 
+                src={isLoaded && user ? user.imageUrl : "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
+                alt="Profile" 
                 className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card"
               />
             </div>
-            <h3 className="font-bold text-foreground">Samrat Saha</h3>
-            <p className="text-xs text-muted-foreground mb-4">MCA Student • Seeking internships</p>
-
+            {isLoaded && user ? (
+              <>
+                <h3 className="font-bold text-foreground">{user.fullName || 'User'}</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {user.publicMetadata?.role === 'alumni' ? 'Alumni' : 'Student'}
+                </p>
+              </>
+            ) : (
+              <div className="space-y-2 mb-4 flex flex-col items-center">
+                <div className="h-4 w-24 bg-muted animate-pulse rounded"></div>
+                <div className="h-3 w-32 bg-muted animate-pulse rounded"></div>
+              </div>
+            )}
             <div className="border-t border-border/40 pt-4 flex justify-between text-sm">
               <span className="text-muted-foreground font-medium">Profile Views</span>
               <span className="text-primary font-bold">42</span>

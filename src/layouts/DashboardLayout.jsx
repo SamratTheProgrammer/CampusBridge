@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/dashboard/Sidebar'
 import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucide-react'
 import { useTheme } from '../components/ThemeProvider'
+import { useUser } from '@clerk/clerk-react'
 
 const MOCK_MENTOR = [
   { id: 1, name: 'Arjun Mehta', role: 'Software Engineer', company: 'Google' },
@@ -35,6 +36,8 @@ const DashboardLayout = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const navigate = useNavigate()
   const searchRef = useRef(null)
+  
+  const { user, isLoaded } = useUser()
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -219,15 +222,21 @@ const DashboardLayout = () => {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full border border-background"></span>
             </button>
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
-              <img
-                src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"
-                alt="Profile"
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
-              />
-              <div className="hidden lg:block text-sm">
-                <p className="font-semibold text-foreground leading-none mb-1">Samrat Saha</p>
-                <p className="text-xs text-muted-foreground leading-none">MCA Student</p>
-              </div>
+              {isLoaded && user ? (
+                <>
+                  <img 
+                    src={user.imageUrl || "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
+                    alt="Profile" 
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
+                  />
+                  <div className="hidden lg:block text-sm">
+                    <p className="font-semibold text-foreground leading-none mb-1">{user.fullName || 'User'}</p>
+                    <p className="text-xs text-muted-foreground leading-none">{user.publicMetadata?.role === 'alumni' ? 'Alumni' : 'Student'}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="w-32 h-8 bg-muted animate-pulse rounded-md hidden lg:block"></div>
+              )}
             </div>
           </div>
         </header>
