@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
-import { 
-  ChevronLeft, Calendar as CalendarIcon, Clock, Video, FileText, Briefcase, 
+import {
+  ChevronLeft, Calendar as CalendarIcon, Clock, Video, FileText, Briefcase,
   GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2
 } from 'lucide-react'
 
@@ -45,9 +45,9 @@ const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay()
 const BookSession = () => {
   const navigate = useNavigate()
   const { id } = useParams()
-  
+
   const [step, setStep] = useState(1)
-  
+
   // Form State
   const [sessionType, setSessionType] = useState(null)
   const [selectedDate, setSelectedDate] = useState(null)
@@ -89,18 +89,18 @@ const BookSession = () => {
   const renderStepIndicator = () => (
     <div className="flex items-center justify-between mb-8 relative">
       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted rounded-full overflow-hidden">
-        <div 
+        <div
           className="h-full bg-primary transition-all duration-500 ease-in-out"
           style={{ width: `${((step - 1) / 6) * 100}%` }}
         />
       </div>
       {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-        <div 
-          key={s} 
+        <div
+          key={s}
           className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
-            ${s < step ? 'bg-primary text-primary-foreground' : 
-              s === step ? 'bg-primary ring-4 ring-primary/20 text-primary-foreground' : 
-              'bg-muted text-muted-foreground border-2 border-background'}`}
+            ${s < step ? 'bg-primary text-primary-foreground' :
+              s === step ? 'bg-primary ring-4 ring-primary/20 text-primary-foreground' :
+                'bg-muted text-muted-foreground border-2 border-background'}`}
         >
           {s < step ? <Check className="w-4 h-4" /> : s}
         </div>
@@ -115,7 +115,7 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Mentor Information</h2>
             <p className="text-muted-foreground text-sm">Review the mentor's details before proceeding.</p>
-            
+
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
               <img src={MENTOR_DATA.image} alt={MENTOR_DATA.name} className="w-24 h-24 rounded-full object-cover ring-4 ring-muted" />
               <div className="flex-1">
@@ -137,9 +137,9 @@ const BookSession = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex justify-end">
-              <button 
+              <button
                 onClick={handleNext}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25"
               >
@@ -148,21 +148,21 @@ const BookSession = () => {
             </div>
           </div>
         )
-      
+
       case 2:
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Select Session Type</h2>
             <p className="text-muted-foreground text-sm">What do you want to focus on during this session?</p>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {SESSION_TYPES.map((type) => (
                 <button
                   key={type.id}
                   onClick={() => { setSessionType(type.id); handleNext(); }}
                   className={`p-4 rounded-xl border transition-all text-left group
-                    ${sessionType === type.id 
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary' 
+                    ${sessionType === type.id
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
                       : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted/50'}`}
                 >
                   <type.icon className={`w-8 h-8 mb-3 ${sessionType === type.id ? 'text-primary' : 'text-muted-foreground group-hover:text-primary transition-colors'}`} />
@@ -178,35 +178,35 @@ const BookSession = () => {
         const daysInMonth = getDaysInMonth(currentMonth, currentYear)
         const firstDay = getFirstDayOfMonth(currentMonth, currentYear)
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-        
+
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Select Date</h2>
             <p className="text-muted-foreground text-sm">Choose an available date for your session.</p>
-            
+
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm max-w-sm mx-auto">
               <div className="flex items-center justify-between mb-6">
-                <button 
-                  onClick={() => currentMonth === 0 ? (setCurrentMonth(11), setCurrentYear(y=>y-1)) : setCurrentMonth(m=>m-1)}
+                <button
+                  onClick={() => currentMonth === 0 ? (setCurrentMonth(11), setCurrentYear(y => y - 1)) : setCurrentMonth(m => m - 1)}
                   className="p-2 rounded-full hover:bg-muted text-muted-foreground"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <h3 className="font-semibold text-foreground">{monthNames[currentMonth]} {currentYear}</h3>
-                <button 
-                  onClick={() => currentMonth === 11 ? (setCurrentMonth(0), setCurrentYear(y=>y+1)) : setCurrentMonth(m=>m+1)}
+                <button
+                  onClick={() => currentMonth === 11 ? (setCurrentMonth(0), setCurrentYear(y => y + 1)) : setCurrentMonth(m => m + 1)}
                   className="p-2 rounded-full hover:bg-muted text-muted-foreground"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-7 gap-1 text-center mb-2">
                 {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
                   <div key={d} className="text-xs font-medium text-muted-foreground py-2">{d}</div>
                 ))}
               </div>
-              
+
               <div className="grid grid-cols-7 gap-1">
                 {Array.from({ length: firstDay }).map((_, i) => (
                   <div key={`empty-${i}`} className="p-2"></div>
@@ -217,7 +217,7 @@ const BookSession = () => {
                   const isPast = (currentYear < today.getFullYear()) || (currentYear === today.getFullYear() && currentMonth < today.getMonth()) || (currentYear === today.getFullYear() && currentMonth === today.getMonth() && dateNum < today.getDate())
                   const dateStr = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${dateNum.toString().padStart(2, '0')}`
                   const isSelected = selectedDate === dateStr
-                  
+
                   return (
                     <button
                       key={dateNum}
@@ -248,7 +248,7 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Available Time Slots</h2>
             <p className="text-muted-foreground text-sm">Select a time that works best for you.</p>
-            
+
             <div className="space-y-6">
               {Object.entries(TIME_SLOTS).map(([period, slots]) => (
                 <div key={period}>
@@ -262,7 +262,7 @@ const BookSession = () => {
                         onClick={() => { setSelectedTime(time); handleNext(); }}
                         className={`py-2.5 px-4 rounded-xl border text-sm font-medium transition-all text-center
                           ${selectedTime === time
-                            ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20' 
+                            ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20'
                             : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted text-foreground'}`}
                       >
                         {time}
@@ -280,7 +280,7 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Session Duration</h2>
             <p className="text-muted-foreground text-sm">How long do you want the session to be?</p>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {DURATIONS.map(dur => (
                 <button
@@ -288,7 +288,7 @@ const BookSession = () => {
                   onClick={() => { setDuration(dur.id); handleNext(); }}
                   className={`py-4 px-4 rounded-xl border text-center transition-all
                     ${duration === dur.id
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary' 
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
                       : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted'}`}
                 >
                   <Clock className={`w-6 h-6 mx-auto mb-2 ${duration === dur.id ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -306,7 +306,7 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Add a Message</h2>
             <p className="text-muted-foreground text-sm">Write a short message to your mentor to help them prepare.</p>
-            
+
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
               <label className="block text-sm font-medium text-foreground mb-2">Message to Mentor (Optional)</label>
               <textarea
@@ -317,7 +317,7 @@ const BookSession = () => {
                 className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none placeholder:text-muted-foreground"
               ></textarea>
               <div className="flex justify-end mt-4">
-                <button 
+                <button
                   onClick={handleNext}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25"
                 >
@@ -334,9 +334,9 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Booking Summary</h2>
             <p className="text-muted-foreground text-sm">Review your session details before confirming.</p>
-            
+
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-6">
-              
+
               <div className="flex items-center gap-4 pb-6 border-b border-border/40">
                 <img src={MENTOR_DATA.image} alt={MENTOR_DATA.name} className="w-16 h-16 rounded-full object-cover ring-2 ring-border" />
                 <div>
@@ -373,7 +373,7 @@ const BookSession = () => {
               </div>
 
               <div className="pt-6 border-t border-border/40">
-                <button 
+                <button
                   onClick={handleConfirm}
                   disabled={!selectedDate || !selectedTime}
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -395,7 +395,7 @@ const BookSession = () => {
     <div className="max-w-3xl mx-auto pb-12 pt-4">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <button 
+        <button
           onClick={() => step > 1 ? handleBack() : navigate(-1)}
           className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors border border-border/50 bg-card shadow-sm"
         >

@@ -89,8 +89,8 @@ const Jobs = () => {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search by job title or company..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -100,7 +100,7 @@ const Jobs = () => {
           <div className="flex flex-wrap md:flex-nowrap gap-4">
             <div className="flex items-center gap-2 bg-muted/50 border border-border/50 rounded-xl px-4 py-2.5">
               <Filter className="w-4 h-4 text-muted-foreground" />
-              <select 
+              <select
                 value={jobType}
                 onChange={(e) => setJobType(e.target.value)}
                 className="bg-transparent text-sm font-medium text-foreground focus:outline-none cursor-pointer"
@@ -112,7 +112,7 @@ const Jobs = () => {
             </div>
             <div className="flex items-center gap-2 bg-muted/50 border border-border/50 rounded-xl px-4 py-2.5">
               <Briefcase className="w-4 h-4 text-muted-foreground" />
-              <select 
+              <select
                 value={experience}
                 onChange={(e) => setExperience(e.target.value)}
                 className="bg-transparent text-sm font-medium text-foreground focus:outline-none cursor-pointer"
@@ -133,8 +133,8 @@ const Jobs = () => {
       {filteredJobs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredJobs.map(job => (
-            <Link 
-              to={`/dashboard/jobs/${job.id}`} 
+            <Link
+              to={`/dashboard/jobs/${job.id}`}
               key={job.id}
               className="bg-card border border-border/50 rounded-2xl p-6 hover:border-primary/50 transition-all hover:shadow-md group flex flex-col h-full"
             >
@@ -148,11 +148,11 @@ const Jobs = () => {
                   {job.type}
                 </span>
               </div>
-              
+
               <div className="flex-1">
                 <h3 className="font-bold text-foreground text-lg mb-1 group-hover:text-primary transition-colors">{job.title}</h3>
                 <p className="text-sm font-medium text-muted-foreground mb-4">{job.company}</p>
-                
+
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <MapPin className="w-3.5 h-3.5" /> {job.location}
@@ -162,7 +162,7 @@ const Jobs = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="pt-4 border-t border-border/40 flex items-center justify-between mt-auto">
                 <span className="text-xs text-muted-foreground">Posted {job.posted}</span>
                 <span className="text-sm font-semibold text-primary">View Details →</span>
@@ -175,7 +175,7 @@ const Jobs = () => {
           <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
           <h3 className="text-lg font-bold text-foreground mb-2">No jobs found</h3>
           <p className="text-muted-foreground text-sm">Try adjusting your search or filters to find more opportunities.</p>
-          <button 
+          <button
             onClick={() => { setSearchTerm(''); setJobType('All'); setExperience('All'); }}
             className="mt-6 bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2 rounded-lg font-medium text-sm transition-colors"
           >
