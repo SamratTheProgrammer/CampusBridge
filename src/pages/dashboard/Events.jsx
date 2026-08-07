@@ -41,13 +41,13 @@ const Events = () => {
       </div>
 
       <div className="flex items-center gap-6 border-b border-border/40">
-        <button 
+        <button
           onClick={() => setActiveTab('upcoming')}
           className={`pb-4 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'upcoming' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
         >
           Upcoming Events
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('past')}
           className={`pb-4 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'past' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
         >
@@ -84,7 +84,7 @@ const Events = () => {
             No past events to show.
           </div>
         )}
-        
+
         {activeTab === 'upcoming' && (
           <div className="pt-4 text-center">
             <button className="text-sm font-medium text-primary hover:underline">

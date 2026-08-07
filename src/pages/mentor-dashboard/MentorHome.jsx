@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { 
-  Users, 
-  BookOpen, 
-  Calendar, 
+import {
+  Users,
+  BookOpen,
+  Calendar,
   MessageSquare,
   Image as ImageIcon,
   Video,
@@ -64,29 +64,29 @@ const MentorHome = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-8 max-w-7xl mx-auto">
-      
+
       {/* Left Column (Profile & Quick Stats) */}
       <div className="hidden md:block md:col-span-3 space-y-6 sticky top-24 self-start">
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
           <div className="h-16 bg-muted relative">
-            <img 
-              src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" 
-              alt="Cover" 
+            <img
+              src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"
+              alt="Cover"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="px-4 pb-4 relative text-center">
             <div className="flex justify-center -mt-8 mb-3">
-              <img 
-                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
-                alt="Profile" 
+              <img
+                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"
+                alt="Profile"
                 className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card"
               />
             </div>
             <h3 className="font-bold text-foreground">Rohit Sharma</h3>
             <p className="text-xs text-muted-foreground mb-4">Senior Software Engineer at Amazon</p>
-            
+
             <div className="border-t border-border/40 pt-4 flex justify-between text-sm">
               <span className="text-muted-foreground font-medium">Students Mentored</span>
               <span className="text-primary font-bold">48</span>
@@ -121,13 +121,13 @@ const MentorHome = () => {
 
       {/* Main Column (Feed) */}
       <div className="col-span-1 md:col-span-6 space-y-6">
-        
+
         {/* Create Post */}
         <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex gap-4 mb-4">
-            <img 
-              src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
-              alt="Profile" 
+            <img
+              src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"
+              alt="Profile"
               className="w-12 h-12 rounded-full object-cover shrink-0"
             />
             <button className="flex-1 text-left bg-background border border-border/50 rounded-full px-4 text-muted-foreground hover:bg-muted/50 transition-colors">
@@ -158,7 +158,7 @@ const MentorHome = () => {
         {/* Feed Posts */}
         <div className="space-y-6">
           {posts.map(post => (
-            <motion.div 
+            <motion.div
               key={post.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -178,12 +178,12 @@ const MentorHome = () => {
                     <MoreHorizontal className="w-5 h-5" />
                   </button>
                 </div>
-                
+
                 <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
                   {post.content}
                 </p>
               </div>
-              
+
               <div className="px-4 sm:px-5 py-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
                   <div className="flex items-center gap-1">
@@ -211,7 +211,7 @@ const MentorHome = () => {
 
       {/* Right Column (Widgets) */}
       <div className="hidden lg:block md:col-span-3 space-y-6 sticky top-24 self-start">
-        
+
         {/* Mentorship Requests */}
         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -289,4 +289,5 @@ const MentorHome = () => {
 }
 
 export default MentorHome
+
 
