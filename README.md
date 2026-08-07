@@ -1,16 +1,138 @@
-# React + Vite
+# 🎓 Alumni Networking and Mentorship Management Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## Overview
 
-Currently, two official plugins are available:
+The **Alumni Networking and Mentorship Management Platform** is a web-based application that connects students with alumni for mentorship, career guidance, professional networking, and opportunity sharing. The platform aims to strengthen alumni engagement by providing a centralized space for communication and collaboration.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Project Status:** 🚧 In Progress
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Objectives
 
-## Expanding the Oxlint configuration
+- Connect students with alumni mentors.
+- Facilitate mentorship and career guidance.
+- Enable alumni to share job and internship opportunities.
+- Improve alumni engagement within the institution.
+- Build a centralized alumni networking system.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+---
+
+## Features
+
+- User Registration and Login
+- Student and Alumni Profiles
+- Mentorship Request System
+- Job & Internship Posting
+- Search Alumni by Domain
+- Dashboard for Students and Alumni
+- Admin Management Panel
+
+---
+
+## Tech Stack
+
+### Frontend
+- React.js
+- HTML
+- CSS
+- JavaScript
+
+### Backend
+- Node.js
+- Express.js
+
+### Database
+- MongoDB
+
+### Other Tools
+- Git
+- GitHub
+- REST API
+- JWT Authentication
+
+---
+
+## Project Structure
+
+```
+Alumni-Networking-Platform/
+│
+├── client/
+│
+├── server/
+│
+├── README.md
+│
+└── .gitignore
+```
+
+---
+
+## Current Progress
+
+### ✔ Completed
+
+- Project planning
+- Requirement analysis
+- Technology stack selection
+- Repository setup
+
+### 🚧 In Progress
+
+- UI development
+- Authentication module
+- Database design
+- Backend APIs
+
+### 📌 Upcoming
+
+- Mentorship management
+- Opportunity portal
+- Notifications
+- Testing and deployment
+
+---
+
+## Project Information
+
+| Field | Details |
+|------|---------|
+| Project Type | Industry |
+| Complexity | Intermediate |
+| Domain | Social Networking, EdTech |
+| Technology | MERN Stack |
+| Group Size | 3 |
+| Phase | Development (In Progress) |
+
+---
+
+## Project Gap
+
+Many educational institutions lack a centralized platform where students can connect with alumni for mentorship, career guidance, networking, and professional opportunities. This project aims to bridge that gap by providing a dedicated alumni engagement platform.
+
+---
+
+## Expected Outcome
+
+A secure and user-friendly alumni networking platform that promotes mentorship, collaboration, career development, and long-term alumni engagement.
+
+---
+
+## SDG Mapping
+
+- 🎯 Goal 4 – Quality Education
+- 🎯 Goal 8 – Decent Work and Economic Growth
+- 🎯 Goal 9 – Industry, Innovation and Infrastructure
+
+---
+
+## Contributors
+
+- Member 1
+- Member 2
+- Member 3
+
+---
+
+**Project Status:** 🚧 Currently under development.

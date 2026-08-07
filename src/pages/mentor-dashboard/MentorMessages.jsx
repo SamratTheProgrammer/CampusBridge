@@ -28,7 +28,7 @@ const MentorMessages = () => {
 
   return (
     <div className="h-[calc(100vh-8rem)] flex rounded-2xl overflow-hidden border border-border/50 bg-card shadow-sm max-w-7xl mx-auto">
-      
+
       {/* Left Sidebar - Contact List */}
       <div className="w-full md:w-80 lg:w-96 flex flex-col border-r border-border/50 bg-background/50">
         <div className="p-4 border-b border-border/50">
@@ -47,7 +47,7 @@ const MentorMessages = () => {
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none divide-y divide-border/40">
           {MOCK_CONTACTS.map((contact) => (
-            <div 
+            <div
               key={contact.id}
               onClick={() => setActiveContact(contact)}
               className={`p-4 cursor-pointer transition-colors flex gap-3 items-center ${activeContact.id === contact.id ? 'bg-primary/5' : 'hover:bg-muted/50'}`}
@@ -143,8 +143,8 @@ const MentorMessages = () => {
               placeholder="Write a message..."
               className="flex-1 bg-muted border-none rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all text-foreground"
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={!message.trim()}
               className="p-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -153,10 +153,11 @@ const MentorMessages = () => {
           </form>
         </div>
       </div>
-      
+
     </div>
   )
 }
 
 export default MentorMessages
+
 

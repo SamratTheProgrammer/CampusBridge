@@ -42,6 +42,7 @@ const mentor = [
 ]
 
 const FeaturedMentor = () => {
+
   return (
     <section className="py-24 bg-muted/20">
       <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
@@ -68,16 +69,16 @@ const FeaturedMentor = () => {
               className="bg-card rounded-2xl p-6 border shadow-sm hover:shadow-lg transition-all"
             >
               <div className="flex flex-col items-center text-center mb-6">
-                <img 
-                  src={person.image} 
-                  alt={person.name} 
+                <img
+                  src={person.image}
+                  alt={person.name}
                   className="w-24 h-24 rounded-full object-cover mb-4 ring-4 ring-background shadow-md"
                 />
                 <h3 className="text-xl font-bold text-foreground mb-1">{person.name}</h3>
                 <p className="text-sm font-medium text-primary mb-1">{person.role} @ {person.company}</p>
                 <p className="text-xs text-muted-foreground">{person.experience} exp.</p>
               </div>
-              
+
               <div className="flex flex-wrap gap-2 justify-center mb-6">
                 {person.tags.map(tag => (
                   <span key={tag} className="text-[10px] font-medium px-2 py-1 bg-muted text-muted-foreground rounded-full">

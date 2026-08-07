@@ -49,22 +49,22 @@ const MyMentees = () => {
   const [statusFilter, setStatusFilter] = useState('All')
 
   const filteredMentees = MOCK_MENTEES.filter(mentee => {
-    const matchesSearch = mentee.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          mentee.course.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = mentee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      mentee.course.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'All' || mentee.status === statusFilter
     return matchesSearch && matchesStatus
   })
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      
+
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Mentees</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage and track your students' progress.</p>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -95,7 +95,7 @@ const MyMentees = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredMentees.map((mentee) => (
           <div key={mentee.id} className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col">
-            
+
             <div className="p-5 flex-1 text-center relative">
               <div className="absolute top-4 right-4">
                 {mentee.status === 'Active' ? (
@@ -108,15 +108,15 @@ const MyMentees = () => {
                   </span>
                 )}
               </div>
-              <img 
-                src={mentee.image} 
-                alt={mentee.name} 
+              <img
+                src={mentee.image}
+                alt={mentee.name}
                 className="w-20 h-20 rounded-full object-cover mx-auto mb-4 border-2 border-primary/20"
               />
               <h3 className="font-bold text-foreground text-lg">{mentee.name}</h3>
               <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{mentee.course}</p>
               <p className="text-[10px] font-medium text-foreground/70 uppercase tracking-widest mt-1">{mentee.university}</p>
-              
+
               <div className="flex flex-wrap gap-1.5 justify-center mt-4">
                 {mentee.skills.map((skill, index) => (
                   <span key={index} className="bg-muted text-muted-foreground text-[10px] px-2 py-1 rounded-md">
@@ -148,7 +148,7 @@ const MyMentees = () => {
             </div>
           </div>
         ))}
-        
+
         {filteredMentees.length === 0 && (
           <div className="col-span-full py-12 text-center text-muted-foreground">
             No mentees found matching your search.

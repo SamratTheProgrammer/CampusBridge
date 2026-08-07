@@ -60,15 +60,15 @@ const DashboardHome = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-8 max-w-7xl mx-auto">
-      
+
       {/* Left Column (Profile & Quick Stats) */}
       <div className="hidden md:block md:col-span-3 space-y-6 sticky top-24 self-start">
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
           <div className="h-16 bg-muted relative">
-            <img 
-              src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" 
-              alt="Cover" 
+            <img
+              src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"
+              alt="Cover"
               className="w-full h-full object-cover"
             />
           </div>
@@ -93,7 +93,6 @@ const DashboardHome = () => {
                 <div className="h-3 w-32 bg-muted animate-pulse rounded"></div>
               </div>
             )}
-            
             <div className="border-t border-border/40 pt-4 flex justify-between text-sm">
               <span className="text-muted-foreground font-medium">Profile Views</span>
               <span className="text-primary font-bold">42</span>
@@ -121,13 +120,13 @@ const DashboardHome = () => {
 
       {/* Main Column (Feed) */}
       <div className="col-span-1 md:col-span-6 space-y-6">
-        
+
         {/* Create Post */}
         <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex gap-4 mb-4">
-            <img 
-              src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
-              alt="Profile" 
+            <img
+              src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"
+              alt="Profile"
               className="w-12 h-12 rounded-full object-cover shrink-0"
             />
             <button className="flex-1 text-left bg-background border border-border/50 rounded-full px-4 text-muted-foreground hover:bg-muted/50 transition-colors">
@@ -155,7 +154,7 @@ const DashboardHome = () => {
         {/* Feed Posts */}
         <div className="space-y-6">
           {posts.map(post => (
-            <motion.div 
+            <motion.div
               key={post.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -175,12 +174,12 @@ const DashboardHome = () => {
                     <MoreHorizontal className="w-5 h-5" />
                   </button>
                 </div>
-                
+
                 <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
                   {post.content}
                 </p>
               </div>
-              
+
               {post.image && (
                 <div className="w-full max-h-96 bg-muted overflow-hidden">
                   <img src={post.image} alt="Post content" className="w-full h-full object-cover" />

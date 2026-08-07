@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Star, Calendar, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const mentors = [
   {
@@ -36,6 +37,8 @@ const mentors = [
 ]
 
 const MentorSpotlight = () => {
+  const navigate = useNavigate()
+
   return (
     <section className="py-24">
       <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
@@ -98,7 +101,10 @@ const MentorSpotlight = () => {
                 </div>
               </div>
 
-              <button className="w-full bg-foreground text-background py-3 rounded-xl font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm">
+              <button 
+                onClick={() => navigate('/dashboard/mentor/1/book')}
+                className="w-full bg-foreground text-background py-3 rounded-xl font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+              >
                 Book Session
               </button>
             </motion.div>
