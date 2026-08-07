@@ -14,6 +14,14 @@ const Settings = () => {
   const [location, setLocation] = useState('')
   const [aboutMe, setAboutMe] = useState('')
   const [resumeUrl, setResumeUrl] = useState('')
+  const [experience, setExperience] = useState([])
+  const [education, setEducation] = useState([])
+  const [skills, setSkills] = useState([])
+  const [newSkill, setNewSkill] = useState('')
+  const [showExpForm, setShowExpForm] = useState(false)
+  const [newExp, setNewExp] = useState({ title: '', company: '', duration: '', description: '' })
+  const [showEduForm, setShowEduForm] = useState(false)
+  const [newEdu, setNewEdu] = useState({ degree: '', institution: '', duration: '', grade: '' })
   const [isUploading, setIsUploading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -30,6 +38,9 @@ const Settings = () => {
       setLocation(user.unsafeMetadata?.location || '')
       setAboutMe(user.unsafeMetadata?.aboutMe || '')
       setResumeUrl(user.unsafeMetadata?.resumeUrl || '')
+      setExperience(user.unsafeMetadata?.experience || [])
+      setEducation(user.unsafeMetadata?.education || [])
+      setSkills(user.unsafeMetadata?.skills || [])
     }
   }, [user])
 
@@ -57,7 +68,10 @@ const Settings = () => {
           headline,
           location,
           aboutMe,
-          resumeUrl
+          resumeUrl,
+          experience,
+          education,
+          skills
         }
       })
       toast.success('Profile updated successfully!')
@@ -139,7 +153,10 @@ const Settings = () => {
       headline,
       location,
       aboutMe,
-      resumeUrl
+      resumeUrl,
+      experience.length > 0,
+      education.length > 0,
+      skills.length > 0
     ]
     const filledCount = fields.filter(f => typeof f === 'string' ? f.trim().length > 0 : Boolean(f)).length
     return Math.round((filledCount / fields.length) * 100)
@@ -197,8 +214,17 @@ const Settings = () => {
             >
               <tab.icon className="w-5 h-5 shrink-0" />
               <span>{tab.label}</span>
-              {/* Green checkmark if completed (mock logic) */}
-              {['basic', 'education', 'skills'].includes(tab.id) && (
+              {/* Green checkmark if completed */}
+              {tab.id === 'basic' && (firstName && lastName) && (
+                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+              )}
+              {tab.id === 'experience' && experience.length > 0 && (
+                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+              )}
+              {tab.id === 'education' && education.length > 0 && (
+                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+              )}
+              {tab.id === 'skills' && skills.length > 0 && (
                 <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
               )}
             </button>
@@ -279,9 +305,39 @@ const Settings = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <h2 className="text-xl font-bold text-foreground">Experience</h2>
-                <button className="text-primary text-sm font-medium hover:underline">+ Add Experience</button>
+                <button onClick={() => setShowExpForm(!showExpForm)} className="text-primary text-sm font-medium hover:underline">{showExpForm ? 'Cancel' : '+ Add Experience'}</button>
               </div>
-              <p className="text-sm text-muted-foreground italic text-center py-8">No experience added yet.</p>
+              
+              {showExpForm && (
+                <div className="bg-muted/10 border border-border/50 rounded-xl p-4 space-y-4 my-4">
+                  <input type="text" placeholder="Job Title (e.g. Web Developer Intern)" value={newExp.title} onChange={e => setNewExp({...newExp, title: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input type="text" placeholder="Company (e.g. Tech Solutions Inc.)" value={newExp.company} onChange={e => setNewExp({...newExp, company: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input type="text" placeholder="Duration (e.g. Jun 2023 - Aug 2023)" value={newExp.duration} onChange={e => setNewExp({...newExp, duration: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <textarea placeholder="Description" rows="2" value={newExp.description} onChange={e => setNewExp({...newExp, description: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"></textarea>
+                  <button onClick={() => {
+                    if(newExp.title) {
+                      setExperience([...experience, newExp]);
+                      setNewExp({ title: '', company: '', duration: '', description: '' });
+                      setShowExpForm(false);
+                    }
+                  }} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">Add to Profile</button>
+                </div>
+              )}
+
+              {experience.length > 0 ? (
+                <div className="space-y-4 mt-4">
+                  {experience.map((exp, i) => (
+                    <div key={i} className="border border-border/50 rounded-xl p-5 bg-muted/10 relative group">
+                      <button onClick={() => setExperience(experience.filter((_, idx) => idx !== i))} className="absolute top-4 right-4 text-xs font-medium text-destructive hover:underline transition-colors opacity-0 group-hover:opacity-100">Delete</button>
+                      <h3 className="font-bold text-foreground">{exp.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">{exp.company} • {exp.duration}</p>
+                      <p className="text-sm text-foreground/80 whitespace-pre-line">{exp.description}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                !showExpForm && <p className="text-sm text-muted-foreground italic text-center py-8">No experience added yet.</p>
+              )}
             </div>
           )}
 
@@ -290,9 +346,39 @@ const Settings = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <h2 className="text-xl font-bold text-foreground">Education</h2>
-                <button className="text-primary text-sm font-medium hover:underline">+ Add Education</button>
+                <button onClick={() => setShowEduForm(!showEduForm)} className="text-primary text-sm font-medium hover:underline">{showEduForm ? 'Cancel' : '+ Add Education'}</button>
               </div>
-              <p className="text-sm text-muted-foreground italic text-center py-8">No education added yet.</p>
+              
+              {showEduForm && (
+                <div className="bg-muted/10 border border-border/50 rounded-xl p-4 space-y-4 my-4">
+                  <input type="text" placeholder="Degree (e.g. Master of Computer Applications)" value={newEdu.degree} onChange={e => setNewEdu({...newEdu, degree: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input type="text" placeholder="Institution (e.g. National Institute of Technology)" value={newEdu.institution} onChange={e => setNewEdu({...newEdu, institution: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input type="text" placeholder="Duration (e.g. 2022 - 2024)" value={newEdu.duration} onChange={e => setNewEdu({...newEdu, duration: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input type="text" placeholder="Grade/CGPA (e.g. 8.5/10)" value={newEdu.grade} onChange={e => setNewEdu({...newEdu, grade: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <button onClick={() => {
+                    if(newEdu.degree) {
+                      setEducation([...education, newEdu]);
+                      setNewEdu({ degree: '', institution: '', duration: '', grade: '' });
+                      setShowEduForm(false);
+                    }
+                  }} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">Add to Profile</button>
+                </div>
+              )}
+
+              {education.length > 0 ? (
+                <div className="space-y-4 mt-4">
+                  {education.map((edu, i) => (
+                    <div key={i} className="border border-border/50 rounded-xl p-5 bg-muted/10 relative group">
+                      <button onClick={() => setEducation(education.filter((_, idx) => idx !== i))} className="absolute top-4 right-4 text-xs font-medium text-destructive hover:underline transition-colors opacity-0 group-hover:opacity-100">Delete</button>
+                      <h3 className="font-bold text-foreground">{edu.degree}</h3>
+                      <p className="text-sm text-muted-foreground mb-1">{edu.institution} • {edu.duration}</p>
+                      <p className="text-sm font-medium text-foreground">Grade: {edu.grade}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                !showEduForm && <p className="text-sm text-muted-foreground italic text-center py-8">No education added yet.</p>
+              )}
             </div>
           )}
 
@@ -305,14 +391,25 @@ const Settings = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Add a new skill</label>
                   <div className="flex gap-2">
-                    <input type="text" placeholder="e.g. React, Python, Data Analysis" className="flex-1 bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
-                    <button className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors">Add</button>
+                    <input type="text" value={newSkill} onChange={e => setNewSkill(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && newSkill) { setSkills([...skills, newSkill]); setNewSkill(''); } }} placeholder="e.g. React, Python, Data Analysis" className="flex-1 bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                    <button onClick={() => { if(newSkill) { setSkills([...skills, newSkill]); setNewSkill(''); } }} className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors">Add</button>
                   </div>
                 </div>
 
                 <div className="pt-4">
                   <h4 className="text-sm font-medium text-muted-foreground mb-3">Your Top Skills</h4>
-                  <p className="text-sm text-muted-foreground italic">No skills added yet.</p>
+                  {skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {skills.map((skill, i) => (
+                        <span key={i} className="bg-muted border border-border/50 px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 text-foreground group">
+                          {skill}
+                          <button onClick={() => setSkills(skills.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive group-hover:opacity-100 opacity-50 transition-all">&times;</button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">No skills added yet.</p>
+                  )}
                 </div>
               </div>
             </div>

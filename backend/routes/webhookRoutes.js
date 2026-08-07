@@ -74,6 +74,9 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
         location: unsafe_metadata?.location || '',
         aboutMe: unsafe_metadata?.aboutMe || '',
         resumeUrl: unsafe_metadata?.resumeUrl || '',
+        experience: unsafe_metadata?.experience || [],
+        education: unsafe_metadata?.education || [],
+        skills: unsafe_metadata?.skills || [],
       };
 
       // Check if user already exists
@@ -89,6 +92,9 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
         user.location = userData.location;
         user.aboutMe = userData.aboutMe;
         user.resumeUrl = userData.resumeUrl;
+        user.experience = userData.experience;
+        user.education = userData.education;
+        user.skills = userData.skills;
         if (username) user.username = userData.username; // Only update if username is provided explicitly
         await user.save();
         console.log(`User updated in DB: ${id}`);

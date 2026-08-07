@@ -42,6 +42,21 @@ const userSchema = new mongoose.Schema({
   resumeUrl: {
     type: String,
   },
+  experience: [{
+    title: String,
+    company: String,
+    duration: String,
+    description: String
+  }],
+  education: [{
+    degree: String,
+    institution: String,
+    duration: String,
+    grade: String
+  }],
+  skills: [{
+    type: String
+  }],
   createdAt: {
     type: Date,
     default: Date.now,
