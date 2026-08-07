@@ -17,14 +17,14 @@ const HeroSection = () => {
             className="flex-1 text-center lg:text-left"
           >
             <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight text-foreground mb-6 leading-tight">
-              Connect with Alumni. <br className="hidden lg:block" />
+              Connect with Mentor. <br className="hidden lg:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">
                 Build Your Career.
               </span> <br className="hidden lg:block" />
               Shape Your Future.
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto lg:mx-0">
-              Join a thriving network of students and alumni. Share knowledge, find mentorship, explore opportunities, and build a stronger tomorrow together.
+              Join a thriving network of students and mentor. Share knowledge, find mentorship, explore opportunities, and build a stronger tomorrow together.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 flex-wrap mt-2">
               <Link to="/signup" className="w-full sm:w-auto px-8 py-3.5 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/25 whitespace-nowrap">
@@ -72,7 +72,7 @@ const HeroSection = () => {
                     A
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">Alumni Connected</p>
+                    <p className="text-sm font-semibold">Mentor Connected</p>
                     <p className="text-xs text-muted-foreground">Just now</p>
                   </div>
                 </motion.div>

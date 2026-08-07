@@ -1,7 +1,7 @@
 import React from 'react'
 import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap } from 'lucide-react'
 
-const AlumniProfile = () => {
+const MentorProfile = () => {
   return (
     <div className="max-w-5xl mx-auto pb-8">
       {/* Cover & Header Section */}
@@ -142,4 +142,4 @@ const AlumniProfile = () => {
   )
 }
 
-export default AlumniProfile
+export default MentorProfile

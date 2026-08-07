@@ -7,7 +7,7 @@ const AdminAnnouncements = () => {
     { id: 1, title: 'New Internship Opportunities', priority: 'High', audience: 'Students', published: 'May 28, 2026', status: 'Published' },
     { id: 2, title: 'Platform Update - May 2026', priority: 'Medium', audience: 'All Users', published: 'May 25, 2026', status: 'Published' },
     { id: 3, title: 'Upcoming Maintenance', priority: 'High', audience: 'All Users', published: 'May 20, 2026', status: 'Published' },
-    { id: 4, title: 'Alumni Meet Registration Open', priority: 'Medium', audience: 'Alumni', published: 'May 18, 2026', status: 'Published' },
+    { id: 4, title: 'Mentor Meet Registration Open', priority: 'Medium', audience: 'Mentor', published: 'May 18, 2026', status: 'Published' },
   ])
 
   const handleDelete = (id, title) => {
@@ -20,7 +20,7 @@ const AdminAnnouncements = () => {
   const handleCreate = () => {
     const title = prompt('Enter Announcement Title:')
     const priority = prompt('Enter Priority (High, Medium, Low):', 'Medium')
-    const audience = prompt('Enter Audience (Students, Alumni, All Users):', 'All Users')
+    const audience = prompt('Enter Audience (Students, Mentor, All Users):', 'All Users')
     if (title) {
       setAnnouncements([
         ...announcements,

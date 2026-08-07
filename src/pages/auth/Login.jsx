@@ -1,11 +1,70 @@
 import React, { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Mail, Lock, GraduationCap, Building2 } from 'lucide-react'
+import { ArrowLeft, Mail, Lock, GraduationCap, Building2, Loader2 } from 'lucide-react'
+import { useSignIn } from '@clerk/clerk-react'
 
 const Login = () => {
   const location = useLocation()
-  const [selectedRole, setSelectedRole] = useState(location.state?.role || null) // 'student' | 'alumni' | null
+  const { isLoaded, signIn, setActive } = useSignIn()
+  const [selectedRole, setSelectedRole] = useState(location.state?.role || null) // 'student' | 'mentor' | null
+  const navigate = useNavigate()
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleGoogleAuth = async () => {
+    if (!isLoaded) return
+    if (selectedRole) {
+      localStorage.setItem('sso_role', selectedRole)
+    }
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/sync-user',
+      })
+    } catch (err) {
+      console.error('Google Auth Error:', err)
+      toast.error(err.errors?.[0]?.longMessage || 'Google Sign In failed. Check if it is enabled in your Clerk dashboard.')
+    }
+  }
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    if (!isLoaded) return
+
+    setIsLoading(true)
+    try {
+      const signInAttempt = await signIn.create({
+        identifier: email,
+        password,
+      })
+
+      if (signInAttempt.status === 'complete') {
+        await setActive({ session: signInAttempt.createdSessionId })
+        toast.success('Logged in successfully!')
+        
+        // Use user's role if available from backend, otherwise fallback to selectedRole
+        if (selectedRole === 'mentor') {
+          navigate('/mentor-dashboard')
+        } else {
+          navigate('/dashboard')
+        }
+      } else {
+        // If further steps are required (like 2FA)
+        console.error(JSON.stringify(signInAttempt, null, 2))
+        toast.error('Unable to sign in. Additional steps required.')
+      }
+    } catch (err) {
+      console.error(JSON.stringify(err, null, 2))
+      toast.error(err.errors?.[0]?.longMessage || 'Invalid email or password')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 overflow-hidden relative">
@@ -28,24 +87,24 @@ const Login = () => {
               {/* Vertical divider on desktop */}
               <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-border/50 -translate-x-1/2"></div>
               
-              {/* Alumni Side */}
+              {/* Mentor Side */}
               <div className="flex-1 flex flex-col items-center text-center px-6 md:px-16 py-6 md:py-4">
                 <div className="text-[10px] uppercase tracking-widest font-bold bg-primary/10 text-primary px-3 py-1 rounded-full mb-4">
-                  ALUMNI
+                  MENTOR
                 </div>
-                <h2 className="text-3xl font-bold mb-4 text-foreground tracking-tight">For <span className="italic">Alumni</span></h2>
+                <h2 className="text-3xl font-bold mb-4 text-foreground tracking-tight">For <span className="italic">Mentor</span></h2>
                 <p className="text-base text-muted-foreground mb-8 max-w-sm leading-relaxed">
                   Give back to your alma mater, mentor upcoming talent, and network with other professionals.
                 </p>
                 <button 
-                  onClick={() => setSelectedRole('alumni')}
+                  onClick={() => setSelectedRole('mentor')}
                   className="px-8 py-3 w-full max-w-[240px] bg-primary text-primary-foreground text-base font-medium rounded-lg hover:bg-primary/90 transition-all shadow-md shadow-primary/25 hover:-translate-y-0.5"
                 >
                   Login
                 </button>
                 <div className="mt-8 text-sm text-muted-foreground">
                   Don't have an account?<br />
-                  <Link to="/signup" state={{ role: 'alumni' }} className="font-semibold text-primary hover:underline mt-1 inline-block">
+                  <Link to="/signup" state={{ role: 'mentor' }} className="font-semibold text-primary hover:underline mt-1 inline-block">
                     Sign up.
                   </Link>
                 </div>
@@ -59,7 +118,7 @@ const Login = () => {
                 <div className="text-[10px] uppercase tracking-widest font-bold bg-primary/10 text-primary px-3 py-1 rounded-full mb-4">
                   STUDENTS
                 </div>
-                <h2 className="text-3xl font-bold mb-4 text-foreground tracking-tight">For <span className="italic">Students</span></h2>
+                <h2 className="text-3xl font-bold mb-4 text-foreground tracking-tight">For <span className="italic">Students and Alumni</span></h2>
                 <p className="text-base text-muted-foreground mb-8 max-w-sm leading-relaxed">
                   Join the community, connect with mentors, discover job opportunities, and accelerate your career.
                 </p>
@@ -107,25 +166,28 @@ const Login = () => {
                 {selectedRole === 'student' ? <GraduationCap className="w-8 h-8 text-primary" /> : <Building2 className="w-8 h-8 text-primary" />}
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-                Welcome Back, {selectedRole === 'student' ? 'Student' : 'Alumni'}
+                Welcome Back, {selectedRole === 'student' ? 'Student & Alumni' : 'Mentor'}
               </h1>
               <p className="text-muted-foreground">Enter your credentials to access your account</p>
             </div>
 
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={handleLogin}>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                   <input 
                     type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
                     required
                   />
                 </div>
               </div>
-              
+
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium text-foreground">Password</label>
@@ -137,6 +199,8 @@ const Login = () => {
                   <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                   <input 
                     type="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
                     required
@@ -146,9 +210,10 @@ const Login = () => {
 
               <button 
                 type="submit" 
-                className="w-full py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-all mt-6 shadow-md shadow-primary/20"
+                disabled={isLoading}
+                className="w-full py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-all mt-6 shadow-md shadow-primary/20 flex justify-center items-center"
               >
-                Sign In
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
               </button>
             </form>
 
@@ -162,7 +227,11 @@ const Login = () => {
                 </div>
               </div>
 
-              <button className="w-full mt-6 py-2.5 flex items-center justify-center gap-2 border border-input rounded-lg hover:bg-muted transition-colors font-medium text-foreground">
+              <button 
+                onClick={handleGoogleAuth}
+                type="button"
+                className="w-full mt-6 py-2.5 flex items-center justify-center gap-2 border border-input rounded-lg hover:bg-muted transition-colors font-medium text-foreground"
+              >
                 <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />

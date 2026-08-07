@@ -7,7 +7,7 @@ const AdminSettings = () => {
   
   // Form State
   const [platformName, setPlatformName] = useState('CampusBridge')
-  const [tagline, setTagline] = useState('Connecting Alumni. Inspiring Futures.')
+  const [tagline, setTagline] = useState('Connecting Mentor. Inspiring Futures.')
   const [email, setEmail] = useState('support@campusbridge.com')
   const [phone, setPhone] = useState('+91-6289258359')
   const [address, setAddress] = useState('Chandigarh University, Mohali, Punjab, India')

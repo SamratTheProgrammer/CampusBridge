@@ -96,7 +96,7 @@ const UpcomingEvents = () => {
       image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
     },
     {
-      title: 'Alumni Networking Career Fair',
+      title: 'Mentor Networking Career Fair',
       type: 'Career Fair',
       date: 'Nov 02, 2024',
       time: '10:00 AM - 4:00 PM',

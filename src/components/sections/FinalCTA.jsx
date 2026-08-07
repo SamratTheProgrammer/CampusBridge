@@ -10,15 +10,15 @@ const FinalCTA = () => {
           Ready to Build Your Future?
         </h2>
         <p className="text-xl text-muted-foreground mb-10">
-          Join thousands of students and alumni who are already accelerating their careers with CampusBridge.
+          Join thousands of students and mentor who are already accelerating their careers with CampusBridge.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link to="/signup" className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-full font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-lg">
             Join CampusBridge
             <UserPlus className="w-5 h-5" />
           </Link>
-          <Link to="/alumni" className="w-full sm:w-auto px-8 py-4 bg-card text-foreground border-2 rounded-full font-bold hover:bg-muted transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md text-lg">
-            Explore Alumni
+          <Link to="/mentor" className="w-full sm:w-auto px-8 py-4 bg-card text-foreground border-2 rounded-full font-bold hover:bg-muted transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md text-lg">
+            Explore Mentor
             <Search className="w-5 h-5" />
           </Link>
         </div>

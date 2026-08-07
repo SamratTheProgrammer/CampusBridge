@@ -2,13 +2,14 @@ import React from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import {
   LayoutDashboard,
+  User,
   Users,
   BookOpen,
   Briefcase,
   Calendar,
+  Rss,
   MessageSquare,
-  FileText,
-  Bookmark,
+  BarChart,
   Settings,
   LogOut,
   ChevronLeft,
@@ -18,17 +19,17 @@ import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
 import logoIcon from '../../assets/CampusLogoHalf.png'
 
-const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
+const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
-    { name: 'Mentor Directory', path: '/dashboard/mentor', icon: Users },
-    { name: 'Mentorship', path: '/dashboard/mentorship', icon: BookOpen },
-    { name: 'Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase },
-    { name: 'Events', path: '/dashboard/events', icon: Calendar },
-    { name: 'Messages', path: '/dashboard/messages', icon: MessageSquare, badge: 5 },
-    { name: 'Applications', path: '/dashboard/applications', icon: FileText },
-    { name: 'Saved', path: '/dashboard/saved', icon: Bookmark },
-    { name: 'Settings', path: '/dashboard/settings', icon: Settings },
+    { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true },
+    { name: 'My Profile', path: '/mentor-dashboard/profile', icon: User },
+    { name: 'My Mentees', path: '/mentor-dashboard/mentees', icon: Users },
+    { name: 'Mentorship Requests', path: '/mentor-dashboard/requests', icon: BookOpen },
+    { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase },
+    { name: 'Events', path: '/mentor-dashboard/events', icon: Calendar },
+    { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: 3 },
+    { name: 'Analytics', path: '/mentor-dashboard/analytics', icon: BarChart },
+    { name: 'Settings', path: '/mentor-dashboard/settings', icon: Settings },
   ]
 
   return (
@@ -102,4 +103,4 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   )
 }
 
-export default Sidebar
+export default MentorSidebar

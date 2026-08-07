@@ -26,7 +26,7 @@ const Counter = ({ value, label, icon: Icon, delay = 0 }) => {
 
 const Statistics = () => {
   const stats = [
-    { label: 'Alumni', value: '12,000+', icon: GraduationCap },
+    { label: 'Mentor', value: '12,000+', icon: GraduationCap },
     { label: 'Students', value: '8,000+', icon: Users },
     { label: 'Mentors', value: '2,000+', icon: MessageCircle },
     { label: 'Jobs', value: '5,000+', icon: Briefcase },

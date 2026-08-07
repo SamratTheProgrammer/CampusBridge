@@ -25,8 +25,8 @@ const Features = () => {
   const features = [
     {
       icon: GraduationCap,
-      title: 'Alumni Network',
-      description: 'Connect with successful alumni from your institution. Build a powerful professional network that lasts a lifetime.',
+      title: 'Mentor Network',
+      description: 'Connect with successful mentor from your institution. Build a powerful professional network that lasts a lifetime.',
     },
     {
       icon: Users,
@@ -36,7 +36,7 @@ const Features = () => {
     {
       icon: Briefcase,
       title: 'Jobs & Internships',
-      description: 'Access exclusive job postings and internship opportunities shared directly by alumni working in top tech companies.',
+      description: 'Access exclusive job postings and internship opportunities shared directly by mentor working in top tech companies.',
     },
     {
       icon: Calendar,
@@ -61,7 +61,7 @@ const Features = () => {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">Why Choose CampusBridge?</h2>
           <p className="text-lg text-muted-foreground">
-            Everything you need to launch and accelerate your career, all in one powerful platform designed specifically for students and alumni.
+            Everything you need to launch and accelerate your career, all in one powerful platform designed specifically for students and alumni and mentor.
           </p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">

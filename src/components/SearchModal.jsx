@@ -15,7 +15,7 @@ const searchData = [
   {
     category: 'Sections',
     items: [
-      { id: 'alumni', title: 'Alumni Network', path: '/#alumni', icon: Users, description: 'Connect with featured alumni' },
+      { id: 'mentor', title: 'Mentor Network', path: '/#mentor', icon: Users, description: 'Connect with featured mentor' },
       { id: 'mentorship', title: 'Mentorship', path: '/#mentorship', icon: BookOpen, description: 'Find or become a mentor' },
       { id: 'jobs', title: 'Jobs & Internships', path: '/#jobs', icon: Briefcase, description: 'Explore career opportunities' },
       { id: 'events', title: 'Upcoming Events', path: '/#events', icon: Calendar, description: 'Webinars, workshops, and meetups' },

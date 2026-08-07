@@ -6,7 +6,7 @@ const AdminNotifications = () => {
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'New Career Fair Alert', audience: 'Students', type: 'In-App', sent: 'May 28, 2026', status: 'Sent' },
     { id: 2, title: 'AI Workshop Reminder', audience: 'All Users', type: 'Email', sent: 'May 27, 2026', status: 'Sent' },
-    { id: 3, title: 'New Job Opportunities', audience: 'Alumni', type: 'In-App', sent: 'May 26, 2026', status: 'Sent' },
+    { id: 3, title: 'New Job Opportunities', audience: 'Mentor', type: 'In-App', sent: 'May 26, 2026', status: 'Sent' },
     { id: 4, title: 'Platform Maintenance', audience: 'All Users', type: 'In-App', sent: 'May 25, 2026', status: 'Scheduled' },
     { id: 5, title: 'Mentorship Program Update', audience: 'Students', type: 'Email', sent: 'May 24, 2026', status: 'Sent' },
   ])
@@ -20,7 +20,7 @@ const AdminNotifications = () => {
 
   const handleCreate = () => {
     const title = prompt('Enter Notification Title:')
-    const audience = prompt('Enter Target Audience (Students, Alumni, All Users):', 'All Users')
+    const audience = prompt('Enter Target Audience (Students, Mentor, All Users):', 'All Users')
     const type = prompt('Enter Delivery Type (In-App, Email):', 'In-App')
     if (title) {
       setNotifications([

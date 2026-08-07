@@ -10,7 +10,7 @@ const mockSavedJobs = [
 
 const mockSavedEvents = [
   { id: 1, title: 'Tech Career Fair 2024', date: 'Nov 15, 2023', location: 'Main Campus Center', type: 'Career Fair' },
-  { id: 2, title: 'Alumni Mixer: Software Engineering', date: 'Nov 20, 2023', location: 'Virtual', type: 'Networking' },
+  { id: 2, title: 'Mentor Mixer: Software Engineering', date: 'Nov 20, 2023', location: 'Virtual', type: 'Networking' },
 ]
 
 const Saved = () => {

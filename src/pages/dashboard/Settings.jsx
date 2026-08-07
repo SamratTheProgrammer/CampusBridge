@@ -1,8 +1,54 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2 } from 'lucide-react'
+import { useUser } from '@clerk/clerk-react'
+import toast from 'react-hot-toast'
 
 const Settings = () => {
+  const { user, isLoaded } = useUser()
   const [activeTab, setActiveTab] = useState('basic')
+  
+  // Form State
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  
+  const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.firstName || '')
+      setLastName(user.lastName || '')
+    }
+  }, [user])
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      await user.setProfileImage({ file })
+      toast.success('Profile picture updated!')
+    } catch (err) {
+      toast.error('Failed to update profile picture')
+      console.error(err)
+    }
+  }
+
+  const handleSaveChanges = async () => {
+    if (!user) return
+    setIsSaving(true)
+    try {
+      await user.update({
+        firstName,
+        lastName,
+      })
+      toast.success('Profile updated successfully!')
+    } catch (err) {
+      toast.error('Failed to save changes')
+      console.error(err)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const tabs = [
     { id: 'basic', label: 'Basic Info', icon: User },
@@ -35,11 +81,16 @@ const Settings = () => {
               ></div>
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              Complete your profile to stand out to recruiters and alumni mentors.
+              Complete your profile to stand out to recruiters and mentor mentors.
             </p>
           </div>
-          <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm shrink-0 flex items-center gap-2">
-            <Save className="w-4 h-4" /> Save All Changes
+          <button 
+            onClick={handleSaveChanges}
+            disabled={isSaving}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm shrink-0 flex items-center gap-2 disabled:opacity-70"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
+            Save All Changes
           </button>
         </div>
       </div>
@@ -78,11 +129,21 @@ const Settings = () => {
               
               <div className="flex items-center gap-6 mb-6">
                 <img 
-                  src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
+                  src={user?.imageUrl || "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
                   alt="Profile" 
                   className="w-20 h-20 rounded-full object-cover border border-border/50"
                 />
-                <button className="bg-muted text-foreground hover:bg-muted/80 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleImageUpload} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-muted text-foreground hover:bg-muted/80 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50"
+                >
                   Change Photo
                 </button>
               </div>
@@ -90,27 +151,38 @@ const Settings = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">First Name</label>
-                  <input type="text" defaultValue="Samrat" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <input 
+                    type="text" 
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Last Name</label>
-                  <input type="text" defaultValue="Saha" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <input 
+                    type="text" 
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" 
+                  />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm font-medium text-foreground">Headline (Tagline)</label>
-                  <input type="text" defaultValue="MCA Student | Seeking SDE Internships" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <input type="text" defaultValue="MCA Student | Seeking SDE Internships" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Location</label>
-                  <input type="text" defaultValue="Kolkata, India" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <input type="text" defaultValue="Kolkata, India" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Contact Email</label>
-                  <input type="email" defaultValue="samrat.saha@example.com" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <input type="email" disabled value={user?.primaryEmailAddress?.emailAddress || ''} className="w-full bg-muted/50 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none text-sm text-foreground transition-all cursor-not-allowed" />
+                  <p className="text-xs text-muted-foreground">Email address cannot be changed directly.</p>
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm font-medium text-foreground">About Me</label>
-                  <textarea rows="4" className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" defaultValue="Passionate software developer focusing on building scalable web applications. Open to learning new technologies and currently exploring React and Node.js."></textarea>
+                  <textarea rows="4" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" defaultValue="Passionate software developer focusing on building scalable web applications. Open to learning new technologies and currently exploring React and Node.js."></textarea>
                 </div>
               </div>
             </div>

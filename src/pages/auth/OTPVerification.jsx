@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ShieldCheck } from 'lucide-react'
 
@@ -56,6 +57,7 @@ const OTPVerification = () => {
     const code = otp.join('')
     if (code.length === 4) {
       // Validate OTP here
+      toast.success('Account verified successfully!')
       navigate('/') // Navigate on success
     }
   }
@@ -90,7 +92,6 @@ const OTPVerification = () => {
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 onPaste={handlePaste}
                 className="w-14 h-14 md:w-16 md:h-16 text-center text-2xl font-bold rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                required
               />
             ))}
           </div>

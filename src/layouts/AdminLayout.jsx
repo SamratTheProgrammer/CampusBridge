@@ -38,7 +38,7 @@ const AdminLayout = () => {
   const adminMenu = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'User Management', path: '/admin/users', icon: Users },
-    { name: 'Alumni Verification', path: '/admin/verification', icon: UserCheck },
+    { name: 'Mentor Verification', path: '/admin/verification', icon: UserCheck },
     { name: 'Mentorship', path: '/admin/mentorship', icon: HelpingHand },
     { name: 'Jobs & Internships', path: '/admin/jobs', icon: Briefcase },
     { name: 'Companies', path: '/admin/companies', icon: Building2 },
@@ -68,8 +68,8 @@ const AdminLayout = () => {
                   <img src={logoHalf} alt="CampusBridge" className="h-10 w-10 object-contain" />
                 ) : (
                   <>
-                    <img src={logoLight} alt="CampusBridge" className="h-26 w-auto block dark:hidden" />
-                    <img src={logoDark} alt="CampusBridge" className="h-26 w-auto hidden dark:block" />
+                    <img src={logoLight} alt="CampusBridge" className="h-12 w-auto block dark:hidden" />
+                    <img src={logoDark} alt="CampusBridge" className="h-12 w-auto hidden dark:block" />
                   </>
                 )}
               </Link>

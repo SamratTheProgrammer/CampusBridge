@@ -5,19 +5,19 @@ import { Plus, Minus } from 'lucide-react'
 const faqs = [
   {
     question: 'Is CampusBridge free?',
-    answer: 'Yes, CampusBridge is completely free for students and alumni of partnered universities. We believe that access to mentorship and career opportunities should not be behind a paywall.'
+    answer: 'Yes, CampusBridge is completely free for students and alumni and mentor of partnered universities. We believe that access to mentorship and career opportunities should not be behind a paywall.'
   },
   {
     question: 'How can I become a mentor?',
     answer: 'If you are an alumnus with at least 1 year of professional experience, you can apply to become a mentor through your profile settings. Our team reviews applications within 48 hours.'
   },
   {
-    question: 'How do I connect with alumni?',
-    answer: 'You can use the Alumni Directory to filter by company, role, or location. Once you find someone, you can send them a connection request along with a personalized message.'
+    question: 'How do I connect with mentor?',
+    answer: 'You can use the Mentor Directory to filter by company, role, or location. Once you find someone, you can send them a connection request along with a personalized message.'
   },
   {
-    question: 'Can alumni post jobs?',
-    answer: 'Absolutely! Alumni can post job openings and internships directly to the job board. You can also indicate if you are willing to provide referrals for the roles you post.'
+    question: 'Can mentor post jobs?',
+    answer: 'Absolutely! Mentor can post job openings and internships directly to the job board. You can also indicate if you are willing to provide referrals for the roles you post.'
   },
   {
     question: 'How do mentorship sessions work?',

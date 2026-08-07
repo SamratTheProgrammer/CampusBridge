@@ -2,7 +2,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { MessageSquare, UserPlus } from 'lucide-react'
 
-const alumni = [
+const mentor = [
   {
     id: 1,
     name: 'Arjun Mehta',
@@ -41,24 +41,24 @@ const alumni = [
   }
 ]
 
-const FeaturedAlumni = () => {
+const FeaturedMentor = () => {
   return (
     <section className="py-24 bg-muted/20">
       <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
         <div className="flex flex-col items-center text-center mb-12 gap-4">
           <div className="max-w-2xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Featured Alumni</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Featured Mentor</h2>
             <p className="text-lg text-muted-foreground">
-              Connect with alumni who have walked your path and are now working at top companies worldwide.
+              Connect with mentor who have walked your path and are now working at top companies worldwide.
             </p>
           </div>
           <button className="text-primary font-medium hover:underline">
-            View All Alumni &rarr;
+            View All Mentor &rarr;
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {alumni.map((person, index) => (
+          {mentor.map((person, index) => (
             <motion.div
               key={person.id}
               initial={{ opacity: 0, y: 20 }}
@@ -102,4 +102,4 @@ const FeaturedAlumni = () => {
   )
 }
 
-export default FeaturedAlumni
+export default FeaturedMentor

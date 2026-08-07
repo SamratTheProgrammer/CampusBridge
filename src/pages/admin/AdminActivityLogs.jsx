@@ -5,7 +5,7 @@ const AdminActivityLogs = () => {
   const [logs, setLogs] = useState([
     { id: 1, user: 'Admin', action: 'Logged In', details: 'Admin logged in', ip: '192.168.1.1', time: 'May 28, 2026 10:30 AM' },
     { id: 2, user: 'Rahul Sharma', action: 'Profile Updated', details: 'Updated profile details', ip: '192.168.1.2', time: 'May 28, 2026 10:25 AM' },
-    { id: 3, user: 'Priya Verma', action: 'Alumni Verified', details: 'Alumni verified', ip: '192.168.1.3', time: 'May 28, 2026 10:20 AM' },
+    { id: 3, user: 'Priya Verma', action: 'Mentor Verified', details: 'Mentor verified', ip: '192.168.1.3', time: 'May 28, 2026 10:20 AM' },
     { id: 4, user: 'TechNova Inc.', action: 'Job Posted', details: 'New job posted', ip: '192.168.1.4', time: 'May 28, 2026 10:15 AM' },
     { id: 5, user: 'Sneha Patel', action: 'Account Blocked', details: 'Account blocked by admin', ip: '192.168.1.5', time: 'May 28, 2026 10:10 AM' },
   ])

@@ -6,17 +6,26 @@ import Login from './pages/auth/Login'
 import SignUp from './pages/auth/SignUp'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import OTPVerification from './pages/auth/OTPVerification'
+import SSOCallback from './pages/auth/SSOCallback'
+import SyncUser from './pages/auth/SyncUser'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import PageTransition from './components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
+import { ClerkProvider } from '@clerk/clerk-react'
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Publishable Key")
+}
 
 // Dashboard Layout & Pages
 import DashboardLayout from './layouts/DashboardLayout'
 import DashboardHome from './pages/dashboard/DashboardHome'
-import AlumniDirectory from './pages/dashboard/AlumniDirectory'
-import AlumniProfile from './pages/dashboard/AlumniProfile'
+import MentorDirectory from './pages/dashboard/MentorDirectory'
+import MentorProfile from './pages/dashboard/MentorProfile'
 import MentorshipRequests from './pages/dashboard/MentorshipRequests'
 import JobDetails from './pages/dashboard/JobDetails'
 import Events from './pages/dashboard/Events'
@@ -25,6 +34,19 @@ import Jobs from './pages/dashboard/Jobs'
 import Settings from './pages/dashboard/Settings'
 import Applications from './pages/dashboard/Applications'
 import Saved from './pages/dashboard/Saved'
+
+// Mentor Dashboard Layout & Pages
+import MentorDashboardLayout from './layouts/MentorDashboardLayout'
+import MentorHome from './pages/mentor-dashboard/MentorHome'
+import MyMentees from './pages/mentor-dashboard/MyMentees'
+import MentorRequests from './pages/mentor-dashboard/MentorshipRequests'
+import MentorJobs from './pages/mentor-dashboard/MentorJobs'
+import MentorEvents from './pages/mentor-dashboard/MentorEvents'
+import MentorPosts from './pages/mentor-dashboard/MentorPosts'
+import MentorMessages from './pages/mentor-dashboard/MentorMessages'
+import MentorAnalytics from './pages/mentor-dashboard/MentorAnalytics'
+import MentorProfilePage from './pages/mentor-dashboard/MentorProfilePage'
+import MentorSettings from './pages/mentor-dashboard/MentorSettings'
 
 // Admin Layout & Pages
 import AdminLayout from './layouts/AdminLayout'
@@ -81,12 +103,14 @@ function AnimatedRoutes() {
         <Route path="/signup" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><SignUp /></main><Footer /></div></PageTransition>} />
         <Route path="/forgot-password" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><ForgotPassword /></main><Footer /></div></PageTransition>} />
         <Route path="/otp" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><OTPVerification /></main><Footer /></div></PageTransition>} />
+        <Route path="/sso-callback" element={<SSOCallback />} />
+        <Route path="/sync-user" element={<SyncUser />} />
 
         {/* Authenticated Dashboard Routes */}
         <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
           <Route index element={<DashboardHome />} />
-          <Route path="alumni" element={<AlumniDirectory />} />
-          <Route path="alumni/:id" element={<AlumniProfile />} />
+          <Route path="mentor" element={<MentorDirectory />} />
+          <Route path="mentor/:id" element={<MentorProfile />} />
           <Route path="mentorship" element={<MentorshipRequests />} />
           <Route path="jobs" element={<Jobs />} />
           <Route path="jobs/:id" element={<JobDetails />} />
@@ -95,6 +119,20 @@ function AnimatedRoutes() {
           <Route path="applications" element={<Applications />} />
           <Route path="saved" element={<Saved />} />
           <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Authenticated Mentor Dashboard Routes */}
+        <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
+          <Route index element={<MentorHome />} />
+          <Route path="profile" element={<MentorProfilePage />} />
+          <Route path="mentees" element={<MyMentees />} />
+          <Route path="requests" element={<MentorRequests />} />
+          <Route path="jobs" element={<MentorJobs />} />
+          <Route path="events" element={<MentorEvents />} />
+          <Route path="posts" element={<MentorPosts />} />
+          <Route path="messages" element={<MentorMessages />} />
+          <Route path="analytics" element={<MentorAnalytics />} />
+          <Route path="settings" element={<MentorSettings />} />
         </Route>
 
         {/* Admin Routes */}
@@ -121,13 +159,15 @@ function AnimatedRoutes() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
-      <Router>
-        <ScrollToHash />
-        <AnimatedRoutes />
-        <Toaster position="bottom-right" />
-      </Router>
-    </ThemeProvider>
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
+        <Router>
+          <ScrollToHash />
+          <AnimatedRoutes />
+          <Toaster position="bottom-right" />
+        </Router>
+      </ThemeProvider>
+    </ClerkProvider>
   )
 }
 

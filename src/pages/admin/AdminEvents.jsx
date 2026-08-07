@@ -7,7 +7,7 @@ const AdminEvents = () => {
     { id: 1, name: 'AI & ML Workshop', date: 'Jun 10, 2026', registrations: 324, status: 'Upcoming' },
     { id: 2, name: 'Career Fair 2026', date: 'Jun 18, 2026', registrations: 642, status: 'Upcoming' },
     { id: 3, name: 'Web Dev Hackathon', date: 'Jun 25, 2026', registrations: 512, status: 'Upcoming' },
-    { id: 4, name: 'Alumni Meet 2026', date: 'Jul 05, 2026', registrations: 276, status: 'Upcoming' },
+    { id: 4, name: 'Mentor Meet 2026', date: 'Jul 05, 2026', registrations: 276, status: 'Upcoming' },
     { id: 5, name: 'Cloud Computing Webinar', date: 'Jul 12, 2026', registrations: 198, status: 'Upcoming' },
   ])
 

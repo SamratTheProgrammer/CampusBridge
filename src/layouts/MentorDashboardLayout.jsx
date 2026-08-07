@@ -1,34 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import Sidebar from '../components/dashboard/Sidebar'
+import MentorSidebar from '../components/dashboard/MentorSidebar'
 import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucide-react'
 import { useTheme } from '../components/ThemeProvider'
 import { useUser } from '@clerk/clerk-react'
 
-const MOCK_MENTOR = [
-  { id: 1, name: 'Arjun Mehta', role: 'Software Engineer', company: 'Google' },
-  { id: 2, name: 'Sneha Roy', role: 'Data Scientist', company: 'Microsoft' },
-  { id: 3, name: 'Rohit Sharma', role: 'Product Manager', company: 'Amazon' },
-  { id: 4, name: 'Priya Singh', role: 'UX Designer', company: 'Adobe' },
-  { id: 5, name: 'Karan Verma', role: 'Cloud Engineer', company: 'AWS' }
+const MOCK_MENTEES = [
+  { id: 1, name: 'Ananya Sharma', role: 'B.Tech CS Student', university: 'NIT Trichy' },
+  { id: 2, name: 'Rahul Verma', role: 'MCA Student', university: 'Delhi University' },
 ]
 
-const MOCK_JOBS = [
-  { id: 1, title: 'Frontend Developer', company: 'Microsoft' },
-  { id: 2, title: 'Software Engineering Intern', company: 'Google' },
-  { id: 3, title: 'Data Analyst Intern', company: 'Flipkart' },
-  { id: 4, title: 'Backend Engineer', company: 'Amazon' },
-  { id: 5, title: 'Product Designer', company: 'Adobe' },
-  { id: 6, title: 'DevOps Intern', company: 'Atlassian' }
+const MOCK_POSTS = [
+  { id: 1, title: 'How to crack FAANG interviews', type: 'Post' },
+  { id: 2, title: 'React Performance Tips', type: 'Post' },
 ]
 
-const MOCK_EVENTS = [
-  { id: 1, title: 'Mentor Mentorship Meet', type: 'Virtual Event' },
-  { id: 2, title: 'AI/ML Career Path', type: 'Virtual Event' },
-  { id: 3, title: 'Web Development Workshop', type: 'Seminar Hall, Block A' }
-]
-
-const DashboardLayout = () => {
+const MentorDashboardLayout = () => {
   const { theme, setTheme } = useTheme()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -51,29 +38,22 @@ const DashboardLayout = () => {
     }
   }, [])
 
-  const filteredMentor = MOCK_MENTOR.filter(mentor => 
-    mentor.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    mentor.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mentor.company.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMentees = MOCK_MENTEES.filter(mentee => 
+    mentee.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    mentee.role.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredJobs = MOCK_JOBS.filter(job => 
-    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.company.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredPosts = MOCK_POSTS.filter(post => 
+    post.title.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredEvents = MOCK_EVENTS.filter(event => 
-    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.type.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const hasResults = filteredMentor.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
+  const hasResults = filteredMentees.length > 0 || filteredPosts.length > 0
 
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar for Desktop */}
       <div className={`hidden md:block fixed inset-y-0 left-0 z-40 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
-        <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+        <MentorSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -86,7 +66,7 @@ const DashboardLayout = () => {
 
       {/* Mobile Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64`}>
-        <Sidebar isCollapsed={false} setIsCollapsed={() => {}} />
+        <MentorSidebar isCollapsed={false} setIsCollapsed={() => {}} />
       </div>
 
       {/* Main Content Area */}
@@ -111,7 +91,7 @@ const DashboardLayout = () => {
                     setIsDropdownOpen(true)
                   }}
                   onFocus={() => setIsDropdownOpen(true)}
-                  placeholder="Search for mentor, jobs, events..." 
+                  placeholder="Search students, jobs, posts..." 
                   className="bg-transparent border-none outline-none text-sm w-full text-foreground placeholder:text-muted-foreground"
                 />
                 {searchQuery && (
@@ -127,72 +107,48 @@ const DashboardLayout = () => {
               {isDropdownOpen && searchQuery && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-xl z-50 max-h-[380px] overflow-y-auto divide-y divide-border/40 scrollbar-none animate-in fade-in slide-in-from-top-1 duration-200">
                   
-                  {filteredMentor.length > 0 && (
+                  {filteredMentees.length > 0 && (
                     <div className="p-2">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" /> Mentor
+                        <Users className="w-3.5 h-3.5" /> Students
                       </div>
                       <div className="space-y-0.5 mt-1">
-                        {filteredMentor.map(mentor => (
+                        {filteredMentees.map(mentee => (
                           <button
-                            key={mentor.id}
+                            key={mentee.id}
                             onClick={() => {
-                              navigate(`/dashboard/mentor/${mentor.id}`)
+                              navigate(`/mentor-dashboard/mentees`)
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
                             className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
                           >
-                            <span className="font-semibold text-foreground">{mentor.name}</span>
-                            <span className="text-xs text-muted-foreground">{mentor.role} at {mentor.company}</span>
+                            <span className="font-semibold text-foreground">{mentee.name}</span>
+                            <span className="text-xs text-muted-foreground">{mentee.role} at {mentee.university}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {filteredJobs.length > 0 && (
+                  {filteredPosts.length > 0 && (
                     <div className="p-2">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Briefcase className="w-3.5 h-3.5" /> Jobs
+                        <Briefcase className="w-3.5 h-3.5" /> Posts
                       </div>
                       <div className="space-y-0.5 mt-1">
-                        {filteredJobs.map(job => (
+                        {filteredPosts.map(post => (
                           <button
-                            key={job.id}
+                            key={post.id}
                             onClick={() => {
-                              navigate(`/dashboard/jobs/${job.id}`)
+                              navigate(`/mentor-dashboard/posts`)
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
                             className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
                           >
-                            <span className="font-semibold text-foreground">{job.title}</span>
-                            <span className="text-xs text-muted-foreground">{job.company}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {filteredEvents.length > 0 && (
-                    <div className="p-2">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5" /> Events
-                      </div>
-                      <div className="space-y-0.5 mt-1">
-                        {filteredEvents.map(event => (
-                          <button
-                            key={event.id}
-                            onClick={() => {
-                              navigate(`/dashboard/events`)
-                              setSearchQuery('')
-                              setIsDropdownOpen(false)
-                            }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
-                          >
-                            <span className="font-semibold text-foreground">{event.title}</span>
-                            <span className="text-xs text-muted-foreground">{event.type}</span>
+                            <span className="font-semibold text-foreground">{post.title}</span>
+                            <span className="text-xs text-muted-foreground">{post.type}</span>
                           </button>
                         ))}
                       </div>
@@ -225,13 +181,13 @@ const DashboardLayout = () => {
               {isLoaded && user ? (
                 <>
                   <img 
-                    src={user.imageUrl || "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
+                    src={user.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
                     alt="Profile" 
                     className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
                   />
                   <div className="hidden lg:block text-sm">
-                    <p className="font-semibold text-foreground leading-none mb-1">{user.fullName || 'User'}</p>
-                    <p className="text-xs text-muted-foreground leading-none">{user.publicMetadata?.role === 'alumni' ? 'Alumni' : 'Student'}</p>
+                    <p className="font-semibold text-foreground leading-none mb-1">{user.fullName || 'Mentor'}</p>
+                    <p className="text-xs text-muted-foreground leading-none">Mentor</p>
                   </div>
                 </>
               ) : (
@@ -250,4 +206,4 @@ const DashboardLayout = () => {
   )
 }
 
-export default DashboardLayout
+export default MentorDashboardLayout
