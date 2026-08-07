@@ -10,6 +10,8 @@ const MentorSettings = () => {
   // Form State
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef(null)
 
@@ -58,6 +60,24 @@ const MentorSettings = () => {
       setIsSaving(false)
     }
   }
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault()
+    if (!user) return
+    setIsSaving(true)
+    try {
+      await user.updatePassword({ currentPassword, newPassword })
+      toast.success('Password updated securely!')
+      setCurrentPassword('')
+      setNewPassword('')
+    } catch (err) {
+      console.error(err)
+      toast.error(err.errors?.[0]?.longMessage || 'Failed to update password')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -255,13 +275,13 @@ const MentorSettings = () => {
                   <div>
                     <h4 className="font-semibold text-sm text-foreground">Change Password</h4>
                     <p className="text-xs text-muted-foreground mt-1 mb-3">Update your account password securely.</p>
-                    <div className="space-y-3 max-w-sm">
-                      <input type="password" placeholder="Current Password" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                      <input type="password" placeholder="New Password" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                      <button onClick={handleSave} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
-                        Update Password
+                    <form onSubmit={handleUpdatePassword} className="space-y-3 max-w-sm">
+                      <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required placeholder="Current Password" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="New Password" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <button type="submit" disabled={isSaving} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center justify-center">
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update Password'}
                       </button>
-                    </div>
+                    </form>
                   </div>
                 </div>
               </div>

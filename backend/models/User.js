@@ -15,6 +15,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
   },
+  imageUrl: {
+    type: String,
+  },
   firstName: {
     type: String,
     required: true,
@@ -26,6 +29,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['student', 'mentor', 'alumni', 'admin'],
     default: 'student',
+  },
+  headline: {
+    type: String,
+  },
+  location: {
+    type: String,
+  },
+  aboutMe: {
+    type: String,
+  },
+  resumeUrl: {
+    type: String,
   },
   createdAt: {
     type: Date,

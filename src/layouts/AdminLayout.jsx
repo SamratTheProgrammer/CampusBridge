@@ -23,6 +23,7 @@ import {
   Search,
   ChevronRight
 } from 'lucide-react'
+import { useClerk } from '@clerk/clerk-react'
 import { useTheme } from '../components/ThemeProvider'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
@@ -34,6 +35,7 @@ const AdminLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { signOut } = useClerk()
 
   const adminMenu = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
@@ -52,7 +54,7 @@ const AdminLayout = () => {
   ]
 
   const handleLogout = () => {
-    navigate('/admin/login')
+    signOut({ redirectUrl: '/login' })
   }
 
   return (

@@ -1,5 +1,6 @@
 import React from 'react'
 import { NavLink, Link } from 'react-router-dom'
+import { useClerk } from '@clerk/clerk-react'
 import {
   LayoutDashboard,
   Users,
@@ -19,6 +20,7 @@ import logoDark from '../../assets/CampusLogoDark.png'
 import logoIcon from '../../assets/CampusLogoHalf.png'
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
+  const { signOut } = useClerk()
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'Mentor Directory', path: '/dashboard/mentor', icon: Users },
@@ -89,6 +91,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
 
       <div className={`p-4 border-t border-border/40 ${isCollapsed ? 'flex justify-center' : ''}`}>
         <button
+          onClick={() => signOut({ redirectUrl: '/login' })}
           title={isCollapsed ? 'Logout' : undefined}
           className={`flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm text-destructive hover:bg-destructive/10 transition-all text-left
             ${isCollapsed ? 'justify-center px-0 w-full' : 'px-3 w-full'}

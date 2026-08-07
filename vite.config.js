@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     watch: {
       ignored: ['**/*.~tmp']
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      }
     }
   }
 })
