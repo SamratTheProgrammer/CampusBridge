@@ -18,6 +18,9 @@ const userSchema = new mongoose.Schema({
   imageUrl: {
     type: String,
   },
+  coverPhoto: {
+    type: String,
+  },
   firstName: {
     type: String,
     required: true,

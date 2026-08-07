@@ -37,6 +37,7 @@ import Saved from './pages/dashboard/Saved'
 import BookSession from './pages/dashboard/BookSession'
 import BookingSuccess from './pages/dashboard/BookingSuccess'
 import MySessions from './pages/dashboard/MySessions'
+import MyProfile from './pages/dashboard/MyProfile'
 
 // Mentor Dashboard Layout & Pages
 import MentorDashboardLayout from './layouts/MentorDashboardLayout'
@@ -48,7 +49,6 @@ import MentorEvents from './pages/mentor-dashboard/MentorEvents'
 import MentorPosts from './pages/mentor-dashboard/MentorPosts'
 import MentorMessages from './pages/mentor-dashboard/MentorMessages'
 import MentorAnalytics from './pages/mentor-dashboard/MentorAnalytics'
-import MentorProfilePage from './pages/mentor-dashboard/MentorProfilePage'
 import MentorSettings from './pages/mentor-dashboard/MentorSettings'
 
 // Admin Layout & Pages
@@ -112,6 +112,7 @@ function AnimatedRoutes() {
         {/* Authenticated Dashboard Routes */}
         <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
           <Route index element={<DashboardHome />} />
+          <Route path="profile" element={<MyProfile />} />
           <Route path="mentor" element={<MentorDirectory />} />
           <Route path="mentor/:id" element={<MentorProfile />} />
           <Route path="mentor/:id/book" element={<BookSession />} />
@@ -130,7 +131,7 @@ function AnimatedRoutes() {
         {/* Authenticated Mentor Dashboard Routes */}
         <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
           <Route index element={<MentorHome />} />
-          <Route path="profile" element={<MentorProfilePage />} />
+          <Route path="profile" element={<MyProfile />} />
           <Route path="mentees" element={<MyMentees />} />
           <Route path="requests" element={<MentorRequests />} />
           <Route path="jobs" element={<MentorJobs />} />

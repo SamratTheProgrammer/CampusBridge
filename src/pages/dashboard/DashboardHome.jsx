@@ -49,6 +49,7 @@ const DashboardHome = () => {
   const [editContent, setEditContent] = useState('')
   const [postToDelete, setPostToDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [likesModalPost, setLikesModalPost] = useState(null)
   
   const fileInputRef = useRef(null)
 
@@ -209,11 +210,15 @@ const DashboardHome = () => {
     // Optimistic UI update
     setPosts(posts.map(p => {
       if (p._id === postId) {
-        const hasLiked = p.likes.includes(user.id)
-        return {
-          ...p,
-          likes: hasLiked ? p.likes.filter(id => id !== user.id) : [...p.likes, user.id]
+        const safeLikes = p.likes || []
+        const hasLiked = safeLikes.some(like => (like.clerkId || like) === user.id)
+        let newLikes;
+        if (hasLiked) {
+          newLikes = safeLikes.filter(like => (like.clerkId || like) !== user.id)
+        } else {
+          newLikes = [...safeLikes, { clerkId: user.id, name: user.fullName || 'You', image: user.imageUrl, role: user.publicMetadata?.role || 'student' }]
         }
+        return { ...p, likes: newLikes }
       }
       return p
     }))
@@ -271,15 +276,30 @@ const DashboardHome = () => {
   const formatTime = (dateString) => {
     const date = new Date(dateString)
     const now = new Date()
-    const diff = now - date
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(minutes / 60)
-    const days = Math.floor(hours / 24)
+    const diffInSeconds = Math.floor((now - date) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`
+    return `${Math.floor(diffInSeconds / 86400)}d`
+  }
 
-    if (minutes < 1) return `Just now`
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-    return `${days}d ago`
+  const renderLikesText = (likes) => {
+    if (!likes || likes.length === 0) return '0 likes'
+    
+    const hasLiked = user ? likes.some(like => (like.clerkId || like) === user.id) : false
+    const count = likes.length
+    
+    if (count === 1) {
+      if (hasLiked) return 'You liked this'
+      return `${likes[0].name || 'Someone'} liked this`
+    }
+    
+    if (hasLiked) {
+      return `You and ${count - 1} other${count - 1 > 1 ? 's' : ''}`
+    }
+    
+    return `${likes[0].name || 'Someone'} and ${count - 1} other${count - 1 > 1 ? 's' : ''}`
   }
 
   const backgroundGradients = [
@@ -297,9 +317,9 @@ const DashboardHome = () => {
       <div className="hidden md:block md:col-span-3 space-y-6 sticky top-24 self-start">
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
-          <div className="h-16 bg-muted relative">
+          <div className="h-20 bg-muted relative">
             <img
-              src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"
+              src={isLoaded && user?.unsafeMetadata?.coverPhoto ? user.unsafeMetadata.coverPhoto : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"}
               alt="Cover"
               className="w-full h-full object-cover"
             />
@@ -332,6 +352,11 @@ const DashboardHome = () => {
             <div className="flex justify-between text-sm mt-2">
               <span className="text-muted-foreground font-medium">Connections</span>
               <span className="text-primary font-bold">128</span>
+            </div>
+            <div className="mt-4">
+              <Link to="/dashboard/profile" className="block w-full text-center bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground py-2 rounded-lg text-sm font-medium transition-colors">
+                Go to Profile
+              </Link>
             </div>
           </div>
         </div>
@@ -448,11 +473,9 @@ const DashboardHome = () => {
             </div>
           ) : posts.length > 0 ? (
             posts.map(post => {
-              const likesArray = Array.isArray(post.likes) ? post.likes : []
-              const commentsArray = Array.isArray(post.comments) ? post.comments : []
-              const hasLiked = user && likesArray.includes(user.id)
-              const likeCount = likesArray.length
-              const commentCount = commentsArray.length
+              const safeLikes = post.likes || []
+              const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
+              const commentsArray = post.comments || []
               const postAuthorDP = (post.authorClerkId === user?.id) ? user.imageUrl : (post.author?.image || getAvatarFallback(post.author?.name))
               const showComments = activeCommentPostId === post._id
 
@@ -538,13 +561,14 @@ const DashboardHome = () => {
 
                   <div className="px-4 sm:px-5 py-3">
                     <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
-                      <div className="flex items-center gap-1">
-                        <span className="bg-blue-500 text-white rounded-full p-0.5"><Heart className="w-3 h-3 fill-current" /></span>
-                        <span>{likeCount}</span>
+                      <div 
+                        className="flex items-center gap-2 cursor-pointer hover:underline"
+                        onClick={() => post.likes?.length > 0 && setLikesModalPost(post)}
+                      >
+                        <span className="bg-blue-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
+                        <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes)}</span>
                       </div>
-                      <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>
-                        {commentCount} comments
-                      </span>
+                      <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
                     </div>
                     <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
                       <button 
@@ -712,6 +736,50 @@ const DashboardHome = () => {
                   {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Delete
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Likes Modal */}
+      <AnimatePresence>
+        {likesModalPost && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setLikesModalPost(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-xl w-full max-w-sm flex flex-col max-h-[80vh]"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border/40 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <span className="bg-blue-500 text-white rounded-full p-1.5"><Heart className="w-4 h-4 fill-current" /></span>
+                  <h3 className="font-bold text-foreground">Likes</h3>
+                </div>
+                <button onClick={() => setLikesModalPost(null)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                {likesModalPost.likes.map((like, i) => (
+                  <div key={like.clerkId || i} className="flex items-center gap-3">
+                    <img 
+                      src={like.image || getAvatarFallback(like.name)} 
+                      alt={like.name} 
+                      className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm text-foreground truncate">{like.name}</h4>
+                      <p className="text-xs text-muted-foreground truncate">{like.role}</p>
+                    </div>
+                    <button className="px-3 py-1 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium rounded-full transition-colors">
+                      View
+                    </button>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>

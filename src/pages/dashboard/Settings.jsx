@@ -73,7 +73,17 @@ const Settings = () => {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      await user.setProfileImage({ file })
+      const updatedUser = await user.setProfileImage({ file })
+      
+      // Immediately sync the new image URL to MongoDB
+      await fetch(`/api/users/${user.id}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: updatedUser.imageUrl
+        })
+      });
+      
       toast.success('Profile picture updated!')
     } catch (err) {
       toast.error('Failed to update profile picture')
@@ -114,7 +124,8 @@ const Settings = () => {
           resumeUrl,
           experience,
           education,
-          skills
+          skills,
+          imageUrl: user.imageUrl
         })
       });
 

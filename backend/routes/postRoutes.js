@@ -28,6 +28,19 @@ router.get('/', async (req, res) => {
           })
         );
 
+        // Enrich likes
+        const enrichedLikes = await Promise.all(
+          post.likes.map(async (likeClerkId) => {
+            const likeUser = await User.findOne({ clerkId: likeClerkId });
+            return likeUser ? {
+              clerkId: likeClerkId,
+              name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
+              image: likeUser.imageUrl,
+              role: likeUser.headline || likeUser.role
+            } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
+          })
+        );
+
         return {
           ...post.toObject(),
           author: user ? {
@@ -39,7 +52,8 @@ router.get('/', async (req, res) => {
             role: 'Member',
             image: null
           },
-          comments: enrichedComments
+          comments: enrichedComments,
+          likes: enrichedLikes
         };
       })
     );
@@ -47,6 +61,64 @@ router.get('/', async (req, res) => {
     res.status(200).json(enrichedPosts);
   } catch (error) {
     console.error('Error fetching posts:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get posts by a specific user
+router.get('/user/:clerkId', async (req, res) => {
+  try {
+    const posts = await Post.find({ authorClerkId: req.params.clerkId }).sort({ createdAt: -1 });
+    
+    const enrichedPosts = await Promise.all(
+      posts.map(async (post) => {
+        const user = await User.findOne({ clerkId: post.authorClerkId });
+        
+        const enrichedComments = await Promise.all(
+          post.comments.map(async (comment) => {
+            const commentUser = await User.findOne({ clerkId: comment.authorClerkId });
+            return {
+              ...comment.toObject(),
+              author: commentUser ? {
+                name: commentUser.firstName + (commentUser.lastName ? ' ' + commentUser.lastName : ''),
+                image: commentUser.imageUrl,
+              } : { name: 'Unknown User', image: null }
+            };
+          })
+        );
+
+        const enrichedLikes = await Promise.all(
+          post.likes.map(async (likeClerkId) => {
+            const likeUser = await User.findOne({ clerkId: likeClerkId });
+            return likeUser ? {
+              clerkId: likeClerkId,
+              name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
+              image: likeUser.imageUrl,
+              role: likeUser.headline || likeUser.role
+            } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
+          })
+        );
+
+        return {
+          ...post.toObject(),
+          author: user ? {
+            name: user.firstName + (user.lastName ? ' ' + user.lastName : ''),
+            role: user.headline || user.role,
+            image: user.imageUrl,
+          } : {
+            name: 'Unknown User',
+            role: 'Member',
+            image: null
+          },
+          comments: enrichedComments,
+          likes: enrichedLikes
+        };
+      })
+    );
+
+    res.status(200).json(enrichedPosts);
+  } catch (error) {
+    console.error('Error fetching user posts:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -122,7 +194,7 @@ router.post('/:id/comment', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { authorClerkId, content } = req.body;
-    if (!authorClerkId || !content) return res.status(400).json({ message: 'Missing fields' });
+    if (!authorClerkId || content === undefined) return res.status(400).json({ message: 'Missing fields' });
 
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });

@@ -6,7 +6,7 @@ const router = express.Router();
 // Sync user from Clerk to MongoDB
 router.post('/sync', async (req, res) => {
   try {
-    const { clerkId, email, firstName, lastName, role, username } = req.body;
+    const { clerkId, email, firstName, lastName, role, username, imageUrl, coverPhoto } = req.body;
 
     if (!clerkId || !email) {
       return res.status(400).json({ message: 'clerkId and email are required' });
@@ -20,6 +20,8 @@ router.post('/sync', async (req, res) => {
       user.email = email;
       user.firstName = firstName;
       user.lastName = lastName;
+      if (imageUrl) user.imageUrl = imageUrl;
+      if (coverPhoto) user.coverPhoto = coverPhoto;
       if (role) user.role = role;
       if (username && !user.username) user.username = username;
       await user.save();
@@ -46,6 +48,8 @@ router.post('/sync', async (req, res) => {
       username: finalUsername,
       firstName,
       lastName,
+      imageUrl,
+      coverPhoto,
       role: role || 'student',
     });
 
@@ -125,7 +129,9 @@ router.put('/:clerkId/profile', async (req, res) => {
       resumeUrl, 
       experience, 
       education, 
-      skills 
+      skills,
+      imageUrl,
+      coverPhoto
     } = req.body;
 
     const user = await User.findOneAndUpdate(
@@ -139,7 +145,9 @@ router.put('/:clerkId/profile', async (req, res) => {
         resumeUrl, 
         experience, 
         education, 
-        skills 
+        skills,
+        imageUrl,
+        coverPhoto
       },
       { new: true }
     );

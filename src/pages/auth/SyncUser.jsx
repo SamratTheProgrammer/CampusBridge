@@ -23,6 +23,7 @@ const SyncUser = () => {
           firstName: user.firstName || 'User',
           lastName: user.lastName || '',
           username: user.username || undefined,
+          imageUrl: user.imageUrl,
           role: user.publicMetadata?.role || savedRole
         })
       }).then(() => {
