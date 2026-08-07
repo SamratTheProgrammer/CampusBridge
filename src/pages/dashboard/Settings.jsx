@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe } from 'lucide-react'
-import { useUser } from '@clerk/clerk-react'
+import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Trash2, Laptop, AlertTriangle } from 'lucide-react'
+import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 
 const Settings = () => {
@@ -26,6 +26,11 @@ const Settings = () => {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const { sessions, isLoaded: isSessionsLoaded } = useSessionList()
+  const { session: currentSession } = useSession()
   
   const fileInputRef = useRef(null)
   const resumeInputRef = useRef(null)
@@ -133,6 +138,33 @@ const Settings = () => {
       toast.error(err.errors?.[0]?.longMessage || 'Failed to update password')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      const sessionToRevoke = sessions?.find(s => s.id === sessionId)
+      if (sessionToRevoke) {
+        await sessionToRevoke.revoke()
+        toast.success('Session revoked successfully')
+      }
+    } catch (err) {
+      console.error('Failed to revoke session:', err)
+      toast.error('Failed to revoke session')
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!user) return
+    setIsDeleting(true)
+    try {
+      await user.delete()
+      window.location.href = '/'
+    } catch (err) {
+      console.error('Failed to delete account:', err)
+      toast.error('Failed to delete account')
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -535,8 +567,92 @@ const Settings = () => {
                       <option>Hidden</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="flex gap-4 p-4 bg-muted/30 border border-border/40 rounded-xl">
+                  <Laptop className="w-5 h-5 text-primary shrink-0" />
+                  <div className="w-full">
+                    <h4 className="font-semibold text-sm text-foreground">Active Sessions & Devices</h4>
+                    <p className="text-xs text-muted-foreground mt-1 mb-4">View and manage the devices currently logged into your account.</p>
+                    
+                    {isSessionsLoaded ? (
+                      <div className="space-y-3">
+                        {sessions?.map((session) => (
+                          <div key={session.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-background border border-border/50 rounded-lg gap-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-foreground">
+                                  {session.latestActivity?.deviceType || 'Unknown Device'}
+                                </span>
+                                {session.id === currentSession?.id && (
+                                  <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded">Current</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {session.latestActivity?.browserName} {session.latestActivity?.browserVersion} on {session.latestActivity?.osName} {session.latestActivity?.osVersion}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                IP: {session.latestActivity?.ipAddress || 'Unknown'}
+                              </p>
+                            </div>
+                            {session.id !== currentSession?.id && (
+                              <button 
+                                onClick={() => handleRevokeSession(session.id)}
+                                className="text-xs font-medium text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-md transition-colors whitespace-nowrap self-start sm:self-auto"
+                              >
+                                Revoke Access
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex justify-center p-4">
+                        <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                <div className="flex gap-4 p-4 bg-red-500/5 border border-red-500/20 rounded-xl mt-8">
+                  <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+                  <div className="w-full">
+                    <h4 className="font-semibold text-sm text-red-500">Danger Zone</h4>
+                    <p className="text-xs text-muted-foreground mt-1 mb-4">Permanently delete your account and all associated data. This action cannot be undone.</p>
+                    
+                    {!showDeleteConfirm ? (
+                      <button 
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Delete Account
+                      </button>
+                    ) : (
+                      <div className="bg-background border border-destructive/30 p-4 rounded-lg space-y-3">
+                        <p className="text-sm font-medium text-foreground">Are you absolutely sure?</p>
+                        <p className="text-xs text-muted-foreground">This will permanently delete your profile, messages, and remove all access to CampusBridge.</p>
+                        <div className="flex items-center gap-3 pt-2">
+                          <button 
+                            onClick={handleDeleteAccount}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                          >
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            Yes, delete my account
+                          </button>
+                          <button 
+                            onClick={() => setShowDeleteConfirm(false)}
+                            disabled={isDeleting}
+                            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
