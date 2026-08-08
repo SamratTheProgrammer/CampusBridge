@@ -14,6 +14,7 @@ import PageTransition from './components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 import { ClerkProvider } from '@clerk/clerk-react'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -179,7 +180,9 @@ function App() {
       <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
         <Router>
           <ScrollToHash />
-          <AnimatedRoutes />
+          <ErrorBoundary>
+            <AnimatedRoutes />
+          </ErrorBoundary>
           <Toaster position="bottom-right" />
         </Router>
       </ThemeProvider>

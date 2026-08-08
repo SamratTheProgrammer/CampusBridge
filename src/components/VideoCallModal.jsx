@@ -29,6 +29,7 @@ const VideoCallModal = ({ currentUser }) => {
   // Live Timer State
   const [callDuration, setCallDuration] = useState(0); // in seconds
   const timerIntervalRef = useRef(null);
+  const callTimeoutRef = useRef(null);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -39,6 +40,7 @@ const VideoCallModal = ({ currentUser }) => {
   const pendingOfferRef = useRef(null);
   const iceCandidateQueueRef = useRef([]);
   const isCallerRef = useRef(false);
+  const targetPartnerClerkIdRef = useRef(null);
 
   // Callback Ref for Local Video Elements (Ensures immediate stream attachment on DOM mount)
   const setLocalVideoRef = useCallback((node) => {
@@ -83,6 +85,41 @@ const VideoCallModal = ({ currentUser }) => {
         .catch((err) => console.warn('Incoming call self camera preview error:', err));
     }
   }, [callState, callType]);
+
+  // 60-Second Auto-Decline / No Answer Timeout Timer
+  useEffect(() => {
+    if (callState === 'calling' || callState === 'incoming') {
+      callTimeoutRef.current = setTimeout(() => {
+        console.log('Call timed out automatically after 60 seconds');
+        const targetId = partner?.clerkId || targetPartnerClerkIdRef.current;
+        if (targetId) {
+          socket.emit('end_call', { 
+            toClerkId: targetId, 
+            fromClerkId: currentUser?.id 
+          });
+        }
+
+        toast.error(
+          callState === 'calling' ? 'No answer from user' : 'Missed call',
+          { id: 'call_status_toast' }
+        );
+
+        cleanupCall('missed');
+      }, 60000); // 60,000 ms = 1 minute
+    } else {
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
+      }
+    }
+
+    return () => {
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
+      }
+    };
+  }, [callState]);
 
   // Live Call Timer Management
   useEffect(() => {
@@ -157,6 +194,10 @@ const VideoCallModal = ({ currentUser }) => {
   // Clean up streams & peer connection
   const cleanupCall = (finalStatus = 'completed') => {
     toast.dismiss();
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
     const finalDuration = callDuration;
     ringtoneService.playCallEndSound();
 
@@ -248,12 +289,18 @@ const VideoCallModal = ({ currentUser }) => {
 
   // Create & configure RTCPeerConnection
   const createPeerConnection = (targetClerkId) => {
+    const recipientId = targetClerkId || targetPartnerClerkIdRef.current;
+    if (recipientId) {
+      targetPartnerClerkIdRef.current = recipientId;
+    }
+
     const peer = new RTCPeerConnection(ICE_SERVERS);
 
     peer.onicecandidate = (event) => {
-      if (event.candidate && targetClerkId) {
+      const toId = recipientId || targetPartnerClerkIdRef.current;
+      if (event.candidate && toId) {
         socket.emit('ice_candidate', { 
-          toClerkId: targetClerkId, 
+          toClerkId: toId, 
           fromClerkId: currentUser?.id, 
           candidate: event.candidate 
         });
@@ -289,6 +336,7 @@ const VideoCallModal = ({ currentUser }) => {
 
     try {
       toast.dismiss();
+      targetPartnerClerkIdRef.current = targetPartner.clerkId;
       setPartner(targetPartner);
       setCallType(type);
       setCallState('calling');
@@ -325,11 +373,18 @@ const VideoCallModal = ({ currentUser }) => {
 
   // Answer Incoming Call
   const answerCall = async () => {
-    if (!pendingOfferRef.current || !partner?.clerkId) return;
+    const pending = pendingOfferRef.current;
+    const targetId = partner?.clerkId || targetPartnerClerkIdRef.current || pending?.callerClerkId;
+
+    if (!pending || !targetId) {
+      console.error('Answer call aborted: missing pending offer or target ID', { pending, targetId });
+      return;
+    }
 
     try {
       toast.dismiss();
-      const { offer, type } = pendingOfferRef.current;
+      targetPartnerClerkIdRef.current = targetId;
+      const { offer, type } = pending;
       setCallState('connected');
 
       socket.emit('register_user', currentUser.id);
@@ -339,7 +394,7 @@ const VideoCallModal = ({ currentUser }) => {
         stream = await getUserMediaStream(type);
       }
 
-      const peer = createPeerConnection(partner.clerkId);
+      const peer = createPeerConnection(targetId);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
 
       await peer.setRemoteDescription(new RTCSessionDescription(offer));
@@ -349,7 +404,7 @@ const VideoCallModal = ({ currentUser }) => {
       await peer.setLocalDescription(answer);
 
       socket.emit('answer_call', { 
-        toClerkId: partner.clerkId, 
+        toClerkId: targetId, 
         fromClerkId: currentUser.id, 
         answer 
       });
@@ -468,10 +523,11 @@ const VideoCallModal = ({ currentUser }) => {
   // Socket WebRTC Listeners
   useEffect(() => {
     const handleIncomingCall = ({ callerClerkId, callerName, callerImage, offer, callType }) => {
+      targetPartnerClerkIdRef.current = callerClerkId;
       setPartner({ clerkId: callerClerkId, name: callerName, image: callerImage });
       setCallType(callType || 'video');
       setCallState('incoming');
-      pendingOfferRef.current = { offer, type: callType || 'video' };
+      pendingOfferRef.current = { offer, type: callType || 'video', callerClerkId };
     };
 
     const handleCallAccepted = async ({ answer }) => {
@@ -550,19 +606,6 @@ const VideoCallModal = ({ currentUser }) => {
             exit={{ scale: 0.9, opacity: 0 }}
             className="relative bg-zinc-950 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-lg w-full text-center space-y-6 overflow-hidden"
           >
-            {/* Background Camera Self Preview for Video Call */}
-            {callType === 'video' && (
-              <div className="absolute inset-0 z-0 opacity-40 overflow-hidden">
-                <video
-                  ref={setLocalVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={`w-full h-full object-cover scale-105 filter blur-xs ${isVideoOff ? 'hidden' : ''}`}
-                />
-              </div>
-            )}
-
             <div className="relative z-10 space-y-6">
               {/* Caller Avatar with Pulse Rings */}
               <div className="relative inline-block">
@@ -584,9 +627,9 @@ const VideoCallModal = ({ currentUser }) => {
                 </p>
               </div>
 
-              {/* Small Inset Live Camera Preview Card (You Can See Yourself!) */}
+              {/* Inset Live Camera Preview Card (You Can See Yourself!) */}
               {callType === 'video' && (
-                <div className="relative max-w-xs mx-auto h-36 bg-black/60 border border-white/20 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+                <div className="relative max-w-xs mx-auto h-44 bg-zinc-900 border border-white/20 rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center">
                   <video
                     ref={setLocalVideoRef}
                     autoPlay
@@ -597,7 +640,7 @@ const VideoCallModal = ({ currentUser }) => {
                   {isVideoOff && (
                     <div className="text-xs text-white/60 font-medium">Your Camera is Off</div>
                   )}
-                  <span className="absolute bottom-2 left-2 text-[10px] bg-black/60 backdrop-blur text-white px-2 py-0.5 rounded-md border border-white/10 font-medium">
+                  <span className="absolute bottom-2 left-2 text-[10px] bg-black/70 backdrop-blur text-white px-2 py-0.5 rounded-md border border-white/10 font-medium">
                     You (Preview)
                   </span>
                 </div>
@@ -685,7 +728,7 @@ const VideoCallModal = ({ currentUser }) => {
             {/* Main View Area */}
             <div className="relative flex-1 bg-zinc-950 flex items-center justify-center overflow-hidden">
               
-              {/* ALWAYS MOUNT REMOTE VIDEO ELEMENT FOR AUDIO STREAM & VIDEO TRANSFER */}
+              {/* ALWAYS MOUNT REMOTE VIDEO ELEMENT FOR AUDIO/VIDEO STREAM TRANSFER */}
               <video
                 ref={setRemoteVideoRef}
                 autoPlay
@@ -695,27 +738,29 @@ const VideoCallModal = ({ currentUser }) => {
                 }`}
               />
 
-              {/* Avatar placeholder if audio call OR calling status OR remote video is hidden */}
-              {(callType === 'audio' || callState === 'calling' || isVideoOff) && (
-                <div className="text-center space-y-4 z-10 p-6">
+              {/* Avatar placeholder during Outgoing Call or Voice Call */}
+              {(callType === 'audio' || callState === 'calling') && (
+                <div className="text-center space-y-6 z-10 p-6">
                   <div className="relative inline-block">
                     <img
-                      src={partner?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${partner?.name}`}
+                      src={partner?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${partner?.name || 'User'}`}
                       alt={partner?.name}
-                      className="w-32 h-32 rounded-full object-cover ring-4 ring-primary/40 mx-auto shadow-2xl"
+                      className="w-36 h-36 rounded-full object-cover ring-4 ring-primary/50 mx-auto shadow-2xl"
                     />
                     {callState === 'calling' && (
                       <span className="absolute inset-0 rounded-full ring-4 ring-primary animate-ping opacity-75"></span>
                     )}
                   </div>
-                  <h3 className="text-xl font-bold text-white">{partner?.name}</h3>
-                  <p className="text-sm text-zinc-400 font-medium">
-                    {callState === 'calling' ? 'Calling...' : `Connected • ${formatTimer(callDuration)}`}
-                  </p>
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">{partner?.name || 'Connecting...'}</h3>
+                    <p className="text-sm text-primary font-medium mt-1 animate-pulse">
+                      {callState === 'calling' ? 'Calling user...' : `Voice Call • ${formatTimer(callDuration)}`}
+                    </p>
+                  </div>
                 </div>
               )}
 
-              {/* PIP Local Camera Preview (Bottom Right) */}
+              {/* PIP Local Camera Preview (Bottom Right Inset Box) */}
               {callType === 'video' && (
                 <div className="absolute bottom-6 right-6 w-36 h-48 sm:w-48 sm:h-60 bg-zinc-900 border-2 border-white/20 rounded-2xl overflow-hidden shadow-2xl z-20">
                   <video
@@ -726,10 +771,14 @@ const VideoCallModal = ({ currentUser }) => {
                     className={`w-full h-full object-cover ${isVideoOff ? 'hidden' : ''}`}
                   />
                   {isVideoOff && (
-                    <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-white/50 text-xs font-medium">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white/60 text-xs font-medium p-2 text-center">
+                      <VideoOff className="w-6 h-6 text-red-400 mb-1" />
                       Camera Off
                     </div>
                   )}
+                  <span className="absolute bottom-1.5 left-1.5 text-[9px] bg-black/70 backdrop-blur text-white px-1.5 py-0.5 rounded border border-white/10 font-medium">
+                    You
+                  </span>
                 </div>
               )}
             </div>

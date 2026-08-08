@@ -94,7 +94,7 @@ const SignUp = () => {
 
       // Sync with MongoDB backend
       try {
-        const response = await fetch('http://localhost:5000/api/users/sync', {
+        const response = await fetch('/api/users/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

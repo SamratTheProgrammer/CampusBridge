@@ -5,6 +5,7 @@ import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
+import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import { 
   Users, 
   FileText, 
@@ -501,6 +502,9 @@ const MentorHome = () => {
           </div>
         </div>
 
+        {/* Suggested Connections Widget */}
+        <PeopleYouMayKnow />
+
         {/* Feed Posts */}
         <div className="space-y-6">
           {isLoadingPosts ? (
@@ -512,7 +516,7 @@ const MentorHome = () => {
               const safeLikes = post.likes || []
               const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
               const commentsArray = post.comments || []
-              const postAuthorDP = (post.authorClerkId === user?.id) ? user.imageUrl : (post.author?.image || getAvatarFallback(post.author?.name))
+              const postAuthorDP = (post.authorClerkId === user?.id && user?.imageUrl) ? user.imageUrl : (post.author?.image || getAvatarFallback(post.author?.name))
               const showComments = activeCommentPostId === post._id
 
               return (

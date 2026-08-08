@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/dashboard/Sidebar'
-import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucide-react'
+import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2 } from 'lucide-react'
 import { useTheme } from '../components/ThemeProvider'
 import { useUser } from '@clerk/clerk-react'
 import NotificationDropdown from '../components/NotificationDropdown'
@@ -39,7 +39,20 @@ const DashboardLayout = () => {
   const navigate = useNavigate()
   const searchRef = useRef(null)
   
-  const { user, isLoaded } = useUser()
+  const { user, isLoaded, isSignedIn } = useUser()
+
+  useEffect(() => {
+    if (isLoaded) {
+      if (!isSignedIn) {
+        navigate('/login')
+      } else if (user) {
+        const role = user.publicMetadata?.role || user.unsafeMetadata?.role
+        if (role === 'mentor') {
+          navigate('/mentor-dashboard', { replace: true })
+        }
+      }
+    }
+  }, [isLoaded, isSignedIn, user, navigate])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -52,6 +65,15 @@ const DashboardLayout = () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
+
+  if (!isLoaded || (isSignedIn && !user)) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading CampusBridge...</p>
+      </div>
+    )
+  }
 
   const filteredMentor = MOCK_MENTOR.filter(mentor =>
     mentor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

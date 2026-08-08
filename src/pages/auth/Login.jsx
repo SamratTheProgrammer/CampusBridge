@@ -1,19 +1,32 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, GraduationCap, Building2, Loader2 } from 'lucide-react'
-import { useSignIn } from '@clerk/clerk-react'
+import { useSignIn, useUser } from '@clerk/clerk-react'
 
 const Login = () => {
   const location = useLocation()
   const { isLoaded, signIn, setActive } = useSignIn()
+  const { user, isLoaded: isUserLoaded, isSignedIn } = useUser()
   const [selectedRole, setSelectedRole] = useState(location.state?.role || null) // 'student' | 'mentor' | null
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  // Redirect logged in user automatically
+  useEffect(() => {
+    if (isUserLoaded && isSignedIn && user) {
+      const role = user.publicMetadata?.role || user.unsafeMetadata?.role || selectedRole
+      if (role === 'mentor') {
+        navigate('/mentor-dashboard', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
+    }
+  }, [isUserLoaded, isSignedIn, user, selectedRole, navigate])
 
   const handleGoogleAuth = async () => {
     if (!isLoaded) return
@@ -47,7 +60,7 @@ const Login = () => {
         await setActive({ session: signInAttempt.createdSessionId })
         toast.success('Logged in successfully!')
         
-        // Use user's role if available from backend, otherwise fallback to selectedRole
+        // Navigation will be automatically handled by the useEffect above once user is populated
         if (selectedRole === 'mentor') {
           navigate('/mentor-dashboard')
         } else {

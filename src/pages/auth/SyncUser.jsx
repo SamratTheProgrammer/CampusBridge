@@ -14,7 +14,7 @@ const SyncUser = () => {
       const savedRole = localStorage.getItem('sso_role') || 'student';
       
       // Sync user with backend
-      fetch('http://localhost:5000/api/users/sync', {
+      fetch('/api/users/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
