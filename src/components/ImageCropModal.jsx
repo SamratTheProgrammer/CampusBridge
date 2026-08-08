@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import Cropper from 'react-cropper'
-import 'cropperjs/dist/cropper.css'
+import 'cropperjs/dist/cropper.min.css'
 import { motion } from 'framer-motion'
 import { RotateCcw, RotateCw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Check, X, Move } from 'lucide-react'
 
