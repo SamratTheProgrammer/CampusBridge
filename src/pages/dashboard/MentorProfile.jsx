@@ -6,6 +6,7 @@ import { Globe } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
+import PostComments from '../../components/PostComments'
 
 const MentorProfile = () => {
   const navigate = useNavigate();
@@ -491,66 +492,27 @@ const MentorProfile = () => {
                   </div>
                 </div>
 
-                <AnimatePresence>
-                  {showComments && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="border-t border-border/40 bg-muted/10 overflow-hidden"
-                    >
-                      <div className="p-4 sm:p-5 space-y-4">
-                        <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                          {commentsArray.map((comment, i) => (
-                            <div key={i} className="flex gap-3">
-                              <img src={comment.author?.image || getAvatarFallback(comment.author?.name)} alt={comment.author?.name} className="w-8 h-8 rounded-full object-cover shrink-0 mt-1 border border-border/50" />
-                              <div className="flex-1 min-w-0">
-                                <div className="bg-muted/50 border border-border/50 rounded-2xl rounded-tl-sm px-4 py-2.5">
-                                  <h4 className="font-bold text-xs text-foreground">{comment.author?.name}</h4>
-                                  <p className="text-sm text-foreground/90 mt-0.5 break-words">{comment.content}</p>
-                                </div>
-                                <div className="flex items-center gap-4 mt-1 ml-2 text-[11px] font-medium text-muted-foreground">
-                                  <span>{formatTime(comment.createdAt)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          {commentsArray.length === 0 && (
-                            <p className="text-xs text-muted-foreground text-center italic py-2">No comments yet. Be the first!</p>
-                          )}
-                        </div>
-
-                        {user && (
-                          <div className="flex gap-3 pt-2">
-                            <img src={user.imageUrl} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0 mt-1" />
-                            <div className="flex-1 relative">
-                              <textarea 
-                                value={commentText}
-                                onChange={e => setCommentText(e.target.value)}
-                                placeholder="Write a comment..."
-                                className="w-full bg-background border border-border/50 rounded-xl pl-4 pr-12 py-2.5 text-sm focus:outline-none focus:border-primary resize-none min-h-[44px]"
-                                rows="1"
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault()
-                                    handleComment(post._id)
-                                  }
-                                }}
-                              ></textarea>
-                              <button 
-                                onClick={() => handleComment(post._id)}
-                                disabled={isCommenting || !commentText.trim()}
-                                className="absolute right-2 top-2 p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
-                              >
-                                {isCommenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                  <AnimatePresence>
+                    {showComments && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="border-t border-border/40 bg-muted/10 overflow-hidden"
+                      >
+                        <PostComments 
+                          post={post}
+                          currentUser={user}
+                          onRefresh={async () => {
+                            const postsRes = await fetch(`/api/posts/user/${id}`);
+                            if (postsRes.ok) setPosts(await postsRes.json());
+                          }}
+                          formatTime={formatTime}
+                          getAvatarFallback={getAvatarFallback}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
               </motion.div>
             )
           })

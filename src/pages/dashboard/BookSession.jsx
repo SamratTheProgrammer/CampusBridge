@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
 import {
   ChevronLeft, Calendar as CalendarIcon, Clock, Video, FileText, Briefcase,
   GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2
@@ -45,6 +46,7 @@ const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay()
 const BookSession = () => {
   const navigate = useNavigate()
   const { id } = useParams()
+  const { user } = useUser()
 
   const [step, setStep] = useState(1)
 
@@ -63,8 +65,25 @@ const BookSession = () => {
   const handleNext = () => setStep(prev => Math.min(prev + 1, 7))
   const handleBack = () => setStep(prev => Math.max(prev - 1, 1))
 
-  const handleConfirm = () => {
-    // Submit logic would go here
+  const handleConfirm = async () => {
+    if (id && user) {
+      try {
+        await fetch('/api/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipientClerkId: id,
+            senderClerkId: user.id,
+            type: 'session_booked',
+            title: 'New Session Booked! 📅',
+            message: `${user.fullName || 'A student'} booked a ${duration}-min session with you.`,
+            link: '/mentor-dashboard'
+          })
+        })
+      } catch (err) {
+        console.error(err)
+      }
+    }
     navigate(`/dashboard/mentor/${id || 1}/book/success`)
   }
 

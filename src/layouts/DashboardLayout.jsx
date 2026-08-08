@@ -4,6 +4,7 @@ import Sidebar from '../components/dashboard/Sidebar'
 import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucide-react'
 import { useTheme } from '../components/ThemeProvider'
 import { useUser } from '@clerk/clerk-react'
+import NotificationDropdown from '../components/NotificationDropdown'
 
 const MOCK_MENTOR = [
   { id: 1, name: 'Arjun Mehta', role: 'Software Engineer', company: 'Google' },
@@ -217,10 +218,7 @@ const DashboardLayout = () => {
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full border border-background"></span>
-            </button>
+            <NotificationDropdown />
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
               {isLoaded && user ? (
                 <>
