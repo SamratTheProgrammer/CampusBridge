@@ -8,6 +8,7 @@ export default defineConfig({
     include: ['date-fns', 'react-icons', 'cropperjs', 'react-cropper']
   },
   server: {
+    host: true,
     watch: {
       ignored: ['**/*.~tmp']
     },
