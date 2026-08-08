@@ -5,7 +5,7 @@ import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucid
 import { useTheme } from '../components/ThemeProvider'
 import { useUser } from '@clerk/clerk-react'
 
-const MOCK_MENTEES = [
+const MOCK_STUDENTS = [
   { id: 1, name: 'Ananya Sharma', role: 'B.Tech CS Student', university: 'NIT Trichy' },
   { id: 2, name: 'Rahul Verma', role: 'MCA Student', university: 'Delhi University' },
 ]
@@ -38,7 +38,7 @@ const MentorDashboardLayout = () => {
     }
   }, [])
 
-  const filteredMentees = MOCK_MENTEES.filter(mentee => 
+  const filteredMentees = MOCK_STUDENTS.filter(mentee => 
     mentee.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     mentee.role.toLowerCase().includes(searchQuery.toLowerCase())
   )

@@ -2,7 +2,7 @@ import React from 'react'
 import { Users, Eye, MousePointerClick, TrendingUp, Star, Award } from 'lucide-react'
 
 const STATS = [
-  { label: 'Total Mentees', value: '48', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  { label: 'Total Students', value: '48', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { label: 'Profile Views', value: '1,245', icon: Eye, color: 'text-purple-500', bg: 'bg-purple-500/10' },
   { label: 'Post Engagements', value: '3,892', icon: MousePointerClick, color: 'text-pink-500', bg: 'bg-pink-500/10' },
   { label: 'Sessions Hosted', value: '156', icon: Award, color: 'text-orange-500', bg: 'bg-orange-500/10' },

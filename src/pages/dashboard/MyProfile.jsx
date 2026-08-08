@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Linkedin, Github, Instagram, Facebook, Twitter, Globe } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe } from 'lucide-react'
+import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -322,9 +323,16 @@ const MyProfile = () => {
             <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{user?.fullName}</h1>
-                <p className="text-sm sm:text-base text-muted-foreground mt-1">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
+                <p className="text-sm sm:text-base text-muted-foreground mt-0">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                  <MapPin className="w-3.5 h-3.5" /> {dbUser?.location || user?.unsafeMetadata?.location || 'Add location in Settings'}
+                  <MapPin className="w-3.5 h-3.5" /> 
+                  <span>{dbUser?.location || user?.unsafeMetadata?.location || 'Add location in Settings'}</span>
+                  {(dbUser?.address || user?.unsafeMetadata?.address) && (
+                    <>
+                      <span className="mx-1">&bull;</span>
+                      <span>{dbUser?.address || user?.unsafeMetadata?.address}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -475,8 +483,13 @@ const MyProfile = () => {
                         )}
 
                         {post.imageUrl && !post.bgGradient && (
-                          <div className="rounded-xl overflow-hidden border border-border/40 mb-4 bg-muted/30">
-                            <img src={post.imageUrl} alt="Post content" className="w-full h-auto max-h-[500px] object-contain" />
+                          <div className="rounded-xl overflow-hidden border border-border/40 mb-4 bg-muted/30 flex items-center justify-center">
+                            <img 
+                              src={post.imageUrl} 
+                              alt="Post content" 
+                              className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
+                              onClick={() => setViewingImage(post.imageUrl)}
+                            />
                           </div>
                         )}
                       </>

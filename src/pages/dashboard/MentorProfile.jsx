@@ -1,10 +1,205 @@
-import React from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
+import { Globe } from 'lucide-react'
+import { useUser } from '@clerk/clerk-react'
+import toast from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const MentorProfile = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useUser();
+  const [mentor, setMentor] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [connectionStatus, setConnectionStatus] = useState('none')
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false)
+  const [connectMessage, setConnectMessage] = useState('')
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [viewingImage, setViewingImage] = useState(null)
+
+  // Post states
+  const [posts, setPosts] = useState([])
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+  const [activeCommentPostId, setActiveCommentPostId] = useState(null)
+  const [commentText, setCommentText] = useState('')
+  const [isCommenting, setIsCommenting] = useState(false)
+
+  useEffect(() => {
+    const fetchMentorAndConnection = async () => {
+      try {
+        const res = await fetch(`/api/users/${id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setMentor(data)
+          
+          if (user && data.clerkId) {
+            const connRes = await fetch(`/api/connections/status/${user.id}/${data.clerkId}`)
+            if (connRes.ok) {
+              const connData = await connRes.json()
+              setConnectionStatus(connData.status || 'none')
+            }
+          }
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchMentorAndConnection()
+  }, [id, user])
+
+  // Fetch posts by this mentor
+  useEffect(() => {
+    if (!id) return;
+    const fetchPosts = async () => {
+      try {
+        const res = await fetch(`/api/posts/user/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPosts(data);
+        }
+      } catch (err) {
+        console.error('Error fetching posts:', err);
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    };
+    fetchPosts();
+  }, [id]);
+
+  const handleLike = async (postId) => {
+    if (!user) return;
+    setPosts(posts.map(p => {
+      if (p._id === postId) {
+        const safeLikes = p.likes || []
+        const hasLiked = safeLikes.some(like => (like.clerkId || like) === user.id)
+        let newLikes;
+        if (hasLiked) {
+          newLikes = safeLikes.filter(like => (like.clerkId || like) !== user.id)
+        } else {
+          newLikes = [...safeLikes, { clerkId: user.id, name: user.fullName || 'You', image: user.imageUrl }]
+        }
+        return { ...p, likes: newLikes }
+      }
+      return p
+    }))
+    try {
+      await fetch(`/api/posts/${postId}/like`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user.id })
+      })
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleComment = async (postId) => {
+    if (!commentText.trim() || !user) return;
+    setIsCommenting(true)
+    try {
+      const res = await fetch(`/api/posts/${postId}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorClerkId: user.id, content: commentText })
+      })
+      if (res.ok) {
+        setCommentText('')
+        // Refresh posts
+        const postsRes = await fetch(`/api/posts/user/${id}`);
+        if (postsRes.ok) setPosts(await postsRes.json());
+      }
+    } catch (err) {
+      toast.error('Failed to post comment')
+    } finally {
+      setIsCommenting(false)
+    }
+  }
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - date) / 1000)
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`
+    return `${Math.floor(diffInSeconds / 86400)}d`
+  }
+
+  const renderLikesText = (likes) => {
+    if (!likes || likes.length === 0) return '0 likes'
+    const hasLiked = user ? likes.some(like => (like.clerkId || like) === user.id) : false
+    const count = likes.length
+    if (count === 1) {
+      if (hasLiked) return 'You liked this'
+      return `${likes[0].name || 'Someone'} liked this`
+    }
+    if (hasLiked) return `You and ${count - 1} other${count - 1 > 1 ? 's' : ''}`
+    return `${likes[0].name || 'Someone'} and ${count - 1} other${count - 1 > 1 ? 's' : ''}`
+  }
+
+  const getAvatarFallback = (name) => {
+    if (!name) return `https://ui-avatars.com/api/?name=U&background=random`
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+  }
+
+  const handleConnect = async () => {
+    if (!user || !mentor) return;
+    setIsConnecting(true);
+    try {
+      const res = await fetch('/api/connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterClerkId: user.id,
+          recipientClerkId: mentor.clerkId,
+          message: connectMessage
+        })
+      });
+      if (res.ok) {
+        setConnectionStatus('pending');
+        setIsConnectModalOpen(false);
+        toast.success('Connection request sent!');
+      } else {
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          toast.error(data.message || 'Failed to send request');
+        } catch (e) {
+          console.error('Invalid JSON response:', text);
+          toast.error(`Server error: ${res.status}`);
+        }
+      }
+    } catch (err) {
+      console.error('Connection request failed:', err);
+      toast.error(`Network error: ${err.message}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!mentor) {
+    return (
+      <div className="text-center py-20 bg-card border border-border/50 rounded-2xl max-w-5xl mx-auto">
+        <p className="text-muted-foreground">Mentor not found.</p>
+      </div>
+    )
+  }
+
+  const fullName = `${mentor.firstName} ${mentor.lastName || ''}`.trim()
+  const avatarUrl = mentor.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor.firstName}`
+  const coverUrl = mentor.coverPhoto || "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
 
   return (
     <div className="max-w-5xl mx-auto pb-8">
@@ -12,9 +207,10 @@ const MentorProfile = () => {
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden mb-6 shadow-sm">
         <div className="h-48 sm:h-64 w-full bg-muted relative">
           <img
-            src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
+            src={coverUrl}
             alt="Cover"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover cursor-pointer hover:brightness-90 transition-all"
+            onClick={() => setViewingImage(coverUrl)}
           />
         </div>
         <div className="px-6 sm:px-10 pb-8 relative">
@@ -22,37 +218,65 @@ const MentorProfile = () => {
             <div className="flex items-end gap-5">
               <div className="relative">
                 <img
-                  src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&w=250&q=80"
-                  alt="Arjun Mehta"
-                  className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-card relative z-10 bg-card"
+                  src={avatarUrl}
+                  alt={fullName}
+                  className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-card relative z-10 bg-card cursor-pointer hover:brightness-90 transition-all"
+                  onClick={() => setViewingImage(avatarUrl)}
                 />
               </div>
               <div className="mb-2 sm:mb-4 relative z-10 pt-16 sm:pt-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Arjun Mehta</h1>
-                  <CheckCircle2 className="w-5 h-5 text-blue-500" />
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{fullName}</h1>
+                  {mentor.role === 'mentor' && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
                 </div>
-                <p className="text-sm font-medium text-foreground mb-1">Software Engineer at Google</p>
+                <p className="text-sm font-medium text-foreground mb-1">{mentor.headline || 'Mentor'}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5" /> Bangalore, India <span className="w-1 h-1 rounded-full bg-muted-foreground"></span> 2018 Batch (CSE)
+                  <MapPin className="w-3.5 h-3.5" /> {mentor.location || 'Location not specified'} 
+                  {mentor.address && (
+                    <>
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground"></span> {mentor.address}
+                    </>
+                  )}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" alt="Google" className="h-8 hidden sm:block opacity-50 grayscale" />
+               {/* Add any specific badges here if needed */}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate(`/dashboard/mentor/${id || 1}/book`)}
+              onClick={() => navigate(`/dashboard/mentor/${id}/book`)}
               className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
             >
               <Calendar className="w-4 h-4" /> Book Session
             </button>
-            <button className="bg-background border border-border/50 text-foreground hover:bg-muted px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm hidden sm:flex">
-              <UserPlus className="w-4 h-4" /> Connect
-            </button>
+            
+            {connectionStatus === 'none' && (
+              <button 
+                onClick={() => setIsConnectModalOpen(true)}
+                className="bg-background border border-border/50 text-foreground hover:bg-muted px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm hidden sm:flex">
+                <UserPlus className="w-4 h-4" /> Connect
+              </button>
+            )}
+            
+            {connectionStatus === 'pending' && (
+              <button 
+                disabled
+                className="bg-muted border border-border/50 text-muted-foreground px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm hidden sm:flex cursor-not-allowed">
+                <Loader2 className="w-4 h-4" /> Pending
+              </button>
+            )}
+            
+            {connectionStatus === 'accepted' && (
+              <button 
+                disabled
+                className="bg-green-500/10 text-green-500 border border-green-500/20 px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm hidden sm:flex cursor-default">
+                <CheckCircle2 className="w-4 h-4" /> Connected
+              </button>
+            )}
+
             <button className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm">
               <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
             </button>
@@ -65,89 +289,337 @@ const MentorProfile = () => {
 
         {/* Left Column (Main Content) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Tabs */}
-          <div className="flex overflow-x-auto hide-scrollbar gap-6 border-b border-border/40 mb-6 px-2">
-            <button className="pb-3 text-sm font-semibold text-primary border-b-2 border-primary whitespace-nowrap">About</button>
-            <button className="pb-3 text-sm font-medium text-muted-foreground hover:text-foreground whitespace-nowrap">Experience</button>
-            <button className="pb-3 text-sm font-medium text-muted-foreground hover:text-foreground whitespace-nowrap">Education</button>
-            <button className="pb-3 text-sm font-medium text-muted-foreground hover:text-foreground whitespace-nowrap">Skills</button>
-            <button className="pb-3 text-sm font-medium text-muted-foreground hover:text-foreground whitespace-nowrap">Posts</button>
-          </div>
-
           {/* About Section */}
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-bold text-foreground mb-4">About</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Passionate software engineer with 5+ years of experience in building scalable web applications.
-              Love mentoring students and helping them grow. Currently working on Google Cloud Platform infrastructure.
-              Always open to discussing system design, open-source, and career transitions.
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+              {mentor.aboutMe || "No about information provided yet."}
             </p>
           </div>
 
+          {/* Experience Section */}
+          {mentor.experience && mentor.experience.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-foreground mb-4">Experience</h2>
+              <div className="space-y-6">
+                {mentor.experience.map((exp, index) => (
+                  <div key={index} className="flex gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 border border-border/50">
+                      <Briefcase className="w-5 h-5 text-foreground/70" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-foreground text-sm sm:text-base">{exp.title}</h4>
+                      <p className="text-sm text-foreground/80 mt-0.5">{exp.company}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{exp.duration}</p>
+                      {exp.description && (
+                        <p className="text-sm text-foreground/70 mt-2 leading-relaxed">{exp.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Education Section */}
+          {mentor.education && mentor.education.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-foreground mb-4">Education</h2>
+              <div className="space-y-6">
+                {mentor.education.map((edu, index) => (
+                  <div key={index} className="flex gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 border border-border/50">
+                      <GraduationCap className="w-5 h-5 text-foreground/70" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-foreground text-sm sm:text-base">{edu.degree}</h4>
+                      <p className="text-sm text-foreground/80 mt-0.5">{edu.institution}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{edu.duration}</p>
+                      {edu.grade && <p className="text-sm text-foreground/70 mt-1">Grade: {edu.grade}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column (Sidebar) */}
+        <div className="space-y-6">
           {/* Contact Details */}
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-foreground mb-4">Contact & Links</h2>
             <ul className="space-y-4">
               <li className="flex items-start gap-4">
                 <Mail className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Email</p>
-                  <a href="#" className="text-sm text-primary hover:underline">arjun.mehta@gmail.com</a>
+                  <a href={`mailto:${mentor.email}`} className="text-sm text-primary hover:underline">{mentor.email}</a>
                 </div>
               </li>
               <li className="flex items-start gap-4">
                 <MapPin className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Location</p>
-                  <p className="text-sm text-foreground">Bangalore, India</p>
+                  <p className="text-sm text-foreground">{mentor.location || 'Not specified'}</p>
+                  {mentor.address && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{mentor.address}</p>
+                  )}
                 </div>
               </li>
-              <li className="flex items-start gap-4">
-                <svg className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" /></svg>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">LinkedIn</p>
-                  <a href="#" className="text-sm text-primary hover:underline">linkedin.com/in/arjunmehta</a>
-                </div>
-              </li>
-              <li className="flex items-start gap-4">
-                <svg className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">GitHub</p>
-                  <a href="#" className="text-sm text-primary hover:underline">github.com/arjunmehta</a>
-                </div>
-              </li>
+              {mentor.socialLinks?.map((link, i) => {
+                let Icon = Globe;
+                let colorClass = 'text-muted-foreground';
+                if (link.platform === 'LinkedIn') { Icon = Linkedin; colorClass = 'text-[#0A66C2]'; }
+                if (link.platform === 'GitHub') { Icon = Github; }
+                if (link.platform === 'Instagram') { Icon = Instagram; colorClass = 'text-[#E1306C]'; }
+                if (link.platform === 'Facebook') { Icon = Facebook; colorClass = 'text-[#1877F2]'; }
+                if (link.platform === 'Twitter') { Icon = Twitter; colorClass = 'text-[#1DA1F2]'; }
+                
+                return (
+                  <li key={i} className="flex items-center gap-4">
+                    <Icon className={`w-5 h-5 shrink-0 ${colorClass}`} />
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">{link.platform}</p>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline max-w-[200px] truncate block">
+                        {link.url}
+                      </a>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           </div>
-        </div>
 
-        {/* Right Column (Sidebar) */}
-        <div className="space-y-6">
           {/* Skills */}
-          <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground mb-4">Skills</h2>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1.5 rounded-lg text-xs font-medium">JavaScript</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1.5 rounded-lg text-xs font-medium">React</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1.5 rounded-lg text-xs font-medium">Node.js</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1.5 rounded-lg text-xs font-medium">System Design</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1.5 rounded-lg text-xs font-medium">MongoDB</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1.5 rounded-lg text-xs font-medium">AWS</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1.5 rounded-lg text-xs font-medium">Docker</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1.5 rounded-lg text-xs font-medium">Git</span>
+          {mentor.skills && mentor.skills.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-foreground mb-4">Skills</h2>
+              <div className="flex flex-wrap gap-2">
+                {mentor.skills.map((skill, index) => (
+                  <span key={index} className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-lg text-xs font-medium">
+                    {skill}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+        </div>
+      </div>
 
-          {/* Interests */}
-          <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground mb-4">Interests</h2>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-muted text-muted-foreground border border-border/50 px-3 py-1.5 rounded-lg text-xs font-medium">Mentoring</span>
-              <span className="bg-muted text-muted-foreground border border-border/50 px-3 py-1.5 rounded-lg text-xs font-medium">Open Source</span>
-              <span className="bg-muted text-muted-foreground border border-border/50 px-3 py-1.5 rounded-lg text-xs font-medium">Photography</span>
+      {/* Posts Section */}
+      <div className="space-y-4 mt-6">
+        <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
+        {isLoadingPosts ? (
+          <div className="flex justify-center p-8">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : posts.length > 0 ? (
+          posts.map(post => {
+            const safeLikes = post.likes || []
+            const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
+            const commentsArray = post.comments || []
+            const showComments = activeCommentPostId === post._id
+            const postAuthorDP = avatarUrl
+
+            return (
+              <motion.div
+                key={post._id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+              >
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex gap-3">
+                      <img src={postAuthorDP} alt={fullName} className="w-12 h-12 rounded-full object-cover" />
+                      <div>
+                        <h3 className="font-bold text-foreground text-sm">{fullName}</h3>
+                        <p className="text-[10px] text-muted-foreground mt-1">{formatTime(post.createdAt)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {post.bgGradient ? (
+                    <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
+                      <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
+                        {post.content}
+                      </h2>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
+                      {post.content}
+                    </p>
+                  )}
+
+                  {post.imageUrl && !post.bgGradient && (
+                    <div className="rounded-xl overflow-hidden border border-border/40 mb-4 bg-muted/30 flex items-center justify-center">
+                      <img 
+                        src={post.imageUrl} 
+                        alt="Post content" 
+                        className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
+                        onClick={() => setViewingImage(post.imageUrl)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="px-4 sm:px-5 py-3">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-blue-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
+                      <span className="font-medium text-foreground/80">{renderLikesText(post.likes)}</span>
+                    </div>
+                    <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
+                  </div>
+                  <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
+                    <button 
+                      onClick={() => handleLike(post._id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1 sm:flex-none justify-center
+                        ${hasLiked ? 'text-blue-500 hover:bg-blue-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                    >
+                      <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
+                      <span className="hidden sm:inline">{hasLiked ? 'Liked' : 'Like'}</span>
+                    </button>
+                    <button 
+                      onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 flex-1 sm:flex-none justify-center"
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      <span className="hidden sm:inline">Comment</span>
+                    </button>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {showComments && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="border-t border-border/40 bg-muted/10 overflow-hidden"
+                    >
+                      <div className="p-4 sm:p-5 space-y-4">
+                        <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                          {commentsArray.map((comment, i) => (
+                            <div key={i} className="flex gap-3">
+                              <img src={comment.author?.image || getAvatarFallback(comment.author?.name)} alt={comment.author?.name} className="w-8 h-8 rounded-full object-cover shrink-0 mt-1 border border-border/50" />
+                              <div className="flex-1 min-w-0">
+                                <div className="bg-muted/50 border border-border/50 rounded-2xl rounded-tl-sm px-4 py-2.5">
+                                  <h4 className="font-bold text-xs text-foreground">{comment.author?.name}</h4>
+                                  <p className="text-sm text-foreground/90 mt-0.5 break-words">{comment.content}</p>
+                                </div>
+                                <div className="flex items-center gap-4 mt-1 ml-2 text-[11px] font-medium text-muted-foreground">
+                                  <span>{formatTime(comment.createdAt)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {commentsArray.length === 0 && (
+                            <p className="text-xs text-muted-foreground text-center italic py-2">No comments yet. Be the first!</p>
+                          )}
+                        </div>
+
+                        {user && (
+                          <div className="flex gap-3 pt-2">
+                            <img src={user.imageUrl} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0 mt-1" />
+                            <div className="flex-1 relative">
+                              <textarea 
+                                value={commentText}
+                                onChange={e => setCommentText(e.target.value)}
+                                placeholder="Write a comment..."
+                                className="w-full bg-background border border-border/50 rounded-xl pl-4 pr-12 py-2.5 text-sm focus:outline-none focus:border-primary resize-none min-h-[44px]"
+                                rows="1"
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault()
+                                    handleComment(post._id)
+                                  }
+                                }}
+                              ></textarea>
+                              <button 
+                                onClick={() => handleComment(post._id)}
+                                disabled={isCommenting || !commentText.trim()}
+                                className="absolute right-2 top-2 p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
+                              >
+                                {isCommenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )
+          })
+        ) : (
+          <div className="text-center py-10 bg-card border border-border/50 rounded-2xl">
+            <p className="text-muted-foreground text-sm">No posts yet.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Connect Modal */}
+      {isConnectModalOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border/50 rounded-2xl w-full max-w-md p-6 shadow-xl relative">
+            <h2 className="text-xl font-bold text-foreground mb-2">Connect with {mentor.firstName}</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Add a personalized message to your connection request (optional).
+            </p>
+            <textarea
+              value={connectMessage}
+              onChange={(e) => setConnectMessage(e.target.value)}
+              placeholder="Hi, I'd love to connect..."
+              className="w-full h-24 bg-muted/50 border border-border/50 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none mb-6"
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setIsConnectModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                disabled={isConnecting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Request'}
+              </button>
             </div>
           </div>
         </div>
+      )}
 
-      </div>
+      {/* Lightbox / Image Viewer */}
+      <AnimatePresence>
+        {viewingImage && (
+          <div 
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm cursor-zoom-out"
+            onClick={() => setViewingImage(null)}
+          >
+            <button 
+              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
+              onClick={() => setViewingImage(null)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <motion.img 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              src={viewingImage} 
+              alt="Full view" 
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

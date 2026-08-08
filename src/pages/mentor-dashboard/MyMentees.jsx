@@ -1,54 +1,54 @@
-import React, { useState } from 'react'
-import { Search, Filter, MessageSquare, User, CheckCircle2 } from 'lucide-react'
-
-const MOCK_MENTEES = [
-  {
-    id: 1,
-    name: 'Ananya Sharma',
-    course: 'B.Tech Computer Science',
-    university: 'NIT Trichy',
-    skills: ['React', 'Node.js', 'System Design'],
-    status: 'Active',
-    image: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-    progress: 75
-  },
-  {
-    id: 2,
-    name: 'Rahul Verma',
-    course: 'MCA',
-    university: 'Delhi University',
-    skills: ['Python', 'Machine Learning', 'Data Structures'],
-    status: 'Active',
-    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-    progress: 40
-  },
-  {
-    id: 3,
-    name: 'Neha Gupta',
-    course: 'B.E. Information Technology',
-    university: 'VIT Vellore',
-    skills: ['Figma', 'UI/UX', 'Frontend Dev'],
-    status: 'Completed',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-    progress: 100
-  },
-  {
-    id: 4,
-    name: 'Vikram Singh',
-    course: 'M.Tech Data Science',
-    university: 'IIT Bombay',
-    skills: ['SQL', 'Tableau', 'Statistics'],
-    status: 'Active',
-    image: 'https://images.unsplash.com/photo-1463453091185-61582044d556?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-    progress: 15
-  },
-]
+import React, { useState, useEffect } from 'react'
+import { Search, Filter, MessageSquare, User, CheckCircle2, Loader2, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
+import toast from 'react-hot-toast'
 
 const MyMentees = () => {
+  const navigate = useNavigate();
+  const { user } = useUser()
+  const [mentees, setMentees] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
 
-  const filteredMentees = MOCK_MENTEES.filter(mentee => {
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchMentees = async () => {
+      try {
+        const res = await fetch(`/api/connections/user/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          // Filter to only accepted requests where the current user is the recipient (mentor)
+          const acceptedMentees = data
+            .filter(conn => conn.recipientClerkId === user.id && conn.status === 'accepted')
+            .map(conn => ({
+              id: conn._id,
+              name: conn.targetUser?.name || 'Unknown User',
+              course: conn.targetUser?.course || 'Course not specified',
+              university: conn.targetUser?.university || 'University not specified',
+              skills: conn.targetUser?.interest ? [conn.targetUser.interest] : ['Not specified'],
+              status: 'Active', // Mocking progress/status for now
+              image: conn.targetUser?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${conn.targetUser?.name}`,
+              progress: Math.floor(Math.random() * 100), // Mocking progress
+              fullProfile: conn.targetUser,
+              interest: conn.targetUser?.interest
+            }));
+          setMentees(acceptedMentees);
+        }
+      } catch (err) {
+        console.error('Error fetching mentees:', err);
+        toast.error('Failed to load mentees');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchMentees();
+  }, [user]);
+
+  const filteredMentees = mentees.filter(mentee => {
     const matchesSearch = mentee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mentee.course.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'All' || mentee.status === statusFilter
@@ -61,7 +61,7 @@ const MyMentees = () => {
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">My Mentees</h1>
+          <h1 className="text-2xl font-bold text-foreground">My Students</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage and track your students' progress.</p>
         </div>
 
@@ -70,7 +70,7 @@ const MyMentees = () => {
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search mentees..."
+              placeholder="Search students..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
@@ -91,8 +91,12 @@ const MyMentees = () => {
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredMentees.map((mentee) => (
           <div key={mentee.id} className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col">
 
@@ -138,7 +142,10 @@ const MyMentees = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <button className="flex items-center justify-center gap-2 bg-background border border-border/50 hover:bg-muted text-foreground py-2 rounded-lg text-xs font-medium transition-colors">
+                <button 
+                  onClick={() => navigate(`/mentor-dashboard/student/${mentee.fullProfile?.id || mentee.fullProfile?.clerkId}`)}
+                  className="flex items-center justify-center gap-2 bg-background border border-border/50 hover:bg-muted text-foreground py-2 rounded-lg text-xs font-medium transition-colors"
+                >
                   <User className="w-4 h-4" /> Profile
                 </button>
                 <button className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-xs font-medium transition-colors shadow-sm shadow-primary/20">
@@ -151,10 +158,11 @@ const MyMentees = () => {
 
         {filteredMentees.length === 0 && (
           <div className="col-span-full py-12 text-center text-muted-foreground">
-            No mentees found matching your search.
+            No students found matching your search.
           </div>
         )}
       </div>
+      )}
 
     </div>
   )

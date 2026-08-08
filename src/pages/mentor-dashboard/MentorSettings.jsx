@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2 } from 'lucide-react'
+import { Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2, AtSign, Check, AlertCircle } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 
@@ -10,15 +10,33 @@ const MentorSettings = () => {
   // Form State
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [address, setAddress] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [usernameValue, setUsernameValue] = useState('')
+  const [usernameError, setUsernameError] = useState('')
   const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (user) {
       setFirstName(user.firstName || '')
       setLastName(user.lastName || '')
+      setAddress(user.unsafeMetadata?.address || '')
+      
+      // Fetch username from MongoDB
+      const fetchProfile = async () => {
+        try {
+          const res = await fetch(`/api/users/${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setUsernameValue(data.username || '');
+          }
+        } catch (err) {
+          console.error('Failed to fetch profile:', err);
+        }
+      };
+      fetchProfile();
     }
   }, [user])
 
@@ -43,14 +61,51 @@ const MentorSettings = () => {
     }
   }
 
+  const validateUsername = (value) => {
+    if (!value) return ''
+    if (value.length < 3) return 'Username must be at least 3 characters'
+    if (value.length > 30) return 'Username must be 30 characters or less'
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(value) && value.length > 1) return 'Only lowercase letters, numbers, and hyphens allowed'
+    if (/--/.test(value)) return 'No consecutive hyphens allowed'
+    return ''
+  }
+
+  const handleUsernameChange = (value) => {
+    const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+    setUsernameValue(cleaned)
+    setUsernameError(validateUsername(cleaned))
+  }
+
   const handleSaveProfile = async (e) => {
     e.preventDefault()
     if (!user) return
     setIsSaving(true)
     try {
+      // Save username separately (has its own uniqueness check)
+      if (usernameValue) {
+        const usernameRes = await fetch(`/api/users/${user.id}/username`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: usernameValue })
+        });
+        if (!usernameRes.ok) {
+          const data = await usernameRes.json();
+          if (data.message?.includes('taken')) {
+            setUsernameError('This username is already taken');
+            toast.error('Username is already taken');
+            setIsSaving(false);
+            return;
+          }
+        }
+      }
+
       await user.update({
         firstName,
         lastName,
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          address
+        }
       })
       toast.success('Profile updated successfully!')
     } catch (err) {
@@ -203,8 +258,51 @@ const MentorSettings = () => {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
+                    <AtSign className="w-4 h-4 text-primary" /> Username
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={usernameValue} 
+                      onChange={(e) => handleUsernameChange(e.target.value)} 
+                      placeholder="rohit-sharma-4821" 
+                      className={`w-full px-3 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-1 transition-all ${
+                        usernameError 
+                          ? 'border-red-500/50 focus:ring-red-500/50' 
+                          : 'border-border/50 focus:ring-primary'
+                      }`} 
+                    />
+                    {usernameValue && !usernameError && (
+                      <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                    )}
+                    {usernameError && (
+                      <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  {usernameError ? (
+                    <p className="text-xs text-red-500 mt-1">{usernameError}</p>
+                  ) : usernameValue ? (
+                    <p className="text-xs text-muted-foreground mt-1">campusbridge.com/u/<span className="text-primary font-medium">{usernameValue}</span></p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">Your unique profile URL. Auto-generated on signup.</p>
+                  )}
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Title / Designation</label>
                   <input type="text" defaultValue="Senior Software Engineer at Amazon" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Address</label>
+                  <input 
+                    type="text" 
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="123 Main St, Kolkata"
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                  />
                 </div>
 
                 <div className="pt-4 flex justify-end">

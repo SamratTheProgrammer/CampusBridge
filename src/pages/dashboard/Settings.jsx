@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin } from 'lucide-react'
+import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 
@@ -14,6 +14,7 @@ const Settings = () => {
   const [lastName, setLastName] = useState('')
   const [headline, setHeadline] = useState('')
   const [location, setLocation] = useState('')
+  const [address, setAddress] = useState('')
   const [aboutMe, setAboutMe] = useState('')
   const [socialLinks, setSocialLinks] = useState([])
   const [showSocialForm, setShowSocialForm] = useState(false)
@@ -23,6 +24,9 @@ const Settings = () => {
   const [education, setEducation] = useState([])
   const [skills, setSkills] = useState([])
   const [newSkill, setNewSkill] = useState('')
+  const [usernameValue, setUsernameValue] = useState('')
+  const [usernameError, setUsernameError] = useState('')
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false)
   const [showExpForm, setShowExpForm] = useState(false)
   const [newExp, setNewExp] = useState({ title: '', company: '', duration: '', description: '' })
   const [showEduForm, setShowEduForm] = useState(false)
@@ -42,6 +46,7 @@ const Settings = () => {
       setLastName(user.lastName || '')
       setHeadline(user.unsafeMetadata?.headline || '')
       setLocation(user.unsafeMetadata?.location || '')
+      setAddress(user.unsafeMetadata?.address || '')
       setAboutMe(user.unsafeMetadata?.aboutMe || '')
       setSocialLinks(user.unsafeMetadata?.socialLinks || [])
       setResumeUrl(user.unsafeMetadata?.resumeUrl || '')
@@ -57,8 +62,10 @@ const Settings = () => {
             const data = await res.json();
             setFirstName(data.firstName || user.firstName || '');
             setLastName(data.lastName || user.lastName || '');
+            setUsernameValue(data.username || '');
             setHeadline(data.headline || user.unsafeMetadata?.headline || '');
             setLocation(data.location || user.unsafeMetadata?.location || '');
+            setAddress(data.address || user.unsafeMetadata?.address || '');
             setAboutMe(data.aboutMe || user.unsafeMetadata?.aboutMe || '');
             setSocialLinks(data.socialLinks?.length ? data.socialLinks : (user.unsafeMetadata?.socialLinks || []));
             setResumeUrl(data.resumeUrl || user.unsafeMetadata?.resumeUrl || '');
@@ -96,10 +103,43 @@ const Settings = () => {
     }
   }
 
+  const validateUsername = (value) => {
+    if (!value) return ''
+    if (value.length < 3) return 'Username must be at least 3 characters'
+    if (value.length > 30) return 'Username must be 30 characters or less'
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(value) && value.length > 1) return 'Only lowercase letters, numbers, and hyphens allowed'
+    if (/--/.test(value)) return 'No consecutive hyphens allowed'
+    return ''
+  }
+
+  const handleUsernameChange = (value) => {
+    const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+    setUsernameValue(cleaned)
+    setUsernameError(validateUsername(cleaned))
+  }
+
   const handleSaveChanges = async () => {
     if (!user) return
     setIsSaving(true)
     try {
+      // Save username separately (has its own uniqueness check)
+      if (usernameValue) {
+        const usernameRes = await fetch(`/api/users/${user.id}/username`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: usernameValue })
+        });
+        if (!usernameRes.ok) {
+          const data = await usernameRes.json();
+          if (data.message?.includes('taken')) {
+            setUsernameError('This username is already taken');
+            toast.error('Username is already taken');
+            setIsSaving(false);
+            return;
+          }
+        }
+      }
+
       // Save to Clerk (fallback/auth layer)
       await user.update({
         firstName,
@@ -108,6 +148,7 @@ const Settings = () => {
           ...user.unsafeMetadata,
           headline,
           location,
+          address,
           aboutMe,
           socialLinks,
           resumeUrl,
@@ -126,6 +167,7 @@ const Settings = () => {
           lastName,
           headline,
           location,
+          address,
           aboutMe,
           socialLinks,
           resumeUrl,
@@ -216,6 +258,7 @@ const Settings = () => {
     lastName?.trim() && 
     headline?.trim() && 
     location?.trim() && 
+    address?.trim() &&
     aboutMe?.trim() && 
     (user?.imageUrl && !user.imageUrl.includes('default'))
   );
@@ -358,14 +401,49 @@ const Settings = () => {
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <AtSign className="w-4 h-4 text-primary" /> Username
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={usernameValue} 
+                      onChange={(e) => handleUsernameChange(e.target.value)} 
+                      placeholder="samrat-saha-1234" 
+                      className={`w-full bg-background border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 text-sm text-foreground transition-all ${
+                        usernameError 
+                          ? 'border-red-500/50 focus:ring-red-500/50' 
+                          : 'border-border/50 focus:ring-primary/50'
+                      }`} 
+                    />
+                    {usernameValue && !usernameError && (
+                      <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                    )}
+                    {usernameError && (
+                      <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  {usernameError ? (
+                    <p className="text-xs text-red-500">{usernameError}</p>
+                  ) : usernameValue ? (
+                    <p className="text-xs text-muted-foreground">campusbridge.com/u/<span className="text-primary font-medium">{usernameValue}</span></p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Your unique profile URL. Auto-generated on signup, you can change it here.</p>
+                  )}
+                </div>
+                <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm font-medium text-foreground">Headline (Tagline)</label>
                   <input type="text" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="MCA Student | Seeking SDE Internships" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Location</label>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Location</label>
                   <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kolkata, India" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
-                <div className="space-y-4 sm:col-span-2 mt-4 pt-4 border-t border-border/40">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Address</label>
+                  <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Kolkata" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                </div>
+              <div className="space-y-4 sm:col-span-2 mt-4 pt-4 border-t border-border/40">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-foreground">Social Media Links</label>
                     <button 

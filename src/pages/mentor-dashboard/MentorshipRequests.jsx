@@ -1,68 +1,89 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, User, Calendar, MessageSquare, BookOpen } from 'lucide-react'
+import { Check, X, User, Calendar, MessageSquare, BookOpen, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-
-const MOCK_REQUESTS = {
-  pending: [
-    {
-      id: 1,
-      name: 'Amit Kumar',
-      course: 'B.Tech CS',
-      university: 'NIT Trichy',
-      interest: 'Frontend Development',
-      message: 'Hi Rohit, I am very interested in frontend engineering and would love to get your guidance on building a strong portfolio for FAANG internships.',
-      image: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-      date: '2 hours ago'
-    },
-    {
-      id: 2,
-      name: 'Sneha Gupta',
-      course: 'MCA',
-      university: 'Delhi University',
-      interest: 'Cloud Computing',
-      message: 'I am starting my journey in AWS and cloud architecture. Your posts have been very inspiring. I would be grateful for your mentorship.',
-      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-      date: '1 day ago'
-    }
-  ],
-  accepted: [
-    {
-      id: 3,
-      name: 'Ananya Sharma',
-      course: 'B.Tech CS',
-      university: 'NIT Trichy',
-      interest: 'System Design',
-      message: 'Looking for guidance on scalable architectures.',
-      image: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-      date: '3 weeks ago'
-    }
-  ],
-  declined: [
-    {
-      id: 4,
-      name: 'Vikas Singh',
-      course: 'B.E. Mechanical',
-      university: 'VIT Vellore',
-      interest: 'Web3 & Crypto',
-      message: 'I want to build a decentralized application on Ethereum.',
-      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
-      date: '1 month ago'
-    }
-  ]
-}
+import { useUser } from '@clerk/clerk-react'
+import { formatDistanceToNow } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
 
 const MentorshipRequests = () => {
+  const { user } = useUser()
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('pending')
-  const [requests, setRequests] = useState(MOCK_REQUESTS)
+  const [requests, setRequests] = useState({ pending: [], accepted: [], declined: [] })
+  const [isLoading, setIsLoading] = useState(true)
 
-  const handleAction = (id, action) => {
-    toast.success(`Request ${action === 'accept' ? 'accepted' : 'declined'} successfully!`)
-    // In a real app, this would make an API call and update state.
-    // For mock UI, we will just filter it out from pending.
-    if (activeTab === 'pending') {
-      const updatedPending = requests.pending.filter(req => req.id !== id)
-      setRequests({ ...requests, pending: updatedPending })
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchRequests = async () => {
+      try {
+        const res = await fetch(`/api/connections/user/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          // Filter to only requests where the current user is the recipient (mentor)
+          const receivedRequests = data.filter(conn => conn.recipientClerkId === user.id);
+          
+          const categorized = {
+            pending: receivedRequests.filter(req => req.status === 'pending').map(formatRequestData),
+            accepted: receivedRequests.filter(req => req.status === 'accepted').map(formatRequestData),
+            declined: receivedRequests.filter(req => req.status === 'declined').map(formatRequestData)
+          };
+          setRequests(categorized);
+        }
+      } catch (err) {
+        console.error('Error fetching requests:', err);
+        toast.error('Failed to load requests');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchRequests();
+  }, [user]);
+
+  const formatRequestData = (conn) => {
+    return {
+      id: conn._id,
+      name: conn.targetUser?.name || 'Unknown User',
+      course: conn.targetUser?.course || 'Course not specified',
+      university: conn.targetUser?.university || 'University not specified',
+      interest: conn.targetUser?.interest || 'Not specified',
+      message: conn.message || 'I would like to connect with you.',
+      image: conn.targetUser?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${conn.targetUser?.name}`,
+      date: conn.createdAt ? formatDistanceToNow(new Date(conn.createdAt), { addSuffix: true }) : 'Recently',
+      fullProfile: conn.targetUser
+    };
+  };
+
+  const handleAction = async (id, action) => {
+    try {
+      const status = action === 'accept' ? 'accepted' : 'declined';
+      const res = await fetch(`/api/connections/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+
+      if (res.ok) {
+        toast.success(`Request ${action === 'accept' ? 'accepted' : 'declined'} successfully!`)
+        
+        // Update local state by moving it to the correct tab
+        setRequests(prev => {
+          const targetReq = prev.pending.find(r => r.id === id);
+          if (!targetReq) return prev;
+          
+          return {
+            ...prev,
+            pending: prev.pending.filter(r => r.id !== id),
+            [status]: [targetReq, ...prev[status]]
+          };
+        });
+      } else {
+        toast.error('Failed to update request');
+      }
+    } catch (err) {
+      toast.error('An error occurred');
     }
   }
 
@@ -77,7 +98,13 @@ const MentorshipRequests = () => {
         <p className="text-sm text-muted-foreground mt-1">Review and manage students asking for your guidance.</p>
       </div>
 
-      {/* Tabs */}
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          {/* Tabs */}
       <div className="flex space-x-1 bg-muted p-1 rounded-xl w-full sm:w-fit">
         {['pending', 'accepted', 'declined'].map((tab) => (
           <button
@@ -157,7 +184,10 @@ const MentorshipRequests = () => {
                       </>
                     )}
 
-                    <button className="flex items-center gap-2 bg-background border border-border/50 text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-all">
+                    <button 
+                      onClick={() => navigate(`/mentor-dashboard/student/${req.fullProfile?.id || req.fullProfile?.clerkId}`)}
+                      className="flex items-center gap-2 bg-background border border-border/50 text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-all"
+                    >
                       <User className="w-4 h-4" /> View Profile
                     </button>
 
@@ -184,6 +214,8 @@ const MentorshipRequests = () => {
           </div>
         )}
       </div>
+        </>
+      )}
 
     </div>
   )

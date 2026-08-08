@@ -24,9 +24,8 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const { signOut } = useClerk()
   const navItems = [
     { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true },
-    { name: 'My Profile', path: '/mentor-dashboard/profile', icon: User },
-    { name: 'My Mentees', path: '/mentor-dashboard/mentees', icon: Users },
-    { name: 'Mentorship Requests', path: '/mentor-dashboard/requests', icon: BookOpen },
+    { name: 'My Students', path: '/mentor-dashboard/mentees', icon: Users },
+    { name: 'Student Requests', path: '/mentor-dashboard/requests', icon: BookOpen },
     { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase },
     { name: 'Events', path: '/mentor-dashboard/events', icon: Calendar },
     { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: 3 },

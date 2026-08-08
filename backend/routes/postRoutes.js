@@ -1,8 +1,17 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Post from '../models/Post.js';
 import User from '../models/User.js';
 
 const router = express.Router();
+
+// Helper to safely extract clerkId string from a like entry
+const getLikeClerkId = (likeItem) => {
+  if (!likeItem) return null;
+  if (typeof likeItem === 'string') return likeItem;
+  if (typeof likeItem === 'object') return likeItem.clerkId || likeItem.id || null;
+  return String(likeItem);
+};
 
 // Get all posts with author details
 router.get('/', async (req, res) => {
@@ -30,7 +39,9 @@ router.get('/', async (req, res) => {
 
         // Enrich likes
         const enrichedLikes = await Promise.all(
-          post.likes.map(async (likeClerkId) => {
+          post.likes.map(async (likeItem) => {
+            const likeClerkId = getLikeClerkId(likeItem);
+            if (!likeClerkId) return { clerkId: 'unknown', name: 'Unknown User', image: null };
             const likeUser = await User.findOne({ clerkId: likeClerkId });
             return likeUser ? {
               clerkId: likeClerkId,
@@ -65,14 +76,29 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get posts by a specific user
+// Get posts by a specific user (accepts clerkId, Mongo _id, or username)
 router.get('/user/:clerkId', async (req, res) => {
   try {
-    const posts = await Post.find({ authorClerkId: req.params.clerkId }).sort({ createdAt: -1 });
+    const { clerkId } = req.params;
+    if (!clerkId || clerkId === 'undefined') {
+      return res.status(200).json([]);
+    }
+
+    let targetClerkId = clerkId;
+    let query = [{ clerkId }, { username: clerkId }];
+    if (mongoose.Types.ObjectId.isValid(clerkId)) {
+      query.push({ _id: clerkId });
+    }
+    const user = await User.findOne({ $or: query });
+    if (user) {
+      targetClerkId = user.clerkId;
+    }
+
+    const posts = await Post.find({ authorClerkId: targetClerkId }).sort({ createdAt: -1 });
     
     const enrichedPosts = await Promise.all(
       posts.map(async (post) => {
-        const user = await User.findOne({ clerkId: post.authorClerkId });
+        const postAuthor = user || await User.findOne({ clerkId: post.authorClerkId });
         
         const enrichedComments = await Promise.all(
           post.comments.map(async (comment) => {
@@ -88,7 +114,9 @@ router.get('/user/:clerkId', async (req, res) => {
         );
 
         const enrichedLikes = await Promise.all(
-          post.likes.map(async (likeClerkId) => {
+          post.likes.map(async (likeItem) => {
+            const likeClerkId = getLikeClerkId(likeItem);
+            if (!likeClerkId) return { clerkId: 'unknown', name: 'Unknown User', image: null };
             const likeUser = await User.findOne({ clerkId: likeClerkId });
             return likeUser ? {
               clerkId: likeClerkId,
@@ -101,10 +129,10 @@ router.get('/user/:clerkId', async (req, res) => {
 
         return {
           ...post.toObject(),
-          author: user ? {
-            name: user.firstName + (user.lastName ? ' ' + user.lastName : ''),
-            role: user.headline || user.role,
-            image: user.imageUrl,
+          author: postAuthor ? {
+            name: postAuthor.firstName + (postAuthor.lastName ? ' ' + postAuthor.lastName : ''),
+            role: postAuthor.headline || postAuthor.role,
+            image: postAuthor.imageUrl,
           } : {
             name: 'Unknown User',
             role: 'Member',
@@ -153,10 +181,14 @@ router.put('/:id/like', async (req, res) => {
     const { clerkId } = req.body;
     if (!clerkId) return res.status(400).json({ message: 'clerkId is required' });
 
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    const likeIndex = post.likes.indexOf(clerkId);
+    const likeIndex = post.likes.findIndex(item => getLikeClerkId(item) === clerkId);
     if (likeIndex === -1) {
       post.likes.push(clerkId);
     } else {
@@ -177,6 +209,10 @@ router.post('/:id/comment', async (req, res) => {
     const { authorClerkId, content } = req.body;
     if (!authorClerkId || !content) return res.status(400).json({ message: 'Missing fields' });
 
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
@@ -195,6 +231,10 @@ router.put('/:id', async (req, res) => {
   try {
     const { authorClerkId, content } = req.body;
     if (!authorClerkId || content === undefined) return res.status(400).json({ message: 'Missing fields' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
 
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
@@ -215,13 +255,15 @@ router.put('/:id', async (req, res) => {
 // Delete Post
 router.delete('/:id', async (req, res) => {
   try {
-    const { authorClerkId } = req.body;
-    if (!authorClerkId) return res.status(400).json({ message: 'clerkId is required' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
 
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    if (post.authorClerkId !== authorClerkId) {
+    const authorClerkId = req.body?.authorClerkId || req.query?.authorClerkId;
+    if (authorClerkId && post.authorClerkId !== authorClerkId) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 

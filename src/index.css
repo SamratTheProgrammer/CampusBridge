@@ -92,6 +92,11 @@ body {
   overflow-x: hidden;
 }
 
+option {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

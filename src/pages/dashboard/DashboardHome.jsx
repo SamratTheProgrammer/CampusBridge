@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
+import ImageCropModal from '../../components/ImageCropModal'
 import { 
   Users, 
   FileText, 
@@ -29,6 +30,8 @@ const DashboardHome = () => {
 
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
+  const [connections, setConnections] = useState({})
+  const [isConnecting, setIsConnecting] = useState(null)
   
   // Post Creation State
   const [newPostContent, setNewPostContent] = useState('')
@@ -51,13 +54,11 @@ const DashboardHome = () => {
   const [isDeleting, setIsDeleting] = useState(false)
   const [likesModalPost, setLikesModalPost] = useState(null)
   
-  const fileInputRef = useRef(null)
+  // Image states
+  const [cropModalData, setCropModalData] = useState(null)
+  const [viewingImage, setViewingImage] = useState(null)
 
-  // Fetch initial data
-  useEffect(() => {
-    fetchPosts()
-    fetchMentors()
-  }, [])
+  const fileInputRef = useRef(null)
 
   const fetchPosts = async () => {
     try {
@@ -73,23 +74,87 @@ const DashboardHome = () => {
     }
   }
 
-  const fetchMentors = async () => {
+  const fetchMentorsAndConnections = async () => {
     try {
-      const res = await fetch('/api/users/mentors/suggested')
-      if (res.ok) {
-        const data = await res.json()
+      const [mentorsRes, connsRes] = await Promise.all([
+        fetch('/api/users/mentors/suggested'),
+        user ? fetch(`/api/connections/user/${user.id}`) : Promise.resolve({ ok: false })
+      ])
+      
+      if (mentorsRes.ok) {
+        const data = await mentorsRes.json()
         setRecommendedMentors(data)
       }
+
+      if (connsRes.ok) {
+        const connsData = await connsRes.json()
+        const connMap = {}
+        connsData.forEach(c => {
+          if (c.requesterClerkId === user.id) connMap[c.recipientClerkId] = c.status
+          else if (c.recipientClerkId === user.id) connMap[c.requesterClerkId] = c.status
+        })
+        setConnections(connMap)
+      }
     } catch (err) {
-      console.error('Failed to fetch mentors', err)
+      console.error('Error fetching data:', err)
     }
   }
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchPosts()
+    fetchMentorsAndConnections()
+  }, [user])
 
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0]
     if (file) {
-      setNewPostImage(file)
-      setImagePreview(URL.createObjectURL(file))
+      const reader = new FileReader()
+      reader.onload = () => {
+        setCropModalData({ src: reader.result })
+      }
+      reader.readAsDataURL(file)
+      e.target.value = '' // reset input
+    }
+  }
+
+  const handleCropComplete = (croppedFile) => {
+    setNewPostImage(croppedFile)
+    setImagePreview(URL.createObjectURL(croppedFile))
+    setCropModalData(null)
+  }
+
+  const handleConnect = async (mentorId) => {
+    if (!user) return
+    setIsConnecting(mentorId)
+    try {
+      const res = await fetch('/api/connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterClerkId: user.id,
+          recipientClerkId: mentorId,
+          message: 'Hi, I found you in suggested mentors and would love to connect!'
+        })
+      })
+      if (res.ok) {
+        setConnections(prev => ({ ...prev, [mentorId]: 'pending' }))
+        toast.success('Connection request sent!')
+      } else {
+        const text = await res.text()
+        try {
+          const data = JSON.parse(text)
+          toast.error(data.message || 'Failed to connect')
+        } catch (e) {
+          console.error('Invalid JSON response:', text)
+          toast.error(`Server error: ${res.status}`)
+        }
+      }
+    } catch (err) {
+      console.error('Connection request failed:', err)
+      toast.error(`Network error: ${err.message}`)
+    } finally {
+      setIsConnecting(null)
     }
   }
 
@@ -489,10 +554,28 @@ const DashboardHome = () => {
                   <div className="p-4 sm:p-5">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex gap-3">
-                        <img src={postAuthorDP} alt={post.author?.name} className="w-12 h-12 rounded-full object-cover" />
+                        <img 
+                          src={postAuthorDP} 
+                          alt={post.author?.name} 
+                          className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                          onClick={() => {
+                            if (post.author?.role?.toLowerCase() === 'mentor') {
+                              window.location.href = `/dashboard/mentor/${post.authorClerkId}`;
+                            }
+                          }}
+                        />
                         <div>
-                          <h3 className="font-bold text-foreground text-sm">{post.author?.name}</h3>
-                          <p className="text-xs text-muted-foreground">{post.author?.role}</p>
+                          <h3 
+                            className="font-bold text-foreground text-sm cursor-pointer hover:underline"
+                            onClick={() => {
+                              if (post.author?.role?.toLowerCase() === 'mentor') {
+                                window.location.href = `/dashboard/mentor/${post.authorClerkId}`;
+                              }
+                            }}
+                          >
+                            {post.author?.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground capitalize">{post.author?.role}</p>
                           <p className="text-[10px] text-muted-foreground">{formatTime(post.createdAt)}</p>
                         </div>
                       </div>
@@ -554,8 +637,13 @@ const DashboardHome = () => {
                   </div>
 
                   {post.imageUrl && !post.bgGradient && (
-                    <div className="w-full max-h-[500px] bg-muted overflow-hidden">
-                      <img src={post.imageUrl} alt="Post content" className="w-full h-full object-cover" />
+                    <div className="w-full max-h-[500px] bg-muted overflow-hidden flex items-center justify-center">
+                      <img 
+                        src={post.imageUrl} 
+                        alt="Post content" 
+                        className="w-full h-full object-contain cursor-pointer" 
+                        onClick={() => setViewingImage(post.imageUrl)}
+                      />
                     </div>
                   )}
 
@@ -676,9 +764,23 @@ const DashboardHome = () => {
                 <div>
                   <h4 className="font-semibold text-sm text-foreground leading-tight line-clamp-1">{mentor.firstName} {mentor.lastName}</h4>
                   <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-2">{mentor.headline || mentor.role}</p>
-                  <button className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors">
-                    Connect
-                  </button>
+                  
+                  {connections[mentor.clerkId] === 'pending' ? (
+                    <button disabled className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted px-3 py-1 rounded-full flex items-center gap-1 cursor-not-allowed">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Pending
+                    </button>
+                  ) : connections[mentor.clerkId] === 'accepted' ? (
+                    <button disabled className="text-xs font-medium text-green-500 border border-green-500/20 bg-green-500/10 px-3 py-1 rounded-full cursor-default">
+                      Connected
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => handleConnect(mentor.clerkId)}
+                      disabled={isConnecting === mentor.clerkId}
+                      className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
+                      {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
+                    </button>
+                  )}
                 </div>
               </div>
             )) : (
@@ -783,6 +885,44 @@ const DashboardHome = () => {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox / Image Viewer */}
+      <AnimatePresence>
+        {viewingImage && (
+          <div 
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm cursor-zoom-out"
+            onClick={() => setViewingImage(null)}
+          >
+            <button 
+              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
+              onClick={() => setViewingImage(null)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <motion.img 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              src={viewingImage} 
+              alt="Full view" 
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Render Image Crop Modal if active */}
+      <AnimatePresence>
+        {cropModalData && (
+          <ImageCropModal 
+            imageSrc={cropModalData.src}
+            aspectRatio={NaN}
+            onCropComplete={handleCropComplete}
+            onCancel={() => setCropModalData(null)}
+          />
         )}
       </AnimatePresence>
 

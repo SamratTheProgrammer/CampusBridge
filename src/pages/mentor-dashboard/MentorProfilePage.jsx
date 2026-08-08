@@ -30,7 +30,7 @@ const MentorProfilePage = () => {
                 <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Rohit Sharma</h1>
                 <p className="text-sm sm:text-base text-muted-foreground mt-1">Senior Software Engineer at Amazon</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                  <MapPin className="w-3.5 h-3.5" /> Bangalore, India • <Calendar className="w-3.5 h-3.5" /> Joined Oct 2024
+                  <MapPin className="w-3.5 h-3.5" /> Bangalore, India &bull; 123 Main St, Bangalore &bull; <Calendar className="w-3.5 h-3.5" /> Joined Oct 2024
                 </div>
               </div>
               <button className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-sm w-full sm:w-auto justify-center">

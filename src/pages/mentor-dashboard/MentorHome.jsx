@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
+import ImageCropModal from '../../components/ImageCropModal'
 import { 
   Users, 
   FileText, 
@@ -68,6 +69,10 @@ const MentorHome = () => {
   const [isDeleting, setIsDeleting] = useState(false)
   const [likesModalPost, setLikesModalPost] = useState(null)
   
+  // Image states
+  const [cropModalData, setCropModalData] = useState(null)
+  const [viewingImage, setViewingImage] = useState(null)
+
   const fileInputRef = useRef(null)
 
   // Fetch initial data
@@ -105,9 +110,19 @@ const MentorHome = () => {
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0]
     if (file) {
-      setNewPostImage(file)
-      setImagePreview(URL.createObjectURL(file))
+      const reader = new FileReader()
+      reader.onload = () => {
+        setCropModalData({ src: reader.result })
+      }
+      reader.readAsDataURL(file)
+      e.target.value = '' // reset input
     }
+  }
+
+  const handleCropComplete = (croppedFile) => {
+    setNewPostImage(croppedFile)
+    setImagePreview(URL.createObjectURL(croppedFile))
+    setCropModalData(null)
   }
 
   const handleCreatePost = async () => {
@@ -509,10 +524,28 @@ const MentorHome = () => {
                   <div className="p-4 sm:p-5">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex gap-3">
-                        <img src={postAuthorDP} alt={post.author?.name} className="w-12 h-12 rounded-full object-cover" />
+                        <img 
+                          src={postAuthorDP} 
+                          alt={post.author?.name} 
+                          className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                          onClick={() => {
+                            if (post.author?.role?.toLowerCase() === 'mentor') {
+                              window.location.href = `/dashboard/mentor/${post.authorClerkId}`;
+                            }
+                          }}
+                        />
                         <div>
-                          <h3 className="font-bold text-foreground text-sm">{post.author?.name}</h3>
-                          <p className="text-xs text-muted-foreground">{post.author?.role}</p>
+                          <h3 
+                            className="font-bold text-foreground text-sm cursor-pointer hover:underline"
+                            onClick={() => {
+                              if (post.author?.role?.toLowerCase() === 'mentor') {
+                                window.location.href = `/dashboard/mentor/${post.authorClerkId}`;
+                              }
+                            }}
+                          >
+                            {post.author?.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground capitalize">{post.author?.role}</p>
                           <p className="text-[10px] text-muted-foreground">{formatTime(post.createdAt)}</p>
                         </div>
                       </div>
@@ -574,8 +607,13 @@ const MentorHome = () => {
                   </div>
 
                   {post.imageUrl && !post.bgGradient && (
-                    <div className="w-full max-h-[500px] bg-muted overflow-hidden">
-                      <img src={post.imageUrl} alt="Post content" className="w-full h-full object-cover" />
+                    <div className="w-full max-h-[500px] bg-muted overflow-hidden flex items-center justify-center">
+                      <img 
+                        src={post.imageUrl} 
+                        alt="Post content" 
+                        className="w-full h-full object-contain cursor-pointer" 
+                        onClick={() => setViewingImage(post.imageUrl)}
+                      />
                     </div>
                   )}
 
@@ -834,6 +872,44 @@ const MentorHome = () => {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox / Image Viewer */}
+      <AnimatePresence>
+        {viewingImage && (
+          <div 
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm cursor-zoom-out"
+            onClick={() => setViewingImage(null)}
+          >
+            <button 
+              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
+              onClick={() => setViewingImage(null)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <motion.img 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              src={viewingImage} 
+              alt="Full view" 
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Render Image Crop Modal if active */}
+      <AnimatePresence>
+        {cropModalData && (
+          <ImageCropModal 
+            imageSrc={cropModalData.src}
+            aspectRatio={NaN}
+            onCropComplete={handleCropComplete}
+            onCancel={() => setCropModalData(null)}
+          />
         )}
       </AnimatePresence>
 

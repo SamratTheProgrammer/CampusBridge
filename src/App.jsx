@@ -24,8 +24,12 @@ if (!PUBLISHABLE_KEY) {
 // Dashboard Layout & Pages
 import DashboardLayout from './layouts/DashboardLayout'
 import DashboardHome from './pages/dashboard/DashboardHome'
+import MyProfile from './pages/dashboard/MyProfile'
 import MentorDirectory from './pages/dashboard/MentorDirectory'
 import MentorProfile from './pages/dashboard/MentorProfile'
+import BookSession from './pages/dashboard/BookSession'
+import BookingSuccess from './pages/dashboard/BookingSuccess'
+import MyMentors from './pages/dashboard/MyMentors'
 import MentorshipRequests from './pages/dashboard/MentorshipRequests'
 import JobDetails from './pages/dashboard/JobDetails'
 import Events from './pages/dashboard/Events'
@@ -34,10 +38,7 @@ import Jobs from './pages/dashboard/Jobs'
 import Settings from './pages/dashboard/Settings'
 import Applications from './pages/dashboard/Applications'
 import Saved from './pages/dashboard/Saved'
-import BookSession from './pages/dashboard/BookSession'
-import BookingSuccess from './pages/dashboard/BookingSuccess'
 import MySessions from './pages/dashboard/MySessions'
-import MyProfile from './pages/dashboard/MyProfile'
 
 // Mentor Dashboard Layout & Pages
 import MentorDashboardLayout from './layouts/MentorDashboardLayout'
@@ -50,6 +51,7 @@ import MentorPosts from './pages/mentor-dashboard/MentorPosts'
 import MentorMessages from './pages/mentor-dashboard/MentorMessages'
 import MentorAnalytics from './pages/mentor-dashboard/MentorAnalytics'
 import MentorSettings from './pages/mentor-dashboard/MentorSettings'
+import StudentProfile from './pages/mentor-dashboard/StudentProfile'
 
 // Admin Layout & Pages
 import AdminLayout from './layouts/AdminLayout'
@@ -117,6 +119,7 @@ function AnimatedRoutes() {
           <Route path="mentor/:id" element={<MentorProfile />} />
           <Route path="mentor/:id/book" element={<BookSession />} />
           <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
+          <Route path="my-mentors" element={<MyMentors />} />
           <Route path="mentorship" element={<MentorshipRequests />} />
           <Route path="sessions" element={<MySessions />} />
           <Route path="jobs" element={<Jobs />} />
@@ -134,6 +137,7 @@ function AnimatedRoutes() {
           <Route path="profile" element={<MyProfile />} />
           <Route path="mentees" element={<MyMentees />} />
           <Route path="requests" element={<MentorRequests />} />
+          <Route path="student/:id" element={<StudentProfile />} />
           <Route path="jobs" element={<MentorJobs />} />
           <Route path="events" element={<MentorEvents />} />
           <Route path="posts" element={<MentorPosts />} />
