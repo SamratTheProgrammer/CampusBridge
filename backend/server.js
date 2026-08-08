@@ -210,6 +210,10 @@ io.on('connection', (socket) => {
 
   // Reject Call
   socket.on('reject_call', ({ toClerkId, fromClerkId }) => {
+    if (fromClerkId) {
+      onlineUsers.set(fromClerkId, socket.id);
+      socket.userId = fromClerkId;
+    }
     const callerSocketId = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
     if (callerSocketId) {
@@ -220,6 +224,10 @@ io.on('connection', (socket) => {
 
   // End Call
   socket.on('end_call', ({ toClerkId, fromClerkId }) => {
+    if (fromClerkId) {
+      onlineUsers.set(fromClerkId, socket.id);
+      socket.userId = fromClerkId;
+    }
     const partnerSocketId = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
     if (partnerSocketId) {
@@ -230,6 +238,10 @@ io.on('connection', (socket) => {
 
   // ICE Candidates exchange
   socket.on('ice_candidate', ({ toClerkId, candidate, fromClerkId }) => {
+    if (fromClerkId) {
+      onlineUsers.set(fromClerkId, socket.id);
+      socket.userId = fromClerkId;
+    }
     const partnerSocketId = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
     if (partnerSocketId) {

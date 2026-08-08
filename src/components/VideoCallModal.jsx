@@ -39,6 +39,7 @@ const VideoCallModal = ({ currentUser }) => {
   const pendingOfferRef = useRef(null);
   const iceCandidateQueueRef = useRef([]);
   const isCallerRef = useRef(false);
+  const mediaStreamPromiseRef = useRef(null);
 
   // Callback Ref for Local Video Elements (Ensures immediate stream attachment on DOM mount)
   const setLocalVideoRef = useCallback((node) => {
@@ -62,10 +63,37 @@ const VideoCallModal = ({ currentUser }) => {
     }
   }, []);
 
-  // Register online user socket on mount
+  // Ensure local video element always has localStreamRef attached whenever localStreamRef or callState changes
+  useEffect(() => {
+    if (localVideoRef.current && localStreamRef.current) {
+      if (localVideoRef.current.srcObject !== localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
+      localVideoRef.current.play().catch(() => {});
+    }
+  }, [callState, isVideoOff]);
+
+  // Ensure remote video element always has remoteStreamRef attached whenever remoteStreamRef or callState changes
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStreamRef.current) {
+      if (remoteVideoRef.current.srcObject !== remoteStreamRef.current) {
+        remoteVideoRef.current.srcObject = remoteStreamRef.current;
+      }
+      remoteVideoRef.current.play().catch(() => {});
+    }
+  }, [callState]);
+
+  // Register online user socket on mount and reconnect
   useEffect(() => {
     if (currentUser?.id) {
-      socket.emit('register_user', currentUser.id);
+      const register = () => {
+        socket.emit('register_user', currentUser.id);
+      };
+      register();
+      socket.on('connect', register);
+      return () => {
+        socket.off('connect', register);
+      };
     }
   }, [currentUser]);
 
@@ -208,42 +236,149 @@ const VideoCallModal = ({ currentUser }) => {
     }
   };
 
+  // Canvas Animated Video Generator for Single-Webcam Multi-Tab Testing / Fallback
+  const createCanvasVideoStream = (userName, userImage) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = userImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`;
+
+    let angle = 0;
+    const intervalId = setInterval(() => {
+      // Background gradient
+      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      grad.addColorStop(0, '#0f172a');
+      grad.addColorStop(1, '#1e1b4b');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Pulsing Ring around Avatar
+      angle = (angle + 0.05) % (Math.PI * 2);
+      const pulse = Math.sin(angle) * 8;
+      
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2 - 20, 65 + pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw Avatar Image if loaded
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(canvas.width / 2, canvas.height / 2 - 20, 55, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(img, canvas.width / 2 - 55, canvas.height / 2 - 75, 110, 110);
+        ctx.restore();
+      }
+
+      // Draw Name Text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(userName || 'User', canvas.width / 2, canvas.height / 2 + 65);
+
+      // Draw Subtitle Badge
+      ctx.fillStyle = '#818cf8';
+      ctx.font = '13px sans-serif';
+      ctx.fillText('Live Camera (Multi-Tab Mode)', canvas.width / 2, canvas.height / 2 + 90);
+    }, 50);
+
+    const stream = canvas.captureStream(20);
+    if (stream.getVideoTracks()[0]) {
+      stream.getVideoTracks()[0].addEventListener('ended', () => {
+        clearInterval(intervalId);
+      });
+    }
+    return stream;
+  };
+
   // Get User Media Helper with Fallbacks and track status sync
   const getUserMediaStream = async (type) => {
-    let stream;
+    if (mediaStreamPromiseRef.current) {
+      try {
+        return await mediaStreamPromiseRef.current;
+      } catch (e) {
+        console.warn('Previous getUserMedia failed, retrying...');
+      }
+    }
+
+    const promise = (async () => {
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: type === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false
+        });
+      } catch (err) {
+        console.warn('Ideal media constraints failed, falling back to basic audio/video:', err);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: type === 'video'
+          });
+        } catch (fallbackErr) {
+          console.warn('Webcam hardware locked or unavailable. Generating live video stream:', fallbackErr);
+          
+          let audioStream;
+          try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          } catch (audioErr) {
+            console.warn('Mic unavailable, using empty audio:', audioErr);
+            audioStream = new MediaStream();
+          }
+
+          if (type === 'video') {
+            const canvasStream = createCanvasVideoStream(
+              currentUser?.fullName || currentUser?.firstName || 'User',
+              currentUser?.imageUrl
+            );
+            stream = new MediaStream([
+              ...audioStream.getAudioTracks(),
+              ...canvasStream.getVideoTracks()
+            ]);
+            toast('Webcam in use by another tab. Enabled multi-tab camera stream 🎥', { id: 'media_fallback_toast' });
+          } else {
+            stream = audioStream;
+          }
+        }
+      }
+
+      // Apply current mic mute and video off settings to new stream tracks
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = !isMuted;
+      });
+      stream.getVideoTracks().forEach((track) => {
+        track.enabled = !isVideoOff;
+      });
+
+      localStreamRef.current = stream;
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        localVideoRef.current.play().catch(() => {});
+      }
+
+      return stream;
+    })();
+
+    mediaStreamPromiseRef.current = promise;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        },
-        video: type === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false
-      });
-    } catch (err) {
-      console.warn('Ideal media constraints failed, falling back to basic audio/video:', err);
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: type === 'video'
-      });
+      const resStream = await promise;
+      return resStream;
+    } finally {
+      mediaStreamPromiseRef.current = null;
     }
-
-    // Apply current mic mute and video off settings to new stream tracks
-    stream.getAudioTracks().forEach((track) => {
-      track.enabled = !isMuted;
-    });
-    stream.getVideoTracks().forEach((track) => {
-      track.enabled = !isVideoOff;
-    });
-
-    localStreamRef.current = stream;
-
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
-      localVideoRef.current.play().catch(() => {});
-    }
-
-    return stream;
   };
 
   // Create & configure RTCPeerConnection
@@ -262,9 +397,27 @@ const VideoCallModal = ({ currentUser }) => {
 
     peer.ontrack = (event) => {
       console.log('Received remote track:', event.track.kind);
-      remoteStreamRef.current = event.streams[0];
+      const incomingStream = event.streams && event.streams[0];
+      
+      if (!remoteStreamRef.current) {
+        remoteStreamRef.current = incomingStream || new MediaStream([event.track]);
+      } else {
+        if (incomingStream) {
+          incomingStream.getTracks().forEach((track) => {
+            if (!remoteStreamRef.current.getTracks().some((t) => t.id === track.id)) {
+              remoteStreamRef.current.addTrack(track);
+            }
+          });
+        }
+        if (!remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
+          remoteStreamRef.current.addTrack(event.track);
+        }
+      }
+
       if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
+        if (remoteVideoRef.current.srcObject !== remoteStreamRef.current) {
+          remoteVideoRef.current.srcObject = remoteStreamRef.current;
+        }
         remoteVideoRef.current.play().catch((e) => console.warn('Auto-play error:', e));
       }
     };
@@ -291,6 +444,8 @@ const VideoCallModal = ({ currentUser }) => {
       toast.dismiss();
       setPartner(targetPartner);
       setCallType(type);
+      setIsVideoOff(type === 'audio');
+      setIsMuted(false);
       setCallState('calling');
       isCallerRef.current = true;
       iceCandidateQueueRef.current = [];
@@ -330,12 +485,13 @@ const VideoCallModal = ({ currentUser }) => {
     try {
       toast.dismiss();
       const { offer, type } = pendingOfferRef.current;
-      setCallState('connected');
+      setIsVideoOff(type === 'audio');
+      setIsMuted(false);
 
-      socket.emit('register_user', currentUser.id);
+      socket.emit('register_user', currentUser?.id);
 
       let stream = localStreamRef.current;
-      if (!stream) {
+      if (!stream || !stream.active || stream.getTracks().length === 0) {
         stream = await getUserMediaStream(type);
       }
 
@@ -348,9 +504,11 @@ const VideoCallModal = ({ currentUser }) => {
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
 
+      setCallState('connected');
+
       socket.emit('answer_call', { 
         toClerkId: partner.clerkId, 
-        fromClerkId: currentUser.id, 
+        fromClerkId: currentUser?.id, 
         answer 
       });
     } catch (err) {
@@ -476,9 +634,13 @@ const VideoCallModal = ({ currentUser }) => {
 
     const handleCallAccepted = async ({ answer }) => {
       if (peerRef.current) {
-        await peerRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-        await processIceQueue();
-        setCallState('connected');
+        try {
+          await peerRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+          await processIceQueue();
+          setCallState('connected');
+        } catch (err) {
+          console.error('Error handling call_accepted:', err);
+        }
       }
     };
 
@@ -695,8 +857,8 @@ const VideoCallModal = ({ currentUser }) => {
                 }`}
               />
 
-              {/* Avatar placeholder if audio call OR calling status OR remote video is hidden */}
-              {(callType === 'audio' || callState === 'calling' || isVideoOff) && (
+              {/* Avatar placeholder if audio call OR calling status */}
+              {(callType === 'audio' || callState === 'calling') && (
                 <div className="text-center space-y-4 z-10 p-6">
                   <div className="relative inline-block">
                     <img
