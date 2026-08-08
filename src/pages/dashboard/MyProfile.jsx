@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe } from 'lucide-react'
-import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
+import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import PostComments from '../../components/PostComments'
@@ -344,11 +344,11 @@ const MyProfile = () => {
               (dbUser?.socialLinks || user?.unsafeMetadata?.socialLinks).map((link, i) => {
                 let Icon = Globe;
                 let colorClass = 'text-foreground';
-                if (link.platform === 'LinkedIn') { Icon = Linkedin; colorClass = 'text-[#0A66C2]'; }
-                if (link.platform === 'GitHub') { Icon = Github; }
-                if (link.platform === 'Instagram') { Icon = Instagram; colorClass = 'text-[#E1306C]'; }
-                if (link.platform === 'Facebook') { Icon = Facebook; colorClass = 'text-[#1877F2]'; }
-                if (link.platform === 'Twitter') { Icon = Twitter; colorClass = 'text-[#1DA1F2]'; }
+                if (link.platform === 'LinkedIn') { Icon = FaLinkedin; colorClass = 'text-[#0A66C2]'; }
+                if (link.platform === 'GitHub') { Icon = FaGithub; }
+                if (link.platform === 'Instagram') { Icon = FaInstagram; colorClass = 'text-[#E1306C]'; }
+                if (link.platform === 'Facebook') { Icon = FaFacebook; colorClass = 'text-[#1877F2]'; }
+                if (link.platform === 'Twitter') { Icon = FaTwitter; colorClass = 'text-[#1DA1F2]'; }
 
                 return (
                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-muted/50 hover:bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50 group">
