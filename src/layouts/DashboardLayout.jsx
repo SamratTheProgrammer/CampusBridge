@@ -5,6 +5,7 @@ import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucid
 import { useTheme } from '../components/ThemeProvider'
 import { useUser } from '@clerk/clerk-react'
 import NotificationDropdown from '../components/NotificationDropdown'
+import VideoCallModal from '../components/VideoCallModal'
 
 const MOCK_MENTOR = [
   { id: 1, name: 'Arjun Mehta', role: 'Software Engineer', company: 'Google' },
@@ -243,6 +244,7 @@ const DashboardLayout = () => {
         <main className="flex-1 p-4 sm:p-8">
           <Outlet />
         </main>
+        {isLoaded && user && <VideoCallModal currentUser={user} />}
       </div>
     </div>
   )
