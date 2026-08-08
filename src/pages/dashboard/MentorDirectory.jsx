@@ -138,8 +138,8 @@ const MentorDirectory = () => {
                     </Link>
                     <div className="pl-2">
                       {connections[mentor.clerkId] === 'pending' ? (
-                        <button disabled className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted px-3 py-1 rounded-full cursor-not-allowed flex items-center gap-1">
-                           Pending
+                        <button disabled className="text-xs font-medium text-amber-500 border border-amber-500/20 bg-amber-500/10 px-3 py-1 rounded-full cursor-not-allowed flex items-center gap-1">
+                           Request Sent ⏳
                         </button>
                       ) : connections[mentor.clerkId] === 'accepted' ? (
                         <button disabled className="text-xs font-medium text-green-500 border border-green-500/20 bg-green-500/10 px-3 py-1 rounded-full cursor-default">
@@ -223,8 +223,8 @@ const MentorDirectory = () => {
               </div>
               <div className="flex flex-col sm:flex-row gap-3 shrink-0">
                 {connections[mentor.clerkId] === 'pending' ? (
-                  <button disabled className="text-muted-foreground font-medium text-sm border border-border/50 bg-muted px-6 py-2.5 rounded-xl text-center shrink-0 flex items-center justify-center gap-2 cursor-not-allowed">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Pending
+                  <button disabled className="text-amber-500 font-medium text-sm border border-amber-500/20 bg-amber-500/10 px-6 py-2.5 rounded-xl text-center shrink-0 flex items-center justify-center gap-2 cursor-not-allowed">
+                    <Clock className="w-4 h-4" /> Request Sent ⏳
                   </button>
                 ) : connections[mentor.clerkId] === 'accepted' ? (
                   <button disabled className="text-green-500 font-medium text-sm border border-green-500/20 bg-green-500/10 px-6 py-2.5 rounded-xl text-center shrink-0 flex items-center justify-center gap-2 cursor-default">

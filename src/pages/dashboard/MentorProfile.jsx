@@ -265,8 +265,8 @@ const MentorProfile = () => {
             {connectionStatus === 'pending' && (
               <button 
                 disabled
-                className="bg-muted border border-border/50 text-muted-foreground px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm hidden sm:flex cursor-not-allowed">
-                <Loader2 className="w-4 h-4" /> Pending
+                className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm hidden sm:flex cursor-not-allowed">
+                <Clock className="w-4 h-4" /> Request Sent ⏳
               </button>
             )}
             

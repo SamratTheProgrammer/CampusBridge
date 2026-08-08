@@ -1,6 +1,7 @@
 import express from 'express';
 import Connection from '../models/Connection.js';
 import User from '../models/User.js';
+import Mentor from '../models/Mentor.js';
 import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
@@ -10,21 +11,24 @@ const populateUserDetails = async (connections, currentUserId) => {
   return await Promise.all(connections.map(async (conn) => {
     // If current user is requester, get recipient details. If current is recipient, get requester details.
     const targetId = conn.requesterClerkId === currentUserId ? conn.recipientClerkId : conn.requesterClerkId;
-    const targetUser = await User.findOne({ clerkId: targetId });
+    let targetUser = await User.findOne({ clerkId: targetId });
+    if (!targetUser) {
+      targetUser = await Mentor.findOne({ clerkId: targetId });
+    }
     
     return {
       ...conn.toObject(),
       targetUser: targetUser ? {
-        id: targetUser.clerkId,
-        _id: targetUser.clerkId,
-        clerkId: targetUser.clerkId,
-        name: targetUser.firstName + (targetUser.lastName ? ' ' + targetUser.lastName : ''),
-        course: targetUser.education?.[0]?.degree || 'Course not specified',
-        university: targetUser.education?.[0]?.institution || 'University not specified',
-        interest: targetUser.skills?.[0] || targetUser.headline || 'Not specified',
-        image: targetUser.imageUrl,
-        role: targetUser.role
-      } : { name: 'Unknown User' }
+        id: targetUser.clerkId || targetUser._id,
+        _id: targetUser.clerkId || targetUser._id,
+        clerkId: targetUser.clerkId || targetUser._id,
+        name: targetUser.firstName ? `${targetUser.firstName} ${targetUser.lastName || ''}`.trim() : (targetUser.name || 'User'),
+        course: targetUser.education?.[0]?.degree || targetUser.headline || 'Member',
+        university: targetUser.education?.[0]?.institution || targetUser.company || 'CampusBridge',
+        interest: targetUser.skills?.[0] || targetUser.headline || 'Member',
+        image: targetUser.imageUrl || targetUser.image,
+        role: targetUser.role || 'student'
+      } : { name: 'User' }
     };
   }));
 };
@@ -161,6 +165,46 @@ router.get('/status/:userId1/:userId2', async (req, res) => {
     });
   } catch (error) {
     console.error('Error checking connection status:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get Suggested Connections ("People You May Know")
+router.get('/suggestions/:clerkId', async (req, res) => {
+  try {
+    const { clerkId } = req.params;
+
+    // Find existing connections to exclude
+    const existingConnections = await Connection.find({
+      $or: [{ requesterClerkId: clerkId }, { recipientClerkId: clerkId }]
+    });
+
+    const excludedClerkIds = new Set([
+      clerkId,
+      ...existingConnections.map(c => c.requesterClerkId === clerkId ? c.recipientClerkId : c.requesterClerkId)
+    ]);
+
+    // Fetch users and mentors excluding connected ones
+    const users = await User.find({ clerkId: { $nin: Array.from(excludedClerkIds) } }).limit(10);
+    const mentors = await Mentor.find({ clerkId: { $nin: Array.from(excludedClerkIds) } }).limit(5);
+
+    const formatUser = (u, defaultRole) => ({
+      clerkId: u.clerkId || u._id,
+      name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
+      role: u.role || defaultRole,
+      headline: u.headline || u.bio || `${u.role || defaultRole} at CampusBridge`,
+      image: u.imageUrl || u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.firstName || u.name}`,
+      institution: u.education?.[0]?.institution || u.company || 'CampusBridge'
+    });
+
+    const suggestions = [
+      ...users.map(u => formatUser(u, 'Student')),
+      ...mentors.map(m => formatUser(m, 'Mentor'))
+    ];
+
+    res.status(200).json(suggestions);
+  } catch (error) {
+    console.error('Error fetching suggestions:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

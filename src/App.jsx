@@ -39,6 +39,7 @@ import Settings from './pages/dashboard/Settings'
 import Applications from './pages/dashboard/Applications'
 import Saved from './pages/dashboard/Saved'
 import MySessions from './pages/dashboard/MySessions'
+import MyNetwork from './pages/dashboard/MyNetwork'
 
 // Mentor Dashboard Layout & Pages
 import MentorDashboardLayout from './layouts/MentorDashboardLayout'
@@ -129,6 +130,7 @@ function AnimatedRoutes() {
           <Route path="messages" element={<Messages />} />
           <Route path="applications" element={<Applications />} />
           <Route path="saved" element={<Saved />} />
+          <Route path="network" element={<MyNetwork />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
@@ -138,6 +140,7 @@ function AnimatedRoutes() {
           <Route path="profile" element={<MyProfile />} />
           <Route path="mentees" element={<MyMentees />} />
           <Route path="requests" element={<MentorRequests />} />
+          <Route path="network" element={<MyNetwork />} />
           <Route path="student/:id" element={<StudentProfile />} />
           <Route path="mentor/:id" element={<MentorProfile />} />
           <Route path="jobs" element={<MentorJobs />} />

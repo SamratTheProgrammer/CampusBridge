@@ -5,6 +5,7 @@ import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
+import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import { 
   Users, 
   FileText, 
@@ -530,6 +531,9 @@ const DashboardHome = () => {
             </button>
           </div>
         </div>
+
+        {/* Suggested Connections Widget */}
+        <PeopleYouMayKnow />
 
         {/* Feed Posts */}
         <div className="space-y-6">
