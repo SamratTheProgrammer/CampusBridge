@@ -1,5 +1,18 @@
 import mongoose from 'mongoose';
 
+const replySchema = new mongoose.Schema({
+  authorClerkId: { type: String, required: true },
+  content: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const commentSchema = new mongoose.Schema({
+  authorClerkId: { type: String, required: true },
+  content: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  replies: [replySchema]
+});
+
 const postSchema = new mongoose.Schema({
   authorClerkId: {
     type: String,
@@ -15,11 +28,7 @@ const postSchema = new mongoose.Schema({
   likes: [{
     type: String, // clerkId of the user who liked
   }],
-  comments: [{
-    authorClerkId: { type: String, required: true },
-    content: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-  }],
+  comments: [commentSchema],
   bgGradient: {
     type: String,
   },

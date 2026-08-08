@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import Post from '../models/Post.js';
 import User from '../models/User.js';
+import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -13,6 +14,37 @@ const getLikeClerkId = (likeItem) => {
   return String(likeItem);
 };
 
+// Helper to enrich comments and their replies
+const enrichCommentsList = async (comments) => {
+  return await Promise.all(
+    (comments || []).map(async (comment) => {
+      const commentUser = await User.findOne({ clerkId: comment.authorClerkId });
+      
+      const enrichedReplies = await Promise.all(
+        (comment.replies || []).map(async (reply) => {
+          const replyUser = await User.findOne({ clerkId: reply.authorClerkId });
+          return {
+            ...reply.toObject(),
+            author: replyUser ? {
+              name: replyUser.firstName + (replyUser.lastName ? ' ' + replyUser.lastName : ''),
+              image: replyUser.imageUrl,
+            } : { name: 'Unknown User', image: null }
+          };
+        })
+      );
+
+      return {
+        ...comment.toObject(),
+        author: commentUser ? {
+          name: commentUser.firstName + (commentUser.lastName ? ' ' + commentUser.lastName : ''),
+          image: commentUser.imageUrl,
+        } : { name: 'Unknown User', image: null },
+        replies: enrichedReplies
+      };
+    })
+  );
+};
+
 // Get all posts with author details
 router.get('/', async (req, res) => {
   try {
@@ -22,20 +54,7 @@ router.get('/', async (req, res) => {
     const enrichedPosts = await Promise.all(
       posts.map(async (post) => {
         const user = await User.findOne({ clerkId: post.authorClerkId });
-        
-        // Enrich comments
-        const enrichedComments = await Promise.all(
-          post.comments.map(async (comment) => {
-            const commentUser = await User.findOne({ clerkId: comment.authorClerkId });
-            return {
-              ...comment.toObject(),
-              author: commentUser ? {
-                name: commentUser.firstName + (commentUser.lastName ? ' ' + commentUser.lastName : ''),
-                image: commentUser.imageUrl,
-              } : { name: 'Unknown User', image: null }
-            };
-          })
-        );
+        const enrichedComments = await enrichCommentsList(post.comments);
 
         // Enrich likes
         const enrichedLikes = await Promise.all(
@@ -99,19 +118,7 @@ router.get('/user/:clerkId', async (req, res) => {
     const enrichedPosts = await Promise.all(
       posts.map(async (post) => {
         const postAuthor = user || await User.findOne({ clerkId: post.authorClerkId });
-        
-        const enrichedComments = await Promise.all(
-          post.comments.map(async (comment) => {
-            const commentUser = await User.findOne({ clerkId: comment.authorClerkId });
-            return {
-              ...comment.toObject(),
-              author: commentUser ? {
-                name: commentUser.firstName + (commentUser.lastName ? ' ' + commentUser.lastName : ''),
-                image: commentUser.imageUrl,
-              } : { name: 'Unknown User', image: null }
-            };
-          })
-        );
+        const enrichedComments = await enrichCommentsList(post.comments);
 
         const enrichedLikes = await Promise.all(
           post.likes.map(async (likeItem) => {
@@ -191,6 +198,17 @@ router.put('/:id/like', async (req, res) => {
     const likeIndex = post.likes.findIndex(item => getLikeClerkId(item) === clerkId);
     if (likeIndex === -1) {
       post.likes.push(clerkId);
+      // Trigger notification to post author if not liking own post
+      const liker = await User.findOne({ clerkId });
+      const likerName = liker ? `${liker.firstName} ${liker.lastName || ''}`.trim() : 'Someone';
+      await createNotificationHelper({
+        recipientClerkId: post.authorClerkId,
+        senderClerkId: clerkId,
+        type: 'post_like',
+        title: 'New Post Like',
+        message: `${likerName} liked your post.`,
+        link: '/dashboard'
+      });
     } else {
       post.likes.splice(likeIndex, 1);
     }
@@ -219,9 +237,59 @@ router.post('/:id/comment', async (req, res) => {
     post.comments.push({ authorClerkId, content });
     await post.save();
 
+    // Trigger notification to post author
+    const commenter = await User.findOne({ clerkId: authorClerkId });
+    const commenterName = commenter ? `${commenter.firstName} ${commenter.lastName || ''}`.trim() : 'Someone';
+    await createNotificationHelper({
+      recipientClerkId: post.authorClerkId,
+      senderClerkId: authorClerkId,
+      type: 'post_comment',
+      title: 'New Comment',
+      message: `${commenterName} commented: "${content.substring(0, 35)}${content.length > 35 ? '...' : ''}"`,
+      link: '/dashboard'
+    });
+
     res.status(201).json(post.comments);
   } catch (error) {
     console.error('Error adding comment:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add Reply to a Comment
+router.post('/:id/comment/:commentId/reply', async (req, res) => {
+  try {
+    const { authorClerkId, content } = req.body;
+    if (!authorClerkId || !content) return res.status(400).json({ message: 'Missing fields' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+
+    comment.replies.push({ authorClerkId, content });
+    await post.save();
+
+    // Trigger notification to comment author
+    const replier = await User.findOne({ clerkId: authorClerkId });
+    const replierName = replier ? `${replier.firstName} ${replier.lastName || ''}`.trim() : 'Someone';
+    await createNotificationHelper({
+      recipientClerkId: comment.authorClerkId,
+      senderClerkId: authorClerkId,
+      type: 'post_comment',
+      title: 'New Reply to your comment',
+      message: `${replierName} replied: "${content.substring(0, 35)}${content.length > 35 ? '...' : ''}"`,
+      link: '/dashboard'
+    });
+
+    res.status(201).json(comment.replies);
+  } catch (error) {
+    console.error('Error adding reply:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

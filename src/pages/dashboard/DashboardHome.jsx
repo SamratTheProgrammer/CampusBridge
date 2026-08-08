@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
+import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
 import { 
   Users, 
@@ -559,8 +560,12 @@ const DashboardHome = () => {
                           alt={post.author?.name} 
                           className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
                           onClick={() => {
-                            if (post.author?.role?.toLowerCase() === 'mentor') {
-                              window.location.href = `/dashboard/mentor/${post.authorClerkId}`;
+                            if (post.authorClerkId === user?.id) {
+                              navigate('/dashboard/profile');
+                            } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
+                              navigate(`/dashboard/mentor/${post.authorClerkId}`);
+                            } else {
+                              navigate(`/dashboard/student/${post.authorClerkId}`);
                             }
                           }}
                         />
@@ -568,8 +573,12 @@ const DashboardHome = () => {
                           <h3 
                             className="font-bold text-foreground text-sm cursor-pointer hover:underline"
                             onClick={() => {
-                              if (post.author?.role?.toLowerCase() === 'mentor') {
-                                window.location.href = `/dashboard/mentor/${post.authorClerkId}`;
+                              if (post.authorClerkId === user?.id) {
+                                navigate('/dashboard/profile');
+                              } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
+                                navigate(`/dashboard/mentor/${post.authorClerkId}`);
+                              } else {
+                                navigate(`/dashboard/student/${post.authorClerkId}`);
                               }
                             }}
                           >
@@ -685,56 +694,13 @@ const DashboardHome = () => {
                         exit={{ height: 0, opacity: 0 }}
                         className="border-t border-border/40 bg-muted/10 overflow-hidden"
                       >
-                        <div className="p-4 sm:p-5 space-y-4">
-                          
-                          {/* Existing Comments */}
-                          <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                            {commentsArray.map(comment => (
-                              <div key={comment._id} className="flex gap-3">
-                                <img src={comment.author?.image || getAvatarFallback(comment.author?.name)} alt={comment.author?.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
-                                <div className="flex-1">
-                                  <div className="bg-background border border-border/50 rounded-2xl rounded-tl-none px-4 py-2.5">
-                                    <h4 className="font-bold text-xs text-foreground">{comment.author?.name}</h4>
-                                    <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap">{comment.content}</p>
-                                  </div>
-                                  <div className="flex items-center gap-3 mt-1 ml-2 text-[10px] text-muted-foreground font-medium">
-                                    <span>{formatTime(comment.createdAt)}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                            {commentsArray.length === 0 && (
-                              <p className="text-xs text-muted-foreground text-center italic py-2">No comments yet. Be the first!</p>
-                            )}
-                          </div>
-
-                          {/* Comment Input */}
-                          <div className="flex gap-3 pt-2">
-                            <img src={user?.imageUrl || getAvatarFallback(user?.fullName)} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0 mt-1" />
-                            <div className="flex-1 relative">
-                              <textarea 
-                                value={commentText}
-                                onChange={e => setCommentText(e.target.value)}
-                                placeholder="Write a comment..."
-                                className="w-full bg-background border border-border/50 rounded-xl pl-4 pr-12 py-2.5 text-sm focus:outline-none focus:border-primary resize-none min-h-[44px]"
-                                rows="1"
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault()
-                                    handleComment(post._id)
-                                  }
-                                }}
-                              ></textarea>
-                              <button 
-                                onClick={() => handleComment(post._id)}
-                                disabled={isCommenting || !commentText.trim()}
-                                className="absolute right-2 top-2 p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
-                              >
-                                {isCommenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                        <PostComments 
+                          post={post}
+                          currentUser={user}
+                          onRefresh={fetchPosts}
+                          formatTime={formatTime}
+                          getAvatarFallback={getAvatarFallback}
+                        />
                       </motion.div>
                     )}
                   </AnimatePresence>

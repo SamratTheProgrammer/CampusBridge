@@ -117,6 +117,7 @@ function AnimatedRoutes() {
           <Route path="profile" element={<MyProfile />} />
           <Route path="mentor" element={<MentorDirectory />} />
           <Route path="mentor/:id" element={<MentorProfile />} />
+          <Route path="student/:id" element={<StudentProfile />} />
           <Route path="mentor/:id/book" element={<BookSession />} />
           <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
           <Route path="my-mentors" element={<MyMentors />} />
@@ -138,6 +139,7 @@ function AnimatedRoutes() {
           <Route path="mentees" element={<MyMentees />} />
           <Route path="requests" element={<MentorRequests />} />
           <Route path="student/:id" element={<StudentProfile />} />
+          <Route path="mentor/:id" element={<MentorProfile />} />
           <Route path="jobs" element={<MentorJobs />} />
           <Route path="events" element={<MentorEvents />} />
           <Route path="posts" element={<MentorPosts />} />

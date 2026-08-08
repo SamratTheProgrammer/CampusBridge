@@ -1,6 +1,7 @@
 import express from 'express';
 import Connection from '../models/Connection.js';
 import User from '../models/User.js';
+import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -56,6 +57,19 @@ router.post('/', async (req, res) => {
     });
 
     await connection.save();
+
+    // Trigger notification to recipient
+    const sender = await User.findOne({ clerkId: requesterClerkId });
+    const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'A student';
+    await createNotificationHelper({
+      recipientClerkId,
+      senderClerkId: requesterClerkId,
+      type: 'connection_request',
+      title: 'New Mentorship Request',
+      message: `${senderName} sent you a mentorship request.`,
+      link: '/mentor-dashboard/requests'
+    });
+
     res.status(201).json(connection);
   } catch (error) {
     console.error('Error creating connection request:', error);
@@ -80,6 +94,22 @@ router.put('/:id', async (req, res) => {
     if (!connection) {
       return res.status(404).json({ message: 'Connection not found' });
     }
+
+    // Trigger notification to requester
+    const responder = await User.findOne({ clerkId: connection.recipientClerkId });
+    const responderName = responder ? `${responder.firstName} ${responder.lastName || ''}`.trim() : 'A mentor';
+    const isAccepted = status === 'accepted';
+    
+    await createNotificationHelper({
+      recipientClerkId: connection.requesterClerkId,
+      senderClerkId: connection.recipientClerkId,
+      type: isAccepted ? 'connection_accepted' : 'connection_declined',
+      title: isAccepted ? 'Request Accepted! 🎉' : 'Request Declined',
+      message: isAccepted 
+        ? `${responderName} accepted your mentorship request!` 
+        : `${responderName} declined your mentorship request.`,
+      link: isAccepted ? '/dashboard/my-mentors' : '/dashboard/requests'
+    });
 
     res.status(200).json(connection);
   } catch (error) {
