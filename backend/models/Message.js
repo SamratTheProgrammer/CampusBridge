@@ -16,9 +16,19 @@ const messageSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  type: {
+    type: String,
+    enum: ['text', 'call_log'],
+    default: 'text',
+  },
   text: {
     type: String,
     required: true,
+  },
+  callInfo: {
+    callType: { type: String, enum: ['video', 'audio'] },
+    status: { type: String, enum: ['completed', 'missed', 'rejected'] },
+    duration: { type: Number, default: 0 } // in seconds
   },
   isRead: {
     type: Boolean,

@@ -13,6 +13,7 @@ import notificationRoutes, { createNotificationHelper } from './routes/notificat
 import messageRoutes from './routes/messageRoutes.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
+import Block from './models/Block.js';
 
 // Load env vars from the parent directory's .env file
 dotenv.config({ path: '../.env' });
@@ -27,6 +28,9 @@ const io = new Server(server, {
     methods: ['GET', 'POST', 'PUT', 'DELETE']
   }
 });
+
+// Map of clerkId -> socketId to route 1-on-1 audio/video calls directly
+const onlineUsers = new Map();
 
 // Middleware
 app.use(cors());
@@ -53,13 +57,27 @@ app.get('/', (req, res) => {
   res.status(200).json({ message: 'CampusBridge API is running!' });
 });
 
-// Socket.io Real-Time Live Chat Connection
+// Socket.io Real-Time Live Chat & WebRTC Calling Connection
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
+
+  // Register online user socket
+  socket.on('register_user', (userId) => {
+    if (userId) {
+      onlineUsers.set(userId, socket.id);
+      socket.userId = userId;
+      console.log(`Registered user ${userId} to socket ${socket.id}`);
+      io.emit('online_users_update', Array.from(onlineUsers.keys()));
+    }
+  });
 
   // User joins a specific conversation room
   socket.on('join_room', ({ conversationId, userId }) => {
     socket.join(conversationId);
+    if (userId) {
+      onlineUsers.set(userId, socket.id);
+      socket.userId = userId;
+    }
     console.log(`User ${userId} joined room ${conversationId}`);
   });
 
@@ -72,6 +90,19 @@ io.on('connection', (socket) => {
   socket.on('send_message', async ({ senderClerkId, recipientClerkId, conversationId, text }) => {
     try {
       if (!senderClerkId || !recipientClerkId || !text) return;
+
+      // Check if blocked by recipient or sender blocked recipient
+      const isBlocked = await Block.findOne({
+        $or: [
+          { blockerClerkId: recipientClerkId, blockedClerkId: senderClerkId },
+          { blockerClerkId: senderClerkId, blockedClerkId: recipientClerkId }
+        ]
+      });
+
+      if (isBlocked) {
+        console.log(`Message blocked between ${senderClerkId} and ${recipientClerkId}`);
+        return;
+      }
 
       const convId = conversationId || Message.getConversationId(senderClerkId, recipientClerkId);
 
@@ -122,9 +153,107 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- WEBRTC LIVE VIDEO & AUDIO CALLING SIGNALING ---
+
+  // Initiate Call
+  socket.on('call_user', async ({ recipientClerkId, callerClerkId, callerName, callerImage, offer, callType }) => {
+    if (callerClerkId) {
+      onlineUsers.set(callerClerkId, socket.id);
+      socket.userId = callerClerkId;
+    }
+
+    // Check block status
+    const isBlocked = await Block.findOne({
+      $or: [
+        { blockerClerkId: recipientClerkId, blockedClerkId: callerClerkId },
+        { blockerClerkId: callerClerkId, blockedClerkId: recipientClerkId }
+      ]
+    });
+
+    if (isBlocked) {
+      socket.emit('call_failed', { reason: 'User is currently unavailable' });
+      return;
+    }
+
+    const recipientSocketId = onlineUsers.get(recipientClerkId);
+    const convId = Message.getConversationId(callerClerkId, recipientClerkId);
+
+    const callPayload = {
+      callerClerkId,
+      callerName,
+      callerImage,
+      offer,
+      callType: callType || 'video'
+    };
+
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('incoming_call', callPayload);
+    }
+    // Also emit to conversation room as fallback
+    socket.to(convId).emit('incoming_call', callPayload);
+  });
+
+  // Answer Call
+  socket.on('answer_call', ({ toClerkId, answer, fromClerkId }) => {
+    if (fromClerkId) {
+      onlineUsers.set(fromClerkId, socket.id);
+      socket.userId = fromClerkId;
+    }
+    const callerSocketId = onlineUsers.get(toClerkId);
+    const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
+
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call_accepted', { answer });
+    }
+    socket.to(convId).emit('call_accepted', { answer });
+  });
+
+  // Reject Call
+  socket.on('reject_call', ({ toClerkId, fromClerkId }) => {
+    const callerSocketId = onlineUsers.get(toClerkId);
+    const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call_rejected');
+    }
+    socket.to(convId).emit('call_rejected');
+  });
+
+  // End Call
+  socket.on('end_call', ({ toClerkId, fromClerkId }) => {
+    const partnerSocketId = onlineUsers.get(toClerkId);
+    const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
+    if (partnerSocketId) {
+      io.to(partnerSocketId).emit('call_ended');
+    }
+    socket.to(convId).emit('call_ended');
+  });
+
+  // ICE Candidates exchange
+  socket.on('ice_candidate', ({ toClerkId, candidate, fromClerkId }) => {
+    const partnerSocketId = onlineUsers.get(toClerkId);
+    const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
+    if (partnerSocketId) {
+      io.to(partnerSocketId).emit('ice_candidate', { candidate });
+    }
+    socket.to(convId).emit('ice_candidate', { candidate });
+  });
+
   socket.on('disconnect', () => {
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      io.emit('online_users_update', Array.from(onlineUsers.keys()));
+    }
     console.log(`Socket disconnected: ${socket.id}`);
   });
+});
+
+// Handle server startup errors gracefully
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Retrying or process will restart.`);
+  } else {
+    console.error('Server error:', err);
+  }
 });
 
 // Connect to MongoDB & Start Server
@@ -133,7 +262,7 @@ mongoose.connect(process.env.MONGODB_URI)
     console.log('Connected to MongoDB');
     if (!process.env.VERCEL) {
       server.listen(PORT, () => {
-        console.log(`Server running with Socket.io on port ${PORT}`);
+        console.log(`Server running with Socket.io & WebRTC Video/Audio calling on port ${PORT}`);
       });
     }
   })

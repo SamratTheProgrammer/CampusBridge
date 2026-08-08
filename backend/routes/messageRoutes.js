@@ -2,6 +2,7 @@ import express from 'express';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
 import Connection from '../models/Connection.js';
+import Block from '../models/Block.js';
 import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
@@ -145,6 +146,87 @@ router.post('/', async (req, res) => {
     res.status(201).json(message);
   } catch (error) {
     console.error('Error creating message:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Save Call Log History into DB
+router.post('/call-log', async (req, res) => {
+  try {
+    const { senderClerkId, recipientClerkId, callType, status, duration } = req.body;
+    if (!senderClerkId || !recipientClerkId) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const conversationId = Message.getConversationId(senderClerkId, recipientClerkId);
+    
+    // Format descriptive text for call log
+    let text = '';
+    const formattedDuration = duration > 0 
+      ? `${Math.floor(duration / 60)}m ${duration % 60}s` 
+      : '';
+
+    if (status === 'completed') {
+      text = `${callType === 'video' ? 'Video' : 'Voice'} call • ${formattedDuration}`;
+    } else if (status === 'missed') {
+      text = `Missed ${callType === 'video' ? 'video' : 'voice'} call`;
+    } else {
+      text = `Declined ${callType === 'video' ? 'video' : 'voice'} call`;
+    }
+
+    const callLogMessage = new Message({
+      conversationId,
+      senderClerkId,
+      recipientClerkId,
+      type: 'call_log',
+      text,
+      callInfo: {
+        callType: callType || 'video',
+        status: status || 'completed',
+        duration: duration || 0
+      }
+    });
+
+    await callLogMessage.save();
+    res.status(201).json(callLogMessage);
+  } catch (error) {
+    console.error('Error saving call log:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle Block / Unblock User
+router.post('/block', async (req, res) => {
+  try {
+    const { blockerClerkId, blockedClerkId } = req.body;
+    if (!blockerClerkId || !blockedClerkId) {
+      return res.status(400).json({ message: 'blockerClerkId and blockedClerkId are required' });
+    }
+
+    const existingBlock = await Block.findOne({ blockerClerkId, blockedClerkId });
+    if (existingBlock) {
+      await Block.deleteOne({ _id: existingBlock._id });
+      return res.status(200).json({ isBlocked: false, message: 'User unblocked successfully' });
+    } else {
+      const newBlock = new Block({ blockerClerkId, blockedClerkId });
+      await newBlock.save();
+      return res.status(201).json({ isBlocked: true, message: 'User blocked successfully' });
+    }
+  } catch (error) {
+    console.error('Error toggling block status:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get List of Blocked User IDs for a user
+router.get('/blocked/:clerkId', async (req, res) => {
+  try {
+    const { clerkId } = req.params;
+    const blocks = await Block.find({ blockerClerkId: clerkId });
+    const blockedIds = blocks.map(b => b.blockedClerkId);
+    res.status(200).json(blockedIds);
+  } catch (error) {
+    console.error('Error fetching blocked list:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
