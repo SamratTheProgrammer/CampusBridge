@@ -1,8 +1,201 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Bookmark, Share2 } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { ArrowLeft, Bookmark, Share2, Loader2, MapPin, Briefcase } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { format } from 'date-fns'
+import { useUser } from '@clerk/clerk-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Upload, Link as LinkIcon, FileText } from 'lucide-react'
+import emailjs from '@emailjs/browser'
 
 const JobDetails = () => {
+  const { id } = useParams()
+  const [job, setJob] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const { user } = useUser()
+
+  const [hasApplied, setHasApplied] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
+  const [resumeLink, setResumeLink] = useState('')
+  const [resumeFile, setResumeFile] = useState(null)
+  const [inputType, setInputType] = useState('upload') // 'upload' or 'link'
+  const [coverLetter, setCoverLetter] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    const fetchJobAndApplicationStatus = async () => {
+      try {
+        const res = await fetch(`/api/jobs/${id}`)
+        if (!res.ok) throw new Error('Failed to fetch job')
+        const data = await res.json()
+        setJob(data)
+
+        if (user) {
+          const appRes = await fetch(`/api/jobs/student/applications/${user.id}`)
+          if (appRes.ok) {
+            const apps = await appRes.json()
+            const applied = apps.some(app => app.job?._id === data._id)
+            setHasApplied(applied)
+          }
+
+          const savedRes = await fetch(`/api/users/${user.id}/saved-jobs`)
+          if (savedRes.ok) {
+            const savedData = await savedRes.json()
+            setIsSaved(savedData.some(savedJob => savedJob._id === data._id))
+          }
+        }
+      } catch (err) {
+        toast.error('Could not load job details')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    if (id) fetchJobAndApplicationStatus()
+  }, [id, user])
+
+  const handleApply = async (e) => {
+    e.preventDefault()
+    if (inputType === 'link' && !resumeLink) {
+      toast.error('Please provide a resume link')
+      return
+    }
+    if (inputType === 'upload' && !resumeFile) {
+      toast.error('Please upload your resume')
+      return
+    }
+    
+    setIsSubmitting(true)
+    let finalResumeLink = resumeLink;
+
+    try {
+      if (inputType === 'upload' && resumeFile) {
+        const formData = new FormData();
+        formData.append('file', resumeFile);
+        const uploadRes = await fetch('/api/upload/resume', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!uploadRes.ok) throw new Error('Failed to upload resume file');
+        const uploadData = await uploadRes.json();
+        finalResumeLink = uploadData.url;
+      }
+
+      const res = await fetch(`/api/jobs/${id}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clerkId: user.id,
+          resumeLink: finalResumeLink,
+          coverLetter
+        })
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to apply')
+      }
+
+      // EmailJS integration
+      const templateParams = {
+        to_email: job.postedBy?.email,
+        to_name: job.postedBy ? `${job.postedBy.firstName} ${job.postedBy.lastName || ''}`.trim() : 'Mentor',
+        applicant_name: user.fullName || user.firstName,
+        applicant_email: user.primaryEmailAddress?.emailAddress || 'Student',
+        job_title: job.title,
+        job_company: job.company,
+        job_location: job.location,
+        job_type: job.type,
+        job_salary: job.salary || 'Not specified',
+        resume_link: finalResumeLink,
+        cover_letter: coverLetter || 'No cover letter provided.'
+      };
+
+      try {
+        await emailjs.send(
+          'service_a3vg38b',
+          'template_fnm2rig',
+          templateParams,
+          'JAA5yhiRssyoyqKqW'
+        );
+      } catch (emailErr) {
+        console.error('Email failed to send:', emailErr);
+        // We don't throw here to not break the application success state
+      }
+
+      toast.success('Application submitted successfully!')
+      setHasApplied(true)
+      setIsApplyModalOpen(false)
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      toast.success('Link copied to clipboard!')
+    } catch (err) {
+      toast.error('Failed to copy link')
+    }
+  }
+
+  const handleSave = async () => {
+    if (!user) {
+      toast.error('Please login to save jobs')
+      return
+    }
+    setIsSaving(true)
+    try {
+      const res = await fetch(`/api/users/${user.id}/save-job`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: id })
+      })
+      if (!res.ok) throw new Error('Failed to save job')
+      const data = await res.json()
+      setIsSaved(data.isSaved)
+      toast.success(data.isSaved ? 'Job saved!' : 'Job removed from saved list')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!job) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6 pb-8 text-center">
+        <div className="bg-card border border-border/50 rounded-2xl p-12 shadow-sm">
+          <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <h3 className="text-lg font-bold text-foreground mb-2">Job not found</h3>
+          <p className="text-muted-foreground text-sm mb-6">The job you are looking for does not exist or has been removed.</p>
+          <Link to="/dashboard/jobs" className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2 rounded-lg font-medium text-sm transition-colors">
+            Back to Jobs
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  let jobLogo = job.companyLogo;
+  if (jobLogo && jobLogo.includes('logo.clearbit.com')) {
+    jobLogo = jobLogo.replace('https://logo.clearbit.com/', 'https://www.google.com/s2/favicons?sz=128&domain=');
+  }
+  jobLogo = jobLogo || `https://www.google.com/s2/favicons?domain=${job.company?.toLowerCase().replace(/\s+/g, '')}.com&sz=128`
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-8">
       {/* Top Nav */}
@@ -11,10 +204,18 @@ const JobDetails = () => {
           <ArrowLeft className="w-4 h-4" /> Back to Jobs
         </Link>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground bg-card border border-border/50 px-3 py-1.5 rounded-lg transition-colors shadow-sm">
-            <Bookmark className="w-4 h-4" /> Save
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors shadow-sm border ${
+              isSaved 
+                ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20' 
+                : 'bg-card text-muted-foreground hover:text-foreground border-border/50'
+            }`}
+          >
+            <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-primary' : ''}`} /> {isSaved ? 'Saved' : 'Save'}
           </button>
-          <button className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground bg-card border border-border/50 px-3 py-1.5 rounded-lg transition-colors shadow-sm">
+          <button onClick={handleShare} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground bg-card border border-border/50 px-3 py-1.5 rounded-lg transition-colors shadow-sm">
             <Share2 className="w-4 h-4" /> Share
           </button>
         </div>
@@ -24,23 +225,36 @@ const JobDetails = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-xl border border-border/50 bg-background flex items-center justify-center p-3 shrink-0">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg" alt="Microsoft" className="max-w-full max-h-full object-contain" />
+            <div className="w-16 h-16 rounded-xl border border-border/50 bg-white flex items-center justify-center p-3 shrink-0 overflow-hidden">
+              <img 
+                src={jobLogo} 
+                alt={job.company} 
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
+              />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground mb-1">Frontend Developer</h1>
-              <p className="text-sm font-medium text-muted-foreground">Microsoft</p>
+              <h1 className="text-2xl font-bold text-foreground mb-1">{job.title}</h1>
+              <p className="text-sm font-medium text-muted-foreground">{job.company}</p>
               <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                <span>Full-time</span> <span className="w-1 h-1 rounded-full bg-muted-foreground/50"></span> <span>Remote</span>
+                <span>{job.type}</span> <span className="w-1 h-1 rounded-full bg-muted-foreground/50"></span> <span>{job.location}</span>
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center justify-between mb-8 pb-8 border-b border-border/40">
-          <p className="text-xs text-muted-foreground">Posted on 2 May 2024</p>
-          <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-2.5 rounded-xl font-medium transition-colors shadow-sm">
-            Apply Now
+          <p className="text-xs text-muted-foreground">Posted on {format(new Date(job.createdAt), 'd MMM yyyy')}</p>
+          <button 
+            disabled={hasApplied}
+            onClick={() => setIsApplyModalOpen(true)}
+            className={`px-8 py-2.5 rounded-xl font-medium transition-colors shadow-sm ${
+              hasApplied 
+                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
+          >
+            {hasApplied ? 'Applied' : 'Apply Now'}
           </button>
         </div>
 
@@ -48,35 +262,148 @@ const JobDetails = () => {
         <div className="space-y-8">
           <section>
             <h2 className="text-lg font-bold text-foreground mb-3">Job Description</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              We are looking for a passionate Frontend Developer to build amazing user experiences for our web applications. 
-              You will work closely with designers and backend engineers to turn wireframes into responsive, highly optimized, 
-              and accessible web components.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-bold text-foreground mb-3">Requirements</h2>
-            <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
-              <li className="pl-1">3+ years of experience in React.js</li>
-              <li className="pl-1">Strong knowledge of JavaScript, HTML, CSS</li>
-              <li className="pl-1">Experience with state management (Redux, Context API)</li>
-              <li className="pl-1">Good problem solving skills</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-bold text-foreground mb-3">Skills</h2>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-4 py-1.5 rounded-lg text-sm font-medium">React</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-4 py-1.5 rounded-lg text-sm font-medium">JavaScript</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-4 py-1.5 rounded-lg text-sm font-medium">HTML</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-4 py-1.5 rounded-lg text-sm font-medium">CSS</span>
-              <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-4 py-1.5 rounded-lg text-sm font-medium">Redux</span>
+            <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+              {job.description || 'No description provided.'}
             </div>
           </section>
+
+          {job.salary && (
+            <section>
+              <h2 className="text-lg font-bold text-foreground mb-3">Salary / Stipend</h2>
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Briefcase className="w-4 h-4" /> {job.salary}
+              </p>
+            </section>
+          )}
         </div>
       </div>
+
+      {/* Apply Modal */}
+      <AnimatePresence>
+        {isApplyModalOpen && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Apply for {job.title}</h2>
+                  <p className="text-sm text-muted-foreground">{job.company}</p>
+                </div>
+                <button onClick={() => setIsApplyModalOpen(false)} className="text-muted-foreground hover:bg-muted p-2 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleApply} className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-foreground">Resume (Required)</label>
+                    <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/50">
+                      <button
+                        type="button"
+                        onClick={() => setInputType('upload')}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${inputType === 'upload' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Upload File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInputType('link')}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${inputType === 'link' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        <LinkIcon className="w-3.5 h-3.5" /> Use Link
+                      </button>
+                    </div>
+                  </div>
+
+                  {inputType === 'upload' ? (
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-border/50 border-dashed rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors relative cursor-pointer" onClick={() => document.getElementById('resume-upload').click()}>
+                      <div className="space-y-1 text-center">
+                        {resumeFile ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div className="text-sm text-foreground font-medium">{resumeFile.name}</div>
+                            <div className="text-xs text-muted-foreground">Click to change file</div>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                            <div className="flex text-sm text-muted-foreground justify-center mt-2">
+                              <span className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none">
+                                <span>Upload a file</span>
+                              </span>
+                              <p className="pl-1">or drag and drop</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">PDF, DOC, DOCX up to 5MB</p>
+                          </>
+                        )}
+                        <input
+                          id="resume-upload"
+                          name="resume-upload"
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          className="sr-only"
+                          onChange={(e) => { if(e.target.files && e.target.files[0]) setResumeFile(e.target.files[0]) }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="url"
+                        required={inputType === 'link'}
+                        value={resumeLink}
+                        onChange={(e) => setResumeLink(e.target.value)}
+                        placeholder="e.g. Google Drive or Dropbox link"
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1.5">Make sure the link is publicly accessible.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Cover Letter (Optional)</label>
+                  <textarea
+                    rows={5}
+                    value={coverLetter}
+                    onChange={(e) => setCoverLetter(e.target.value)}
+                    placeholder="Why are you a good fit for this role?"
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  ></textarea>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsApplyModalOpen(false)}
+                    className="flex-1 bg-muted hover:bg-muted/80 text-muted-foreground py-2.5 rounded-xl font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-70 flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                    ) : (
+                      'Submit Application'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

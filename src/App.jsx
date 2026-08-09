@@ -48,7 +48,7 @@ import MentorHome from './pages/mentor-dashboard/MentorHome'
 import MyMentees from './pages/mentor-dashboard/MyMentees'
 import MentorRequests from './pages/mentor-dashboard/MentorshipRequests'
 import MentorJobs from './pages/mentor-dashboard/MentorJobs'
-import MentorEvents from './pages/mentor-dashboard/MentorEvents'
+import MentorSessions from './pages/mentor-dashboard/MentorSessions'
 import MentorPosts from './pages/mentor-dashboard/MentorPosts'
 import MentorMessages from './pages/mentor-dashboard/MentorMessages'
 import MentorAnalytics from './pages/mentor-dashboard/MentorAnalytics'
@@ -145,7 +145,8 @@ function AnimatedRoutes() {
           <Route path="student/:id" element={<StudentProfile />} />
           <Route path="mentor/:id" element={<MentorProfile />} />
           <Route path="jobs" element={<MentorJobs />} />
-          <Route path="events" element={<MentorEvents />} />
+          <Route path="sessions" element={<MentorSessions />} />
+          <Route path="events" element={<MentorSessions />} />
           <Route path="posts" element={<MentorPosts />} />
           <Route path="messages" element={<MentorMessages />} />
           <Route path="analytics" element={<MentorAnalytics />} />

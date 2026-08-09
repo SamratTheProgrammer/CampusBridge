@@ -32,6 +32,13 @@ const postSchema = new mongoose.Schema({
   bgGradient: {
     type: String,
   },
+  eventDetails: {
+    title: String,
+    date: Date,
+    time: String,
+    location: String,
+    type: { type: String }
+  },
   createdAt: {
     type: Date,
     default: Date.now,

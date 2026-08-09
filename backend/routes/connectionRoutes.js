@@ -184,9 +184,17 @@ router.get('/suggestions/:clerkId', async (req, res) => {
       ...existingConnections.map(c => c.requesterClerkId === clerkId ? c.recipientClerkId : c.requesterClerkId)
     ]);
 
-    // Fetch users and mentors excluding connected ones
-    const users = await User.find({ clerkId: { $nin: Array.from(excludedClerkIds) } }).limit(10);
-    const mentors = await Mentor.find({ clerkId: { $nin: Array.from(excludedClerkIds) } }).limit(5);
+    // Fetch users and mentors excluding connected ones and hidden ones
+    const users = await User.find({ 
+      clerkId: { $nin: Array.from(excludedClerkIds) },
+      role: 'student',
+      profileVisibility: { $ne: 'hidden' }
+    }).limit(10);
+    const mentors = await User.find({ 
+      clerkId: { $nin: Array.from(excludedClerkIds) },
+      role: { $in: ['mentor', 'alumni'] },
+      profileVisibility: { $ne: 'hidden' }
+    }).limit(5);
 
     const formatUser = (u, defaultRole) => ({
       clerkId: u.clerkId || u._id,

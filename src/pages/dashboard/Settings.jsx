@@ -2,11 +2,16 @@ import React, { useState, useRef, useEffect } from 'react'
 import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
+import ConfirmModal from '../../components/modals/ConfirmModal'
+import { AnimatePresence } from 'framer-motion'
+import ImageCropModal from '../../components/ImageCropModal'
+import { useCurrentDevice } from '../../hooks/useCurrentDevice'
 
 const Settings = () => {
   const { user, isLoaded } = useUser()
   const { sessions } = useSessionList()
   const { session: currentSession } = useSession()
+  const currentDeviceInfo = useCurrentDevice()
   const [activeTab, setActiveTab] = useState('basic')
   
   // Form State
@@ -15,6 +20,7 @@ const Settings = () => {
   const [headline, setHeadline] = useState('')
   const [location, setLocation] = useState('')
   const [address, setAddress] = useState('')
+  const [phone, setPhone] = useState('')
   const [aboutMe, setAboutMe] = useState('')
   const [socialLinks, setSocialLinks] = useState([])
   const [showSocialForm, setShowSocialForm] = useState(false)
@@ -35,9 +41,21 @@ const Settings = () => {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [profileVisibility, setProfileVisibility] = useState('public')
+  const [chatNotifs, setChatNotifs] = useState(localStorage.getItem('campusbridge_chat_notifs') !== 'false')
+  
+  const handleChatNotifsToggle = (val) => {
+    setChatNotifs(val)
+    localStorage.setItem('campusbridge_chat_notifs', val.toString())
+    toast.success(val ? 'Chat notifications enabled' : 'Chat notifications disabled')
+  }
   
   const fileInputRef = useRef(null)
   const resumeInputRef = useRef(null)
+
+  // Image crop state
+  const [cropModalData, setCropModalData] = useState(null)
 
   useEffect(() => {
     if (user) {
@@ -47,6 +65,7 @@ const Settings = () => {
       setHeadline(user.unsafeMetadata?.headline || '')
       setLocation(user.unsafeMetadata?.location || '')
       setAddress(user.unsafeMetadata?.address || '')
+      setPhone(user.unsafeMetadata?.phone || '')
       setAboutMe(user.unsafeMetadata?.aboutMe || '')
       setSocialLinks(user.unsafeMetadata?.socialLinks || [])
       setResumeUrl(user.unsafeMetadata?.resumeUrl || '')
@@ -66,12 +85,14 @@ const Settings = () => {
             setHeadline(data.headline || user.unsafeMetadata?.headline || '');
             setLocation(data.location || user.unsafeMetadata?.location || '');
             setAddress(data.address || user.unsafeMetadata?.address || '');
+            setPhone(data.phone || user.unsafeMetadata?.phone || '');
             setAboutMe(data.aboutMe || user.unsafeMetadata?.aboutMe || '');
             setSocialLinks(data.socialLinks?.length ? data.socialLinks : (user.unsafeMetadata?.socialLinks || []));
             setResumeUrl(data.resumeUrl || user.unsafeMetadata?.resumeUrl || '');
             setExperience(data.experience?.length ? data.experience : (user.unsafeMetadata?.experience || []));
             setEducation(data.education?.length ? data.education : (user.unsafeMetadata?.education || []));
             setSkills(data.skills?.length ? data.skills : (user.unsafeMetadata?.skills || []));
+            if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
           }
         } catch (error) {
           console.error("Failed to fetch mongo profile:", error);
@@ -81,25 +102,44 @@ const Settings = () => {
     }
   }, [user])
 
-  const handleImageUpload = async (e) => {
+  const handleProfilePicSelect = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      setCropModalData({ src: reader.result, type: 'dp' })
+    }
+    reader.readAsDataURL(file)
+    e.target.value = '' // reset input
+  }
+
+  const uploadProfilePic = async (file) => {
     try {
-      const updatedUser = await user.setProfileImage({ file })
+      toast.loading('Updating profile picture...', { id: 'pic-upload' })
+      await user.setProfileImage({ file })
+      await user.reload()
       
       // Immediately sync the new image URL to MongoDB
       await fetch(`/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageUrl: updatedUser.imageUrl
+          imageUrl: user.imageUrl
         })
       });
       
-      toast.success('Profile picture updated!')
+      toast.success('Profile picture updated!', { id: 'pic-upload' })
     } catch (err) {
-      toast.error('Failed to update profile picture')
+      toast.error('Failed to update profile picture', { id: 'pic-upload' })
       console.error(err)
+    } finally {
+      setCropModalData(null)
+    }
+  }
+
+  const handleCropComplete = (croppedFile) => {
+    if (cropModalData?.type === 'dp') {
+      uploadProfilePic(croppedFile)
     }
   }
 
@@ -149,6 +189,7 @@ const Settings = () => {
           headline,
           location,
           address,
+          phone,
           aboutMe,
           socialLinks,
           resumeUrl,
@@ -168,13 +209,15 @@ const Settings = () => {
           headline,
           location,
           address,
+          phone,
           aboutMe,
           socialLinks,
           resumeUrl,
           experience,
           education,
           skills,
-          imageUrl: user.imageUrl
+          imageUrl: user.imageUrl,
+          profileVisibility
         })
       });
 
@@ -241,6 +284,17 @@ const Settings = () => {
       toast.error(err.errors?.[0]?.longMessage || 'Failed to update password')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    try {
+      await user.delete();
+      toast.success("Account deleted successfully");
+    } catch(e) {
+      toast.error("Failed to delete account");
+    } finally {
+      setIsConfirmOpen(false);
     }
   }
 
@@ -369,7 +423,7 @@ const Settings = () => {
                 <input 
                   type="file" 
                   ref={fileInputRef} 
-                  onChange={handleImageUpload} 
+                  onChange={handleProfilePicSelect} 
                   accept="image/*" 
                   className="hidden" 
                 />
@@ -442,6 +496,22 @@ const Settings = () => {
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1.5 block">Address</label>
                   <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Kolkata" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm font-medium text-foreground">Phone Number</label>
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 9876543210" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                </div>
+                <div className="sm:col-span-2 mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">Chat Pop-up Notifications & Sounds</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Receive sound alerts and pop-up notifications for new messages.</p>
+                  </div>
+                  <button 
+                    onClick={() => handleChatNotifsToggle(!chatNotifs)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${chatNotifs ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${chatNotifs ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
                 </div>
               <div className="space-y-4 sm:col-span-2 mt-4 pt-4 border-t border-border/40">
                   <div className="flex items-center justify-between">
@@ -756,10 +826,22 @@ const Settings = () => {
                   <div>
                     <h4 className="font-semibold text-sm text-foreground">Profile Visibility</h4>
                     <p className="text-xs text-muted-foreground mt-1 mb-3">Control who can see your profile on the platform.</p>
-                    <select className="bg-background border border-border/50 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs">
-                      <option>Public (Everyone)</option>
-                      <option>Recruiters & Mentors Only</option>
-                      <option>Hidden</option>
+                    <select 
+                      value={profileVisibility}
+                      onChange={(e) => {
+                        setProfileVisibility(e.target.value);
+                        // Auto-save this setting for better UX
+                        fetch(`/api/users/${user.id}/profile`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ profileVisibility: e.target.value })
+                        }).then(() => toast.success('Visibility updated'));
+                      }}
+                      className="bg-background border border-border/50 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                    >
+                      <option value="public">Public (Everyone)</option>
+                      <option value="restricted">Recruiters & Mentors Only</option>
+                      <option value="hidden">Hidden</option>
                     </select>
                   </div>
                 </div>
@@ -777,12 +859,18 @@ const Settings = () => {
                             {session.latestActivity?.isMobile ? <Smartphone className="w-4 h-4 text-muted-foreground" /> : <Laptop className="w-4 h-4 text-muted-foreground" />}
                             <div>
                               <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                                {session.latestActivity?.browserName || 'Unknown Browser'} on {session.latestActivity?.deviceType || 'Unknown Device'}
+                                {session.id === currentSession?.id 
+                                  ? `${currentDeviceInfo.browser} on ${currentDeviceInfo.os}`
+                                  : `${session.latestActivity?.browserName || 'Unknown Browser'} on ${session.latestActivity?.deviceType || 'Unknown Device'}`
+                                }
                                 {session.id === currentSession?.id && <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold">This Device</span>}
                               </p>
                               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <MapPin className="w-3 h-3" />
-                                {session.latestActivity?.city ? `${session.latestActivity.city}, ` : ''}{session.latestActivity?.country || 'Unknown Location'} • {session.latestActivity?.ipAddress || 'IP Hidden'}
+                                {session.id === currentSession?.id 
+                                  ? `${currentDeviceInfo.city}, ${currentDeviceInfo.country} • ${currentDeviceInfo.ip}`
+                                  : `${session.latestActivity?.city ? `${session.latestActivity.city}, ` : ''}${session.latestActivity?.country || 'Unknown Location'} • ${session.latestActivity?.ipAddress || 'IP Hidden'}`
+                                }
                               </p>
                             </div>
                           </div>
@@ -809,17 +897,8 @@ const Settings = () => {
                     <h4 className="font-semibold text-sm text-destructive">Delete Account</h4>
                     <p className="text-xs text-destructive/80 mt-1 mb-3">Permanently remove your account and all associated data. This action cannot be undone.</p>
                     <button 
-                      onClick={async () => {
-                        if(window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
-                          try {
-                            await user.delete();
-                            toast.success("Account deleted successfully");
-                          } catch(e) {
-                            toast.error("Failed to delete account");
-                          }
-                        }
-                      }}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                      onClick={() => setIsConfirmOpen(true)}
+                      className="px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground text-sm font-semibold rounded-lg transition-colors"
                     >
                       Delete Account
                     </button>
@@ -831,6 +910,26 @@ const Settings = () => {
 
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDeleteAccount}
+        title="Delete Account"
+        message="Are you absolutely sure you want to delete your account? This action cannot be undone."
+      />
+
+      {/* Render Image Crop Modal if active */}
+      <AnimatePresence>
+        {cropModalData && (
+          <ImageCropModal 
+            imageSrc={cropModalData.src}
+            aspectRatio={1}
+            onCropComplete={handleCropComplete}
+            onCancel={() => setCropModalData(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

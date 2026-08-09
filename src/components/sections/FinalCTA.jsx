@@ -1,8 +1,25 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { UserPlus, Search } from 'lucide-react'
+import { useUser } from '@clerk/clerk-react'
 
 const FinalCTA = () => {
+  const { user, isLoaded } = useUser()
+  const navigate = useNavigate()
+
+  const handleGetStarted = (e) => {
+    if (isLoaded && user) {
+      e.preventDefault()
+      const role = user.publicMetadata?.role || 'student'
+      if (role === 'mentor' || role === 'alumni') {
+        navigate('/mentor-dashboard')
+      } else if (role === 'admin') {
+        navigate('/admin')
+      } else {
+        navigate('/dashboard')
+      }
+    }
+  }
   return (
     <section className="py-24 border-t bg-muted/20">
       <div className="container max-w-4xl mx-auto px-3 sm:px-8 lg:px-12 text-center">
@@ -13,11 +30,15 @@ const FinalCTA = () => {
           Join thousands of students and mentor who are already accelerating their careers with CampusBridge.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/signup" className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-full font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-lg">
-            Join CampusBridge
+          <Link 
+            to="/signup" 
+            onClick={handleGetStarted}
+            className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-full font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-lg"
+          >
+            {isLoaded && user ? 'Go to Dashboard' : 'Join CampusBridge'}
             <UserPlus className="w-5 h-5" />
           </Link>
-          <Link to="/mentor" className="w-full sm:w-auto px-8 py-4 bg-card text-foreground border-2 rounded-full font-bold hover:bg-muted transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md text-lg">
+          <Link to="/dashboard/mentor" className="w-full sm:w-auto px-8 py-4 bg-card text-foreground border-2 rounded-full font-bold hover:bg-muted transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md text-lg">
             Explore Mentor
             <Search className="w-5 h-5" />
           </Link>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Search, Filter, Trash2, CheckCircle2, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const AdminJobs = () => {
   const [jobs, setJobs] = useState([
@@ -13,12 +14,20 @@ const AdminJobs = () => {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
-  const handleDelete = (id, title) => {
-    if (window.confirm(`Are you sure you want to remove job post "${title}"?`)) {
-      setJobs(jobs.filter(j => j.id !== id))
-      toast.success('Job posting deleted successfully.')
-    }
+  const confirmDelete = (id, title) => {
+    setDeleteTarget({ id, title })
+    setIsConfirmOpen(true)
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    setJobs(jobs.filter(j => j.id !== deleteTarget.id))
+    toast.success('Job posting deleted successfully.')
+    setIsConfirmOpen(false)
+    setDeleteTarget(null)
   }
 
   const handleStatusChange = (id, nextStatus) => {
@@ -141,11 +150,10 @@ const AdminJobs = () => {
                         </button>
                       )}
                       <button 
-                        onClick={() => handleDelete(job.id, job.title)}
-                        className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
-                        title="Delete Post"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                        onClick={() => confirmDelete(job.id, job.title)}
+                        className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center justify-center"
+                        title="Delete Job"
+                      >                      <Trash2 className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -161,6 +169,14 @@ const AdminJobs = () => {
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Job Post"
+        message={`Are you sure you want to remove job post "${deleteTarget?.title}"?`}
+      />
     </div>
   )
 }

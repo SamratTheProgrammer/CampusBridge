@@ -161,20 +161,39 @@ router.get('/user/:clerkId', async (req, res) => {
 // Create a new post
 router.post('/', async (req, res) => {
   try {
-    const { authorClerkId, content, imageUrl, bgGradient } = req.body;
+    const { authorClerkId, content, imageUrl, bgGradient, eventDetails } = req.body;
 
-    if (!authorClerkId || (!content && !imageUrl)) {
-      return res.status(400).json({ message: 'Author and content are required' });
+    if (!authorClerkId || (!content && !imageUrl && !eventDetails)) {
+      return res.status(400).json({ message: 'Author and content/event are required' });
     }
 
     const post = new Post({
       authorClerkId,
-      content,
+      content: content || '',
       imageUrl,
-      bgGradient
+      bgGradient,
+      eventDetails
     });
 
     await post.save();
+
+    // Enrich post with author details for real-time emission
+    const postAuthor = await User.findOne({ clerkId: authorClerkId });
+    const enrichedPost = {
+      ...post.toObject(),
+      author: postAuthor ? {
+        name: postAuthor.firstName + (postAuthor.lastName ? ' ' + postAuthor.lastName : ''),
+        role: postAuthor.headline || postAuthor.role,
+        image: postAuthor.imageUrl,
+      } : { name: 'Unknown User', role: 'Member', image: null },
+      comments: [],
+      likes: []
+    };
+
+    if (req.io) {
+      req.io.emit('new_post', enrichedPost);
+    }
+
     res.status(201).json(post);
   } catch (error) {
     console.error('Error creating post:', error);

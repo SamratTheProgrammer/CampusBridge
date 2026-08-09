@@ -12,6 +12,7 @@ import {
   GraduationCap
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const AdminUserManagement = () => {
   const [students, setStudents] = useState([
@@ -33,6 +34,9 @@ const AdminUserManagement = () => {
   const [newDept, setNewDept] = useState('Computer Science')
   const [newYear, setNewYear] = useState('1st Year')
 
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
   const handleToggleStatus = (id) => {
     setStudents(students.map(s => {
       if (s.id === id) {
@@ -44,11 +48,17 @@ const AdminUserManagement = () => {
     }))
   }
 
-  const handleDelete = (id, name) => {
-    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
-      setStudents(students.filter(s => s.id !== id))
-      toast.success(`${name} has been removed.`)
-    }
+  const confirmDelete = (id, name) => {
+    setDeleteTarget({ id, name })
+    setIsConfirmOpen(true)
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    setStudents(students.filter(s => s.id !== deleteTarget.id))
+    toast.success(`${deleteTarget.name} has been removed.`)
+    setIsConfirmOpen(false)
+    setDeleteTarget(null)
   }
 
   const handleAddStudent = (e) => {
@@ -187,9 +197,9 @@ const AdminUserManagement = () => {
                         {student.status === 'Active' ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                       </button>
                       <button 
-                        onClick={() => handleDelete(student.id, student.name)}
-                        className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
-                        title="Delete Student"
+                        onClick={() => confirmDelete(student.id, student.name)}
+                        className="text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition-colors inline-flex items-center justify-center"
+                        title="Delete User"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -300,6 +310,13 @@ const AdminUserManagement = () => {
         </div>
       )}
 
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete User"
+        message={`Are you sure you want to delete ${deleteTarget?.name}? This action cannot be undone.`}
+      />
     </div>
   )
 }

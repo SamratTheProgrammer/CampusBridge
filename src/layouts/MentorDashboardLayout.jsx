@@ -6,6 +6,9 @@ import { useTheme } from '../components/ThemeProvider'
 import { useUser } from '@clerk/clerk-react'
 import NotificationDropdown from '../components/NotificationDropdown'
 import VideoCallModal from '../components/VideoCallModal'
+import { socket } from '../services/socket'
+import { ringtoneService } from '../utils/ringtone'
+import toast from 'react-hot-toast'
 
 const MOCK_STUDENTS = [
   { id: 1, name: 'Ananya Sharma', role: 'B.Tech CS Student', university: 'NIT Trichy' },
@@ -53,6 +56,76 @@ const MentorDashboardLayout = () => {
     }
   }, [])
 
+  // Global Chat Notification Listener
+  useEffect(() => {
+    if (!user) return;
+
+    const handleNewMessage = (msg) => {
+      // Don't show toast if we are currently looking at the chat page
+      if (window.location.pathname.includes('/mentor-dashboard/messages')) {
+        return;
+      }
+
+      const isNotifEnabled = localStorage.getItem('campusbridge_chat_notifs') !== 'false';
+      if (!isNotifEnabled) return;
+
+      // Play notification sound
+      ringtoneService.playNotificationSound();
+
+      // Show Custom Toast
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-in slide-in-from-top-2 fade-in' : 'animate-out slide-out-to-top-2 fade-out'
+            } max-w-md w-full bg-card shadow-lg rounded-2xl pointer-events-auto flex ring-1 ring-black/5 border border-border/50`}
+          >
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <img
+                    className="h-10 w-10 rounded-full object-cover"
+                    src={msg.senderImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderName}`}
+                    alt={msg.senderName}
+                  />
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    New message from {msg.senderName}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
+                    {msg.type === 'text' ? msg.text : `Sent a ${msg.type}`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-border/50">
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  navigate('/mentor-dashboard/messages');
+                }}
+                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-medium text-primary hover:text-primary/80 hover:bg-muted/50 focus:outline-none transition-colors"
+              >
+                Reply
+              </button>
+            </div>
+          </div>
+        ),
+        {
+          duration: 4000,
+          position: 'top-center',
+        }
+      );
+    };
+
+    socket.on('update_sidebar', handleNewMessage);
+
+    return () => {
+      socket.off('update_sidebar', handleNewMessage);
+    };
+  }, [user, navigate]);
+
   if (!isLoaded || (isSignedIn && !user)) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-4">
@@ -96,7 +169,7 @@ const MentorDashboardLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen transition-all duration-300`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-background border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <button 
               className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"

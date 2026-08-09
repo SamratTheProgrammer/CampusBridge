@@ -68,7 +68,10 @@ router.post('/sync', async (req, res) => {
 // Get all mentors
 router.get('/mentors/all', async (req, res) => {
   try {
-    const mentors = await User.find({ role: { $in: ['mentor', 'alumni'] } });
+    const mentors = await User.find({ 
+      role: { $in: ['mentor', 'alumni'] },
+      profileVisibility: { $ne: 'hidden' }
+    });
     res.status(200).json(mentors);
   } catch (error) {
     console.error('Error fetching mentors:', error);
@@ -79,7 +82,10 @@ router.get('/mentors/all', async (req, res) => {
 // Get suggested mentors
 router.get('/mentors/suggested', async (req, res) => {
   try {
-    const mentors = await User.find({ role: { $in: ['mentor', 'alumni'] } }).limit(5);
+    const mentors = await User.find({ 
+      role: { $in: ['mentor', 'alumni'] },
+      profileVisibility: { $ne: 'hidden' }
+    }).limit(5);
     res.status(200).json(mentors);
   } catch (error) {
     console.error('Error fetching mentors:', error);
@@ -154,6 +160,7 @@ router.put('/:clerkId/profile', async (req, res) => {
       headline, 
       location, 
       address,
+      phone,
       aboutMe, 
       resumeUrl, 
       socialLinks,
@@ -161,7 +168,9 @@ router.put('/:clerkId/profile', async (req, res) => {
       education, 
       skills,
       imageUrl,
-      coverPhoto
+      coverPhoto,
+      yearsOfExperience,
+      profileVisibility
     } = req.body;
 
     if (firstName !== undefined) targetUser.firstName = firstName;
@@ -169,6 +178,7 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (headline !== undefined) targetUser.headline = headline;
     if (location !== undefined) targetUser.location = location;
     if (address !== undefined) targetUser.address = address;
+    if (phone !== undefined) targetUser.phone = phone;
     if (aboutMe !== undefined) targetUser.aboutMe = aboutMe;
     if (resumeUrl !== undefined) targetUser.resumeUrl = resumeUrl;
     if (socialLinks !== undefined) targetUser.socialLinks = socialLinks;
@@ -177,11 +187,63 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (skills !== undefined) targetUser.skills = skills;
     if (imageUrl !== undefined) targetUser.imageUrl = imageUrl;
     if (coverPhoto !== undefined) targetUser.coverPhoto = coverPhoto;
+    if (yearsOfExperience !== undefined) targetUser.yearsOfExperience = yearsOfExperience;
+    if (profileVisibility !== undefined) targetUser.profileVisibility = profileVisibility;
 
     await targetUser.save();
     res.status(200).json(targetUser);
   } catch (error) {
     console.error('Error updating user profile:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle save job
+router.put('/:clerkId/save-job', async (req, res) => {
+  try {
+    const { jobId } = req.body;
+    if (!jobId) {
+      return res.status(400).json({ message: 'Job ID is required' });
+    }
+
+    const targetUser = await findUserByIdentifier(req.params.clerkId);
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const jobIndex = targetUser.savedJobs.indexOf(jobId);
+    let isSaved = false;
+    
+    if (jobIndex > -1) {
+      // Job is already saved, unsave it
+      targetUser.savedJobs.splice(jobIndex, 1);
+    } else {
+      // Job is not saved, save it
+      targetUser.savedJobs.push(jobId);
+      isSaved = true;
+    }
+
+    await targetUser.save();
+    res.status(200).json({ message: 'Success', savedJobs: targetUser.savedJobs, isSaved });
+  } catch (error) {
+    console.error('Error toggling saved job:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get saved jobs
+router.get('/:clerkId/saved-jobs', async (req, res) => {
+  try {
+    const targetUser = await User.findOne({ clerkId: req.params.clerkId }).populate({
+      path: 'savedJobs',
+      populate: { path: 'postedBy', select: 'firstName lastName email company' }
+    });
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json(targetUser.savedJobs || []);
+  } catch (error) {
+    console.error('Error fetching saved jobs:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

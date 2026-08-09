@@ -138,12 +138,13 @@ const MyProfile = () => {
   const uploadProfilePic = async (file) => {
     try {
       toast.loading('Updating profile picture...', { id: 'pic-upload' })
-      const updatedUser = await user.setProfileImage({ file })
+      await user.setProfileImage({ file })
+      await user.reload()
       
       await fetch(`/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: updatedUser.imageUrl })
+        body: JSON.stringify({ imageUrl: user.imageUrl })
       })
       
       toast.success('Profile picture updated!', { id: 'pic-upload' })

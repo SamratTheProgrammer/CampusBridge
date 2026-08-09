@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Trash2, Bell, Check, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const AdminNotifications = () => {
   const [notifications, setNotifications] = useState([
@@ -11,11 +12,20 @@ const AdminNotifications = () => {
     { id: 5, title: 'Mentorship Program Update', audience: 'Students', type: 'Email', sent: 'May 24, 2026', status: 'Sent' },
   ])
 
-  const handleDelete = (id, title) => {
-    if (window.confirm(`Are you sure you want to delete notification "${title}"?`)) {
-      setNotifications(notifications.filter(n => n.id !== id))
-      toast.success('Notification removed.')
-    }
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  const confirmDelete = (id, title) => {
+    setDeleteTarget({ id, title })
+    setIsConfirmOpen(true)
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    setNotifications(notifications.filter(n => n.id !== deleteTarget.id))
+    toast.success('Notification removed.')
+    setIsConfirmOpen(false)
+    setDeleteTarget(null)
   }
 
   const handleCreate = () => {
@@ -83,7 +93,7 @@ const AdminNotifications = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button 
-                      onClick={() => handleDelete(n.id, n.title)}
+                      onClick={() => confirmDelete(n.id, n.title)}
                       className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
                       title="Delete Notification"
                     >
@@ -96,6 +106,14 @@ const AdminNotifications = () => {
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Notification"
+        message={`Are you sure you want to delete notification "${deleteTarget?.title}"?`}
+      />
     </div>
   )
 }

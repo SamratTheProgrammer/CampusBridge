@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -24,16 +24,23 @@ import {
   Palette,
   Send,
   Edit3,
-  Trash2
+  Trash2,
+  Clock,
+  MapPin
 } from 'lucide-react'
 
 const DashboardHome = () => {
   const { user, isLoaded } = useUser()
+  const navigate = useNavigate()
 
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
   const [connections, setConnections] = useState({})
   const [isConnecting, setIsConnecting] = useState(null)
+  
+  // Dynamic Profile Stats
+  const [profileViews, setProfileViews] = useState(0)
+  const [acceptedConnectionsCount, setAcceptedConnectionsCount] = useState(0)
   
   // Post Creation State
   const [newPostContent, setNewPostContent] = useState('')
@@ -43,6 +50,17 @@ const DashboardHome = () => {
   const [showGradients, setShowGradients] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+
+  // Event Post State
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  const [newEventDetails, setNewEventDetails] = useState({
+    title: '',
+    type: 'Study Group',
+    format: 'online',
+    date: '',
+    time: '',
+    location: ''
+  })
 
   // Comment State
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
@@ -78,9 +96,10 @@ const DashboardHome = () => {
 
   const fetchMentorsAndConnections = async () => {
     try {
-      const [mentorsRes, connsRes] = await Promise.all([
+      const [mentorsRes, connsRes, userRes] = await Promise.all([
         fetch('/api/users/mentors/suggested'),
-        user ? fetch(`/api/connections/user/${user.id}`) : Promise.resolve({ ok: false })
+        user ? fetch(`/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
+        user ? fetch(`/api/users/${user.id}`) : Promise.resolve({ ok: false })
       ])
       
       if (mentorsRes.ok) {
@@ -91,11 +110,22 @@ const DashboardHome = () => {
       if (connsRes.ok) {
         const connsData = await connsRes.json()
         const connMap = {}
+        let acceptedCount = 0
         connsData.forEach(c => {
           if (c.requesterClerkId === user.id) connMap[c.recipientClerkId] = c.status
           else if (c.recipientClerkId === user.id) connMap[c.requesterClerkId] = c.status
+          
+          if (c.status === 'accepted') {
+            acceptedCount++
+          }
         })
         setConnections(connMap)
+        setAcceptedConnectionsCount(acceptedCount)
+      }
+      
+      if (userRes.ok) {
+        const userData = await userRes.json()
+        setProfileViews(userData.profileViews || 0)
       }
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -198,7 +228,8 @@ const DashboardHome = () => {
           authorClerkId: user.id,
           content: newPostContent,
           imageUrl: imageUrl,
-          bgGradient: selectedGradient
+          bgGradient: selectedGradient,
+          eventDetails: newEventDetails.title ? newEventDetails : undefined
         })
       })
 
@@ -209,6 +240,7 @@ const DashboardHome = () => {
         setImagePreview(null)
         setSelectedGradient('')
         setShowGradients(false)
+        setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' })
         fetchPosts() // refresh feed
       } else {
         toast.error('Failed to create post')
@@ -414,11 +446,11 @@ const DashboardHome = () => {
             )}
             <div className="border-t border-border/40 pt-4 flex justify-between text-sm">
               <span className="text-muted-foreground font-medium">Profile Views</span>
-              <span className="text-primary font-bold">42</span>
+              <span className="text-primary font-bold">{profileViews}</span>
             </div>
             <div className="flex justify-between text-sm mt-2">
               <span className="text-muted-foreground font-medium">Connections</span>
-              <span className="text-primary font-bold">128</span>
+              <span className="text-primary font-bold">{acceptedConnectionsCount}</span>
             </div>
             <div className="mt-4">
               <Link to="/dashboard/profile" className="block w-full text-center bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground py-2 rounded-lg text-sm font-medium transition-colors">
@@ -514,8 +546,8 @@ const DashboardHome = () => {
               <button onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-sm">
                 <Palette className="w-5 h-5" /> <span className="hidden sm:inline">Background</span>
               </button>
-              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-orange-500 font-medium text-sm">
-                <CalendarIcon className="w-5 h-5" /> <span className="hidden sm:inline">Event</span>
+              <button onClick={() => setIsEventModalOpen(true)} className={`flex items-center gap-2 p-2 rounded-lg transition-colors font-medium text-sm ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600' : 'hover:bg-muted text-orange-500'}`}>
+                <CalendarIcon className="w-5 h-5" /> <span className="hidden sm:inline">{newEventDetails.title ? 'Event Attached' : 'Event'}</span>
               </button>
               <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-purple-500 font-medium text-sm">
                 <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">Job</span>
@@ -523,7 +555,7 @@ const DashboardHome = () => {
             </div>
             <button 
               onClick={handleCreatePost}
-              disabled={isPosting || (!newPostContent.trim() && !newPostImage)}
+              disabled={isPosting || (!newPostContent.trim() && !newPostImage && !newEventDetails.title)}
               className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
             >
               {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -646,6 +678,27 @@ const DashboardHome = () => {
                       <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
                         {post.content}
                       </p>
+                    )}
+
+                    {post.eventDetails && post.eventDetails.title && (
+                      <div className="mb-4 bg-muted/50 border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm">
+                        <div className="w-full sm:w-16 h-16 rounded-xl bg-orange-500/10 text-orange-600 flex flex-col items-center justify-center shrink-0">
+                          <CalendarIcon className="w-6 h-6 mb-1" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                              {post.eventDetails.type || 'Event'}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.eventDetails.title}</h4>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground mt-2">
+                            <span className="flex items-center gap-1"><CalendarIcon className="w-3.5 h-3.5" /> {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString() : 'TBD'}</span>
+                            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {post.eventDetails.time || 'TBD'}</span>
+                            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {post.eventDetails.location || 'TBD'}</span>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -893,6 +946,122 @@ const DashboardHome = () => {
             onCropComplete={handleCropComplete}
             onCancel={() => setCropModalData(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Event Details Modal */}
+      <AnimatePresence>
+        {isEventModalOpen && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Attach an Event</h2>
+                  <p className="text-sm text-muted-foreground">Share an upcoming study session or meetup.</p>
+                </div>
+                <button onClick={() => setIsEventModalOpen(false)} className="text-muted-foreground hover:bg-muted p-2 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Event Title</label>
+                  <input 
+                    type="text" 
+                    value={newEventDetails.title}
+                    onChange={(e) => setNewEventDetails({...newEventDetails, title: e.target.value})}
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    placeholder="e.g. Weekend Hackathon Prep" 
+                  />
+                </div>
+                
+                <div className="flex gap-6 pt-1 pb-2">
+                  <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer font-medium">
+                    <input type="radio" name="eventFormat" value="online" checked={newEventDetails.format === 'online'} onChange={() => setNewEventDetails({...newEventDetails, format: 'online'})} className="accent-primary w-4 h-4" />
+                    Online
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer font-medium">
+                    <input type="radio" name="eventFormat" value="offline" checked={newEventDetails.format === 'offline'} onChange={() => setNewEventDetails({...newEventDetails, format: 'offline'})} className="accent-primary w-4 h-4" />
+                    Offline
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Event Type</label>
+                    <select 
+                      value={newEventDetails.type}
+                      onChange={(e) => setNewEventDetails({...newEventDetails, type: e.target.value})}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option>Study Group</option>
+                      <option>Meetup</option>
+                      <option>Hackathon</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">{newEventDetails.format === 'online' ? 'Platform / Link' : 'Location'}</label>
+                    <input 
+                      type="text" 
+                      value={newEventDetails.location}
+                      onChange={(e) => setNewEventDetails({...newEventDetails, location: e.target.value})}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                      placeholder={newEventDetails.format === 'online' ? 'e.g. Google Meet' : 'e.g. Library Room 3'} 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
+                    <input 
+                      type="date" 
+                      value={newEventDetails.date}
+                      onChange={(e) => setNewEventDetails({...newEventDetails, date: e.target.value})}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
+                    <input 
+                      type="text" 
+                      value={newEventDetails.time}
+                      onChange={(e) => setNewEventDetails({...newEventDetails, time: e.target.value})}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                      placeholder="e.g. 5:00 PM" 
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  {newEventDetails.title && (
+                    <button 
+                      onClick={() => {
+                        setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' });
+                        setIsEventModalOpen(false);
+                      }}
+                      className="flex-1 bg-destructive/10 hover:bg-destructive/20 text-destructive py-2.5 rounded-xl font-medium transition-colors"
+                    >
+                      Remove Event
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setIsEventModalOpen(false)}
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium transition-colors shadow-sm"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

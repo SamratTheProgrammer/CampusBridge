@@ -35,10 +35,10 @@ const MentorHome = () => {
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
 
-  const pendingRequests = [
-    { id: 1, name: 'Amit Kumar', course: 'B.Tech CS', interest: 'Frontend Dev', image: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&w=150&q=80' },
-    { id: 2, name: 'Sneha Gupta', course: 'MCA', interest: 'Cloud Computing', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&w=150&q=80' },
-  ]
+  // Dynamic States
+  const [profileViews, setProfileViews] = useState(0)
+  const [acceptedConnectionsCount, setAcceptedConnectionsCount] = useState(0)
+  const [pendingRequestsList, setPendingRequestsList] = useState([])
 
   const upcomingSessions = [
     { id: 1, student: 'Rahul Verma', type: 'Resume Review', date: 'Tomorrow', time: '10:00 AM' },
@@ -77,37 +77,51 @@ const MentorHome = () => {
 
   const fileInputRef = useRef(null)
 
+  const fetchMentorsAndConnections = async () => {
+    try {
+      const [mentorsRes, connsRes, userRes] = await Promise.all([
+        fetch('/api/users/mentors/suggested'),
+        user ? fetch(`/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
+        user ? fetch(`/api/users/${user.id}`) : Promise.resolve({ ok: false })
+      ])
+      
+      if (mentorsRes.ok) {
+        const data = await mentorsRes.json()
+        setRecommendedMentors(data)
+      }
+
+      if (connsRes.ok) {
+        const connsData = await connsRes.json()
+        
+        let acceptedCount = 0
+        const pending = []
+        
+        connsData.forEach(c => {
+          if (c.status === 'accepted') {
+            acceptedCount++
+          } else if (c.status === 'pending' && c.recipientClerkId === user.id) {
+            pending.push(c)
+          }
+        })
+        
+        setAcceptedConnectionsCount(acceptedCount)
+        setPendingRequestsList(pending.slice(0, 3)) // Show top 3 pending requests
+      }
+      
+      if (userRes.ok) {
+        const userData = await userRes.json()
+        setProfileViews(userData.profileViews || 0)
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err)
+    }
+  }
+
   // Fetch initial data
   useEffect(() => {
     fetchPosts()
-    fetchMentors()
-  }, [])
-
-  const fetchPosts = async () => {
-    try {
-      const res = await fetch('/api/posts')
-      if (res.ok) {
-        const data = await res.json()
-        setPosts(data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch posts', err)
-    } finally {
-      setIsLoadingPosts(false)
-    }
-  }
-
-  const fetchMentors = async () => {
-    try {
-      const res = await fetch('/api/users/mentors/suggested')
-      if (res.ok) {
-        const data = await res.json()
-        setRecommendedMentors(data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch mentors', err)
-    }
-  }
+    fetchMentorsAndConnections()
+  }, [user])
 
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0]
@@ -381,11 +395,11 @@ const MentorHome = () => {
             )}
             <div className="border-t border-border/40 pt-4 flex justify-between text-sm">
               <span className="text-muted-foreground font-medium">Profile Views</span>
-              <span className="text-primary font-bold">42</span>
+              <span className="text-primary font-bold">{profileViews}</span>
             </div>
             <div className="flex justify-between text-sm mt-2">
-              <span className="text-muted-foreground font-medium">Profile Views</span>
-              <span className="text-primary font-bold">156</span>
+              <span className="text-muted-foreground font-medium">Connections</span>
+              <span className="text-primary font-bold">{acceptedConnectionsCount}</span>
             </div>
             <div className="mt-4">
               <Link to="/mentor-dashboard/profile" className="block w-full text-center bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground py-2 rounded-lg text-sm font-medium transition-colors">
@@ -406,8 +420,8 @@ const MentorHome = () => {
           <Link to="/mentor-dashboard/jobs" className="flex items-center gap-3 text-sm font-medium text-muted-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-muted/50">
             <Briefcase className="w-4 h-4" /> My Job Posts
           </Link>
-          <Link to="/mentor-dashboard/events" className="flex items-center gap-3 text-sm font-medium text-muted-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-muted/50">
-            <Calendar className="w-4 h-4" /> Upcoming Events
+          <Link to="/mentor-dashboard/sessions" className="flex items-center gap-3 text-sm font-medium text-muted-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-muted/50">
+            <Calendar className="w-4 h-4" /> My Sessions
           </Link>
         </div>
       </div>
@@ -699,23 +713,54 @@ const MentorHome = () => {
             <h3 className="font-bold text-foreground">Mentorship Requests</h3>
           </div>
           <div className="space-y-4">
-            {pendingRequests.map(req => (
-              <div key={req.id} className="flex gap-3 items-start border-b border-border/30 pb-3 last:border-0 last:pb-0">
-                <img src={req.image} alt={req.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+            {pendingRequestsList.map(req => (
+              <div key={req._id} className="flex gap-3 items-start border-b border-border/30 pb-3 last:border-0 last:pb-0">
+                <img 
+                  src={req.targetUser?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.targetUser?.name}`} 
+                  alt={req.targetUser?.name} 
+                  className="w-10 h-10 rounded-full object-cover shrink-0 cursor-pointer"
+                  onClick={() => navigate(req.targetUser?.role === 'mentor' || req.targetUser?.role === 'alumni' ? `/mentor-dashboard/mentor/${req.requesterClerkId}` : `/mentor-dashboard/student/${req.requesterClerkId}`)}
+                />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-sm text-foreground leading-tight">{req.name}</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">{req.course}</p>
+                  <h4 
+                    className="font-semibold text-sm text-foreground leading-tight cursor-pointer hover:underline"
+                    onClick={() => navigate(req.targetUser?.role === 'mentor' || req.targetUser?.role === 'alumni' ? `/mentor-dashboard/mentor/${req.requesterClerkId}` : `/mentor-dashboard/student/${req.requesterClerkId}`)}
+                  >
+                    {req.targetUser?.name || 'Student'}
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">{req.targetUser?.course || req.targetUser?.headline || 'Connecting...'}</p>
                   <div className="flex items-center gap-2">
-                    <button className="flex-1 flex justify-center items-center gap-1 bg-primary text-primary-foreground py-1.5 rounded-lg text-xs font-medium hover:bg-primary/90 transition-all">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await fetch(`/api/connections/${req._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'accepted' }) })
+                          fetchMentorsAndConnections()
+                          toast.success('Accepted!')
+                        } catch(e) {}
+                      }}
+                      className="flex-1 flex justify-center items-center gap-1 bg-primary text-primary-foreground py-1.5 rounded-lg text-xs font-medium hover:bg-primary/90 transition-all"
+                    >
                       <Check className="w-3.5 h-3.5" /> Accept
                     </button>
-                    <button className="flex-1 flex justify-center items-center gap-1 bg-secondary text-secondary-foreground py-1.5 rounded-lg text-xs font-medium hover:bg-secondary/80 transition-all">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await fetch(`/api/connections/${req._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'declined' }) })
+                          fetchMentorsAndConnections()
+                          toast.success('Declined')
+                        } catch(e) {}
+                      }}
+                      className="flex-1 flex justify-center items-center gap-1 bg-secondary text-secondary-foreground py-1.5 rounded-lg text-xs font-medium hover:bg-secondary/80 transition-all"
+                    >
                       <X className="w-3.5 h-3.5" /> Decline
                     </button>
                   </div>
                 </div>
               </div>
             ))}
+            {pendingRequestsList.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-2">No pending requests.</p>
+            )}
           </div>
           <Link to="/mentor-dashboard/requests" className="inline-block mt-4 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
             View all requests →
@@ -738,7 +783,7 @@ const MentorHome = () => {
               </div>
             ))}
           </div>
-          <Link to="/mentor-dashboard/events" className="inline-block mt-4 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
+          <Link to="/mentor-dashboard/sessions" className="inline-block mt-4 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
             View Schedule →
           </Link>
         </div>

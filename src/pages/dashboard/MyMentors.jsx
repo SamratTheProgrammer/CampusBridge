@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, MessageSquare, User, Loader2, CheckCircle2 } from 'lucide-react'
+import { Search, MessageSquare, User, Loader2, CheckCircle2, Calendar } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
@@ -21,7 +21,7 @@ const MyMentors = () => {
           const data = await res.json();
           // Filter to only accepted requests where the current user is the requester (student)
           const acceptedMentors = data
-            .filter(conn => conn.requesterClerkId === user.id && conn.status === 'accepted')
+            .filter(conn => conn.requesterClerkId === user.id && conn.status === 'accepted' && ['mentor', 'alumni'].includes(conn.targetUser?.role?.toLowerCase()))
             .map(conn => ({
               id: conn._id,
               clerkId: conn.targetUser?.id,
@@ -96,14 +96,19 @@ const MyMentors = () => {
               </div>
 
               <div className="px-5 pb-5 mt-4">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button 
                     onClick={() => navigate(`/dashboard/mentor/${mentor.clerkId}`)}
-                    className="flex items-center justify-center gap-2 bg-background border border-border/50 hover:bg-muted text-foreground py-2 rounded-lg text-xs font-medium transition-colors">
-                    <User className="w-4 h-4" /> Profile
+                    className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted text-foreground py-2 rounded-lg text-xs font-medium transition-colors">
+                    <User className="w-3.5 h-3.5" /> Profile
                   </button>
-                  <button className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-xs font-medium transition-colors shadow-sm shadow-primary/20">
-                    <MessageSquare className="w-4 h-4" /> Message
+                  <button 
+                    onClick={() => navigate(`/dashboard/mentor/${mentor.clerkId}/book`)}
+                    className="flex items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-xs font-medium transition-colors shadow-sm shadow-primary/20">
+                    <Calendar className="w-3.5 h-3.5" /> Book
+                  </button>
+                  <button className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted text-foreground py-2 rounded-lg text-xs font-medium transition-colors">
+                    <MessageSquare className="w-3.5 h-3.5" /> Chat
                   </button>
                 </div>
               </div>

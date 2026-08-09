@@ -33,6 +33,11 @@ const userSchema = new mongoose.Schema({
     enum: ['student', 'mentor', 'alumni', 'admin'],
     default: 'student',
   },
+  profileVisibility: {
+    type: String,
+    enum: ['public', 'restricted', 'hidden'],
+    default: 'public',
+  },
   headline: {
     type: String,
   },
@@ -40,6 +45,12 @@ const userSchema = new mongoose.Schema({
     type: String,
   },
   address: {
+    type: String,
+  },
+  phone: {
+    type: String,
+  },
+  yearsOfExperience: {
     type: String,
   },
   aboutMe: {
@@ -70,6 +81,14 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  savedJobs: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Job'
+  }],
+  profileViews: {
+    type: Number,
+    default: 0
   }
 });
 

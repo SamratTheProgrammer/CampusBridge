@@ -1,6 +1,7 @@
-import React from 'react'
-import { NavLink, Link } from 'react-router-dom'
-import { useClerk } from '@clerk/clerk-react'
+import React, { useState, useEffect } from 'react'
+import { NavLink, Link, useLocation } from 'react-router-dom'
+import { useClerk, useUser } from '@clerk/clerk-react'
+import { socket } from '../../services/socket'
 import {
   LayoutDashboard,
   Users,
@@ -21,15 +22,44 @@ import logoIcon from '../../assets/CampusLogoHalf.png'
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const { signOut } = useClerk()
+  const { user } = useUser()
+  const [unreadMessages, setUnreadMessages] = useState(0)
+
+  useEffect(() => {
+    if (!user) return
+
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`/api/messages/unread-count/${user.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setUnreadMessages(data.count)
+        }
+      } catch (err) {
+        console.error('Failed to fetch unread count', err)
+      }
+    }
+    fetchUnread()
+
+    const handleUpdate = () => fetchUnread()
+    socket.on('update_sidebar', handleUpdate)
+    socket.on('messages_read', handleUpdate)
+
+    return () => {
+      socket.off('update_sidebar', handleUpdate)
+      socket.off('messages_read', handleUpdate)
+    }
+  }, [user])
+
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'My Network', path: '/dashboard/network', icon: Users },
     { name: 'Mentor Directory', path: '/dashboard/mentor', icon: Users },
     { name: 'My Mentors', path: '/dashboard/my-mentors', icon: Users },
-    { name: 'My Sessions', path: '/dashboard/sessions', icon: BookOpen },
+    { name: 'Sessions', path: '/dashboard/sessions', icon: BookOpen },
     { name: 'Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase },
     { name: 'Events', path: '/dashboard/events', icon: Calendar },
-    { name: 'Messages', path: '/dashboard/messages', icon: MessageSquare, badge: 5 },
+    { name: 'Messages', path: '/dashboard/messages', icon: MessageSquare, badge: unreadMessages > 0 ? unreadMessages : null },
     { name: 'Applications', path: '/dashboard/applications', icon: FileText },
     { name: 'Saved', path: '/dashboard/saved', icon: Bookmark },
     { name: 'Settings', path: '/dashboard/settings', icon: Settings },

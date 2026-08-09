@@ -224,7 +224,11 @@ const VideoCallModal = ({ currentUser }) => {
   // Sound Effects Manager for Incoming, Outgoing Ringing, Connect, and End
   useEffect(() => {
     if (callState === 'incoming') {
-      ringtoneService.startIncomingRingtone();
+      if (callType === 'video') {
+        ringtoneService.startIncomingVideoRingtone();
+      } else {
+        ringtoneService.startIncomingVoiceRingtone();
+      }
     } else if (callState === 'calling') {
       ringtoneService.startOutgoingRingtone();
     } else if (callState === 'connected') {

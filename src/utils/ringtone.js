@@ -1,100 +1,75 @@
+import incomingVideoCallSound from '../assets/audio/Incoming Video Call.mp3';
+import incomingVoiceCallSound from '../assets/audio/Incomming Voice Call.mp3';
+import ringSound from '../assets/audio/Ring Sound.mp3';
+import notificationSound from '../assets/audio/Notification Sound.mp3';
+
 class RingtoneService {
   constructor() {
-    this.audioCtx = null;
-    this.timer = null;
-    this.isPlaying = false;
+    this.audio = null;
+    this.notificationAudio = null;
   }
 
-  initContext() {
-    if (!this.audioCtx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        this.audioCtx = new AudioCtx();
-      }
-    }
-    if (this.audioCtx && this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume().catch(() => {});
-    }
-  }
-
-  // Play a dual frequency tone pair (e.g. 440Hz + 480Hz) for durationSec
-  playTone(freq1 = 440, freq2 = 480, duration = 1.2, volume = 0.15) {
-    this.initContext();
-    if (!this.audioCtx) return;
-
+  // Helper to safely play audio and loop if needed
+  _playAudio(src, loop = false, volume = 0.5) {
+    this.stop();
     try {
-      const osc1 = this.audioCtx.createOscillator();
-      const osc2 = this.audioCtx.createOscillator();
-      const gain = this.audioCtx.createGain();
-
-      osc1.type = 'sine';
-      osc2.type = 'sine';
-      osc1.frequency.setValueAtTime(freq1, this.audioCtx.currentTime);
-      osc2.frequency.setValueAtTime(freq2, this.audioCtx.currentTime);
-
-      // Envelope to soften clicks
-      gain.gain.setValueAtTime(0.001, this.audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(volume, this.audioCtx.currentTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
-
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(this.audioCtx.destination);
-
-      osc1.start();
-      osc2.start();
-      osc1.stop(this.audioCtx.currentTime + duration);
-      osc2.stop(this.audioCtx.currentTime + duration);
-    } catch (e) {
-      console.warn('Audio tone error:', e);
+      this.audio = new Audio(src);
+      this.audio.loop = loop;
+      this.audio.volume = volume;
+      this.audio.play().catch(e => console.warn('Audio play failed (maybe no interaction yet):', e));
+    } catch (err) {
+      console.warn('Audio setup failed:', err);
     }
   }
 
-  // Play repeating Incoming Call Ringtone (440Hz + 480Hz tone for 1.2s every 3s)
-  startIncomingRingtone() {
-    this.stop();
-    this.isPlaying = true;
-
-    const playLoop = () => {
-      if (!this.isPlaying) return;
-      this.playTone(440, 480, 1.2, 0.18);
-      this.timer = setTimeout(playLoop, 2800);
-    };
-
-    playLoop();
+  // Play repeating Incoming Video Call Ringtone
+  startIncomingVideoRingtone() {
+    this._playAudio(incomingVideoCallSound, true, 0.6);
   }
 
-  // Play repeating Outgoing Call Ringback (440Hz + 480Hz soft tone for 1.8s every 4.5s)
+  // Play repeating Incoming Voice Call Ringtone
+  startIncomingVoiceRingtone() {
+    this._playAudio(incomingVoiceCallSound, true, 0.6);
+  }
+
+  // Play repeating Outgoing Call Ringback
   startOutgoingRingtone() {
-    this.stop();
-    this.isPlaying = true;
-
-    const playLoop = () => {
-      if (!this.isPlaying) return;
-      this.playTone(440, 480, 1.8, 0.12);
-      this.timer = setTimeout(playLoop, 4500);
-    };
-
-    playLoop();
+    this._playAudio(ringSound, true, 0.4);
   }
 
-  // Play Call End tone
+  // Play a one-shot notification sound for chat messages
+  playNotificationSound() {
+    try {
+      // Don't stop current ongoing calls just for a notification beep
+      // Use a separate audio instance
+      if (this.notificationAudio) {
+        this.notificationAudio.pause();
+        this.notificationAudio.currentTime = 0;
+      }
+      this.notificationAudio = new Audio(notificationSound);
+      this.notificationAudio.volume = 0.7;
+      this.notificationAudio.play().catch(e => console.warn('Notification audio play failed:', e));
+    } catch (err) {
+      console.warn('Notification setup failed:', err);
+    }
+  }
+
+  // Play Call End tone (we don't have a specific file for this, we can just play a brief segment of ringSound or leave empty)
   playCallEndSound() {
     this.stop();
-    this.playTone(400, 280, 0.4, 0.15);
+    // Fallback: Just let it stop. We could add a specific end call beep here later.
   }
 
   // Play Call Connect chime
   playCallConnectSound() {
     this.stop();
-    this.playTone(523.25, 659.25, 0.35, 0.15);
   }
 
   stop() {
-    this.isPlaying = false;
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.currentTime = 0;
+      this.audio = null;
     }
   }
 }

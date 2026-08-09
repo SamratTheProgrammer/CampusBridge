@@ -11,6 +11,10 @@ import postRoutes from './routes/postRoutes.js';
 import connectionRoutes from './routes/connectionRoutes.js';
 import notificationRoutes, { createNotificationHelper } from './routes/notificationRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import jobRoutes from './routes/jobRoutes.js';
+import eventRoutes from './routes/eventRoutes.js';
+import sessionRoutes from './routes/sessionRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
 import Block from './models/Block.js';
@@ -35,6 +39,12 @@ const onlineUsers = new Map();
 // Middleware
 app.use(cors());
 
+// Attach socket io to req
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Mount webhook routes before express.json() so it can access the raw body
 app.use('/api/webhooks', webhookRoutes);
 
@@ -47,6 +57,10 @@ app.use('/api/posts', postRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {
@@ -87,9 +101,9 @@ io.on('connection', (socket) => {
   });
 
   // Real-time message sending
-  socket.on('send_message', async ({ senderClerkId, recipientClerkId, conversationId, text }) => {
+  socket.on('send_message', async ({ senderClerkId, recipientClerkId, conversationId, text, type, attachment, replyTo }) => {
     try {
-      if (!senderClerkId || !recipientClerkId || !text) return;
+      if (!senderClerkId || !recipientClerkId || (!text && !attachment)) return;
 
       // Check if blocked by recipient or sender blocked recipient
       const isBlocked = await Block.findOne({
@@ -110,7 +124,10 @@ io.on('connection', (socket) => {
         conversationId: convId,
         senderClerkId,
         recipientClerkId,
-        text
+        text: text || '',
+        type: type || 'text',
+        attachment,
+        replyTo
       });
 
       await message.save();
@@ -118,9 +135,20 @@ io.on('connection', (socket) => {
       // Emit to all users in this conversation room
       io.to(convId).emit('receive_message', message);
 
-      // Trigger notification for recipient
       const sender = await User.findOne({ clerkId: senderClerkId });
       const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'Someone';
+
+      // Also emit to recipient directly if online for sidebar updates
+      const recipientSocketId = onlineUsers.get(recipientClerkId);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('update_sidebar', {
+          ...message.toObject(),
+          senderName,
+          senderImage: sender?.imageUrl
+        });
+      }
+
+      // Trigger notification for recipient
       
       await createNotificationHelper({
         recipientClerkId,
@@ -150,6 +178,60 @@ io.on('connection', (socket) => {
       io.to(conversationId).emit('messages_read', { conversationId, userId });
     } catch (err) {
       console.error('Socket mark_read error:', err);
+    }
+  });
+
+  // Handle Message Deletion
+  socket.on('delete_message', async ({ messageId, type, userId, conversationId }) => {
+    try {
+      const message = await Message.findById(messageId);
+      if (!message) return;
+
+      if (type === 'me') {
+        if (!message.deletedFor.includes(userId)) {
+          message.deletedFor.push(userId);
+          await message.save();
+        }
+        // Tell the user to remove it from their UI
+        socket.emit('message_deleted_for_me', { messageId });
+      } else if (type === 'everyone') {
+        if (message.senderClerkId === userId) {
+          message.isDeleted = true;
+          message.text = '';
+          message.attachment = null;
+          await message.save();
+          // Broadcast to everyone in the room
+          io.to(conversationId).emit('message_deleted_for_everyone', { messageId });
+        }
+      }
+    } catch (err) {
+      console.error('Socket delete_message error:', err);
+    }
+  });
+
+  // Handle Message Edit
+  socket.on('edit_message', async ({ messageId, newText, userId, conversationId }) => {
+    try {
+      console.log('Editing message:', messageId, newText, userId, conversationId);
+      const message = await Message.findById(messageId);
+      if (!message) {
+        console.log('Message not found');
+        return;
+      }
+      if (message.isDeleted || message.senderClerkId !== userId || message.type !== 'text') {
+        console.log('Message cannot be edited:', message.isDeleted, message.senderClerkId !== userId, message.type !== 'text');
+        return;
+      }
+
+      message.text = newText;
+      message.isEdited = true;
+      message.editedAt = new Date();
+      await message.save();
+
+      console.log('Message saved, broadcasting to:', conversationId);
+      io.to(conversationId).emit('message_edited', { messageId, newText, editedAt: message.editedAt });
+    } catch (err) {
+      console.error('Socket edit_message error:', err);
     }
   });
 

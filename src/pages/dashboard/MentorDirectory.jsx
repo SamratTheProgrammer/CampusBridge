@@ -241,6 +241,12 @@ const MentorDirectory = () => {
                 )}
                 
                 <Link
+                  to={`/dashboard/mentor/${mentor.clerkId}/book`}
+                  className="text-primary border border-primary hover:bg-primary/10 font-medium text-sm bg-background px-6 py-2.5 rounded-xl transition-all text-center shrink-0"
+                >
+                  Book Session
+                </Link>
+                <Link
                   to={`/dashboard/mentor/${mentor.clerkId}`}
                   className="text-foreground font-medium text-sm border border-border/50 hover:bg-muted bg-background px-6 py-2.5 rounded-xl transition-all text-center shrink-0"
                 >

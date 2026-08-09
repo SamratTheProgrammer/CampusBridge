@@ -1,9 +1,26 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, PlayCircle, LayoutDashboard, Users, Briefcase, MessageSquare, Bell } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
 
 const HeroSection = () => {
+  const { user, isLoaded } = useUser()
+  const navigate = useNavigate()
+
+  const handleGetStarted = (e) => {
+    if (isLoaded && user) {
+      e.preventDefault()
+      const role = user.publicMetadata?.role || 'student'
+      if (role === 'mentor' || role === 'alumni') {
+        navigate('/mentor-dashboard')
+      } else if (role === 'admin') {
+        navigate('/admin')
+      } else {
+        navigate('/dashboard')
+      }
+    }
+  }
   return (
     <section className="relative pt-20 pb-16 lg:pt-20 lg:pb-24 overflow-hidden">
       <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
@@ -27,11 +44,15 @@ const HeroSection = () => {
               Join a thriving network of students and mentor. Share knowledge, find mentorship, explore opportunities, and build a stronger tomorrow together.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 flex-wrap mt-2">
-              <Link to="/signup" className="w-full sm:w-auto px-8 py-3.5 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/25 whitespace-nowrap">
-                Get Started
+              <Link 
+                to="/signup" 
+                onClick={handleGetStarted}
+                className="w-full sm:w-auto px-8 py-3.5 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/25 whitespace-nowrap"
+              >
+                {isLoaded && user ? 'Go to Dashboard' : 'Get Started'}
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link to="/mentorship" className="w-full sm:w-auto px-8 py-3.5 border border-primary/50 text-primary rounded-full font-medium hover:bg-primary/5 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+              <Link to="/dashboard/mentor" className="w-full sm:w-auto px-8 py-3.5 border border-primary/50 text-primary rounded-full font-medium hover:bg-primary/5 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
                 Find a Mentor
               </Link>
               <button className="w-full sm:w-auto px-8 py-3.5 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-2 font-medium whitespace-nowrap">

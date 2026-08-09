@@ -7,6 +7,26 @@ import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
+// Get total unread count for a user across all conversations
+router.get('/unread-count/:clerkId', async (req, res) => {
+  try {
+    const { clerkId } = req.params;
+    if (!clerkId || clerkId === 'undefined') return res.status(200).json({ count: 0 });
+
+    const unreadCount = await Message.countDocuments({
+      recipientClerkId: clerkId,
+      isRead: false,
+      isDeleted: false,
+      deletedFor: { $ne: clerkId }
+    });
+
+    res.status(200).json({ count: unreadCount });
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get list of active conversations/contacts for a user
 router.get('/conversations/:clerkId', async (req, res) => {
   try {
@@ -49,8 +69,21 @@ router.get('/conversations/:clerkId', async (req, res) => {
         const unreadCount = await Message.countDocuments({
           conversationId,
           recipientClerkId: clerkId,
-          isRead: false
+          isRead: false,
+          isDeleted: false,
+          deletedFor: { $ne: clerkId }
         });
+
+        let displayLastMessage = 'Start a conversation';
+        if (lastMessage) {
+          if (lastMessage.isDeleted) {
+            displayLastMessage = '🚫 This message was deleted';
+          } else if (lastMessage.attachment && lastMessage.attachment.name) {
+            displayLastMessage = `📄 ${lastMessage.attachment.name}`;
+          } else {
+            displayLastMessage = lastMessage.text || `[${lastMessage.type || 'Attachment'}]`;
+          }
+        }
 
         return {
           id: partnerUser.clerkId,
@@ -59,7 +92,7 @@ router.get('/conversations/:clerkId', async (req, res) => {
           role: partnerUser.headline || partnerUser.role,
           image: partnerUser.imageUrl,
           conversationId,
-          lastMessage: lastMessage ? lastMessage.text : 'Start a conversation',
+          lastMessage: displayLastMessage,
           lastMessageTime: lastMessage ? lastMessage.createdAt : null,
           unread: unreadCount,
         };
@@ -84,8 +117,12 @@ router.get('/conversations/:clerkId', async (req, res) => {
 // Get message history for a conversation
 router.get('/:conversationId', async (req, res) => {
   try {
-    const messages = await Message.find({ conversationId: req.params.conversationId })
-      .sort({ createdAt: 1 });
+    const { userId } = req.query;
+    let query = { conversationId: req.params.conversationId };
+    if (userId) {
+      query.deletedFor = { $ne: userId };
+    }
+    const messages = await Message.find(query).sort({ createdAt: 1 });
     res.status(200).json(messages);
   } catch (error) {
     console.error('Error fetching messages:', error);
