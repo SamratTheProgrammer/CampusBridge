@@ -92,7 +92,7 @@ function AnimatedRoutes() {
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location}>
         {/* Public Routes with Navbar and Footer */}
         <Route path="/" element={
           <PageTransition>

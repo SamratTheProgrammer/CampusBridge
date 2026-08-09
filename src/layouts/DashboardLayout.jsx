@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import Sidebar from '../components/dashboard/Sidebar'
+import PageTransition from '../components/PageTransition'
+import { AnimatePresence } from 'framer-motion'
 import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2 } from 'lucide-react'
 import { useTheme } from '../components/ThemeProvider'
 import { useUser } from '@clerk/clerk-react'
@@ -40,6 +42,7 @@ const DashboardLayout = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
   const searchRef = useRef(null)
   
   const { user, isLoaded, isSignedIn } = useUser()
@@ -337,7 +340,11 @@ const DashboardLayout = () => {
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-8">
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <PageTransition key={location.pathname}>
+              <Outlet />
+            </PageTransition>
+          </AnimatePresence>
         </main>
         {isLoaded && user && <VideoCallModal currentUser={user} />}
       </div>

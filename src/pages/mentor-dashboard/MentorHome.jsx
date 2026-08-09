@@ -117,6 +117,21 @@ const MentorHome = () => {
     }
   }
 
+  // Fetch Posts
+  const fetchPosts = async () => {
+    try {
+      const res = await fetch('/api/posts')
+      if (res.ok) {
+        const data = await res.json()
+        setPosts(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch posts', err)
+    } finally {
+      setIsLoadingPosts(false)
+    }
+  }
+
   // Fetch initial data
   useEffect(() => {
     fetchPosts()
