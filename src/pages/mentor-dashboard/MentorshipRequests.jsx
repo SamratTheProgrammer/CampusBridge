@@ -70,7 +70,7 @@ const MentorshipRequests = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Mentorship Requests</h1>
@@ -83,11 +83,10 @@ const MentorshipRequests = () => {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 sm:flex-none sm:px-6 py-2.5 text-sm font-medium rounded-lg capitalize transition-all ${
-              activeTab === tab
+            className={`flex-1 sm:flex-none sm:px-6 py-2.5 text-sm font-medium rounded-lg capitalize transition-all ${activeTab === tab
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
-            }`}
+              }`}
           >
             {tab}
             {tab === 'pending' && requests.pending.length > 0 && (
@@ -113,7 +112,7 @@ const MentorshipRequests = () => {
               className="bg-card border border-border/50 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col sm:flex-row gap-5 items-start">
-                
+
                 {/* Photo & Basic Info */}
                 <div className="flex items-center gap-4 sm:w-64 shrink-0">
                   <img src={req.image} alt={req.name} className="w-14 h-14 rounded-full object-cover border-2 border-border" />
@@ -143,13 +142,13 @@ const MentorshipRequests = () => {
                   <div className="flex flex-wrap items-center gap-2 pt-2">
                     {activeTab === 'pending' && (
                       <>
-                        <button 
+                        <button
                           onClick={() => handleAction(req.id, 'accept')}
                           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-sm"
                         >
                           <Check className="w-4 h-4" /> Accept Request
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleAction(req.id, 'decline')}
                           className="flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-secondary/80 transition-all"
                         >
@@ -157,7 +156,7 @@ const MentorshipRequests = () => {
                         </button>
                       </>
                     )}
-                    
+
                     <button className="flex items-center gap-2 bg-background border border-border/50 text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-all">
                       <User className="w-4 h-4" /> View Profile
                     </button>

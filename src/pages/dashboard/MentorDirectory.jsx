@@ -63,8 +63,8 @@ const MentorDirectory = () => {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
           <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search by name, company or skills..."
             className="w-full pl-10 pr-4 py-2.5 bg-card border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
           />
@@ -109,7 +109,7 @@ const MentorDirectory = () => {
                 </div>
               </div>
             </div>
-            <Link 
+            <Link
               to={`/dashboard/mentor/${mentor.id}`}
               className="text-primary font-medium text-sm border border-border/50 hover:border-primary/50 bg-background hover:bg-primary/5 px-6 py-2.5 rounded-xl transition-all text-center shrink-0"
             >

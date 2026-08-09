@@ -25,6 +25,9 @@ import Jobs from './pages/dashboard/Jobs'
 import Settings from './pages/dashboard/Settings'
 import Applications from './pages/dashboard/Applications'
 import Saved from './pages/dashboard/Saved'
+import BookSession from './pages/dashboard/BookSession'
+import BookingSuccess from './pages/dashboard/BookingSuccess'
+import MySessions from './pages/dashboard/MySessions'
 
 // Mentor Dashboard Layout & Pages
 import MentorDashboardLayout from './layouts/MentorDashboardLayout'
@@ -100,7 +103,10 @@ function AnimatedRoutes() {
           <Route index element={<DashboardHome />} />
           <Route path="mentor" element={<MentorDirectory />} />
           <Route path="mentor/:id" element={<MentorProfile />} />
+          <Route path="mentor/:id/book" element={<BookSession />} />
+          <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
           <Route path="mentorship" element={<MentorshipRequests />} />
+          <Route path="sessions" element={<MySessions />} />
           <Route path="jobs" element={<Jobs />} />
           <Route path="jobs/:id" element={<JobDetails />} />
           <Route path="events" element={<Events />} />
