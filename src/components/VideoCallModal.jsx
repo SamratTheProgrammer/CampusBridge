@@ -104,16 +104,20 @@ const VideoCallModal = ({ currentUser }) => {
     }
   }, [callState]);
 
-  // Register online user socket on mount and reconnect
+  // Register online user socket on mount, reconnect, and periodically
   useEffect(() => {
     if (currentUser?.id) {
       const register = () => {
-        socket.emit('register_user', currentUser.id);
+        if (socket.connected) {
+          socket.emit('register_user', currentUser.id);
+        }
       };
       register();
       socket.on('connect', register);
+      const interval = setInterval(register, 3000);
       return () => {
         socket.off('connect', register);
+        clearInterval(interval);
       };
     }
   }, [currentUser]);
