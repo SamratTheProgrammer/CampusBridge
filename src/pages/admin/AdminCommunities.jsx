@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Trash2, ShieldCheck, ToggleLeft, ToggleRight, MessageSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const AdminCommunities = () => {
   const [communities, setCommunities] = useState([
@@ -11,11 +12,20 @@ const AdminCommunities = () => {
     { id: 5, name: 'UI/UX Design', members: '1,542', posts: 164, status: 'Active' },
   ])
 
-  const handleDelete = (id, name) => {
-    if (window.confirm(`Are you sure you want to delete community group "${name}"?`)) {
-      setCommunities(communities.filter(c => c.id !== id))
-      toast.success('Community group deleted.')
-    }
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  const confirmDelete = (id, name) => {
+    setDeleteTarget({ id, name })
+    setIsConfirmOpen(true)
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    setCommunities(communities.filter(c => c.id !== deleteTarget.id))
+    toast.success('Community group deleted.')
+    setIsConfirmOpen(false)
+    setDeleteTarget(null)
   }
 
   const handleToggleStatus = (id) => {
@@ -96,7 +106,7 @@ const AdminCommunities = () => {
                       {c.status === 'Active' ? <ToggleRight className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5 text-muted-foreground" />}
                     </button>
                     <button 
-                      onClick={() => handleDelete(c.id, c.name)}
+                      onClick={() => confirmDelete(c.id, c.name)}
                       className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
                       title="Delete Group"
                     >
@@ -109,6 +119,13 @@ const AdminCommunities = () => {
           </table>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Community Group"
+        message={`Are you sure you want to delete community group "${deleteTarget?.name}"?`}
+      />
     </div>
   )
 }

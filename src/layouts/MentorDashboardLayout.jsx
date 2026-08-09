@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import MentorSidebar from '../components/dashboard/MentorSidebar'
-import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar } from 'lucide-react'
+import PageTransition from '../components/PageTransition'
+import { AnimatePresence } from 'framer-motion'
+import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2 } from 'lucide-react'
 import { useTheme } from '../components/ThemeProvider'
+import { useUser } from '@clerk/clerk-react'
+import NotificationDropdown from '../components/NotificationDropdown'
+import VideoCallModal from '../components/VideoCallModal'
+import { socket } from '../services/socket'
+import { ringtoneService } from '../utils/ringtone'
+import toast from 'react-hot-toast'
 
-const MOCK_MENTEES = [
+const MOCK_STUDENTS = [
   { id: 1, name: 'Ananya Sharma', role: 'B.Tech CS Student', university: 'NIT Trichy' },
   { id: 2, name: 'Rahul Verma', role: 'MCA Student', university: 'Delhi University' },
 ]
@@ -21,7 +29,23 @@ const MentorDashboardLayout = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
   const searchRef = useRef(null)
+  
+  const { user, isLoaded, isSignedIn } = useUser()
+
+  useEffect(() => {
+    if (isLoaded) {
+      if (!isSignedIn) {
+        navigate('/login')
+      } else if (user) {
+        const role = user.publicMetadata?.role || user.unsafeMetadata?.role
+        if (role === 'student' || role === 'alumni') {
+          navigate('/dashboard', { replace: true })
+        }
+      }
+    }
+  }, [isLoaded, isSignedIn, user, navigate])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -35,7 +59,86 @@ const MentorDashboardLayout = () => {
     }
   }, [])
 
-  const filteredMentees = MOCK_MENTEES.filter(mentee => 
+  // Global Chat Notification Listener
+  useEffect(() => {
+    if (!user) return;
+
+    const handleNewMessage = (msg) => {
+      // Don't show toast if we are currently looking at the chat page
+      if (window.location.pathname.includes('/mentor-dashboard/messages')) {
+        return;
+      }
+
+      const isNotifEnabled = localStorage.getItem('campusbridge_chat_notifs') !== 'false';
+      if (!isNotifEnabled) return;
+
+      // Play notification sound
+      ringtoneService.playNotificationSound();
+
+      // Show Custom Toast
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-in slide-in-from-top-2 fade-in' : 'animate-out slide-out-to-top-2 fade-out'
+            } max-w-md w-full bg-card shadow-lg rounded-2xl pointer-events-auto flex ring-1 ring-black/5 border border-border/50`}
+          >
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <img
+                    className="h-10 w-10 rounded-full object-cover"
+                    src={msg.senderImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderName}`}
+                    alt={msg.senderName}
+                  />
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    New message from {msg.senderName}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
+                    {msg.type === 'text' ? msg.text : `Sent a ${msg.type}`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-border/50">
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  navigate('/mentor-dashboard/messages');
+                }}
+                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-medium text-primary hover:text-primary/80 hover:bg-muted/50 focus:outline-none transition-colors"
+              >
+                Reply
+              </button>
+            </div>
+          </div>
+        ),
+        {
+          duration: 4000,
+          position: 'top-center',
+        }
+      );
+    };
+
+    socket.on('update_sidebar', handleNewMessage);
+
+    return () => {
+      socket.off('update_sidebar', handleNewMessage);
+    };
+  }, [user, navigate]);
+
+  if (!isLoaded || (isSignedIn && !user)) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading CampusBridge...</p>
+      </div>
+    )
+  }
+
+  const filteredMentees = MOCK_STUDENTS.filter(mentee => 
     mentee.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     mentee.role.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -69,7 +172,7 @@ const MentorDashboardLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen transition-all duration-300`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-background border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <button 
               className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
@@ -170,28 +273,36 @@ const MentorDashboardLayout = () => {
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full border border-background"></span>
-            </button>
+            <NotificationDropdown />
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
-              <img 
-                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" 
-                alt="Profile" 
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
-              />
-              <div className="hidden lg:block text-sm">
-                <p className="font-semibold text-foreground leading-none mb-1">Rohit Sharma</p>
-                <p className="text-xs text-muted-foreground leading-none">Senior Software Engineer at Amazon</p>
-              </div>
+              {isLoaded && user ? (
+                <>
+                  <img 
+                    src={user.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
+                    alt="Profile" 
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
+                  />
+                  <div className="hidden lg:block text-sm">
+                    <p className="font-semibold text-foreground leading-none mb-1">{user.fullName || 'Mentor'}</p>
+                    <p className="text-xs text-muted-foreground leading-none">Mentor</p>
+                  </div>
+                </>
+              ) : (
+                <div className="w-32 h-8 bg-muted animate-pulse rounded-md hidden lg:block"></div>
+              )}
             </div>
           </div>
         </header>
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-8">
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <PageTransition key={location.pathname}>
+              <Outlet />
+            </PageTransition>
+          </AnimatePresence>
         </main>
+        {isLoaded && user && <VideoCallModal currentUser={user} />}
       </div>
     </div>
   )

@@ -48,13 +48,13 @@ const MentorshipRequests = () => {
       <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="flex items-center gap-6 px-6 border-b border-border/40">
-          <button 
+          <button
             onClick={() => setActiveTab('received')}
             className={`py-4 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'received' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           >
             Received Requests
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('sent')}
             className={`py-4 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'sent' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           >
@@ -91,7 +91,7 @@ const MentorshipRequests = () => {
               No sent requests found.
             </div>
           )}
-          
+
           {activeTab === 'received' && (
             <div className="pt-4 text-center">
               <button className="text-sm font-medium text-primary hover:underline">

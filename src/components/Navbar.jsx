@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Moon, Sun, Menu, X, Search } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
+import { useUser, useClerk } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import SearchModal from './SearchModal'
 import logoLight from '../assets/CampusLogoLight.png'
@@ -13,6 +14,10 @@ const Navbar = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('home')
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  
+  const { isSignedIn, user, isLoaded } = useUser()
+  const { signOut } = useClerk()
 
   const navLinks = [
     { name: 'Home', path: '/#home', id: 'home' },
@@ -103,8 +108,8 @@ const Navbar = () => {
             {/* Logo */}
             <div className="flex items-center gap-2">
               <Link to="/" className="flex items-center">
-                <img src={logoLight} alt="CampusBridge" className="h-24 md:h-24 w-auto block dark:hidden" />
-                <img src={logoDark} alt="CampusBridge" className="h-24 md:h-24 w-auto hidden dark:block" />
+                <img src={logoLight} alt="CampusBridge" className="h-12 md:h-12 w-auto block dark:hidden" />
+                <img src={logoDark} alt="CampusBridge" className="h-12 md:h-12 w-auto hidden dark:block" />
               </Link>
             </div>
 
@@ -153,12 +158,66 @@ const Navbar = () => {
               >
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </button>
-              <Link to="/login" className="text-sm font-medium hover:text-primary transition-colors">
-                Login
-              </Link>
-              <Link to="/signup" className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-                Sign Up
-              </Link>
+              
+              {!isLoaded ? (
+                <div className="w-20 h-8 bg-muted animate-pulse rounded-md"></div>
+              ) : isSignedIn ? (
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="flex items-center gap-2 p-1 pl-3 pr-1 rounded-full border border-border/50 hover:bg-muted transition-colors"
+                  >
+                    <span className="text-sm font-medium hidden sm:block">{user.firstName}</span>
+                    <img 
+                      src={user.imageUrl} 
+                      alt="Profile" 
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isProfileOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg overflow-hidden flex flex-col py-1"
+                      >
+                        <div className="px-4 py-2 border-b border-border/50">
+                          <p className="text-sm font-medium">{user.fullName}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</p>
+                        </div>
+                        <Link 
+                          to={user.publicMetadata?.role === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
+                          className="px-4 py-2 text-sm hover:bg-muted transition-colors"
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                          Dashboard
+                        </Link>
+                        <button 
+                          onClick={() => {
+                            setIsProfileOpen(false)
+                            signOut()
+                          }}
+                          className="px-4 py-2 text-sm text-left text-destructive hover:bg-muted transition-colors"
+                        >
+                          Sign Out
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <>
+                  <Link to="/login" className="text-sm font-medium hover:text-primary transition-colors">
+                    Login
+                  </Link>
+                  <Link to="/signup" className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+                    Sign Up
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -211,18 +270,43 @@ const Navbar = () => {
                   )
                 })}
                 <div className="pt-4 border-t border-border/40 flex flex-col gap-3">
-                  <Link
-                    to="/login"
-                    className="w-full text-center py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-colors"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    to="/signup"
-                    className="w-full text-center py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-                  >
-                    Sign Up
-                  </Link>
+                  {!isLoaded ? null : isSignedIn ? (
+                    <>
+                      <Link
+                        to={user.publicMetadata?.role === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
+                        className="w-full text-center py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-colors"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Dashboard
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setIsMobileMenuOpen(false)
+                          signOut()
+                        }}
+                        className="w-full text-center py-2 text-sm font-medium text-destructive border border-destructive/20 rounded-md hover:bg-destructive/10 transition-colors"
+                      >
+                        Sign Out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/login"
+                        className="w-full text-center py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-colors"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Login
+                      </Link>
+                      <Link
+                        to="/signup"
+                        className="w-full text-center py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Sign Up
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -1,5 +1,7 @@
-import React from 'react'
-import { NavLink, Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { NavLink, Link, useLocation } from 'react-router-dom'
+import { useClerk, useUser } from '@clerk/clerk-react'
+import { socket } from '../../services/socket'
 import {
   LayoutDashboard,
   User,
@@ -20,14 +22,43 @@ import logoDark from '../../assets/CampusLogoDark.png'
 import logoIcon from '../../assets/CampusLogoHalf.png'
 
 const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
+  const { signOut } = useClerk()
+  const { user } = useUser()
+  const [unreadMessages, setUnreadMessages] = useState(0)
+
+  useEffect(() => {
+    if (!user) return
+
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`/api/messages/unread-count/${user.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setUnreadMessages(data.count)
+        }
+      } catch (err) {
+        console.error('Failed to fetch unread count', err)
+      }
+    }
+    fetchUnread()
+
+    const handleUpdate = () => fetchUnread()
+    socket.on('update_sidebar', handleUpdate)
+    socket.on('messages_read', handleUpdate)
+
+    return () => {
+      socket.off('update_sidebar', handleUpdate)
+      socket.off('messages_read', handleUpdate)
+    }
+  }, [user])
+
   const navItems = [
     { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true },
-    { name: 'My Profile', path: '/mentor-dashboard/profile', icon: User },
-    { name: 'My Mentees', path: '/mentor-dashboard/mentees', icon: Users },
-    { name: 'Mentorship Requests', path: '/mentor-dashboard/requests', icon: BookOpen },
+    { name: 'My Students', path: '/mentor-dashboard/mentees', icon: Users },
+    { name: 'Student Requests', path: '/mentor-dashboard/requests', icon: BookOpen },
     { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase },
-    { name: 'Events', path: '/mentor-dashboard/events', icon: Calendar },
-    { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: 3 },
+    { name: 'Events & Sessions', path: '/mentor-dashboard/sessions', icon: Calendar },
+    { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: unreadMessages > 0 ? unreadMessages : null },
     { name: 'Analytics', path: '/mentor-dashboard/analytics', icon: BarChart },
     { name: 'Settings', path: '/mentor-dashboard/settings', icon: Settings },
   ]
@@ -40,8 +71,8 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
             <img src={logoIcon} alt="CampusBridge" className="w-10 h-10 object-contain shrink-0 mx-auto" />
           ) : (
             <>
-              <img src={logoLight} alt="CampusBridge" className="h-20 w-auto block dark:hidden" />
-              <img src={logoDark} alt="CampusBridge" className="h-20 w-auto hidden dark:block" />
+              <img src={logoLight} alt="CampusBridge" className="h-12 w-auto block dark:hidden" />
+              <img src={logoDark} alt="CampusBridge" className="h-12 w-auto hidden dark:block" />
             </>
           )}
         </Link>
@@ -90,6 +121,7 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
       <div className={`p-4 border-t border-border/40 ${isCollapsed ? 'flex justify-center' : ''}`}>
         <button
+          onClick={() => signOut({ redirectUrl: '/login' })}
           title={isCollapsed ? 'Logout' : undefined}
           className={`flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm text-destructive hover:bg-destructive/10 transition-all text-left
             ${isCollapsed ? 'justify-center px-0 w-full' : 'px-3 w-full'}

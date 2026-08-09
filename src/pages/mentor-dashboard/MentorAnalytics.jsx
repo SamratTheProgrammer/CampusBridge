@@ -1,8 +1,9 @@
-import React from 'react'
-import { Users, Eye, MousePointerClick, TrendingUp, Star, Award } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Users, Eye, MousePointerClick, TrendingUp, Star, Award, Loader2 } from 'lucide-react'
+import { useUser } from '@clerk/clerk-react'
 
 const STATS = [
-  { label: 'Total Mentees', value: '48', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  { label: 'Total Students', value: '48', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { label: 'Profile Views', value: '1,245', icon: Eye, color: 'text-purple-500', bg: 'bg-purple-500/10' },
   { label: 'Post Engagements', value: '3,892', icon: MousePointerClick, color: 'text-pink-500', bg: 'bg-pink-500/10' },
   { label: 'Sessions Hosted', value: '156', icon: Award, color: 'text-orange-500', bg: 'bg-orange-500/10' },
@@ -20,7 +21,55 @@ const PERFORMANCE_DATA = [
 ]
 
 const MentorAnalytics = () => {
-  const maxVal = Math.max(...PERFORMANCE_DATA.map(d => d.value))
+  const { user } = useUser();
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      if (!user) return;
+      try {
+        const res = await fetch(`/api/analytics/mentor/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAnalyticsData(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch analytics', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAnalytics();
+  }, [user]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const dataToRender = analyticsData || {
+    totalStudents: 0,
+    profileViews: 0,
+    postEngagements: 0,
+    sessionsHosted: 0,
+    performanceData: PERFORMANCE_DATA,
+    averageRating: 4.9,
+    totalReviews: 124
+  };
+
+  const dynamicStats = [
+    { label: 'Total Students', value: dataToRender.totalStudents.toString(), icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+    { label: 'Profile Views', value: dataToRender.profileViews.toLocaleString(), icon: Eye, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+    { label: 'Post Engagements', value: dataToRender.postEngagements.toLocaleString(), icon: MousePointerClick, color: 'text-pink-500', bg: 'bg-pink-500/10' },
+    { label: 'Sessions Hosted', value: dataToRender.sessionsHosted.toString(), icon: Award, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+  ];
+
+  const chartData = dataToRender.performanceData;
+  const maxVal = Math.max(...chartData.map(d => d.value), 1) // avoid div by 0
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -33,7 +82,7 @@ const MentorAnalytics = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {STATS.map((stat, idx) => (
+        {dynamicStats.map((stat, idx) => (
           <div key={idx} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <div className="flex justify-between items-start mb-4">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.bg} ${stat.color}`}>
@@ -70,7 +119,7 @@ const MentorAnalytics = () => {
             <div className="absolute -left-8 top-1/2 text-[10px] text-muted-foreground">75</div>
             <div className="absolute -left-6 bottom-0 text-[10px] text-muted-foreground">0</div>
 
-            {PERFORMANCE_DATA.map((data, idx) => {
+            {chartData.map((data, idx) => {
               const heightPercent = (data.value / maxVal) * 100
               return (
                 <div key={idx} className="flex flex-col items-center flex-1 group">
@@ -97,7 +146,7 @@ const MentorAnalytics = () => {
           <h3 className="font-bold text-foreground mb-6">Mentee Feedback</h3>
           
           <div className="flex flex-col items-center justify-center flex-1 py-8 border-b border-border/40">
-            <h1 className="text-5xl font-bold text-foreground mb-2">4.9</h1>
+            <h1 className="text-5xl font-bold text-foreground mb-2">{dataToRender.averageRating.toFixed(1)}</h1>
             <div className="flex items-center gap-1 text-yellow-400 mb-2">
               <Star className="w-5 h-5 fill-current" />
               <Star className="w-5 h-5 fill-current" />
@@ -105,7 +154,7 @@ const MentorAnalytics = () => {
               <Star className="w-5 h-5 fill-current" />
               <Star className="w-5 h-5 fill-current" />
             </div>
-            <p className="text-sm text-muted-foreground">Based on 124 reviews</p>
+            <p className="text-sm text-muted-foreground">Based on {dataToRender.totalReviews} reviews</p>
           </div>
 
           <div className="pt-6 space-y-4">

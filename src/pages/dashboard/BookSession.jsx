@@ -1,22 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
-import { 
-  ChevronLeft, Calendar as CalendarIcon, Clock, Video, FileText, Briefcase, 
-  GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2
+import { useUser } from '@clerk/clerk-react'
+import {
+  ChevronLeft, Calendar as CalendarIcon, Clock, Video, FileText, Briefcase,
+  GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2, Globe, MapPin
 } from 'lucide-react'
 
-// Mock Data
-const MENTOR_DATA = {
-  id: 1,
-  name: 'Arjun Mehta',
-  role: 'Software Engineer',
-  company: 'Google',
-  image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&w=250&q=80',
-  rating: 4.9,
-  reviews: 128,
-  price: 'Free'
-}
+// Dynamic mentor data will be fetched
 
 const SESSION_TYPES = [
   { id: 'career', title: 'Career Guidance', icon: Briefcase, desc: 'Get advice on your career path and industry trends.' },
@@ -45,15 +36,37 @@ const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay()
 const BookSession = () => {
   const navigate = useNavigate()
   const { id } = useParams()
-  
+  const { user } = useUser()
+
   const [step, setStep] = useState(1)
-  
+  const [mentor, setMentor] = useState(null)
+  const [isLoadingMentor, setIsLoadingMentor] = useState(true)
+
+  useEffect(() => {
+    const fetchMentor = async () => {
+      try {
+        const res = await fetch(`/api/users/${id}`)
+        if (res.ok) {
+          setMentor(await res.json())
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setIsLoadingMentor(false)
+      }
+    }
+    if (id) fetchMentor()
+  }, [id])
+
   // Form State
   const [sessionType, setSessionType] = useState(null)
+  const [mode, setMode] = useState('Online') // 'Online' | 'Offline'
+  const [location, setLocation] = useState('')
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedTime, setSelectedTime] = useState(null)
   const [duration, setDuration] = useState(30)
   const [message, setMessage] = useState('')
+  const [isBooking, setIsBooking] = useState(false)
 
   // Calendar State
   const today = new Date()
@@ -63,9 +76,41 @@ const BookSession = () => {
   const handleNext = () => setStep(prev => Math.min(prev + 1, 7))
   const handleBack = () => setStep(prev => Math.max(prev - 1, 1))
 
-  const handleConfirm = () => {
-    // Submit logic would go here
-    navigate(`/dashboard/mentor/${id || 1}/book/success`)
+  const handleConfirm = async () => {
+    if (!user) return;
+    setIsBooking(true)
+    try {
+      const selectedSession = SESSION_TYPES.find(t => t.id === sessionType)
+      
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentClerkId: user.id,
+          mentorClerkId: id,
+          type: selectedSession?.title || 'General Mentorship',
+          mode,
+          date: selectedDate,
+          time: selectedTime,
+          duration,
+          location: mode === 'Offline' ? (location || 'Campus Library / Study Center') : '',
+          meetingLink: mode === 'Online' ? 'https://meet.google.com/room' : '',
+          message
+        })
+      })
+
+      if (res.ok) {
+        navigate(`/dashboard/mentor/${id || 1}/book/success`)
+      } else {
+        const errorData = await res.json()
+        alert(errorData.error || 'Failed to book session')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Could not book session')
+    } finally {
+      setIsBooking(false)
+    }
   }
 
   // Animation variants
@@ -89,18 +134,18 @@ const BookSession = () => {
   const renderStepIndicator = () => (
     <div className="flex items-center justify-between mb-8 relative">
       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted rounded-full overflow-hidden">
-        <div 
+        <div
           className="h-full bg-primary transition-all duration-500 ease-in-out"
           style={{ width: `${((step - 1) / 6) * 100}%` }}
         />
       </div>
       {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-        <div 
-          key={s} 
+        <div
+          key={s}
           className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
-            ${s < step ? 'bg-primary text-primary-foreground' : 
-              s === step ? 'bg-primary ring-4 ring-primary/20 text-primary-foreground' : 
-              'bg-muted text-muted-foreground border-2 border-background'}`}
+            ${s < step ? 'bg-primary text-primary-foreground' :
+              s === step ? 'bg-primary ring-4 ring-primary/20 text-primary-foreground' :
+                'bg-muted text-muted-foreground border-2 border-background'}`}
         >
           {s < step ? <Check className="w-4 h-4" /> : s}
         </div>
@@ -115,20 +160,20 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Mentor Information</h2>
             <p className="text-muted-foreground text-sm">Review the mentor's details before proceeding.</p>
-            
+
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
-              <img src={MENTOR_DATA.image} alt={MENTOR_DATA.name} className="w-24 h-24 rounded-full object-cover ring-4 ring-muted" />
+              <img src={mentor?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor?.firstName}`} alt={mentor?.firstName} className="w-24 h-24 rounded-full object-cover ring-4 ring-muted" />
               <div className="flex-1">
                 <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                  <h3 className="text-xl font-bold text-foreground">{MENTOR_DATA.name}</h3>
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" alt="Google" className="h-4 opacity-70 grayscale" />
+                  <h3 className="text-xl font-bold text-foreground">{mentor?.firstName} {mentor?.lastName}</h3>
+                  {mentor?.company && <span className="px-2 py-0.5 bg-muted text-xs font-semibold rounded-full">{mentor.company}</span>}
                 </div>
-                <p className="text-sm font-medium text-foreground mb-3">{MENTOR_DATA.role} at {MENTOR_DATA.company}</p>
+                <p className="text-sm font-medium text-foreground mb-3">{mentor?.headline || 'Mentor'}</p>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm">
                   <div className="flex items-center gap-1 text-amber-500">
                     <Star className="w-4 h-4 fill-current" />
-                    <span className="font-semibold">{MENTOR_DATA.rating}</span>
-                    <span className="text-muted-foreground">({MENTOR_DATA.reviews} reviews)</span>
+                    <span className="font-semibold">4.9</span>
+                    <span className="text-muted-foreground">(128 reviews)</span>
                   </div>
                   <div className="flex items-center gap-1 text-primary">
                     <Video className="w-4 h-4" />
@@ -137,9 +182,9 @@ const BookSession = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex justify-end">
-              <button 
+              <button
                 onClick={handleNext}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25"
               >
@@ -148,21 +193,21 @@ const BookSession = () => {
             </div>
           </div>
         )
-      
+
       case 2:
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Select Session Type</h2>
             <p className="text-muted-foreground text-sm">What do you want to focus on during this session?</p>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {SESSION_TYPES.map((type) => (
                 <button
                   key={type.id}
                   onClick={() => { setSessionType(type.id); handleNext(); }}
                   className={`p-4 rounded-xl border transition-all text-left group
-                    ${sessionType === type.id 
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary' 
+                    ${sessionType === type.id
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
                       : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted/50'}`}
                 >
                   <type.icon className={`w-8 h-8 mb-3 ${sessionType === type.id ? 'text-primary' : 'text-muted-foreground group-hover:text-primary transition-colors'}`} />
@@ -178,35 +223,35 @@ const BookSession = () => {
         const daysInMonth = getDaysInMonth(currentMonth, currentYear)
         const firstDay = getFirstDayOfMonth(currentMonth, currentYear)
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-        
+
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Select Date</h2>
             <p className="text-muted-foreground text-sm">Choose an available date for your session.</p>
-            
+
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm max-w-sm mx-auto">
               <div className="flex items-center justify-between mb-6">
-                <button 
-                  onClick={() => currentMonth === 0 ? (setCurrentMonth(11), setCurrentYear(y=>y-1)) : setCurrentMonth(m=>m-1)}
+                <button
+                  onClick={() => currentMonth === 0 ? (setCurrentMonth(11), setCurrentYear(y => y - 1)) : setCurrentMonth(m => m - 1)}
                   className="p-2 rounded-full hover:bg-muted text-muted-foreground"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <h3 className="font-semibold text-foreground">{monthNames[currentMonth]} {currentYear}</h3>
-                <button 
-                  onClick={() => currentMonth === 11 ? (setCurrentMonth(0), setCurrentYear(y=>y+1)) : setCurrentMonth(m=>m+1)}
+                <button
+                  onClick={() => currentMonth === 11 ? (setCurrentMonth(0), setCurrentYear(y => y + 1)) : setCurrentMonth(m => m + 1)}
                   className="p-2 rounded-full hover:bg-muted text-muted-foreground"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-7 gap-1 text-center mb-2">
                 {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
                   <div key={d} className="text-xs font-medium text-muted-foreground py-2">{d}</div>
                 ))}
               </div>
-              
+
               <div className="grid grid-cols-7 gap-1">
                 {Array.from({ length: firstDay }).map((_, i) => (
                   <div key={`empty-${i}`} className="p-2"></div>
@@ -217,7 +262,7 @@ const BookSession = () => {
                   const isPast = (currentYear < today.getFullYear()) || (currentYear === today.getFullYear() && currentMonth < today.getMonth()) || (currentYear === today.getFullYear() && currentMonth === today.getMonth() && dateNum < today.getDate())
                   const dateStr = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${dateNum.toString().padStart(2, '0')}`
                   const isSelected = selectedDate === dateStr
-                  
+
                   return (
                     <button
                       key={dateNum}
@@ -248,7 +293,7 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Available Time Slots</h2>
             <p className="text-muted-foreground text-sm">Select a time that works best for you.</p>
-            
+
             <div className="space-y-6">
               {Object.entries(TIME_SLOTS).map(([period, slots]) => (
                 <div key={period}>
@@ -262,7 +307,7 @@ const BookSession = () => {
                         onClick={() => { setSelectedTime(time); handleNext(); }}
                         className={`py-2.5 px-4 rounded-xl border text-sm font-medium transition-all text-center
                           ${selectedTime === time
-                            ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20' 
+                            ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20'
                             : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted text-foreground'}`}
                       >
                         {time}
@@ -280,7 +325,7 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Session Duration</h2>
             <p className="text-muted-foreground text-sm">How long do you want the session to be?</p>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {DURATIONS.map(dur => (
                 <button
@@ -288,7 +333,7 @@ const BookSession = () => {
                   onClick={() => { setDuration(dur.id); handleNext(); }}
                   className={`py-4 px-4 rounded-xl border text-center transition-all
                     ${duration === dur.id
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary' 
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
                       : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted'}`}
                 >
                   <Clock className={`w-6 h-6 mx-auto mb-2 ${duration === dur.id ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -304,20 +349,76 @@ const BookSession = () => {
       case 6:
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Add a Message</h2>
-            <p className="text-muted-foreground text-sm">Write a short message to your mentor to help them prepare.</p>
-            
-            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-              <label className="block text-sm font-medium text-foreground mb-2">Message to Mentor (Optional)</label>
-              <textarea
-                rows={5}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="E.g., I'd like to discuss my recent project and get your feedback on the architecture..."
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none placeholder:text-muted-foreground"
-              ></textarea>
-              <div className="flex justify-end mt-4">
-                <button 
+            <h2 className="text-2xl font-bold text-foreground">Session Mode & Details</h2>
+            <p className="text-muted-foreground text-sm">Select how you would like to connect with your mentor.</p>
+
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-6">
+              
+              {/* Mode Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-foreground mb-3">Session Mode</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setMode('Online')}
+                    className={`p-4 rounded-xl border flex items-center gap-3 transition-all text-left ${
+                      mode === 'Online' 
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary text-primary' 
+                        : 'border-border/50 bg-background text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <Globe className="w-6 h-6 text-primary shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">Online Video Call</h4>
+                      <p className="text-xs text-muted-foreground">Virtual 1-on-1 meeting room</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMode('Offline')}
+                    className={`p-4 rounded-xl border flex items-center gap-3 transition-all text-left ${
+                      mode === 'Offline' 
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary text-primary' 
+                        : 'border-border/50 bg-background text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <MapPin className="w-6 h-6 text-amber-500 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">Offline Campus Meeting</h4>
+                      <p className="text-xs text-muted-foreground">In-person meeting on campus</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Location notes if Offline */}
+              {mode === 'Offline' && (
+                <div className="animate-in fade-in duration-200">
+                  <label className="block text-sm font-medium text-foreground mb-2">Preferred Campus Location / Room</label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Central Library 2nd Floor / Block A Cafe"
+                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Message to Mentor (Optional)</label>
+                <textarea
+                  rows={4}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="E.g., I'd like to discuss my recent project and get your feedback on the architecture..."
+                  className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none placeholder:text-muted-foreground"
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
                   onClick={handleNext}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25"
                 >
@@ -334,14 +435,14 @@ const BookSession = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Booking Summary</h2>
             <p className="text-muted-foreground text-sm">Review your session details before confirming.</p>
-            
+
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-6">
-              
+
               <div className="flex items-center gap-4 pb-6 border-b border-border/40">
-                <img src={MENTOR_DATA.image} alt={MENTOR_DATA.name} className="w-16 h-16 rounded-full object-cover ring-2 ring-border" />
+                <img src={mentor?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor?.firstName}`} alt={mentor?.firstName} className="w-16 h-16 rounded-full object-cover ring-2 ring-border" />
                 <div>
-                  <h3 className="font-bold text-foreground">{MENTOR_DATA.name}</h3>
-                  <p className="text-sm text-muted-foreground">{MENTOR_DATA.role} at {MENTOR_DATA.company}</p>
+                  <h3 className="font-bold text-foreground">{mentor?.firstName} {mentor?.lastName}</h3>
+                  <p className="text-sm text-muted-foreground">{mentor?.headline || 'Mentor'}</p>
                 </div>
               </div>
 
@@ -350,6 +451,22 @@ const BookSession = () => {
                   <div className="text-sm text-muted-foreground">Topic</div>
                   <div className="text-sm font-medium text-foreground text-right">{selectedSession?.title || 'General Mentorship'}</div>
                 </div>
+                <div className="flex justify-between items-start">
+                  <div className="text-sm text-muted-foreground">Session Mode</div>
+                  <div className="text-sm font-bold text-foreground text-right flex items-center gap-1.5 justify-end">
+                    {mode === 'Offline' ? (
+                      <span className="text-amber-500 flex items-center gap-1"><MapPin className="w-4 h-4" /> Offline (In-Person)</span>
+                    ) : (
+                      <span className="text-primary flex items-center gap-1"><Globe className="w-4 h-4" /> Online (Virtual Video)</span>
+                    )}
+                  </div>
+                </div>
+                {mode === 'Offline' && (
+                  <div className="flex justify-between items-start">
+                    <div className="text-sm text-muted-foreground">Location</div>
+                    <div className="text-sm font-medium text-foreground text-right">{location || 'Campus Library / Study Center'}</div>
+                  </div>
+                )}
                 <div className="flex justify-between items-start">
                   <div className="text-sm text-muted-foreground">Date</div>
                   <div className="text-sm font-medium text-foreground text-right">
@@ -373,12 +490,12 @@ const BookSession = () => {
               </div>
 
               <div className="pt-6 border-t border-border/40">
-                <button 
+                <button
                   onClick={handleConfirm}
-                  disabled={!selectedDate || !selectedTime}
+                  disabled={!selectedDate || !selectedTime || isBooking}
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CheckCircle2 className="w-5 h-5" /> Confirm Booking
+                  <CheckCircle2 className="w-5 h-5" /> {isBooking ? 'Booking Session...' : 'Confirm Booking'}
                 </button>
               </div>
 
@@ -395,7 +512,7 @@ const BookSession = () => {
     <div className="max-w-3xl mx-auto pb-12 pt-4">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <button 
+        <button
           onClick={() => step > 1 ? handleBack() : navigate(-1)}
           className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors border border-border/50 bg-card shadow-sm"
         >
@@ -411,6 +528,11 @@ const BookSession = () => {
 
       {renderStepIndicator()}
 
+      {isLoadingMentor ? (
+        <div className="flex justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : (
       <div className="relative min-h-[400px]">
         <AnimatePresence mode="wait" custom={1}>
           <motion.div
@@ -427,6 +549,7 @@ const BookSession = () => {
           </motion.div>
         </AnimatePresence>
       </div>
+      )}
 
     </div>
   )

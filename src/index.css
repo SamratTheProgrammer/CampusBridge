@@ -5,7 +5,10 @@
 @tailwind utilities;
 
 @layer base {
-  *, ::before, ::after {
+
+  *,
+  ::before,
+  ::after {
     border-color: hsl(var(--border));
   }
 
@@ -19,57 +22,58 @@
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
- 
+
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
- 
-    --primary: 258 90% 66%; /* Vibrant Purple */
+
+    --primary: 258 90% 66%;
+    /* Vibrant Purple */
     --primary-foreground: 210 40% 98%;
- 
+
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
- 
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
- 
+
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
- 
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 258 90% 66%;
- 
+
     --radius: 0.75rem;
   }
- 
+
   .dark {
     --background: 224 71% 4%;
     --foreground: 210 40% 98%;
- 
+
     --card: 224 71% 6%;
     --card-foreground: 210 40% 98%;
- 
+
     --popover: 224 71% 6%;
     --popover-foreground: 210 40% 98%;
- 
+
     --primary: 258 90% 66%;
     --primary-foreground: 210 40% 98%;
- 
+
     --secondary: 217.2 32.6% 12%;
     --secondary-foreground: 210 40% 98%;
- 
+
     --muted: 217.2 32.6% 12%;
     --muted-foreground: 215 20.2% 65.1%;
- 
+
     --accent: 217.2 32.6% 12%;
     --accent-foreground: 210 40% 98%;
- 
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
- 
+
     /* Soft dark border instead of harsh white/light grey */
     --border: 217.2 32.6% 10%;
     --input: 217.2 32.6% 10%;
@@ -79,7 +83,7 @@
 
 body {
   background-color: hsl(var(--background));
-  background-image: 
+  background-image:
     radial-gradient(ellipse at top right, hsl(var(--primary) / 0.07), transparent 40%),
     radial-gradient(ellipse at bottom left, hsl(var(--primary) / 0.05), transparent 40%);
   background-attachment: fixed;
@@ -88,17 +92,25 @@ body {
   overflow-x: hidden;
 }
 
+option {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: hsl(var(--background));
 }
+
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--muted-foreground) / 0.3);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }

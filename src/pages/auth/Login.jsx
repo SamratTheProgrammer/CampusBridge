@@ -1,22 +1,81 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Mail, Lock, GraduationCap, Building2 } from 'lucide-react'
+import { ArrowLeft, Mail, Lock, GraduationCap, Building2, Loader2 } from 'lucide-react'
+import { useSignIn, useUser } from '@clerk/clerk-react'
 
 const Login = () => {
   const location = useLocation()
-  const [selectedRole, setSelectedRole] = React.useState(location.state?.role || null) // 'student' | 'mentor' | null
+  const { isLoaded, signIn, setActive } = useSignIn()
+  const { user, isLoaded: isUserLoaded, isSignedIn } = useUser()
+  const [selectedRole, setSelectedRole] = useState(location.state?.role || null) // 'student' | 'mentor' | null
   const navigate = useNavigate()
 
-  const handleLogin = (e) => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Redirect logged in user automatically
+  useEffect(() => {
+    if (isUserLoaded && isSignedIn && user) {
+      const role = user.publicMetadata?.role || user.unsafeMetadata?.role || selectedRole
+      if (role === 'mentor') {
+        navigate('/mentor-dashboard', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
+    }
+  }, [isUserLoaded, isSignedIn, user, selectedRole, navigate])
+
+  const handleGoogleAuth = async () => {
+    if (!isLoaded) return
+    if (selectedRole) {
+      localStorage.setItem('sso_role', selectedRole)
+    }
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/sync-user',
+      })
+    } catch (err) {
+      console.error('Google Auth Error:', err)
+      toast.error(err.errors?.[0]?.longMessage || 'Google Sign In failed. Check if it is enabled in your Clerk dashboard.')
+    }
+  }
+
+  const handleLogin = async (e) => {
     e.preventDefault()
-    // Dummy login logic
-    toast.success('Logged in successfully!')
-    if (selectedRole === 'mentor') {
-      navigate('/mentor-dashboard')
-    } else {
-      navigate('/dashboard')
+    if (!isLoaded) return
+
+    setIsLoading(true)
+    try {
+      const signInAttempt = await signIn.create({
+        identifier: email,
+        password,
+      })
+
+      if (signInAttempt.status === 'complete') {
+        await setActive({ session: signInAttempt.createdSessionId })
+        toast.success('Logged in successfully!')
+        
+        // Navigation will be automatically handled by the useEffect above once user is populated
+        if (selectedRole === 'mentor') {
+          navigate('/mentor-dashboard')
+        } else {
+          navigate('/dashboard')
+        }
+      } else {
+        // If further steps are required (like 2FA)
+        console.error(JSON.stringify(signInAttempt, null, 2))
+        toast.error('Unable to sign in. Additional steps required.')
+      }
+    } catch (err) {
+      console.error(JSON.stringify(err, null, 2))
+      toast.error(err.errors?.[0]?.longMessage || 'Invalid email or password')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -132,12 +191,16 @@ const Login = () => {
                   <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                   <input 
                     type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
+                    required
                   />
                 </div>
               </div>
-              
+
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium text-foreground">Password</label>
@@ -149,17 +212,21 @@ const Login = () => {
                   <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                   <input 
                     type="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••" 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
+                    required
                   />
                 </div>
               </div>
 
               <button 
                 type="submit" 
-                className="w-full py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-all mt-6 shadow-md shadow-primary/20"
+                disabled={isLoading}
+                className="w-full py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-all mt-6 shadow-md shadow-primary/20 flex justify-center items-center"
               >
-                Sign In
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
               </button>
             </form>
 
@@ -173,7 +240,11 @@ const Login = () => {
                 </div>
               </div>
 
-              <button className="w-full mt-6 py-2.5 flex items-center justify-center gap-2 border border-input rounded-lg hover:bg-muted transition-colors font-medium text-foreground">
+              <button 
+                onClick={handleGoogleAuth}
+                type="button"
+                className="w-full mt-6 py-2.5 flex items-center justify-center gap-2 border border-input rounded-lg hover:bg-muted transition-colors font-medium text-foreground"
+              >
                 <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />

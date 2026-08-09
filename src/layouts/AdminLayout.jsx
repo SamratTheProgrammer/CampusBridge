@@ -23,6 +23,7 @@ import {
   Search,
   ChevronRight
 } from 'lucide-react'
+import { useClerk } from '@clerk/clerk-react'
 import { useTheme } from '../components/ThemeProvider'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
@@ -34,6 +35,7 @@ const AdminLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { signOut } = useClerk()
 
   const adminMenu = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
@@ -52,7 +54,7 @@ const AdminLayout = () => {
   ]
 
   const handleLogout = () => {
-    navigate('/admin/login')
+    signOut({ redirectUrl: '/login' })
   }
 
   return (
@@ -62,14 +64,14 @@ const AdminLayout = () => {
         <div className="h-full flex flex-col justify-between py-6">
           <div>
             {/* Logo */}
-            <div className="px-4 flex items-center justify-between mb-8">
+            <div className="px-4 flex items-center justify-between mb-4">
               <Link to="/admin" className="flex items-center mx-auto">
                 {isCollapsed ? (
                   <img src={logoHalf} alt="CampusBridge" className="h-10 w-10 object-contain" />
                 ) : (
                   <>
-                    <img src={logoLight} alt="CampusBridge" className="h-26 w-auto block dark:hidden" />
-                    <img src={logoDark} alt="CampusBridge" className="h-26 w-auto hidden dark:block" />
+                    <img src={logoLight} alt="CampusBridge" className="h-12 w-auto block dark:hidden" />
+                    <img src={logoDark} alt="CampusBridge" className="h-12 w-auto hidden dark:block" />
                   </>
                 )}
               </Link>

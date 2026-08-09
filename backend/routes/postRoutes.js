@@ -1,0 +1,365 @@
+import express from 'express';
+import mongoose from 'mongoose';
+import Post from '../models/Post.js';
+import User from '../models/User.js';
+import { createNotificationHelper } from './notificationRoutes.js';
+
+const router = express.Router();
+
+// Helper to safely extract clerkId string from a like entry
+const getLikeClerkId = (likeItem) => {
+  if (!likeItem) return null;
+  if (typeof likeItem === 'string') return likeItem;
+  if (typeof likeItem === 'object') return likeItem.clerkId || likeItem.id || null;
+  return String(likeItem);
+};
+
+// Helper to enrich comments and their replies
+const enrichCommentsList = async (comments) => {
+  return await Promise.all(
+    (comments || []).map(async (comment) => {
+      const commentUser = await User.findOne({ clerkId: comment.authorClerkId });
+      
+      const enrichedReplies = await Promise.all(
+        (comment.replies || []).map(async (reply) => {
+          const replyUser = await User.findOne({ clerkId: reply.authorClerkId });
+          return {
+            ...reply.toObject(),
+            author: replyUser ? {
+              name: replyUser.firstName + (replyUser.lastName ? ' ' + replyUser.lastName : ''),
+              image: replyUser.imageUrl,
+            } : { name: 'Unknown User', image: null }
+          };
+        })
+      );
+
+      return {
+        ...comment.toObject(),
+        author: commentUser ? {
+          name: commentUser.firstName + (commentUser.lastName ? ' ' + commentUser.lastName : ''),
+          image: commentUser.imageUrl,
+        } : { name: 'Unknown User', image: null },
+        replies: enrichedReplies
+      };
+    })
+  );
+};
+
+// Get all posts with author details
+router.get('/', async (req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    
+    // We manually fetch user details since authorClerkId is a string reference
+    const enrichedPosts = await Promise.all(
+      posts.map(async (post) => {
+        const user = await User.findOne({ clerkId: post.authorClerkId });
+        const enrichedComments = await enrichCommentsList(post.comments);
+
+        // Enrich likes
+        const enrichedLikes = await Promise.all(
+          post.likes.map(async (likeItem) => {
+            const likeClerkId = getLikeClerkId(likeItem);
+            if (!likeClerkId) return { clerkId: 'unknown', name: 'Unknown User', image: null };
+            const likeUser = await User.findOne({ clerkId: likeClerkId });
+            return likeUser ? {
+              clerkId: likeClerkId,
+              name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
+              image: likeUser.imageUrl,
+              role: likeUser.headline || likeUser.role
+            } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
+          })
+        );
+
+        return {
+          ...post.toObject(),
+          author: user ? {
+            name: user.firstName + (user.lastName ? ' ' + user.lastName : ''),
+            role: user.headline || user.role,
+            image: user.imageUrl,
+          } : {
+            name: 'Unknown User',
+            role: 'Member',
+            image: null
+          },
+          comments: enrichedComments,
+          likes: enrichedLikes
+        };
+      })
+    );
+
+    res.status(200).json(enrichedPosts);
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get posts by a specific user (accepts clerkId, Mongo _id, or username)
+router.get('/user/:clerkId', async (req, res) => {
+  try {
+    const { clerkId } = req.params;
+    if (!clerkId || clerkId === 'undefined') {
+      return res.status(200).json([]);
+    }
+
+    let targetClerkId = clerkId;
+    let query = [{ clerkId }, { username: clerkId }];
+    if (mongoose.Types.ObjectId.isValid(clerkId)) {
+      query.push({ _id: clerkId });
+    }
+    const user = await User.findOne({ $or: query });
+    if (user) {
+      targetClerkId = user.clerkId;
+    }
+
+    const posts = await Post.find({ authorClerkId: targetClerkId }).sort({ createdAt: -1 });
+    
+    const enrichedPosts = await Promise.all(
+      posts.map(async (post) => {
+        const postAuthor = user || await User.findOne({ clerkId: post.authorClerkId });
+        const enrichedComments = await enrichCommentsList(post.comments);
+
+        const enrichedLikes = await Promise.all(
+          post.likes.map(async (likeItem) => {
+            const likeClerkId = getLikeClerkId(likeItem);
+            if (!likeClerkId) return { clerkId: 'unknown', name: 'Unknown User', image: null };
+            const likeUser = await User.findOne({ clerkId: likeClerkId });
+            return likeUser ? {
+              clerkId: likeClerkId,
+              name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
+              image: likeUser.imageUrl,
+              role: likeUser.headline || likeUser.role
+            } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
+          })
+        );
+
+        return {
+          ...post.toObject(),
+          author: postAuthor ? {
+            name: postAuthor.firstName + (postAuthor.lastName ? ' ' + postAuthor.lastName : ''),
+            role: postAuthor.headline || postAuthor.role,
+            image: postAuthor.imageUrl,
+          } : {
+            name: 'Unknown User',
+            role: 'Member',
+            image: null
+          },
+          comments: enrichedComments,
+          likes: enrichedLikes
+        };
+      })
+    );
+
+    res.status(200).json(enrichedPosts);
+  } catch (error) {
+    console.error('Error fetching user posts:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create a new post
+router.post('/', async (req, res) => {
+  try {
+    const { authorClerkId, content, imageUrl, bgGradient, eventDetails } = req.body;
+
+    if (!authorClerkId || (!content && !imageUrl && !eventDetails)) {
+      return res.status(400).json({ message: 'Author and content/event are required' });
+    }
+
+    const post = new Post({
+      authorClerkId,
+      content: content || '',
+      imageUrl,
+      bgGradient,
+      eventDetails
+    });
+
+    await post.save();
+
+    // Enrich post with author details for real-time emission
+    const postAuthor = await User.findOne({ clerkId: authorClerkId });
+    const enrichedPost = {
+      ...post.toObject(),
+      author: postAuthor ? {
+        name: postAuthor.firstName + (postAuthor.lastName ? ' ' + postAuthor.lastName : ''),
+        role: postAuthor.headline || postAuthor.role,
+        image: postAuthor.imageUrl,
+      } : { name: 'Unknown User', role: 'Member', image: null },
+      comments: [],
+      likes: []
+    };
+
+    if (req.io) {
+      req.io.emit('new_post', enrichedPost);
+    }
+
+    res.status(201).json(post);
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle Like
+router.put('/:id/like', async (req, res) => {
+  try {
+    const { clerkId } = req.body;
+    if (!clerkId) return res.status(400).json({ message: 'clerkId is required' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const likeIndex = post.likes.findIndex(item => getLikeClerkId(item) === clerkId);
+    if (likeIndex === -1) {
+      post.likes.push(clerkId);
+      // Trigger notification to post author if not liking own post
+      const liker = await User.findOne({ clerkId });
+      const likerName = liker ? `${liker.firstName} ${liker.lastName || ''}`.trim() : 'Someone';
+      await createNotificationHelper({
+        recipientClerkId: post.authorClerkId,
+        senderClerkId: clerkId,
+        type: 'post_like',
+        title: 'New Post Like',
+        message: `${likerName} liked your post.`,
+        link: '/dashboard'
+      });
+    } else {
+      post.likes.splice(likeIndex, 1);
+    }
+
+    await post.save();
+    res.status(200).json(post.likes);
+  } catch (error) {
+    console.error('Error toggling like:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add Comment
+router.post('/:id/comment', async (req, res) => {
+  try {
+    const { authorClerkId, content } = req.body;
+    if (!authorClerkId || !content) return res.status(400).json({ message: 'Missing fields' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    post.comments.push({ authorClerkId, content });
+    await post.save();
+
+    // Trigger notification to post author
+    const commenter = await User.findOne({ clerkId: authorClerkId });
+    const commenterName = commenter ? `${commenter.firstName} ${commenter.lastName || ''}`.trim() : 'Someone';
+    await createNotificationHelper({
+      recipientClerkId: post.authorClerkId,
+      senderClerkId: authorClerkId,
+      type: 'post_comment',
+      title: 'New Comment',
+      message: `${commenterName} commented: "${content.substring(0, 35)}${content.length > 35 ? '...' : ''}"`,
+      link: '/dashboard'
+    });
+
+    res.status(201).json(post.comments);
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add Reply to a Comment
+router.post('/:id/comment/:commentId/reply', async (req, res) => {
+  try {
+    const { authorClerkId, content } = req.body;
+    if (!authorClerkId || !content) return res.status(400).json({ message: 'Missing fields' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+
+    comment.replies.push({ authorClerkId, content });
+    await post.save();
+
+    // Trigger notification to comment author
+    const replier = await User.findOne({ clerkId: authorClerkId });
+    const replierName = replier ? `${replier.firstName} ${replier.lastName || ''}`.trim() : 'Someone';
+    await createNotificationHelper({
+      recipientClerkId: comment.authorClerkId,
+      senderClerkId: authorClerkId,
+      type: 'post_comment',
+      title: 'New Reply to your comment',
+      message: `${replierName} replied: "${content.substring(0, 35)}${content.length > 35 ? '...' : ''}"`,
+      link: '/dashboard'
+    });
+
+    res.status(201).json(comment.replies);
+  } catch (error) {
+    console.error('Error adding reply:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update Post
+router.put('/:id', async (req, res) => {
+  try {
+    const { authorClerkId, content } = req.body;
+    if (!authorClerkId || content === undefined) return res.status(400).json({ message: 'Missing fields' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    if (post.authorClerkId !== authorClerkId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    post.content = content;
+    await post.save();
+    res.status(200).json(post);
+  } catch (error) {
+    console.error('Error updating post:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete Post
+router.delete('/:id', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const authorClerkId = req.body?.authorClerkId || req.query?.authorClerkId;
+    if (authorClerkId && post.authorClerkId !== authorClerkId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    await Post.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'Post deleted' });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+export default router;

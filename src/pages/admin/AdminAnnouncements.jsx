@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Trash2, Megaphone, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const AdminAnnouncements = () => {
   const [announcements, setAnnouncements] = useState([
@@ -10,11 +11,20 @@ const AdminAnnouncements = () => {
     { id: 4, title: 'Mentor Meet Registration Open', priority: 'Medium', audience: 'Mentor', published: 'May 18, 2026', status: 'Published' },
   ])
 
-  const handleDelete = (id, title) => {
-    if (window.confirm(`Are you sure you want to delete announcement "${title}"?`)) {
-      setAnnouncements(announcements.filter(a => a.id !== id))
-      toast.success('Announcement removed.')
-    }
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  const confirmDelete = (id, title) => {
+    setDeleteTarget({ id, title })
+    setIsConfirmOpen(true)
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    setAnnouncements(announcements.filter(a => a.id !== deleteTarget.id))
+    toast.success('Announcement removed.')
+    setIsConfirmOpen(false)
+    setDeleteTarget(null)
   }
 
   const handleCreate = () => {
@@ -87,7 +97,7 @@ const AdminAnnouncements = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button 
-                      onClick={() => handleDelete(a.id, a.title)}
+                      onClick={() => confirmDelete(a.id, a.title)}
                       className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
                       title="Delete Announcement"
                     >
@@ -100,6 +110,14 @@ const AdminAnnouncements = () => {
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Announcement"
+        message={`Are you sure you want to delete announcement "${deleteTarget?.title}"?`}
+      />
     </div>
   )
 }

@@ -6,17 +6,31 @@ import Login from './pages/auth/Login'
 import SignUp from './pages/auth/SignUp'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import OTPVerification from './pages/auth/OTPVerification'
+import SSOCallback from './pages/auth/SSOCallback'
+import SyncUser from './pages/auth/SyncUser'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import PageTransition from './components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
+import { ClerkProvider } from '@clerk/clerk-react'
+import ErrorBoundary from './components/ErrorBoundary'
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Publishable Key")
+}
 
 // Dashboard Layout & Pages
 import DashboardLayout from './layouts/DashboardLayout'
 import DashboardHome from './pages/dashboard/DashboardHome'
+import MyProfile from './pages/dashboard/MyProfile'
 import MentorDirectory from './pages/dashboard/MentorDirectory'
 import MentorProfile from './pages/dashboard/MentorProfile'
+import BookSession from './pages/dashboard/BookSession'
+import BookingSuccess from './pages/dashboard/BookingSuccess'
+import MyMentors from './pages/dashboard/MyMentors'
 import MentorshipRequests from './pages/dashboard/MentorshipRequests'
 import JobDetails from './pages/dashboard/JobDetails'
 import Events from './pages/dashboard/Events'
@@ -25,9 +39,8 @@ import Jobs from './pages/dashboard/Jobs'
 import Settings from './pages/dashboard/Settings'
 import Applications from './pages/dashboard/Applications'
 import Saved from './pages/dashboard/Saved'
-import BookSession from './pages/dashboard/BookSession'
-import BookingSuccess from './pages/dashboard/BookingSuccess'
 import MySessions from './pages/dashboard/MySessions'
+import MyNetwork from './pages/dashboard/MyNetwork'
 
 // Mentor Dashboard Layout & Pages
 import MentorDashboardLayout from './layouts/MentorDashboardLayout'
@@ -35,12 +48,12 @@ import MentorHome from './pages/mentor-dashboard/MentorHome'
 import MyMentees from './pages/mentor-dashboard/MyMentees'
 import MentorRequests from './pages/mentor-dashboard/MentorshipRequests'
 import MentorJobs from './pages/mentor-dashboard/MentorJobs'
-import MentorEvents from './pages/mentor-dashboard/MentorEvents'
+import MentorSessions from './pages/mentor-dashboard/MentorSessions'
 import MentorPosts from './pages/mentor-dashboard/MentorPosts'
 import MentorMessages from './pages/mentor-dashboard/MentorMessages'
 import MentorAnalytics from './pages/mentor-dashboard/MentorAnalytics'
-import MentorProfilePage from './pages/mentor-dashboard/MentorProfilePage'
 import MentorSettings from './pages/mentor-dashboard/MentorSettings'
+import StudentProfile from './pages/mentor-dashboard/StudentProfile'
 
 // Admin Layout & Pages
 import AdminLayout from './layouts/AdminLayout'
@@ -76,10 +89,10 @@ function ScrollToHash() {
 
 function AnimatedRoutes() {
   const location = useLocation()
-  
+
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location}>
         {/* Public Routes with Navbar and Footer */}
         <Route path="/" element={
           <PageTransition>
@@ -92,19 +105,24 @@ function AnimatedRoutes() {
             </div>
           </PageTransition>
         } />
-        
+
         <Route path="/login" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><Login /></main><Footer /></div></PageTransition>} />
         <Route path="/signup" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><SignUp /></main><Footer /></div></PageTransition>} />
         <Route path="/forgot-password" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><ForgotPassword /></main><Footer /></div></PageTransition>} />
         <Route path="/otp" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><OTPVerification /></main><Footer /></div></PageTransition>} />
+        <Route path="/sso-callback" element={<SSOCallback />} />
+        <Route path="/sync-user" element={<SyncUser />} />
 
         {/* Authenticated Dashboard Routes */}
         <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
           <Route index element={<DashboardHome />} />
+          <Route path="profile" element={<MyProfile />} />
           <Route path="mentor" element={<MentorDirectory />} />
           <Route path="mentor/:id" element={<MentorProfile />} />
+          <Route path="student/:id" element={<StudentProfile />} />
           <Route path="mentor/:id/book" element={<BookSession />} />
           <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
+          <Route path="my-mentors" element={<MyMentors />} />
           <Route path="mentorship" element={<MentorshipRequests />} />
           <Route path="sessions" element={<MySessions />} />
           <Route path="jobs" element={<Jobs />} />
@@ -113,17 +131,22 @@ function AnimatedRoutes() {
           <Route path="messages" element={<Messages />} />
           <Route path="applications" element={<Applications />} />
           <Route path="saved" element={<Saved />} />
+          <Route path="network" element={<MyNetwork />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
         {/* Authenticated Mentor Dashboard Routes */}
         <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
           <Route index element={<MentorHome />} />
-          <Route path="profile" element={<MentorProfilePage />} />
+          <Route path="profile" element={<MyProfile />} />
           <Route path="mentees" element={<MyMentees />} />
           <Route path="requests" element={<MentorRequests />} />
+          <Route path="network" element={<MyNetwork />} />
+          <Route path="student/:id" element={<StudentProfile />} />
+          <Route path="mentor/:id" element={<MentorProfile />} />
           <Route path="jobs" element={<MentorJobs />} />
-          <Route path="events" element={<MentorEvents />} />
+          <Route path="sessions" element={<MentorSessions />} />
+          <Route path="events" element={<MentorSessions />} />
           <Route path="posts" element={<MentorPosts />} />
           <Route path="messages" element={<MentorMessages />} />
           <Route path="analytics" element={<MentorAnalytics />} />
@@ -154,13 +177,17 @@ function AnimatedRoutes() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
-      <Router>
-        <ScrollToHash />
-        <AnimatedRoutes />
-        <Toaster position="bottom-right" />
-      </Router>
-    </ThemeProvider>
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
+        <Router>
+          <ScrollToHash />
+          <ErrorBoundary>
+            <AnimatedRoutes />
+          </ErrorBoundary>
+          <Toaster position="bottom-right" />
+        </Router>
+      </ThemeProvider>
+    </ClerkProvider>
   )
 }
 

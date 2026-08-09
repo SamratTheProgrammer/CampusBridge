@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar as CalendarIcon, Clock, MapPin, Users, X, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -29,7 +31,7 @@ const EventCard = ({ event, index, onRegister }) => {
     >
       <div className="h-48 relative overflow-hidden bg-muted">
         <img 
-          src={event.image} 
+          src={event.imageUrl || event.image || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'} 
           alt={event.title} 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
@@ -47,7 +49,7 @@ const EventCard = ({ event, index, onRegister }) => {
         <div className="space-y-2 mb-6 text-sm text-muted-foreground flex-1">
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4 text-primary" />
-            <span>{event.date}</span>
+            <span>{event.date ? new Date(event.date).toLocaleDateString() : 'TBD'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-primary" />
@@ -55,7 +57,7 @@ const EventCard = ({ event, index, onRegister }) => {
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-primary" />
-            <span>{event.location}</span>
+            <span>{event.location || event.mode || 'Virtual'}</span>
           </div>
         </div>
 
@@ -90,38 +92,55 @@ const EventCard = ({ event, index, onRegister }) => {
 }
 
 const UpcomingEvents = () => {
+  const [events, setEvents] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState(null)
+  
+  const { user, isLoaded } = useUser()
+  const navigate = useNavigate()
 
-  const events = [
-    {
-      title: 'Global Tech Hackathon 2024',
-      type: 'Hackathon',
-      date: 'Oct 15 - Oct 17, 2024',
-      time: '48 Hours',
-      location: 'Virtual',
-      image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      title: 'Mentor Networking Career Fair',
-      type: 'Career Fair',
-      date: 'Nov 02, 2024',
-      time: '10:00 AM - 4:00 PM',
-      location: 'New York Campus / Hybrid',
-      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      title: 'System Design Interview Workshop',
-      type: 'Workshop',
-      date: 'Sep 28, 2024',
-      time: '2:00 PM - 5:00 PM',
-      location: 'Zoom',
-      image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch('/api/events')
+        if (res.ok) {
+          const data = await res.json()
+          setEvents(data.slice(0, 3))
+        }
+      } catch (error) {
+        console.error('Error fetching events:', error)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  ]
+    fetchEvents()
+  }, [])
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault()
-    toast.success('Successfully registered for the event!')
+    if (!isLoaded || !user) {
+      navigate('/signup')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/events/${selectedEvent._id}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ clerkId: user.id })
+      })
+
+      if (res.ok) {
+        toast.success('Successfully registered for the event!')
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to register')
+      }
+    } catch (error) {
+      toast.error('An error occurred during registration')
+    }
     setSelectedEvent(null)
   }
 
@@ -136,6 +155,10 @@ const UpcomingEvents = () => {
       document.body.style.overflow = 'unset'
     }
   }, [selectedEvent])
+
+  if (isLoading || events.length === 0) {
+    return null
+  }
 
   return (
     <section className="py-24 bg-muted/20 relative">
@@ -154,7 +177,7 @@ const UpcomingEvents = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {events.map((event, index) => (
-            <EventCard key={event.title} event={event} index={index} onRegister={setSelectedEvent} />
+            <EventCard key={event._id || index} event={event} index={index} onRegister={setSelectedEvent} />
           ))}
         </div>
       </div>
@@ -177,7 +200,7 @@ const UpcomingEvents = () => {
               className="bg-card border border-border/50 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative z-10"
             >
               <div className="relative h-32 bg-muted shrink-0">
-                <img src={selectedEvent.image} alt="Event Cover" className="w-full h-full object-cover opacity-60" />
+                <img src={selectedEvent.imageUrl || selectedEvent.image || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'} alt="Event Cover" className="w-full h-full object-cover opacity-60" />
                 <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
                 <button 
                   onClick={() => setSelectedEvent(null)}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Trash2, Building2, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const AdminCompanies = () => {
   const [companies, setCompanies] = useState([
@@ -11,11 +12,20 @@ const AdminCompanies = () => {
     { id: 5, name: 'TechNova Inc.', employees: '200+', location: 'Bangalore, India', status: 'Pending' },
   ])
 
-  const handleDelete = (id, name) => {
-    if (window.confirm(`Are you sure you want to remove corporate profile for ${name}?`)) {
-      setCompanies(companies.filter(c => c.id !== id))
-      toast.success('Company profile removed.')
-    }
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  const confirmDelete = (id, name) => {
+    setDeleteTarget({ id, name })
+    setIsConfirmOpen(true)
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    setCompanies(companies.filter(c => c.id !== deleteTarget.id))
+    toast.success('Company profile removed.')
+    setIsConfirmOpen(false)
+    setDeleteTarget(null)
   }
 
   return (
@@ -52,7 +62,7 @@ const AdminCompanies = () => {
                 Website <ExternalLink className="w-3 h-3" />
               </button>
               <button 
-                onClick={() => handleDelete(company.id, company.name)}
+                onClick={() => confirmDelete(company.id, company.name)}
                 className="flex-1 py-2 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl transition-all shadow-sm shadow-rose-500/10"
               >
                 Delete Profile
@@ -61,6 +71,14 @@ const AdminCompanies = () => {
           </div>
         ))}
       </div>
+
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Remove Company"
+        message={`Are you sure you want to remove corporate profile for ${deleteTarget?.name}?`}
+      />
     </div>
   )
 }
