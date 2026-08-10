@@ -15,6 +15,7 @@ import jobRoutes from './routes/jobRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
 import Block from './models/Block.js';
@@ -61,6 +62,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {

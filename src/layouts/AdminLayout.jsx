@@ -37,6 +37,10 @@ const AdminLayout = () => {
   const location = useLocation()
   const { signOut } = useClerk()
 
+  // Get admin user from localStorage if available
+  const storedUser = localStorage.getItem('adminUser')
+  const adminUser = storedUser ? JSON.parse(storedUser) : { name: 'Super Admin', role: 'super-admin', email: 'admin@campusbridge.com' }
+
   const adminMenu = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'User Management', path: '/admin/users', icon: Users },
@@ -54,7 +58,9 @@ const AdminLayout = () => {
   ]
 
   const handleLogout = () => {
-    signOut({ redirectUrl: '/login' })
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('adminUser')
+    navigate('/admin/login')
   }
 
   return (
@@ -211,11 +217,11 @@ const AdminLayout = () => {
             {/* Admin Profile */}
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
               <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                A
+                {(adminUser.name || 'Admin').charAt(0).toUpperCase()}
               </div>
               <div className="hidden lg:block text-sm">
-                <p className="font-semibold text-foreground leading-none mb-1">Admin</p>
-                <p className="text-xs text-muted-foreground leading-none">Super Admin</p>
+                <p className="font-semibold text-foreground leading-none mb-1">{adminUser.name || 'CampusBridge Admin'}</p>
+                <p className="text-xs text-muted-foreground capitalize leading-none">{adminUser.role ? adminUser.role.replace('-', ' ') : 'Super Admin'}</p>
               </div>
             </div>
           </div>

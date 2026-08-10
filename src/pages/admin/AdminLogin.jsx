@@ -13,7 +13,7 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     if (!email || !password) {
       toast.error('Please fill in all fields')
@@ -21,11 +21,32 @@ const AdminLogin = () => {
     }
     
     setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
-      toast.success('Successfully logged in as ' + role.replace('-', ' '))
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password, role })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Invalid admin credentials')
+      }
+
+      localStorage.setItem('adminToken', data.token)
+      localStorage.setItem('adminUser', JSON.stringify(data.user))
+
+      toast.success(data.message || `Successfully logged in as ${role.replace('-', ' ')}`)
       navigate('/admin')
-    }, 1200)
+    } catch (error) {
+      console.error('Admin authentication error:', error)
+      toast.error(error.message || 'Authentication failed. Please check credentials.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
