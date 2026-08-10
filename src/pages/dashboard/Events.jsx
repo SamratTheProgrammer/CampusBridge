@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react'
-import { Loader2, Calendar, Clock, MapPin, Users, X, CheckCircle2, Globe } from 'lucide-react'
+import { Loader2, Calendar, Clock, MapPin, Users, X, CheckCircle2, Globe, Video } from 'lucide-react'
 import { format } from 'date-fns'
 import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,6 +15,14 @@ const Events = () => {
   // Registration State
   const [applicantRole, setApplicantRole] = useState('student')
   const [isRegistering, setIsRegistering] = useState(false)
+  const [showRegisterModal, setShowRegisterModal] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
+  const [registerFormData, setRegisterFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    rollNumber: ''
+  })
   
   // User DB data for phone
   const [userDbData, setUserDbData] = useState(null)
@@ -55,17 +63,30 @@ const Events = () => {
     }
   }, [user])
 
-  const handleRegisterClick = async (event) => {
-    if (!user) return
+  const handleRegisterClick = (event) => {
+    setSelectedEvent(event)
+    setRegisterFormData({
+      name: userDbData?.name || `${userDbData?.firstName || ''} ${userDbData?.lastName || ''}`.trim() || user?.fullName || '',
+      email: userDbData?.email || user?.primaryEmailAddress?.emailAddress || '',
+      phone: userDbData?.phone || '',
+      rollNumber: userDbData?.rollNumber || ''
+    })
+    setShowRegisterModal(true)
+  }
+
+  const handleConfirmRegistration = async (e) => {
+    e.preventDefault()
+    if (!user || !selectedEvent) return
     setIsRegistering(true)
     
     try {
-      const res = await fetch(`/api/events/${event._id}/apply`, {
+      const res = await fetch(`/api/events/${selectedEvent._id}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clerkId: user.id,
-          applicantRole
+          applicantRole,
+          applicantDetails: registerFormData
         })
       })
       
@@ -76,7 +97,7 @@ const Events = () => {
       
       // Update local event attendees count if not already in it
       setEvents(events.map(ev => {
-        if (ev._id === event._id) {
+        if (ev._id === selectedEvent._id) {
           const attendees = ev.attendees || [];
           if (!attendees.includes(userDbData?._id)) {
             return { ...ev, attendees: [...attendees, userDbData?._id || 'new'] }
@@ -85,6 +106,7 @@ const Events = () => {
         return ev
       }))
       
+      setShowRegisterModal(false)
     } catch (err) {
       toast.error(err.message || 'Could not register')
     } finally {
@@ -93,8 +115,11 @@ const Events = () => {
   }
 
   const filteredEvents = events.filter(event => {
-    if (activeTab === 'upcoming') return event.active
-    return !event.active
+    const isPast = event.date ? new Date(event.date) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
+    const isActive = event.active && !isPast;
+    
+    if (activeTab === 'upcoming') return isActive;
+    return !isActive;
   })
 
   // Check if current user is already registered for an event
@@ -171,13 +196,22 @@ const Events = () => {
                     <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-primary" /> {event.date ? format(new Date(event.date), 'MMM dd, yyyy') : 'TBD'} <Clock className="w-4 h-4 text-primary ml-2" /> {event.time}
                     </p>
-                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                    <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
                       {event.mode === 'Offline' || (event.location && !event.mode) ? (
                         <><MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {event.location || 'Campus Location'}</>
                       ) : (
-                        <><Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" /> {event.link ? <a href={event.link} target="_blank" rel="noreferrer" className="underline text-primary">Join Online Link</a> : 'Virtual / Online Meeting'}</>
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" /> 
+                          {event.link ? (
+                            <a href={event.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-semibold transition-colors">
+                              <Video className="w-3.5 h-3.5" /> Join Meeting
+                            </a>
+                          ) : (
+                            <span>Virtual / Online Meeting</span>
+                          )}
+                        </div>
                       )}
-                    </p>
+                    </div>
                     <p className="text-xs font-medium text-muted-foreground bg-muted inline-block px-2 py-1 rounded border border-border/50 flex items-center gap-1 w-fit">
                       <Users className="w-3.5 h-3.5 text-primary" /> {event.attendees?.length || 0} Registered
                     </p>
@@ -202,6 +236,101 @@ const Events = () => {
       </div>
 
 
+      <AnimatePresence>
+        {showRegisterModal && selectedEvent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border/50 rounded-2xl shadow-xl w-full max-w-md overflow-hidden relative"
+            >
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-foreground mb-2">Register for Event</h2>
+                <p className="text-sm text-muted-foreground mb-6 line-clamp-1">{selectedEvent.title}</p>
+                
+                <form onSubmit={handleConfirmRegistration} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={registerFormData.name}
+                      onChange={(e) => setRegisterFormData({ ...registerFormData, name: e.target.value })}
+                      className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+                      placeholder="Enter your name"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Email Address</label>
+                    <input
+                      type="email"
+                      value={registerFormData.email}
+                      readOnly
+                      className="w-full bg-muted border border-border/50 rounded-xl px-4 py-2.5 text-sm text-muted-foreground cursor-not-allowed"
+                    />
+                    <p className="text-xs text-muted-foreground/70">Email cannot be changed.</p>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={registerFormData.phone}
+                      readOnly
+                      className="w-full bg-muted border border-border/50 rounded-xl px-4 py-2.5 text-sm text-muted-foreground cursor-not-allowed"
+                    />
+                    <p className="text-xs text-muted-foreground/70">Phone number cannot be changed.</p>
+                  </div>
+                  
+                  {applicantRole === 'student' && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-foreground">Roll Number (Optional)</label>
+                      <input
+                        type="text"
+                        value={registerFormData.rollNumber}
+                        onChange={(e) => setRegisterFormData({ ...registerFormData, rollNumber: e.target.value })}
+                        className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+                        placeholder="Enter your roll number"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="pt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterModal(false)}
+                      className="flex-1 px-4 py-2.5 rounded-xl border border-border/50 font-medium text-foreground hover:bg-muted transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isRegistering}
+                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center disabled:opacity-70"
+                    >
+                      {isRegistering ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

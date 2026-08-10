@@ -134,11 +134,23 @@ io.on('connection', (socket) => {
   socket.emit('online_users_update', getOnlineUserIds());
 
   // Register online user socket
-  socket.on('register_user', (userId) => {
+  socket.on('register_user', async (userId) => {
     if (userId) {
       registerUserSocket(userId, socket);
       console.log(`Registered user ${userId} to socket ${socket.id}`);
       io.emit('online_users_update', getOnlineUserIds());
+      
+      // Mark all undelivered messages to this user as delivered
+      try {
+        await Message.updateMany(
+          { recipientClerkId: userId, isDelivered: false },
+          { isDelivered: true }
+        );
+        // Notify others that this user's messages are now delivered
+        io.emit('user_messages_delivered', { userId });
+      } catch (err) {
+        console.error('Error updating delivery status:', err);
+      }
     }
   });
 
@@ -183,6 +195,8 @@ io.on('connection', (socket) => {
 
       const convId = conversationId || Message.getConversationId(senderClerkId, recipientClerkId);
 
+      const isRecipientOnline = onlineUsers.has(recipientClerkId);
+
       const message = new Message({
         conversationId: convId,
         senderClerkId,
@@ -190,7 +204,8 @@ io.on('connection', (socket) => {
         text: text || '',
         type: type || 'text',
         attachment,
-        replyTo
+        replyTo,
+        isDelivered: isRecipientOnline
       });
 
       await message.save();

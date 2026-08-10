@@ -7,6 +7,29 @@ import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
+// Delete conversation for a user
+router.delete('/conversation/:conversationId', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { userId } = req.query; // clerkId of the user requesting deletion
+    
+    if (!userId) {
+      return res.status(400).json({ message: 'userId query parameter is required' });
+    }
+
+    // Add this user to the deletedFor array in all messages of this conversation
+    await Message.updateMany(
+      { conversationId },
+      { $addToSet: { deletedFor: userId } }
+    );
+
+    res.status(200).json({ success: true, message: 'Conversation deleted for user' });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    res.status(500).json({ message: 'Server error deleting conversation' });
+  }
+});
+
 // Get total unread count for a user across all conversations
 router.get('/unread-count/:clerkId', async (req, res) => {
   try {
@@ -146,6 +169,25 @@ router.put('/read/:conversationId', async (req, res) => {
     res.status(200).json({ message: 'Messages marked as read' });
   } catch (error) {
     console.error('Error marking messages read:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete conversation for a user
+router.delete('/conversation/:conversationId', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ message: 'userId is required' });
+
+    // Mark all messages in this conversation as deleted for this user
+    await Message.updateMany(
+      { conversationId: req.params.conversationId },
+      { $addToSet: { deletedFor: userId } }
+    );
+
+    res.status(200).json({ message: 'Conversation deleted' });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

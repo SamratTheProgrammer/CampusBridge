@@ -16,6 +16,12 @@ const eventApplicationSchema = new mongoose.Schema({
     enum: ['student', 'alumni'],
     required: true,
   },
+  applicantDetails: {
+    name: String,
+    email: String,
+    phone: String,
+    rollNumber: String
+  },
   status: {
     type: String,
     enum: ['pending', 'accepted', 'rejected'],

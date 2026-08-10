@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Users, GraduationCap, Building2, Briefcase, Calendar, MessageCircle } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 
 const Counter = ({ value, label, icon: Icon, delay = 0 }) => {
   const ref = useRef(null)
@@ -25,13 +25,37 @@ const Counter = ({ value, label, icon: Icon, delay = 0 }) => {
 }
 
 const Statistics = () => {
+  const [statsData, setStatsData] = useState({
+    alumni: '12,000+',
+    students: '8,000+',
+    mentors: '2,000+',
+    jobs: '5,000+',
+    companies: '300+',
+    events: '200+'
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/analytics/platform-stats');
+        if (res.ok) {
+          const data = await res.json();
+          setStatsData(data);
+        }
+      } catch (error) {
+        console.error('Error fetching platform stats:', error);
+      }
+    };
+    fetchStats();
+  }, []);
+
   const stats = [
-    { label: 'Mentor', value: '12,000+', icon: GraduationCap },
-    { label: 'Students', value: '8,000+', icon: Users },
-    { label: 'Mentors', value: '2,000+', icon: MessageCircle },
-    { label: 'Jobs', value: '5,000+', icon: Briefcase },
-    { label: 'Companies', value: '300+', icon: Building2 },
-    { label: 'Events', value: '200+', icon: Calendar },
+    { label: 'Alumni', value: statsData.alumni, icon: GraduationCap },
+    { label: 'Students', value: statsData.students, icon: Users },
+    { label: 'Mentors', value: statsData.mentors, icon: MessageCircle },
+    { label: 'Jobs', value: statsData.jobs, icon: Briefcase },
+    { label: 'Companies', value: statsData.companies, icon: Building2 },
+    { label: 'Events', value: statsData.events, icon: Calendar },
   ]
 
   return (

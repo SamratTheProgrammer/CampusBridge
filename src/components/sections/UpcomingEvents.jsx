@@ -102,9 +102,13 @@ const UpcomingEvents = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch('/api/events')
+        const res = await fetch('/api/events?category=event')
         if (res.ok) {
-          const data = await res.json()
+          let data = await res.json()
+          data = data.filter(e => {
+            const isPast = e.date ? new Date(e.date) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
+            return !isPast;
+          })
           setEvents(data.slice(0, 3))
         }
       } catch (error) {

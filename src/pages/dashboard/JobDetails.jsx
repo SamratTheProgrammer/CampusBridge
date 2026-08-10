@@ -101,8 +101,10 @@ const JobDetails = () => {
 
       // EmailJS integration
       const templateParams = {
-        to_email: job.postedBy?.email,
-        to_name: job.postedBy ? `${job.postedBy.firstName} ${job.postedBy.lastName || ''}`.trim() : 'Mentor',
+        to_email: user.primaryEmailAddress?.emailAddress, // Send confirmation to the applicant
+        to_name: user.fullName || user.firstName || 'Applicant',
+        recruiter_email: job.postedBy?.email, // Keep recruiter email just in case the template needs it
+        recruiter_name: job.postedBy ? `${job.postedBy.firstName} ${job.postedBy.lastName || ''}`.trim() : 'Mentor',
         applicant_name: user.fullName || user.firstName,
         applicant_email: user.primaryEmailAddress?.emailAddress || 'Student',
         job_title: job.title,
@@ -117,7 +119,7 @@ const JobDetails = () => {
       try {
         await emailjs.send(
           'service_a3vg38b',
-          'template_fnm2rig',
+          'template_c45j16i',
           templateParams,
           'JAA5yhiRssyoyqKqW'
         );

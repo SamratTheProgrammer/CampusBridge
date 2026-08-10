@@ -690,7 +690,13 @@ const DashboardHome = () => {
                     )}
 
                     {post.eventDetails && post.eventDetails.title && (
-                      <div className="mb-4 bg-muted/50 border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm">
+                      <div 
+                        onClick={() => {
+                          const role = user?.publicMetadata?.role || 'student';
+                          navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
+                        }}
+                        className="mb-4 bg-muted/50 hover:bg-muted border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm cursor-pointer transition-colors"
+                      >
                         <div className="w-full sm:w-16 h-16 rounded-xl bg-orange-500/10 text-orange-600 flex flex-col items-center justify-center shrink-0">
                           <CalendarIcon className="w-6 h-6 mb-1" />
                         </div>
