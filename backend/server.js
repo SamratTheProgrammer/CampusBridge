@@ -377,6 +377,14 @@ io.on('connection', (socket) => {
     emitToUserSockets(toClerkId, 'call_busy', {});
   });
 
+  // Call Ringing Notification
+  socket.on('call_ringing', ({ toClerkId, fromClerkId }) => {
+    if (fromClerkId) {
+      registerUserSocket(fromClerkId, socket);
+    }
+    emitToUserSockets(toClerkId, 'call_ringing', {});
+  });
+
   // ICE Candidates exchange
   socket.on('ice_candidate', ({ toClerkId, candidate, fromClerkId }) => {
     if (fromClerkId) {
