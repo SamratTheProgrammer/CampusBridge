@@ -57,10 +57,6 @@ const AdminLayout = () => {
     { name: 'Jobs & Internships', path: '/admin/jobs', icon: Briefcase },
     { name: 'Companies', path: '/admin/companies', icon: Building2 },
     { name: 'Events', path: '/admin/events', icon: Calendar },
-    { name: 'Communities', path: '/admin/communities', icon: MessageSquare },
-    { name: 'Announcements', path: '/admin/announcements', icon: Volume2 },
-    { name: 'Reports & Analytics', path: '/admin/analytics', icon: BarChart3 },
-    { name: 'Notifications', path: '/admin/notifications', icon: Bell },
     { name: 'Activity Logs', path: '/admin/logs', icon: History },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ]

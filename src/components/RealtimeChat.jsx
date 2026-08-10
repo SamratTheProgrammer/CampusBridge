@@ -584,9 +584,9 @@ const RealtimeChat = () => {
             </div>
           ) : filteredContacts.length > 0 ? (
             filteredContacts.map((contact) => {
-              const isActive = activeContact?.clerkId === contact.clerkId;
-              const isBlocked = blockedUsers.includes(contact.clerkId);
-              const isContactOnline = onlineUsers.includes(contact.clerkId);
+              const isActive = activeContact?.clerkId === contact.clerkId || activeContact?.id === contact.id;
+              const isBlocked = blockedUsers.includes(contact.clerkId) || blockedUsers.includes(contact.id);
+              const isContactOnline = onlineUsers.includes(contact.clerkId) || onlineUsers.includes(contact.id) || onlineUsers.includes(contact._id);
               const roleTag = (contact.userRole || (contact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase();
 
               return (
@@ -675,7 +675,7 @@ const RealtimeChat = () => {
                   className="w-10 h-10 rounded-full object-cover border border-border/50"
                 />
                 <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
-                  onlineUsers.includes(activeContact.clerkId) ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-400'
+                  (onlineUsers.includes(activeContact.clerkId) || onlineUsers.includes(activeContact.id) || onlineUsers.includes(activeContact._id)) ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-400'
                 }`} />
               </div>
 
@@ -700,7 +700,7 @@ const RealtimeChat = () => {
                     <span className="text-primary font-semibold animate-pulse">typing...</span>
                   ) : (
                     <span className="truncate flex items-center gap-2">
-                      {onlineUsers.includes(activeContact.clerkId) ? (
+                      {(onlineUsers.includes(activeContact.clerkId) || onlineUsers.includes(activeContact.id) || onlineUsers.includes(activeContact._id)) ? (
                         <span className="flex items-center gap-1 text-emerald-400 font-semibold"><Circle className="w-2 h-2 fill-current text-emerald-400" /> Online</span>
                       ) : (
                         <span className="flex items-center gap-1 text-muted-foreground"><Circle className="w-2 h-2 fill-current text-slate-500" /> Offline</span>

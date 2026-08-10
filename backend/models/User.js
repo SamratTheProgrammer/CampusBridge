@@ -82,6 +82,15 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  verificationStatus: {
+    type: String,
+    enum: ['Pending', 'Approved', 'Rejected'],
+    default: 'Pending',
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
   savedJobs: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Job'

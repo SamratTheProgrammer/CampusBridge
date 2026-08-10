@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './components/ThemeProvider'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/auth/Login'
@@ -65,10 +65,6 @@ import AdminMentorship from './pages/admin/AdminMentorship'
 import AdminJobs from './pages/admin/AdminJobs'
 import AdminCompanies from './pages/admin/AdminCompanies'
 import AdminEvents from './pages/admin/AdminEvents'
-import AdminCommunities from './pages/admin/AdminCommunities'
-import AdminAnnouncements from './pages/admin/AdminAnnouncements'
-import AdminAnalytics from './pages/admin/AdminAnalytics'
-import AdminNotifications from './pages/admin/AdminNotifications'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminActivityLogs from './pages/admin/AdminActivityLogs'
 
@@ -170,14 +166,12 @@ function AnimatedRoutes() {
             <Route path="jobs" element={<AdminJobs />} />
             <Route path="companies" element={<AdminCompanies />} />
             <Route path="events" element={<AdminEvents />} />
-            <Route path="communities" element={<AdminCommunities />} />
-            <Route path="announcements" element={<AdminAnnouncements />} />
-            <Route path="analytics" element={<AdminAnalytics />} />
-            <Route path="notifications" element={<AdminNotifications />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="logs" element={<AdminActivityLogs />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
   )

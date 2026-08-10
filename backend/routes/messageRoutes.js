@@ -173,12 +173,14 @@ router.post('/', async (req, res) => {
     const sender = await User.findOne({ clerkId: senderClerkId });
     const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'Someone';
 
+    const notifText = text ? (text.length > 40 ? text.substring(0, 40) + '...' : text) : 'Sent an attachment';
+
     await createNotificationHelper({
       recipientClerkId,
       senderClerkId,
       type: 'system',
       title: `New message from ${senderName}`,
-      message: text.length > 40 ? text.substring(0, 40) + '...' : text,
+      message: notifText,
       link: '/dashboard/messages'
     });
 

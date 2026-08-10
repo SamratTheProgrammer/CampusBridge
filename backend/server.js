@@ -34,8 +34,61 @@ const io = new Server(server, {
   }
 });
 
-// Map of clerkId -> socketId to route 1-on-1 audio/video calls directly
+// Map of clerkId -> Set of active socket.ids to support multiple devices/tabs per user
 const onlineUsers = new Map();
+
+const getOnlineUserIds = () => Array.from(onlineUsers.keys());
+
+const registerUserSocket = (userId, socket) => {
+  if (!userId || !socket?.id) return;
+  socket.userId = userId;
+  if (!onlineUsers.has(userId)) {
+    onlineUsers.set(userId, new Set());
+  }
+  const set = onlineUsers.get(userId);
+  if (set instanceof Set) {
+    set.add(socket.id);
+  }
+};
+
+const unregisterSocket = (socket) => {
+  let changed = false;
+  const socketId = socket?.id;
+  const userId = socket?.userId;
+
+  if (userId && onlineUsers.has(userId)) {
+    const set = onlineUsers.get(userId);
+    if (set instanceof Set) {
+      set.delete(socketId);
+      if (set.size === 0) {
+        onlineUsers.delete(userId);
+        changed = true;
+      }
+    }
+  }
+
+  for (const [uId, set] of onlineUsers.entries()) {
+    if (set instanceof Set && set.has(socketId)) {
+      set.delete(socketId);
+      if (set.size === 0) {
+        onlineUsers.delete(uId);
+        changed = true;
+      }
+    }
+  }
+
+  return changed;
+};
+
+const emitToUserSockets = (userId, eventName, data) => {
+  if (!userId) return;
+  const set = onlineUsers.get(userId);
+  if (set instanceof Set && set.size > 0) {
+    set.forEach((sockId) => {
+      io.to(sockId).emit(eventName, data);
+    });
+  }
+};
 
 // Middleware
 app.use(cors());
@@ -77,40 +130,43 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
+  // Send initial online users list immediately to newly connected socket
+  socket.emit('online_users_update', getOnlineUserIds());
+
   // Register online user socket
   socket.on('register_user', (userId) => {
     if (userId) {
-      if (!onlineUsers.has(userId)) { onlineUsers.set(userId, new Set()); } onlineUsers.get(userId).add(socket.id);
-      socket.userId = userId;
+      registerUserSocket(userId, socket);
       console.log(`Registered user ${userId} to socket ${socket.id}`);
-      io.emit('online_users_update', Array.from(onlineUsers.keys()));
+      io.emit('online_users_update', getOnlineUserIds());
     }
   });
 
   socket.on('get_online_users', () => {
-    socket.emit('online_users_update', Array.from(onlineUsers.keys()));
+    socket.emit('online_users_update', getOnlineUserIds());
   });
 
   // User joins a specific conversation room
   socket.on('join_room', ({ conversationId, userId }) => {
-    socket.join(conversationId);
+    if (conversationId) socket.join(conversationId);
     if (userId) {
-      if (!onlineUsers.has(userId)) { onlineUsers.set(userId, new Set()); } onlineUsers.get(userId).add(socket.id);
-      socket.userId = userId;
-      io.emit('online_users_update', Array.from(onlineUsers.keys()));
+      registerUserSocket(userId, socket);
+      io.emit('online_users_update', getOnlineUserIds());
     }
     console.log(`User ${userId} joined room ${conversationId}`);
   });
 
   // User leaves a room
   socket.on('leave_room', ({ conversationId }) => {
-    socket.leave(conversationId);
+    if (conversationId) socket.leave(conversationId);
   });
 
   // Real-time message sending
   socket.on('send_message', async ({ senderClerkId, recipientClerkId, conversationId, text, type, attachment, replyTo }) => {
     try {
       if (!senderClerkId || !recipientClerkId || (!text && !attachment)) return;
+
+      registerUserSocket(senderClerkId, socket);
 
       // Check if blocked by recipient or sender blocked recipient
       const isBlocked = await Block.findOne({
@@ -125,7 +181,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const convId = Message.getConversationId(senderClerkId, recipientClerkId);
+      const convId = conversationId || Message.getConversationId(senderClerkId, recipientClerkId);
 
       const message = new Message({
         conversationId: convId,
@@ -142,31 +198,28 @@ io.on('connection', (socket) => {
       // Emit to all sockets in conversation room
       io.to(convId).emit('receive_message', message);
 
-      const recipientSocketIds = onlineUsers.get(recipientClerkId);
-      if (recipientSocketIds) {
-        recipientSocketIds.forEach(sockId => io.to(sockId).emit('receive_message', message));
-      }
+      // Emit directly to recipient sockets
+      emitToUserSockets(recipientClerkId, 'receive_message', message);
 
       const sender = await User.findOne({ clerkId: senderClerkId });
       const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'Someone';
 
       // Also emit to recipient directly if online for sidebar updates
-      if (recipientSocketIds) {
-        recipientSocketIds.forEach(sockId => io.to(sockId).emit('update_sidebar', {
-          ...message.toObject(),
-          senderName,
-          senderImage: sender?.imageUrl
-        }));
-      }
+      emitToUserSockets(recipientClerkId, 'update_sidebar', {
+        ...message.toObject(),
+        senderName,
+        senderImage: sender?.imageUrl
+      });
 
       // Trigger notification for recipient
+      const notifText = text ? (text.length > 40 ? text.substring(0, 40) + '...' : text) : 'Sent an attachment';
       
       await createNotificationHelper({
         recipientClerkId,
         senderClerkId,
         type: 'system',
         title: `New message from ${senderName}`,
-        message: text.length > 40 ? text.substring(0, 40) + '...' : text,
+        message: notifText,
         link: '/dashboard/messages'
       });
     } catch (err) {
@@ -203,7 +256,6 @@ io.on('connection', (socket) => {
           message.deletedFor.push(userId);
           await message.save();
         }
-        // Tell the user to remove it from their UI
         socket.emit('message_deleted_for_me', { messageId });
       } else if (type === 'everyone') {
         if (message.senderClerkId === userId) {
@@ -211,7 +263,6 @@ io.on('connection', (socket) => {
           message.text = '';
           message.attachment = null;
           await message.save();
-          // Broadcast to everyone in the room
           io.to(conversationId).emit('message_deleted_for_everyone', { messageId });
         }
       }
@@ -223,14 +274,8 @@ io.on('connection', (socket) => {
   // Handle Message Edit
   socket.on('edit_message', async ({ messageId, newText, userId, conversationId }) => {
     try {
-      console.log('Editing message:', messageId, newText, userId, conversationId);
       const message = await Message.findById(messageId);
-      if (!message) {
-        console.log('Message not found');
-        return;
-      }
-      if (message.isDeleted || message.senderClerkId !== userId || message.type !== 'text') {
-        console.log('Message cannot be edited:', message.isDeleted, message.senderClerkId !== userId, message.type !== 'text');
+      if (!message || message.isDeleted || message.senderClerkId !== userId || message.type !== 'text') {
         return;
       }
 
@@ -239,7 +284,6 @@ io.on('connection', (socket) => {
       message.editedAt = new Date();
       await message.save();
 
-      console.log('Message saved, broadcasting to:', conversationId);
       io.to(conversationId).emit('message_edited', { messageId, newText, editedAt: message.editedAt });
     } catch (err) {
       console.error('Socket edit_message error:', err);
@@ -251,8 +295,7 @@ io.on('connection', (socket) => {
   // Initiate Call
   socket.on('call_user', async ({ recipientClerkId, callerClerkId, callerName, callerImage, offer, callType }) => {
     if (callerClerkId) {
-      if (!onlineUsers.has(callerClerkId)) { onlineUsers.set(callerClerkId, new Set()); } onlineUsers.get(callerClerkId).add(socket.id);
-      socket.userId = callerClerkId;
+      registerUserSocket(callerClerkId, socket);
     }
 
     // Check block status
@@ -268,9 +311,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const recipientSocketIds = onlineUsers.get(recipientClerkId);
     const convId = Message.getConversationId(callerClerkId, recipientClerkId);
-
     const callPayload = {
       callerClerkId,
       callerName,
@@ -279,84 +320,63 @@ io.on('connection', (socket) => {
       callType: callType || 'video'
     };
 
-    if (recipientSocketIds) {
-      recipientSocketIds.forEach(sockId => io.to(sockId).emit('incoming_call', callPayload));
-    }
-    // Also emit to conversation room as fallback
+    emitToUserSockets(recipientClerkId, 'incoming_call', callPayload);
     socket.to(convId).emit('incoming_call', callPayload);
   });
 
   // Answer Call
   socket.on('answer_call', ({ toClerkId, answer, fromClerkId }) => {
     if (fromClerkId) {
-      if (!onlineUsers.has(fromClerkId)) { onlineUsers.set(fromClerkId, new Set()); } onlineUsers.get(fromClerkId).add(socket.id);
-      socket.userId = fromClerkId;
+      registerUserSocket(fromClerkId, socket);
     }
-    const callerSocketIds = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-
-    if (callerSocketIds) {
-      callerSocketIds.forEach(sockId => io.to(sockId).emit('call_accepted', { answer }));
-    }
+    emitToUserSockets(toClerkId, 'call_accepted', { answer });
     socket.to(convId).emit('call_accepted', { answer });
   });
 
   // Reject Call
   socket.on('reject_call', ({ toClerkId, fromClerkId }) => {
     if (fromClerkId) {
-      if (!onlineUsers.has(fromClerkId)) { onlineUsers.set(fromClerkId, new Set()); } onlineUsers.get(fromClerkId).add(socket.id);
-      socket.userId = fromClerkId;
+      registerUserSocket(fromClerkId, socket);
     }
-    const callerSocketIds = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-    if (callerSocketIds) {
-      callerSocketIds.forEach(sockId => io.to(sockId).emit('call_rejected'));
-    }
-    socket.to(convId).emit('call_rejected');
+    emitToUserSockets(toClerkId, 'call_rejected', {});
+    socket.to(convId).emit('call_rejected', {});
   });
 
   // End Call
   socket.on('end_call', ({ toClerkId, fromClerkId }) => {
     if (fromClerkId) {
-      if (!onlineUsers.has(fromClerkId)) { onlineUsers.set(fromClerkId, new Set()); } onlineUsers.get(fromClerkId).add(socket.id);
-      socket.userId = fromClerkId;
+      registerUserSocket(fromClerkId, socket);
     }
-    const partnerSocketIds = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-    if (partnerSocketIds) {
-      partnerSocketIds.forEach(sockId => io.to(sockId).emit('call_ended'));
-    }
-    socket.to(convId).emit('call_ended');
+    emitToUserSockets(toClerkId, 'call_ended', {});
+    socket.to(convId).emit('call_ended', {});
   });
 
   // ICE Candidates exchange
   socket.on('ice_candidate', ({ toClerkId, candidate, fromClerkId }) => {
     if (fromClerkId) {
-      if (!onlineUsers.has(fromClerkId)) { onlineUsers.set(fromClerkId, new Set()); } onlineUsers.get(fromClerkId).add(socket.id);
-      socket.userId = fromClerkId;
+      registerUserSocket(fromClerkId, socket);
     }
-    const partnerSocketIds = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-    if (partnerSocketIds) {
-      partnerSocketIds.forEach(sockId => io.to(sockId).emit('ice_candidate', { candidate }));
-    }
+    emitToUserSockets(toClerkId, 'ice_candidate', { candidate });
     socket.to(convId).emit('ice_candidate', { candidate });
   });
 
   socket.on('disconnect', () => {
-    if (socket.userId) {
-      const userSockets = onlineUsers.get(socket.userId);
-      if (userSockets) {
-        userSockets.delete(socket.id);
-        if (userSockets.size === 0) {
-          onlineUsers.delete(socket.userId);
-          io.emit('online_users_update', Array.from(onlineUsers.keys()));
-        }
-      }
+    const changed = unregisterSocket(socket);
+    if (changed) {
+      io.emit('online_users_update', getOnlineUserIds());
     }
     console.log(`Socket disconnected: ${socket.id}`);
   });
 });
+
+// Periodic heartbeat broadcast of online users to ensure zero latency sync across devices
+setInterval(() => {
+  io.emit('online_users_update', getOnlineUserIds());
+}, 5000);
 
 // Handle server startup errors gracefully
 server.on('error', (err) => {
