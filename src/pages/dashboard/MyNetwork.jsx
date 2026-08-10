@@ -290,7 +290,7 @@ const MyNetwork = () => {
                         {/* Action Buttons: Message & Video Call */}
                         <div className="flex gap-2 pt-2 border-t border-border/30">
                           <button
-                            onClick={() => navigate('/dashboard/messages')}
+                            onClick={() => navigate(`/dashboard/messages?userId=${target?.clerkId}`)}
                             className="flex-1 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
                           >
                             <MessageSquare className="w-3.5 h-3.5" /> Message

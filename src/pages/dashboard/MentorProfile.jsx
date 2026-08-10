@@ -307,7 +307,7 @@ const MentorProfile = () => {
             )}
 
             <button 
-              onClick={() => navigate('/dashboard/messages')}
+              onClick={() => navigate(`/dashboard/messages?userId=${mentor.clerkId || mentor._id}`)}
               className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
             >
               <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>

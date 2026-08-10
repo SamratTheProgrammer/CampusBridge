@@ -89,7 +89,9 @@ router.get('/conversations/:clerkId', async (req, res) => {
           id: partnerUser.clerkId,
           clerkId: partnerUser.clerkId,
           name: `${partnerUser.firstName} ${partnerUser.lastName || ''}`.trim(),
-          role: partnerUser.headline || partnerUser.role,
+          role: partnerUser.headline || partnerUser.role || 'Member',
+          userRole: partnerUser.role || 'student',
+          headline: partnerUser.headline || `${partnerUser.role || 'Member'} at CampusBridge`,
           image: partnerUser.imageUrl,
           conversationId,
           lastMessage: displayLastMessage,
@@ -264,6 +266,80 @@ router.get('/blocked/:clerkId', async (req, res) => {
     res.status(200).json(blockedIds);
   } catch (error) {
     console.error('Error fetching blocked list:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Edit message REST API
+router.put('/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { newText, userId } = req.body;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    if (message.isDeleted || message.senderClerkId !== userId || message.type !== 'text') {
+      return res.status(403).json({ message: 'Cannot edit this message' });
+    }
+
+    message.text = newText;
+    message.isEdited = true;
+    message.editedAt = new Date();
+    await message.save();
+
+    if (req.io) {
+      req.io.to(message.conversationId).emit('message_edited', {
+        messageId,
+        newText,
+        editedAt: message.editedAt
+      });
+    }
+
+    res.status(200).json(message);
+  } catch (error) {
+    console.error('Error editing message:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete message REST API
+router.delete('/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { type, userId } = req.query;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    if (type === 'me') {
+      if (!message.deletedFor.includes(userId)) {
+        message.deletedFor.push(userId);
+        await message.save();
+      }
+      if (req.io) {
+        req.io.to(message.conversationId).emit('message_deleted_for_me', { messageId, userId });
+      }
+    } else if (type === 'everyone') {
+      if (message.senderClerkId === userId) {
+        message.isDeleted = true;
+        message.text = '';
+        message.attachment = null;
+        await message.save();
+
+        if (req.io) {
+          req.io.to(message.conversationId).emit('message_deleted_for_everyone', { messageId });
+        }
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Message deleted' });
+  } catch (error) {
+    console.error('Error deleting message:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

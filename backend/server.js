@@ -87,12 +87,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('get_online_users', () => {
+    socket.emit('online_users_update', Array.from(onlineUsers.keys()));
+  });
+
   // User joins a specific conversation room
   socket.on('join_room', ({ conversationId, userId }) => {
     socket.join(conversationId);
     if (userId) {
       onlineUsers.set(userId, socket.id);
       socket.userId = userId;
+      io.emit('online_users_update', Array.from(onlineUsers.keys()));
     }
     console.log(`User ${userId} joined room ${conversationId}`);
   });
@@ -120,7 +125,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const convId = conversationId || Message.getConversationId(senderClerkId, recipientClerkId);
+      const convId = Message.getConversationId(senderClerkId, recipientClerkId);
 
       const message = new Message({
         conversationId: convId,
@@ -134,14 +139,19 @@ io.on('connection', (socket) => {
 
       await message.save();
 
-      // Emit to all users in this conversation room
+      // Emit to all sockets in conversation room
       io.to(convId).emit('receive_message', message);
+
+      const recipientSocketId = onlineUsers.get(recipientClerkId);
+      if (recipientSocketId) {
+        // Emit receive_message directly to recipient socket as well (in case recipient hasn't explicitly joined room)
+        io.to(recipientSocketId).emit('receive_message', message);
+      }
 
       const sender = await User.findOne({ clerkId: senderClerkId });
       const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'Someone';
 
       // Also emit to recipient directly if online for sidebar updates
-      const recipientSocketId = onlineUsers.get(recipientClerkId);
       if (recipientSocketId) {
         io.to(recipientSocketId).emit('update_sidebar', {
           ...message.toObject(),

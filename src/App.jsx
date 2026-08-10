@@ -116,7 +116,7 @@ function AnimatedRoutes() {
         <Route path="/sync-user" element={<SyncUser />} />
 
         {/* Authenticated Dashboard Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['student', 'user', 'alumni']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['student', 'user']} />}>
           <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
             <Route index element={<DashboardHome />} />
             <Route path="profile" element={<MyProfile />} />
@@ -140,7 +140,7 @@ function AnimatedRoutes() {
         </Route>
 
         {/* Authenticated Mentor Dashboard Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['mentor']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['mentor', 'alumni']} />}>
           <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
             <Route index element={<MentorHome />} />
             <Route path="profile" element={<MyProfile />} />

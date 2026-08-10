@@ -1,6 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
+import Connection from '../models/Connection.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 
 const router = express.Router();
@@ -116,10 +117,25 @@ router.get('/mentors/all', async (req, res) => {
   }
 });
 
-// Get suggested mentors
+// Get suggested mentors (excluding existing friends and self)
 router.get('/mentors/suggested', async (req, res) => {
   try {
+    const { userId } = req.query;
+    let excludedClerkIds = [];
+
+    if (userId && userId !== 'undefined') {
+      const connections = await Connection.find({
+        $or: [{ requesterClerkId: userId }, { recipientClerkId: userId }],
+        status: 'accepted'
+      });
+      excludedClerkIds = [
+        userId,
+        ...connections.map(c => c.requesterClerkId === userId ? c.recipientClerkId : c.requesterClerkId)
+      ];
+    }
+
     const mentors = await User.find({ 
+      clerkId: { $nin: excludedClerkIds },
       role: { $in: ['mentor', 'alumni'] },
       profileVisibility: { $ne: 'hidden' }
     }).limit(5);

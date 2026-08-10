@@ -230,7 +230,7 @@ const StudentProfile = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 <button 
-                  onClick={() => navigate('/mentor-dashboard/messages')}
+                  onClick={() => navigate(`/mentor-dashboard/messages?userId=${student.clerkId || student._id}`)}
                   className="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
                 >
                   <MessageSquare className="w-4 h-4" /> Message

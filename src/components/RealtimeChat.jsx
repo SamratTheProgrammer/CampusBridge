@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, CheckCheck, Smile, Ban, Palette, Trash2, User, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
 import toast from 'react-hot-toast';
 import EmojiPicker from 'emoji-picker-react';
@@ -19,7 +19,11 @@ const THEMES = [
 const RealtimeChat = () => {
   const { user } = useUser();
   const navigate = useNavigate();
+  const location = useLocation();
   
+  const searchParams = new URLSearchParams(location.search);
+  const targetUserId = searchParams.get('userId') || location.state?.selectedUserId || location.state?.clerkId;
+
   const [contacts, setContacts] = useState([]);
   const [activeContact, setActiveContact] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -29,6 +33,12 @@ const RealtimeChat = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+
+  // Helper to generate consistent conversation ID
+  const getConvId = (id1, id2) => {
+    if (!id1 || !id2) return '';
+    return [id1, id2].sort().join('_');
+  };
 
   // New Chat Features State
   const [selectedFile, setSelectedFile] = useState(null);
@@ -75,7 +85,7 @@ const RealtimeChat = () => {
         setShowMoreMenu(false);
       }
       if (!e.target.closest('.message-context-menu') && !e.target.closest('.message-menu-trigger')) {
-        setActiveMessageMenu(null); // hide message context menus on click anywhere outside
+        setActiveMessageMenu(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -104,7 +114,7 @@ const RealtimeChat = () => {
       if (res.ok) {
         const data = await res.json();
         setContacts(data);
-        if (data.length > 0 && !activeContact) {
+        if (data.length > 0 && !activeContact && !targetUserId) {
           setActiveContact(data[0]);
         }
       }
@@ -119,6 +129,7 @@ const RealtimeChat = () => {
     fetchContacts();
     if (user?.id) {
       socket.emit('register_user', user.id);
+      socket.emit('get_online_users');
       fetch(`/api/messages/blocked/${user.id}`)
         .then((res) => (res.ok ? res.json() : []))
         .then((data) => setBlockedUsers(data))
@@ -126,11 +137,51 @@ const RealtimeChat = () => {
     }
   }, [user]);
 
+  // Handle URL query target user auto-selection
+  useEffect(() => {
+    if (!targetUserId || !user) return;
+
+    const loadTargetUser = async () => {
+      const existing = contacts.find((c) => c.clerkId === targetUserId || c.id === targetUserId);
+      if (existing) {
+        setActiveContact(existing);
+        setIsMobileChatOpen(true);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/users/${targetUserId}`);
+        if (res.ok) {
+          const u = await res.json();
+          const newContact = {
+            id: u.clerkId,
+            clerkId: u.clerkId,
+            name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
+            role: u.headline || u.role || 'Member',
+            userRole: u.role || 'student',
+            headline: u.headline || `${u.role || 'Member'} at CampusBridge`,
+            image: u.imageUrl,
+            conversationId: getConvId(user.id, u.clerkId),
+            lastMessage: 'Start a conversation',
+            unread: 0
+          };
+          setContacts((prev) => [newContact, ...prev.filter((c) => c.clerkId !== u.clerkId)]);
+          setActiveContact(newContact);
+          setIsMobileChatOpen(true);
+        }
+      } catch (err) {
+        console.error('Error loading target user into chat:', err);
+      }
+    };
+
+    loadTargetUser();
+  }, [targetUserId, user, contacts.length]);
+
   // Handle active contact selection & room joining
   useEffect(() => {
     if (!user || !activeContact) return;
 
-    const conversationId = activeContact.conversationId;
+    const conversationId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
     setIsLoadingMessages(true);
     setIsOtherTyping(false);
     setShowMoreMenu(false);
@@ -158,42 +209,55 @@ const RealtimeChat = () => {
 
     // Socket Event Listeners
     const handleReceiveMessage = (msg) => {
-      if (msg.conversationId === conversationId) {
+      const activeConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
+      const isForActiveContact =
+        msg.conversationId === activeConvId ||
+        (msg.senderClerkId === activeContact.clerkId && msg.recipientClerkId === user.id) ||
+        (msg.senderClerkId === user.id && msg.recipientClerkId === activeContact.clerkId);
+
+      if (isForActiveContact) {
         setMessages((prev) => {
-          if (prev.some((m) => m._id === msg._id)) return prev;
+          const tempIdx = prev.findIndex(
+            (m) => String(m._id).startsWith('temp_') && m.senderClerkId === msg.senderClerkId && m.text === msg.text
+          );
+          if (tempIdx !== -1) {
+            const updated = [...prev];
+            updated[tempIdx] = msg;
+            return updated;
+          }
+          if (prev.some((m) => String(m._id) === String(msg._id))) return prev;
           return [...prev, msg];
         });
         if (msg.recipientClerkId === user.id) {
-          socket.emit('mark_read', { conversationId, userId: user.id });
+          socket.emit('mark_read', { conversationId: activeConvId, userId: user.id });
         }
       }
       fetchContacts();
     };
 
     const handleUserTyping = ({ userId, isTyping }) => {
-      if (userId !== user.id) {
+      if (userId !== user.id && userId === activeContact.clerkId) {
         setIsOtherTyping(isTyping);
       }
     };
 
     const handleMessagesRead = ({ conversationId: cId }) => {
-      if (cId === conversationId) {
+      const activeConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
+      if (cId === activeConvId) {
         setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
       }
     };
 
     const handleMessageDeletedMe = ({ messageId }) => {
-      setMessages((prev) => prev.filter((m) => m._id !== messageId));
+      setMessages((prev) => prev.filter((m) => String(m._id) !== String(messageId)));
     };
 
     const handleMessageDeletedEveryone = ({ messageId }) => {
-      toast.success('Received delete_everyone for ' + messageId);
-      setMessages((prev) => prev.map((m) => m._id === messageId ? { ...m, isDeleted: true, text: '', attachment: null } : m));
+      setMessages((prev) => prev.map((m) => String(m._id) === String(messageId) ? { ...m, isDeleted: true, text: '', attachment: null } : m));
     };
 
     const handleMessageEdited = ({ messageId, newText, editedAt }) => {
-      toast.success('Received edit for ' + messageId);
-      setMessages((prev) => prev.map((m) => m._id === messageId ? { ...m, text: newText, isEdited: true, editedAt } : m));
+      setMessages((prev) => prev.map((m) => String(m._id) === String(messageId) ? { ...m, text: newText, isEdited: true, editedAt } : m));
     };
 
     socket.on('receive_message', handleReceiveMessage);
@@ -228,7 +292,7 @@ const RealtimeChat = () => {
     }, 2000);
   };
 
-  // Handle Send Message
+  // Handle Send / Edit Message
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     if ((!inputText.trim() && !selectedFile) || !activeContact || !user || isUploading) return;
@@ -240,16 +304,34 @@ const RealtimeChat = () => {
 
     const text = inputText.trim();
 
+    // Handling Message Edit
     if (editingMessage) {
-      toast.success(`Sending edit for msg ${editingMessage._id} with text: ${text}`);
+      const msgId = editingMessage._id;
+      const editedTime = new Date().toISOString();
+
+      // 1. Optimistic local update
+      setMessages((prev) => prev.map((m) => String(m._id) === String(msgId) ? { ...m, text, isEdited: true, editedAt: editedTime } : m));
+      setInputText('');
+      setEditingMessage(null);
+
+      // 2. Socket emit
       socket.emit('edit_message', {
-        messageId: editingMessage._id,
+        messageId: msgId,
         newText: text,
         userId: user.id,
         conversationId: activeContact.conversationId
       });
-      setInputText('');
-      setEditingMessage(null);
+
+      // 3. REST API persistence
+      try {
+        await fetch(`/api/messages/${msgId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newText: text, userId: user.id })
+        });
+      } catch (err) {
+        console.error('Error saving edited message:', err);
+      }
       return;
     }
 
@@ -290,10 +372,6 @@ const RealtimeChat = () => {
       setIsUploading(false);
     }
 
-    setInputText('');
-    setSelectedFile(null);
-    setFilePreview(null);
-
     const replyData = replyingTo ? {
       messageId: replyingTo._id,
       text: replyingTo.type === 'image' ? '📸 Image' : replyingTo.type === 'video' ? '🎥 Video' : replyingTo.type === 'document' ? '📄 Document' : replyingTo.text,
@@ -302,10 +380,30 @@ const RealtimeChat = () => {
     
     setReplyingTo(null);
 
+    // 1. Optimistic Local UI update (Zero Latency)
+    const tempId = 'temp_' + Date.now();
+    const tempMessage = {
+      _id: tempId,
+      conversationId: activeContact.conversationId,
+      senderClerkId: user.id,
+      recipientClerkId: activeContact.clerkId,
+      text,
+      type: messageType,
+      attachment: attachmentData,
+      replyTo: replyData,
+      createdAt: new Date().toISOString(),
+      isRead: false
+    };
+
+    setMessages((prev) => [...prev, tempMessage]);
+    setInputText('');
+    setSelectedFile(null);
+    setFilePreview(null);
+
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     socket.emit('typing', { conversationId: activeContact.conversationId, userId: user.id, isTyping: false });
 
-    // Emit live message via Socket.io
+    // 2. Emit live message via Socket.io
     socket.emit('send_message', {
       senderClerkId: user.id,
       recipientClerkId: activeContact.clerkId,
@@ -330,14 +428,31 @@ const RealtimeChat = () => {
     e.target.value = '';
   };
 
-  const handleDeleteMessage = (messageId, type) => {
+  const handleDeleteMessage = async (messageId, type) => {
+    // 1. Optimistic local update
+    if (type === 'everyone') {
+      setMessages((prev) => prev.map((m) => String(m._id) === String(messageId) ? { ...m, isDeleted: true, text: '', attachment: null } : m));
+    } else {
+      setMessages((prev) => prev.filter((m) => String(m._id) !== String(messageId)));
+    }
+    setActiveMessageMenu(null);
+
+    // 2. Socket emit
     socket.emit('delete_message', {
       messageId,
       type,
       userId: user.id,
       conversationId: activeContact.conversationId
     });
-    setActiveMessageMenu(null);
+
+    // 3. REST API persistence
+    try {
+      await fetch(`/api/messages/${messageId}?type=${type}&userId=${user.id}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.error('Error deleting message:', err);
+    }
   };
 
   // Block / Unblock User
@@ -444,6 +559,9 @@ const RealtimeChat = () => {
             filteredContacts.map((contact) => {
               const isActive = activeContact?.clerkId === contact.clerkId;
               const isBlocked = blockedUsers.includes(contact.clerkId);
+              const isContactOnline = onlineUsers.includes(contact.clerkId);
+              const roleTag = (contact.userRole || (contact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase();
+
               return (
                 <div
                   key={contact.clerkId}
@@ -452,17 +570,36 @@ const RealtimeChat = () => {
                     isActive ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-muted/40 border-l-4 border-l-transparent'
                   }`}
                 >
-                  <img
-                    src={contact.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${contact.name}`}
-                    alt={contact.name}
-                    className="w-12 h-12 rounded-full object-cover shrink-0 border border-border/50"
-                  />
+                  <div className="relative shrink-0">
+                    <img
+                      src={contact.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${contact.name}`}
+                      alt={contact.name}
+                      className="w-12 h-12 rounded-full object-cover border border-border/50"
+                    />
+                    <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-card ${
+                      isContactOnline ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-400'
+                    }`} title={isContactOnline ? 'Online' : 'Offline'} />
+                  </div>
+
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-0.5">
-                      <h4 className={`font-semibold text-sm truncate flex items-center gap-1.5 ${contact.unread > 0 ? 'text-foreground font-bold' : 'text-foreground/90'}`}>
-                        {contact.name}
-                        {isBlocked && <Ban className="w-3 h-3 text-red-500" title="Blocked" />}
-                      </h4>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <h4 className={`font-semibold text-sm truncate ${contact.unread > 0 ? 'text-foreground font-bold' : 'text-foreground/90'}`}>
+                          {contact.name}
+                        </h4>
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                          roleTag === 'mentor'
+                            ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                            : roleTag === 'alumni'
+                            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                            : roleTag === 'admin'
+                            ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                            : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                        }`}>
+                          {roleTag}
+                        </span>
+                        {isBlocked && <Ban className="w-3 h-3 text-red-500 shrink-0" title="Blocked" />}
+                      </div>
                       {contact.lastMessageTime && (
                         <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
                           {formatMessageTime(contact.lastMessageTime)}
@@ -496,21 +633,39 @@ const RealtimeChat = () => {
         <div className={`flex-1 flex-col h-full ${currentTheme.bg} transition-colors duration-300 relative ${isMobileChatOpen ? 'flex' : 'hidden sm:flex'}`}>
           {/* Header */}
           <div className="h-16 px-4 sm:px-6 border-b border-border/40 flex items-center justify-between bg-card/90 backdrop-blur z-20 shrink-0 relative">
-            <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={viewPartnerProfile}>
+            <div className="flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0" onClick={viewPartnerProfile}>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsMobileChatOpen(false); }}
                 className="sm:hidden p-2 -ml-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
               </button>
-              <img
-                src={activeContact.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeContact.name}`}
-                alt={activeContact.name}
-                className="w-10 h-10 rounded-full object-cover border border-border/50 shrink-0"
-              />
+
+              <div className="relative shrink-0">
+                <img
+                  src={activeContact.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeContact.name}`}
+                  alt={activeContact.name}
+                  className="w-10 h-10 rounded-full object-cover border border-border/50"
+                />
+                <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
+                  onlineUsers.includes(activeContact.clerkId) ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-400'
+                }`} />
+              </div>
+
               <div className="min-w-0">
-                <h3 className="font-bold text-foreground text-sm flex items-center gap-1.5 truncate">
+                <h3 className="font-bold text-foreground text-sm flex items-center gap-2 truncate">
                   <span className="truncate">{activeContact.name}</span>
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                    (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'mentor'
+                      ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                      : (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'alumni'
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                      : (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'admin'
+                      ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                      : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                  }`}>
+                    {activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')}
+                  </span>
                   {isCurrentPartnerBlocked && <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full font-medium shrink-0">Blocked</span>}
                 </h3>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
@@ -519,11 +674,11 @@ const RealtimeChat = () => {
                   ) : (
                     <span className="truncate flex items-center gap-2">
                       {onlineUsers.includes(activeContact.clerkId) ? (
-                        <span className="flex items-center gap-1 text-green-500 font-semibold"><Circle className="w-2 h-2 fill-current" /> Online</span>
+                        <span className="flex items-center gap-1 text-emerald-400 font-semibold"><Circle className="w-2 h-2 fill-current text-emerald-400" /> Online</span>
                       ) : (
-                        <span>Offline</span>
+                        <span className="flex items-center gap-1 text-muted-foreground"><Circle className="w-2 h-2 fill-current text-slate-500" /> Offline</span>
                       )}
-                      &bull; {activeContact.role || 'Member'}
+                      &bull; <span className="truncate">{activeContact.headline || activeContact.role || 'CampusBridge Member'}</span>
                     </span>
                   )}
                 </p>

@@ -35,6 +35,7 @@ const DashboardHome = () => {
 
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
+  const [recentJobs, setRecentJobs] = useState([])
   const [connections, setConnections] = useState({})
   const [isConnecting, setIsConnecting] = useState(null)
   
@@ -96,10 +97,11 @@ const DashboardHome = () => {
 
   const fetchMentorsAndConnections = async () => {
     try {
-      const [mentorsRes, connsRes, userRes] = await Promise.all([
-        fetch('/api/users/mentors/suggested'),
+      const [mentorsRes, connsRes, userRes, jobsRes] = await Promise.all([
+        user ? fetch(`/api/users/mentors/suggested?userId=${user.id}`) : fetch('/api/users/mentors/suggested'),
         user ? fetch(`/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
-        user ? fetch(`/api/users/${user.id}`) : Promise.resolve({ ok: false })
+        user ? fetch(`/api/users/${user.id}`) : Promise.resolve({ ok: false }),
+        fetch('/api/jobs')
       ])
       
       if (mentorsRes.ok) {
@@ -126,6 +128,16 @@ const DashboardHome = () => {
       if (userRes.ok) {
         const userData = await userRes.json()
         setProfileViews(userData.profileViews || 0)
+      }
+
+      if (jobsRes.ok) {
+        const jobsData = await jobsRes.json()
+        // Take top 4 most recently posted active jobs
+        const sortedJobs = (Array.isArray(jobsData) ? jobsData : [])
+          .filter(j => j.active !== false)
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 4)
+        setRecentJobs(sortedJobs)
       }
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -367,10 +379,7 @@ const DashboardHome = () => {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random&color=fff&bold=true`
   }
 
-  const recentOpportunities = [
-    { id: 1, role: 'SDE Intern', company: 'Google', location: 'Bangalore' },
-    { id: 2, role: 'Frontend Dev', company: 'Microsoft', location: 'Remote' },
-  ]
+
 
   const formatTime = (dateString) => {
     const date = new Date(dateString)
@@ -781,51 +790,70 @@ const DashboardHome = () => {
             <h3 className="font-bold text-foreground">Suggested Mentors</h3>
           </div>
           <div className="space-y-4">
-            {recommendedMentors.length > 0 ? recommendedMentors.map(mentor => (
-              <div key={mentor._id} className="flex gap-3 items-start">
-                <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50" />
-                <div>
-                  <h4 className="font-semibold text-sm text-foreground leading-tight line-clamp-1">{mentor.firstName} {mentor.lastName}</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-2">{mentor.headline || mentor.role}</p>
-                  
-                  {connections[mentor.clerkId] === 'pending' ? (
-                    <button disabled className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted px-3 py-1 rounded-full flex items-center gap-1 cursor-not-allowed">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Pending
-                    </button>
-                  ) : connections[mentor.clerkId] === 'accepted' ? (
-                    <button disabled className="text-xs font-medium text-green-500 border border-green-500/20 bg-green-500/10 px-3 py-1 rounded-full cursor-default">
-                      Connected
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => handleConnect(mentor.clerkId)}
-                      disabled={isConnecting === mentor.clerkId}
-                      className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
-                      {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )) : (
-              <p className="text-xs text-muted-foreground italic">No mentors available right now.</p>
+            {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 0 ? (
+              recommendedMentors
+                .filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
+                .slice(0, 5)
+                .map(mentor => (
+                  <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start">
+                    <Link to={`/dashboard/mentor/${mentor.username || mentor.clerkId}`} className="shrink-0">
+                      <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 hover:ring-2 hover:ring-primary/40 transition-all" />
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <Link to={`/dashboard/mentor/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
+                        {mentor.firstName} {mentor.lastName}
+                      </Link>
+                      <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{mentor.headline || mentor.role}</p>
+                      
+                      {connections[mentor.clerkId] === 'pending' ? (
+                        <button disabled className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted px-3 py-1 rounded-full flex items-center gap-1 cursor-not-allowed">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Request Sent
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleConnect(mentor.clerkId)}
+                          disabled={isConnecting === mentor.clerkId}
+                          className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
+                          {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No new mentor suggestions right now.</p>
             )}
           </div>
         </div>
 
-        {/* Recent Opportunities */}
+        {/* Recent Jobs */}
         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-foreground">Recent Jobs</h3>
           </div>
-          <div className="space-y-4">
-            {recentOpportunities.map(job => (
-              <div key={job.id} className="group cursor-pointer">
-                <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{job.role}</h4>
-                <p className="text-xs text-muted-foreground">{job.company} • {job.location}</p>
-              </div>
-            ))}
+          <div className="space-y-3.5">
+            {recentJobs.length > 0 ? (
+              recentJobs.map(job => {
+                const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
+                return (
+                  <Link key={job._id || job.id} to="/dashboard/jobs" className="group block cursor-pointer">
+                    <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
+                      {job.title}
+                    </h4>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {companyName} • {job.location || 'Remote'}
+                    </p>
+                    <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                      {job.createdAt ? formatTime(job.createdAt) : 'Recently posted'}
+                    </span>
+                  </Link>
+                );
+              })
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No recent job postings.</p>
+            )}
           </div>
-          <Link to="/dashboard/jobs" className="inline-block mt-4 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
+          <Link to="/dashboard/jobs" className="inline-block mt-4 text-xs font-semibold text-primary hover:underline transition-colors">
             View all opportunities →
           </Link>
         </div>
