@@ -272,6 +272,44 @@ const AdminVerification = () => {
               </div>
             )}
 
+            {/* Work Experience History */}
+            {selectedMentor.experienceList && selectedMentor.experienceList.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Work Experience</h4>
+                <div className="space-y-2">
+                  {selectedMentor.experienceList.map((exp, idx) => (
+                    <div key={idx} className="bg-muted/30 p-3 rounded-xl border border-border/40 text-xs space-y-1">
+                      <div className="flex justify-between font-bold text-foreground">
+                        <span>{exp.title}</span>
+                        <span className="text-primary">{exp.duration}</span>
+                      </div>
+                      <p className="text-muted-foreground font-semibold">{exp.company}</p>
+                      {exp.description && <p className="text-muted-foreground leading-snug">{exp.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Education Credentials */}
+            {selectedMentor.educationList && selectedMentor.educationList.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Education Credentials</h4>
+                <div className="space-y-2">
+                  {selectedMentor.educationList.map((edu, idx) => (
+                    <div key={idx} className="bg-muted/30 p-3 rounded-xl border border-border/40 text-xs space-y-1">
+                      <div className="flex justify-between font-bold text-foreground">
+                        <span>{edu.degree}</span>
+                        <span className="text-primary">{edu.duration}</span>
+                      </div>
+                      <p className="text-muted-foreground font-semibold">{edu.institution}</p>
+                      {edu.grade && <p className="text-muted-foreground">Grade: {edu.grade}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Skills */}
             {selectedMentor.skills && selectedMentor.skills.length > 0 && (
               <div className="space-y-2">

@@ -13,8 +13,8 @@ const BlockedUserScreen = ({ blockReason }) => {
 
   const handleContactSupport = () => {
     const subject = encodeURIComponent(`Account Unblock Appeal - ${userEmail}`)
-    const body = encodeURIComponent(`Hello CampusBridge Admin,\n\nMy account (${userEmail}) has been blocked.\nReason displayed: ${reasonText}\n\nI would like to request a review of my account suspension.\n\nThank you,\n${user?.fullName || userEmail}`)
-    window.location.href = `mailto:support@campusbridge.com?subject=${subject}&body=${body}`
+    const body = encodeURIComponent(`Hello CampusBridge Support,\n\nMy account (${userEmail}) has been blocked.\nReason displayed: ${reasonText}\n\nI would like to request a review of my account suspension.\n\nThank you,\n${user?.fullName || userEmail}`)
+    window.location.href = `mailto:campusbridgeofficial3@gmail.com?subject=${subject}&body=${body}`
   }
 
   const handleGoToLandingContact = () => {

@@ -60,21 +60,9 @@ const ContactSection = () => {
                     <Mail className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="text-xs text-muted-foreground block font-medium">Official Support Email</span>
-                    <a href="mailto:support@campusbridge.com" className="text-sm font-bold text-foreground hover:text-primary transition-colors">
-                      support@campusbridge.com
-                    </a>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                    <ShieldAlert className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block font-medium">Account Appeals & Admin</span>
-                    <a href="mailto:admin@campusbridge.com" className="text-sm font-bold text-foreground hover:text-primary transition-colors">
-                      admin@campusbridge.com
+                    <span className="text-xs text-muted-foreground block font-medium">Official Contact & Support Email</span>
+                    <a href="mailto:campusbridgeofficial3@gmail.com" className="text-sm font-bold text-primary hover:underline transition-colors break-all">
+                      campusbridgeofficial3@gmail.com
                     </a>
                   </div>
                 </div>

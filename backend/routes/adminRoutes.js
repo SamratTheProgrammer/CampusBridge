@@ -160,6 +160,8 @@ const formatMentorVerification = (u) => {
     aboutMe: u.aboutMe || '',
     headline: u.headline || `${role} at ${company}`,
     resumeUrl: u.resumeUrl || '',
+    experienceList: u.experience || [],
+    educationList: u.education || [],
     createdAt: u.createdAt
   };
 };

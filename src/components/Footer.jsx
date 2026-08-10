@@ -57,7 +57,7 @@ const Footer = () => {
             <ul className="space-y-3">
               <li><Link to="/about" className="text-muted-foreground hover:text-primary transition-colors text-sm">About</Link></li>
               <li><Link to="/careers" className="text-muted-foreground hover:text-primary transition-colors text-sm">Careers</Link></li>
-              <li><Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors text-sm">Contact</Link></li>
+              <li><a href="/#contact-us" className="text-muted-foreground hover:text-primary transition-colors text-sm">Contact</a></li>
               <li>
                 <Link to="/admin/login" className="text-muted-foreground hover:text-primary transition-colors text-sm flex items-center gap-1.5 font-medium">
                   <Shield className="w-3.5 h-3.5 text-primary" /> Admin Portal

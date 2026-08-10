@@ -6,6 +6,8 @@ import toast from 'react-hot-toast'
 import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
 import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
+import MentorOnboardingBanner from '../../components/mentor/MentorOnboardingBanner'
+import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
 import { 
   Users, 
   FileText, 
@@ -34,6 +36,8 @@ const MentorHome = () => {
 
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
+  const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 0, missingFields: [] })
+  const [verificationStatus, setVerificationStatus] = useState('Pending')
 
   // Dynamic States
   const [profileViews, setProfileViews] = useState(0)
@@ -268,14 +272,13 @@ const MentorHome = () => {
   }
 
   const handleLike = async (postId) => {
-    if (!user) return;
+    if (!user) return
     
-    // Optimistic UI update
-    setPosts(posts.map(p => {
+    setPosts(prev => prev.map(p => {
       if (p._id === postId) {
-        const safeLikes = p.likes || []
+        const safeLikes = Array.isArray(p.likes) ? p.likes : []
         const hasLiked = safeLikes.some(like => (like.clerkId || like) === user.id)
-        let newLikes;
+        let newLikes
         if (hasLiked) {
           newLikes = safeLikes.filter(like => (like.clerkId || like) !== user.id)
         } else {
@@ -374,7 +377,11 @@ const MentorHome = () => {
   ]
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-8 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-8">
+      {/* Onboarding & Verification Completeness Banner */}
+      <MentorOnboardingBanner completeness={profileCompleteness} verificationStatus={verificationStatus} />
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
       {/* Left Column (Profile & Quick Stats) */}
       <div className="hidden md:block md:col-span-3 space-y-6 sticky top-24 self-start">
@@ -943,6 +950,7 @@ const MentorHome = () => {
         )}
       </AnimatePresence>
 
+      </div>
     </div>
   )
 }

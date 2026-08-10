@@ -7,6 +7,8 @@ import ImageCropModal from '../../components/ImageCropModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
 
+import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
+
 const MentorSettings = () => {
   const { user, isLoaded } = useUser()
   const { sessions } = useSessionList()
@@ -15,10 +17,14 @@ const MentorSettings = () => {
   const [activeTab, setActiveTab] = useState('profile')
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [profileVisibility, setProfileVisibility] = useState('public')
+  const [userDoc, setUserDoc] = useState(null)
+  const [completeness, setCompleteness] = useState({ percentage: 0, missingFields: [] })
   
   // Form State
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [headline, setHeadline] = useState('')
+  const [aboutMe, setAboutMe] = useState('')
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
   const [yearsOfExperience, setYearsOfExperience] = useState('')
@@ -32,29 +38,33 @@ const MentorSettings = () => {
   // Image crop state
   const [cropModalData, setCropModalData] = useState(null)
 
+  const fetchProfile = async () => {
+    if (!user) return
+    try {
+      const res = await fetch(`/api/users/${user.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setUserDoc(data);
+        setUsernameValue(data.username || '');
+        setFirstName(data.firstName || user.firstName || '');
+        setLastName(data.lastName || user.lastName || '');
+        setHeadline(data.headline || '');
+        setAboutMe(data.aboutMe || '');
+        setPhone(data.phone || user.unsafeMetadata?.phone || '');
+        setAddress(data.address || user.unsafeMetadata?.address || '');
+        setYearsOfExperience(data.yearsOfExperience || '');
+        if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
+        
+        const comp = calculateProfileCompleteness(data);
+        setCompleteness(comp);
+      }
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      setFirstName(user.firstName || '')
-      setLastName(user.lastName || '')
-      setAddress(user.unsafeMetadata?.address || '')
-      setPhone(user.unsafeMetadata?.phone || '')
-      
-      // Fetch username from MongoDB
-      const fetchProfile = async () => {
-        try {
-          const res = await fetch(`/api/users/${user.id}`);
-          if (res.ok) {
-            const data = await res.json();
-            setUsernameValue(data.username || '');
-            setPhone(data.phone || user.unsafeMetadata?.phone || '');
-            setAddress(data.address || user.unsafeMetadata?.address || '');
-            setYearsOfExperience(data.yearsOfExperience || '');
-            if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
-          }
-        } catch (err) {
-          console.error('Failed to fetch profile:', err);
-        }
-      };
       fetchProfile();
     }
   }, [user])
@@ -167,6 +177,8 @@ const MentorSettings = () => {
         body: JSON.stringify({
           firstName,
           lastName,
+          headline,
+          aboutMe,
           address,
           phone,
           yearsOfExperience
@@ -178,11 +190,34 @@ const MentorSettings = () => {
         lastName,
         unsafeMetadata: {
           ...user.unsafeMetadata,
+          headline,
           address,
           phone
         }
       })
-      toast.success('Profile updated successfully!')
+
+      const checkRes = await fetch(`/api/users/${user.id}`);
+      if (checkRes.ok) {
+        const updatedData = await checkRes.json();
+        setUserDoc(updatedData);
+        const comp = calculateProfileCompleteness(updatedData);
+        setCompleteness(comp);
+
+        if (comp.percentage >= 80) {
+          if (updatedData.verificationStatus !== 'Approved') {
+            await fetch(`/api/users/${user.id}/profile`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ verificationStatus: 'Pending' })
+            });
+            toast.success(`🎉 Profile updated (${comp.percentage}% complete)! Verification application submitted to Admin.`);
+          } else {
+            toast.success(`Profile updated (${comp.percentage}% complete)!`);
+          }
+        } else {
+          toast.success(`Profile updated (${comp.percentage}% complete). Reach 80% to unlock full features.`);
+        }
+      }
     } catch (err) {
       toast.error('Failed to save changes')
       console.error(err)
@@ -239,7 +274,7 @@ const MentorSettings = () => {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your account preferences and configurations.</p>
+        <p className="text-sm text-muted-foreground mt-1">Manage your profile credentials and account configurations.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 md:gap-8">
@@ -277,7 +312,35 @@ const MentorSettings = () => {
           
           {activeTab === 'profile' && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <h2 className="text-xl font-bold text-foreground mb-6">Account Profile</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-foreground">Account Profile</h2>
+                <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
+                  completeness.percentage >= 80 
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                }`}>
+                  {completeness.percentage}% Complete (Min: 80%)
+                </span>
+              </div>
+
+              {/* Progress gauge banner inside settings */}
+              <div className="bg-muted/30 border border-border/40 rounded-2xl p-4 space-y-2">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-muted-foreground">Profile Completeness Score</span>
+                  <span className={completeness.percentage >= 80 ? 'text-emerald-500' : 'text-amber-500'}>{completeness.percentage}%</span>
+                </div>
+                <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${completeness.percentage >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                    style={{ width: `${completeness.percentage}%` }}
+                  />
+                </div>
+                {completeness.missingFields.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground pt-1">
+                    <strong className="text-foreground">Missing items:</strong> {completeness.missingFields.join(', ')}
+                  </p>
+                )}
+              </div>
               
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pb-6 border-b border-border/40 text-center sm:text-left">
                 <img 
@@ -296,15 +359,9 @@ const MentorSettings = () => {
                   <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                     <button 
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                      className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
                     >
                       Upload New Photo
-                    </button>
-                    <button 
-                      onClick={handleRemoveImage}
-                      className="bg-background border border-border/50 text-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-muted transition-colors"
-                    >
-                      Remove
                     </button>
                   </div>
                 </div>
@@ -343,73 +400,49 @@ const MentorSettings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
-                    <AtSign className="w-4 h-4 text-primary" /> Username
-                  </label>
-                  <div className="relative">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Headline / Professional Title (+15%)</label>
+                  <input 
+                    type="text" 
+                    value={headline}
+                    onChange={(e) => setHeadline(e.target.value)}
+                    placeholder="e.g. Senior Software Engineer at Amazon | Cloud Specialist" 
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">About Me / Professional Bio (+15%)</label>
+                  <textarea 
+                    rows="3"
+                    value={aboutMe}
+                    onChange={(e) => setAboutMe(e.target.value)}
+                    placeholder="Describe your background, expertise, and what you offer to students as a mentor..."
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  ></textarea>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Address / Location</label>
                     <input 
                       type="text" 
-                      value={usernameValue} 
-                      onChange={(e) => handleUsernameChange(e.target.value)} 
-                      placeholder="rohit-sharma-4821" 
-                      className={`w-full px-3 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-1 transition-all ${
-                        usernameError 
-                          ? 'border-red-500/50 focus:ring-red-500/50' 
-                          : 'border-border/50 focus:ring-primary'
-                      }`} 
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="e.g. Kolkata, West Bengal"
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
                     />
-                    {usernameValue && !usernameError && (
-                      <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
-                    )}
-                    {usernameError && (
-                      <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
-                    )}
                   </div>
-                  {usernameError ? (
-                    <p className="text-xs text-red-500 mt-1">{usernameError}</p>
-                  ) : usernameValue ? (
-                    <p className="text-xs text-muted-foreground mt-1">campusbridge.com/u/<span className="text-primary font-medium">{usernameValue}</span></p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-1">Your unique profile URL. Auto-generated on signup.</p>
-                  )}
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Title / Designation</label>
-                  <input type="text" defaultValue="Senior Software Engineer at Amazon" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Address</label>
-                  <input 
-                    type="text" 
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="123 Main St, Kolkata"
-                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Phone Number</label>
-                  <input 
-                    type="tel" 
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 9876543210" 
-                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Years of Experience</label>
-                  <input 
-                    type="text" 
-                    value={yearsOfExperience}
-                    onChange={(e) => setYearsOfExperience(e.target.value)}
-                    placeholder="e.g. 5+ years" 
-                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Years of Experience</label>
+                    <input 
+                      type="text" 
+                      value={yearsOfExperience}
+                      onChange={(e) => setYearsOfExperience(e.target.value)}
+                      placeholder="e.g. 5+ years" 
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
+                  </div>
                 </div>
 
                 <div className="pt-4 flex justify-end">
