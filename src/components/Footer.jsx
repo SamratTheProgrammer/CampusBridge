@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { Shield } from 'lucide-react'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
 import footerBg from '../assets/footer-logo.png'
@@ -57,6 +58,11 @@ const Footer = () => {
               <li><Link to="/about" className="text-muted-foreground hover:text-primary transition-colors text-sm">About</Link></li>
               <li><Link to="/careers" className="text-muted-foreground hover:text-primary transition-colors text-sm">Careers</Link></li>
               <li><Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors text-sm">Contact</Link></li>
+              <li>
+                <Link to="/admin/login" className="text-muted-foreground hover:text-primary transition-colors text-sm flex items-center gap-1.5 font-medium">
+                  <Shield className="w-3.5 h-3.5 text-primary" /> Admin Portal
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -81,9 +87,12 @@ const Footer = () => {
 
         <div className="border-t pt-8 flex flex-col md:flex-row items-center justify-between text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} CampusBridge. All rights reserved.</p>
-          <div className="flex gap-4 mt-4 md:mt-0">
+          <div className="flex gap-4 mt-4 md:mt-0 items-center">
             <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link to="/admin/login" className="hover:text-primary transition-colors flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all">
+              <Shield className="w-3 h-3 text-primary" /> Admin Portal
+            </Link>
           </div>
         </div>
       </div>
