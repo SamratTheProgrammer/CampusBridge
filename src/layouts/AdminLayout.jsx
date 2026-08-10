@@ -37,6 +37,14 @@ const AdminLayout = () => {
   const location = useLocation()
   const { signOut } = useClerk()
 
+  // Protect Admin Layout: Redirect to /admin/login if no adminToken exists
+  React.useEffect(() => {
+    const token = localStorage.getItem('adminToken')
+    if (!token) {
+      navigate('/admin/login', { replace: true })
+    }
+  }, [navigate])
+
   // Get admin user from localStorage if available
   const storedUser = localStorage.getItem('adminUser')
   const adminUser = storedUser ? JSON.parse(storedUser) : { name: 'Super Admin', role: 'super-admin', email: 'admin@campusbridge.com' }

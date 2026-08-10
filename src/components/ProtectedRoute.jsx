@@ -11,6 +11,12 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   const [isRoleLoading, setIsRoleLoading] = useState(true)
   const location = useLocation()
 
+  // Admin session check via standalone admin login
+  const hasAdminToken = allowedRoles.includes('admin') && !!localStorage.getItem('adminToken')
+  if (hasAdminToken) {
+    return <Outlet />
+  }
+
   useEffect(() => {
     let isMounted = true
 
