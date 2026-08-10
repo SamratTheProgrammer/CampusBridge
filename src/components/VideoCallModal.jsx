@@ -35,6 +35,7 @@ const ICE_SERVERS = {
 
 const VideoCallModal = ({ currentUser }) => {
   const [callState, setCallState] = useState('idle'); // 'idle' | 'calling' | 'incoming' | 'connected'
+  const [callStatusText, setCallStatusText] = useState('Calling user...');
   const [callType, setCallType] = useState('video'); // 'video' | 'audio'
   const [partner, setPartner] = useState(null); // { clerkId, name, image }
   
@@ -542,6 +543,7 @@ const VideoCallModal = ({ currentUser }) => {
       targetPartnerClerkIdRef.current = targetClerkId;
       setPartner(normalizedPartner);
       setCallType(type);
+      setCallStatusText('Calling user...');
       setIsVideoOff(type === 'audio');
       setIsMuted(false);
       setCallState('calling');
@@ -815,6 +817,7 @@ const VideoCallModal = ({ currentUser }) => {
           return prevState; // Do not change current call state
         } else {
           // Normal incoming call
+          socket.emit('call_ringing', { toClerkId: callerClerkId, fromClerkId: currentUser?.id });
           targetPartnerClerkIdRef.current = callerClerkId;
           setPartner({ clerkId: callerClerkId, name: callerName, image: callerImage });
           setCallType(callType || 'video');
@@ -874,8 +877,12 @@ const VideoCallModal = ({ currentUser }) => {
     };
 
     const handleCallBusy = () => {
-      toast('User is on another call. Please wait...', { id: 'call_status_toast', icon: '⏳' });
+      setCallStatusText('Another call');
       ringtoneService.startBusySound();
+    };
+
+    const handleCallRinging = () => {
+      setCallStatusText('Ringing...');
     };
 
     const handleCallFailed = ({ reason }) => {
@@ -906,6 +913,7 @@ const VideoCallModal = ({ currentUser }) => {
     socket.on('call_rejected', handleCallRejected);
     socket.on('call_ended', handleCallEnded);
     socket.on('call_busy', handleCallBusy);
+    socket.on('call_ringing', handleCallRinging);
     socket.on('call_failed', handleCallFailed);
     socket.on('ice_candidate', handleIceCandidate);
 
@@ -915,6 +923,7 @@ const VideoCallModal = ({ currentUser }) => {
       socket.off('call_rejected', handleCallRejected);
       socket.off('call_ended', handleCallEnded);
       socket.off('call_busy', handleCallBusy);
+      socket.off('call_ringing', handleCallRinging);
       socket.off('call_failed', handleCallFailed);
       socket.off('ice_candidate', handleIceCandidate);
     };
@@ -1092,7 +1101,7 @@ const VideoCallModal = ({ currentUser }) => {
                   <div>
                     <h3 className="text-2xl font-bold text-white">{partner?.name || 'Connecting...'}</h3>
                     <p className="text-sm text-primary font-medium mt-1 animate-pulse">
-                      {callState === 'calling' ? 'Calling user...' : `Voice Call • ${formatTimer(callDuration)}`}
+                      {callState === 'calling' ? callStatusText : `Voice Call • ${formatTimer(callDuration)}`}
                     </p>
                   </div>
                 </div>
