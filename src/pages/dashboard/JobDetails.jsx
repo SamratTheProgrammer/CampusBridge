@@ -243,18 +243,32 @@ const JobDetails = () => {
         </div>
 
         <div className="flex items-center justify-between mb-8 pb-8 border-b border-border/40">
-          <p className="text-xs text-muted-foreground">Posted on {format(new Date(job.createdAt), 'd MMM yyyy')}</p>
-          <button 
-            disabled={hasApplied}
-            onClick={() => setIsApplyModalOpen(true)}
-            className={`px-8 py-2.5 rounded-xl font-medium transition-colors shadow-sm ${
-              hasApplied 
-                ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-            }`}
-          >
-            {hasApplied ? 'Applied' : 'Apply Now'}
-          </button>
+          <p className="text-xs text-muted-foreground">
+            Posted on {format(new Date(job.createdAt), 'd MMM yyyy')}
+            {job.deadline && (
+              <span className="ml-2 font-medium text-foreground">
+                • Last Date: {format(new Date(job.deadline), 'd MMM yyyy')}
+              </span>
+            )}
+          </p>
+          {(() => {
+            const isDeadlinePassed = job.deadline ? new Date() > new Date(job.deadline) : false;
+            return (
+              <button 
+                disabled={hasApplied || isDeadlinePassed}
+                onClick={() => setIsApplyModalOpen(true)}
+                className={`px-8 py-2.5 rounded-xl font-medium transition-colors shadow-sm ${
+                  hasApplied 
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : isDeadlinePassed
+                    ? 'bg-destructive/10 text-destructive cursor-not-allowed'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                }`}
+              >
+                {hasApplied ? 'Applied' : isDeadlinePassed ? 'Date Over' : 'Apply Now'}
+              </button>
+            )
+          })()}
         </div>
 
         {/* Content */}

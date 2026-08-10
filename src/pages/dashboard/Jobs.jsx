@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, MapPin, Briefcase, Filter, Loader2, Building2 } from 'lucide-react'
+import { Search, MapPin, Briefcase, Filter, Loader2, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
@@ -119,6 +119,16 @@ const Jobs = () => {
                   {job.salary && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Briefcase className="w-3.5 h-3.5" /> {job.salary}
+                    </div>
+                  )}
+                  {job.deadline && (
+                    <div className={`flex items-center gap-2 text-xs font-medium ${
+                      new Date() > new Date(job.deadline) ? 'text-destructive' : 'text-primary'
+                    }`}>
+                      <Calendar className="w-3.5 h-3.5" />
+                      {new Date() > new Date(job.deadline) 
+                        ? 'Deadline Passed' 
+                        : `Apply by ${new Date(job.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`}
                     </div>
                   )}
                 </div>

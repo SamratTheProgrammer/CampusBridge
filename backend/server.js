@@ -350,13 +350,13 @@ io.on('connection', (socket) => {
   });
 
   // Reject Call
-  socket.on('reject_call', ({ toClerkId, fromClerkId }) => {
+  socket.on('reject_call', ({ toClerkId, fromClerkId, reason }) => {
     if (fromClerkId) {
       registerUserSocket(fromClerkId, socket);
     }
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-    emitToUserSockets(toClerkId, 'call_rejected', {});
-    socket.to(convId).emit('call_rejected', {});
+    emitToUserSockets(toClerkId, 'call_rejected', { reason, fromClerkId });
+    socket.to(convId).emit('call_rejected', { reason, fromClerkId });
   });
 
   // End Call
@@ -365,8 +365,16 @@ io.on('connection', (socket) => {
       registerUserSocket(fromClerkId, socket);
     }
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-    emitToUserSockets(toClerkId, 'call_ended', {});
-    socket.to(convId).emit('call_ended', {});
+    emitToUserSockets(toClerkId, 'call_ended', { fromClerkId });
+    socket.to(convId).emit('call_ended', { fromClerkId });
+  });
+
+  // Call Busy Notification
+  socket.on('call_busy', ({ toClerkId, fromClerkId }) => {
+    if (fromClerkId) {
+      registerUserSocket(fromClerkId, socket);
+    }
+    emitToUserSockets(toClerkId, 'call_busy', {});
   });
 
   // ICE Candidates exchange

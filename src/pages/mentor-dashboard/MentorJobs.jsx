@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Briefcase, MapPin, DollarSign, Building2, Users, Search, Loader2, Clock, ChevronDown, X } from 'lucide-react'
+import { Plus, Briefcase, MapPin, DollarSign, Building2, Users, Search, Loader2, Clock, ChevronDown, X, Edit2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
 import { formatDistanceToNow, format } from 'date-fns'
@@ -270,6 +270,7 @@ const MentorJobs = () => {
   const [isLoadingApps, setIsLoadingApps] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [jobToDelete, setJobToDelete] = useState(null)
+  const [jobToEdit, setJobToEdit] = useState(null)
 
   const fetchJobs = async () => {
     if (!user) return
@@ -306,22 +307,27 @@ const MentorJobs = () => {
       type: formData.get('type'),
       salary: formData.get('salary'),
       description: formData.get('description'),
+      deadline: formData.get('deadline'),
       clerkId: user.id
     }
 
     try {
-      const res = await fetch('/api/jobs', {
-        method: 'POST',
+      const url = jobToEdit ? `/api/jobs/${jobToEdit._id}` : '/api/jobs'
+      const method = jobToEdit ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newJob)
       })
       if (!res.ok) {
         const errData = await res.json()
-        throw new Error(errData.error || 'Failed to post job')
+        throw new Error(errData.error || `Failed to ${jobToEdit ? 'update' : 'post'} job`)
       }
       
-      toast.success('Job posted successfully!')
+      toast.success(`Job ${jobToEdit ? 'updated' : 'posted'} successfully!`)
       setIsModalOpen(false)
+      setJobToEdit(null)
       setSelectedCompany('')
       setSelectedCompanyLogo('')
       fetchJobs()
@@ -330,6 +336,13 @@ const MentorJobs = () => {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const openEditModal = (job) => {
+    setJobToEdit(job)
+    setSelectedCompany(job.company)
+    setSelectedCompanyLogo(job.companyLogo)
+    setIsModalOpen(true)
   }
 
   const confirmDeleteJob = (jobId) => {
@@ -416,7 +429,12 @@ const MentorJobs = () => {
           <p className="text-sm text-muted-foreground mt-1">Manage jobs and internships you've shared with students.</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setJobToEdit(null)
+            setSelectedCompany('')
+            setSelectedCompanyLogo('')
+            setIsModalOpen(true)
+          }}
           className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" /> Add New Job
@@ -496,6 +514,13 @@ const MentorJobs = () => {
                 </span>
                 <div className="flex gap-3 items-center">
                   <button 
+                    onClick={() => openEditModal(job)}
+                    className="text-blue-500 hover:bg-blue-500/10 p-1.5 rounded-lg transition-colors"
+                    title="Edit Job"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
                     onClick={() => confirmDeleteJob(job._id)}
                     className="text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition-colors"
                     title="Delete Job"
@@ -525,13 +550,13 @@ const MentorJobs = () => {
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200">
-            <h2 className="text-2xl font-bold text-foreground mb-1">Add New Job</h2>
-            <p className="text-sm text-muted-foreground mb-6">Post an opportunity for your mentees.</p>
+            <h2 className="text-2xl font-bold text-foreground mb-1">{jobToEdit ? 'Edit Job' : 'Add New Job'}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{jobToEdit ? 'Update job details.' : 'Post an opportunity for your mentees.'}</p>
             
             <form onSubmit={handleAddJob} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">Job Title</label>
-                <input name="title" required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. SDE Intern" />
+                <input name="title" defaultValue={jobToEdit?.title} required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. SDE Intern" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -541,14 +566,14 @@ const MentorJobs = () => {
                 />
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Location</label>
-                  <input name="location" required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. Remote / Bangalore" />
+                  <input name="location" defaultValue={jobToEdit?.location} required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. Remote / Bangalore" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Job Type</label>
-                  <select name="type" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                  <select name="type" defaultValue={jobToEdit?.type || 'Full-time'} className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
                     <option>Full-time</option>
                     <option>Internship</option>
                     <option>Contract</option>
@@ -558,20 +583,25 @@ const MentorJobs = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Salary / Stipend</label>
-                  <input name="salary" type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. ₹80,000 / month" />
+                  <input name="salary" defaultValue={jobToEdit?.salary} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. ₹80,000 / month" />
                 </div>
               </div>
               
               <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Deadline (Last Date to Apply)</label>
+                <input name="deadline" defaultValue={jobToEdit?.deadline ? new Date(jobToEdit.deadline).toISOString().split('T')[0] : ''} type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+              </div>
+              
+              <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">Description (Optional)</label>
-                <textarea name="description" rows="3" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Brief requirements..."></textarea>
+                <textarea name="description" defaultValue={jobToEdit?.description} rows="3" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Brief requirements..."></textarea>
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button 
                   type="button" 
                   disabled={isSubmitting}
-                  onClick={() => { setIsModalOpen(false); setSelectedCompany(''); setSelectedCompanyLogo('') }}
+                  onClick={() => { setIsModalOpen(false); setJobToEdit(null); setSelectedCompany(''); setSelectedCompanyLogo('') }}
                   className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2.5 rounded-xl font-medium transition-colors"
                 >
                   Cancel
@@ -582,7 +612,7 @@ const MentorJobs = () => {
                   className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-50"
                 >
                   {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Post Job
+                  {jobToEdit ? 'Update Job' : 'Post Job'}
                 </button>
               </div>
             </form>

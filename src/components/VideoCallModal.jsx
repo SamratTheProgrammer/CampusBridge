@@ -249,7 +249,15 @@ const VideoCallModal = ({ currentUser }) => {
     return () => {
       ringtoneService.stop();
     };
-  }, [callState]);
+  }, [callState, callType]);
+
+  useEffect(() => {
+    if (incomingWaitCall) {
+      ringtoneService.startCallWaitingSound();
+    } else if (callState === 'connected' || callState === 'idle') {
+      ringtoneService.stop();
+    }
+  }, [incomingWaitCall, callState]);
 
   // Clean up streams & peer connection
   const cleanupCall = (finalStatus = 'completed') => {
@@ -259,7 +267,6 @@ const VideoCallModal = ({ currentUser }) => {
       callTimeoutRef.current = null;
     }
     const finalDuration = callDuration;
-    ringtoneService.playCallEndSound();
 
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -713,6 +720,7 @@ const VideoCallModal = ({ currentUser }) => {
         fromClerkId: currentUser?.id 
       });
     }
+    ringtoneService.playCallEndSound();
     cleanupCall('completed');
   };
 
@@ -803,6 +811,7 @@ const VideoCallModal = ({ currentUser }) => {
         if (prevState !== 'idle') {
           // We are busy, show call waiting
           setIncomingWaitCall({ callerClerkId, name: callerName, image: callerImage, offer, type: callType || 'video' });
+          socket.emit('call_busy', { toClerkId: callerClerkId, fromClerkId: currentUser.id });
           return prevState; // Do not change current call state
         } else {
           // Normal incoming call
@@ -827,14 +836,46 @@ const VideoCallModal = ({ currentUser }) => {
       }
     };
 
-    const handleCallRejected = () => {
+    const handleCallRejected = ({ reason, fromClerkId }) => {
+      let isForWaitingCaller = false;
+      setIncomingWaitCall(prevWait => {
+        if (prevWait && prevWait.callerClerkId === fromClerkId) {
+          isForWaitingCaller = true;
+          return null;
+        }
+        return prevWait;
+      });
+      if (isForWaitingCaller) return; // Ignore if the wait caller was rejected
+
       toast.error('Call declined', { id: 'call_status_toast' });
       cleanupCall('rejected');
     };
 
-    const handleCallEnded = () => {
-      toast('Call ended 📞', { id: 'call_status_toast' });
-      cleanupCall('completed');
+    const handleCallEnded = ({ fromClerkId }) => {
+      let isForWaitingCaller = false;
+      setIncomingWaitCall(prevWait => {
+        if (prevWait && prevWait.callerClerkId === fromClerkId) {
+          isForWaitingCaller = true;
+          return null;
+        }
+        return prevWait;
+      });
+      
+      if (isForWaitingCaller) {
+        toast('Waiting caller cancelled the call', { id: 'call_status_toast' });
+        return; 
+      }
+
+      if (targetPartnerClerkIdRef.current === fromClerkId || !fromClerkId) {
+        toast('Call ended 📞', { id: 'call_status_toast' });
+        ringtoneService.playCallEndSound();
+        cleanupCall('completed');
+      }
+    };
+
+    const handleCallBusy = () => {
+      toast('User is on another call. Please wait...', { id: 'call_status_toast', icon: '⏳' });
+      ringtoneService.startBusySound();
     };
 
     const handleCallFailed = ({ reason }) => {
@@ -864,6 +905,7 @@ const VideoCallModal = ({ currentUser }) => {
     socket.on('call_accepted', handleCallAccepted);
     socket.on('call_rejected', handleCallRejected);
     socket.on('call_ended', handleCallEnded);
+    socket.on('call_busy', handleCallBusy);
     socket.on('call_failed', handleCallFailed);
     socket.on('ice_candidate', handleIceCandidate);
 
@@ -872,6 +914,7 @@ const VideoCallModal = ({ currentUser }) => {
       socket.off('call_accepted', handleCallAccepted);
       socket.off('call_rejected', handleCallRejected);
       socket.off('call_ended', handleCallEnded);
+      socket.off('call_busy', handleCallBusy);
       socket.off('call_failed', handleCallFailed);
       socket.off('ice_candidate', handleIceCandidate);
     };

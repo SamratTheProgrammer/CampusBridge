@@ -103,6 +103,26 @@ router.post('/sync', async (req, res) => {
   }
 });
 
+// Delete user account completely
+router.delete('/:clerkId', async (req, res) => {
+  try {
+    const { clerkId } = req.params;
+    if (!clerkId) return res.status(400).json({ message: 'User ID is required' });
+
+    const result = await deleteUserDataCompletely(clerkId);
+    
+    // Result object has success boolean
+    if (result && result.success === false) {
+       return res.status(500).json({ message: result.message || 'Failed to delete user' });
+    }
+
+    res.status(200).json({ success: true, message: 'User account and all associated data deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    res.status(500).json({ message: 'Server error during account deletion' });
+  }
+});
+
 // Get all mentors
 router.get('/mentors/all', async (req, res) => {
   try {
