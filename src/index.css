@@ -114,3 +114,9 @@ option {
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* Fix for modals inside PageTransition not covering header/sidebar */
+body:has(.fixed.inset-0) header.sticky,
+body:has(.fixed.inset-0) .fixed.inset-y-0.left-0 {
+  z-index: 0 !important;
+}

@@ -3,8 +3,42 @@ import User from '../models/User.js';
 import Session from '../models/Session.js';
 import Event from '../models/Event.js';
 import Post from '../models/Post.js';
+import Job from '../models/Job.js';
 
 const router = express.Router();
+
+// Get platform statistics for landing page
+router.get('/platform-stats', async (req, res) => {
+  try {
+    const students = await User.countDocuments({ role: 'student' });
+    const mentors = await User.countDocuments({ role: 'mentor' });
+    const alumni = await User.countDocuments({ role: 'alumni' });
+    const jobsCount = await Job.countDocuments();
+    const eventsCount = await Event.countDocuments();
+    
+    // Calculate unique companies from jobs
+    const jobs = await Job.find().select('companyName');
+    const uniqueCompanies = new Set(jobs.map(j => j.companyName).filter(Boolean));
+    const companiesCount = uniqueCompanies.size;
+
+    // Default formatting function
+    const formatCount = (count, fallback) => {
+      return count > 0 ? `${count.toLocaleString()}+` : fallback;
+    };
+
+    res.status(200).json({
+      alumni: formatCount(alumni, '12,000+'),
+      students: formatCount(students, '8,000+'),
+      mentors: formatCount(mentors, '2,000+'),
+      jobs: formatCount(jobsCount, '5,000+'),
+      companies: formatCount(companiesCount, '300+'),
+      events: formatCount(eventsCount, '200+')
+    });
+  } catch (error) {
+    console.error('Error fetching platform stats:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 // Get mentor analytics
 router.get('/mentor/:clerkId', async (req, res) => {

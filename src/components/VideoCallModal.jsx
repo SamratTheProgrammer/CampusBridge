@@ -62,6 +62,11 @@ const VideoCallModal = ({ currentUser }) => {
   const targetPartnerClerkIdRef = useRef(null);
   const mediaStreamPromiseRef = useRef(null);
 
+  // Call Waiting / Hold State
+  const heldCallRef = useRef(null); // { partner, peer, remoteStream, callType, callDuration }
+  const [hasHeldCall, setHasHeldCall] = useState(false);
+  const [incomingWaitCall, setIncomingWaitCall] = useState(null); // { callerClerkId, name, image, offer, type }
+
   // Callback Ref for Local Video Elements (Ensures immediate stream attachment on DOM mount)
   const setLocalVideoRef = useCallback((node) => {
     localVideoRef.current = node;
@@ -289,6 +294,14 @@ const VideoCallModal = ({ currentUser }) => {
     pendingOfferRef.current = null;
     iceCandidateQueueRef.current = [];
     isCallerRef.current = false;
+    
+    // Clear Call Waiting states
+    setIncomingWaitCall(null);
+    if (heldCallRef.current) {
+      if (heldCallRef.current.peer) heldCallRef.current.peer.close();
+      heldCallRef.current = null;
+      setHasHeldCall(false);
+    }
   };
 
   // Process any queued ICE candidates after remote description is set
@@ -463,28 +476,27 @@ const VideoCallModal = ({ currentUser }) => {
 
     peer.ontrack = (event) => {
       console.log('Received remote track:', event.track.kind);
-      const incomingStream = event.streams && event.streams[0];
       
       if (!remoteStreamRef.current) {
-        remoteStreamRef.current = incomingStream || new MediaStream([event.track]);
-      } else {
-        if (incomingStream) {
-          incomingStream.getTracks().forEach((track) => {
-            if (!remoteStreamRef.current.getTracks().some((t) => t.id === track.id)) {
-              remoteStreamRef.current.addTrack(track);
-            }
-          });
-        }
-        if (!remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
-          remoteStreamRef.current.addTrack(event.track);
-        }
+        remoteStreamRef.current = new MediaStream();
+      }
+      
+      // Prevent adding the same track twice
+      if (!remoteStreamRef.current.getTracks().some(t => t.id === event.track.id)) {
+        remoteStreamRef.current.addTrack(event.track);
       }
 
       if (remoteVideoRef.current) {
         if (remoteVideoRef.current.srcObject !== remoteStreamRef.current) {
           remoteVideoRef.current.srcObject = remoteStreamRef.current;
         }
-        remoteVideoRef.current.play().catch((e) => console.warn('Auto-play error:', e));
+        
+        remoteVideoRef.current.onloadedmetadata = () => {
+          remoteVideoRef.current.play().catch((e) => console.warn('Auto-play error:', e));
+        };
+        
+        // Fallback play
+        remoteVideoRef.current.play().catch(() => {});
       }
     };
 
@@ -605,6 +617,80 @@ const VideoCallModal = ({ currentUser }) => {
     }
   };
 
+  // Reject Wait Call
+  const rejectWaitCall = () => {
+    if (!incomingWaitCall) return;
+    toast.dismiss();
+    socket.emit('reject_call', { 
+      toClerkId: incomingWaitCall.callerClerkId, 
+      fromClerkId: currentUser?.id 
+    });
+    setIncomingWaitCall(null);
+  };
+
+  // Accept Wait Call (Hold current, answer new)
+  const acceptWaitCall = async () => {
+    if (!incomingWaitCall) return;
+    
+    // Hold current call
+    if (peerRef.current && partner) {
+      heldCallRef.current = {
+        partner,
+        peer: peerRef.current,
+        remoteStream: remoteStreamRef.current,
+        callType,
+        callDuration
+      };
+      setHasHeldCall(true);
+      
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.pause();
+      }
+    }
+    
+    // Set up new call
+    const pending = { offer: incomingWaitCall.offer, type: incomingWaitCall.type, callerClerkId: incomingWaitCall.callerClerkId };
+    pendingOfferRef.current = pending;
+    setIncomingWaitCall(null);
+    answerCall();
+  };
+
+  // Swap Call
+  const swapCall = () => {
+    if (!hasHeldCall || !heldCallRef.current) return;
+    
+    // Save current as held
+    const currentHeld = {
+      partner,
+      peer: peerRef.current,
+      remoteStream: remoteStreamRef.current,
+      callType,
+      callDuration
+    };
+    
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.pause();
+    }
+    
+    // Restore held call
+    const toRestore = heldCallRef.current;
+    
+    targetPartnerClerkIdRef.current = toRestore.partner.clerkId;
+    setPartner(toRestore.partner);
+    setCallType(toRestore.callType);
+    setCallDuration(toRestore.callDuration);
+    
+    peerRef.current = toRestore.peer;
+    remoteStreamRef.current = toRestore.remoteStream;
+    
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = toRestore.remoteStream;
+      remoteVideoRef.current.play().catch(e => console.warn(e));
+    }
+    
+    heldCallRef.current = currentHeld;
+  };
+
   // Reject Call
   const rejectCall = () => {
     toast.dismiss();
@@ -713,11 +799,20 @@ const VideoCallModal = ({ currentUser }) => {
   // Socket WebRTC Listeners
   useEffect(() => {
     const handleIncomingCall = ({ callerClerkId, callerName, callerImage, offer, callType }) => {
-      targetPartnerClerkIdRef.current = callerClerkId;
-      setPartner({ clerkId: callerClerkId, name: callerName, image: callerImage });
-      setCallType(callType || 'video');
-      setCallState('incoming');
-      pendingOfferRef.current = { offer, type: callType || 'video', callerClerkId };
+      setCallState((prevState) => {
+        if (prevState !== 'idle') {
+          // We are busy, show call waiting
+          setIncomingWaitCall({ callerClerkId, name: callerName, image: callerImage, offer, type: callType || 'video' });
+          return prevState; // Do not change current call state
+        } else {
+          // Normal incoming call
+          targetPartnerClerkIdRef.current = callerClerkId;
+          setPartner({ clerkId: callerClerkId, name: callerName, image: callerImage });
+          setCallType(callType || 'video');
+          pendingOfferRef.current = { offer, type: callType || 'video', callerClerkId };
+          return 'incoming';
+        }
+      });
     };
 
     const handleCallAccepted = async ({ answer }) => {
@@ -747,15 +842,21 @@ const VideoCallModal = ({ currentUser }) => {
       cleanupCall('missed');
     };
 
-    const handleIceCandidate = async ({ candidate }) => {
-      if (peerRef.current && peerRef.current.remoteDescription) {
-        try {
-          await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (err) {
-          console.error('Error adding ICE candidate:', err);
+    const handleIceCandidate = async ({ candidate, fromClerkId }) => {
+      if (fromClerkId === targetPartnerClerkIdRef.current || !fromClerkId) {
+        if (peerRef.current && peerRef.current.remoteDescription) {
+          try {
+            await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.error('Error adding ICE candidate:', err);
+          }
+        } else {
+          iceCandidateQueueRef.current.push(candidate);
         }
-      } else {
-        iceCandidateQueueRef.current.push(candidate);
+      } else if (heldCallRef.current && heldCallRef.current.partner.clerkId === fromClerkId) {
+        if (heldCallRef.current.peer && heldCallRef.current.peer.remoteDescription) {
+          heldCallRef.current.peer.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error(e));
+        }
       }
     };
 
@@ -975,6 +1076,37 @@ const VideoCallModal = ({ currentUser }) => {
                   </span>
                 </div>
               )}
+
+              {/* Incoming Call While Busy Overlay */}
+              {incomingWaitCall && (
+                <div className="absolute top-20 right-6 z-40 bg-zinc-900/90 backdrop-blur border border-white/20 rounded-2xl p-4 shadow-2xl w-72 animate-in slide-in-from-right fade-in">
+                  <div className="flex gap-3 items-center mb-4">
+                    <img 
+                      src={incomingWaitCall.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${incomingWaitCall.name}`} 
+                      className="w-12 h-12 rounded-full ring-2 ring-primary/50 object-cover" 
+                      alt="caller"
+                    />
+                    <div>
+                      <h4 className="text-white font-bold text-sm truncate">{incomingWaitCall.name}</h4>
+                      <p className="text-xs text-primary animate-pulse">Incoming {incomingWaitCall.type} Call...</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={rejectWaitCall}
+                      className="flex-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <PhoneOff className="w-3.5 h-3.5" /> Decline
+                    </button>
+                    <button 
+                      onClick={acceptWaitCall}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Phone className="w-3.5 h-3.5" /> Hold & Accept
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Bottom Control Bar */}
@@ -1036,6 +1168,17 @@ const VideoCallModal = ({ currentUser }) => {
               >
                 <PhoneOff className="w-5 h-5" /> End Call
               </button>
+
+              {/* Swap Call */}
+              {hasHeldCall && (
+                <button
+                  onClick={swapCall}
+                  className="px-4 py-3.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-2 transition-all shadow-lg"
+                  title="Swap Call"
+                >
+                  <PhoneIncoming className="w-4 h-4" /> Swap
+                </button>
+              )}
 
               {/* Fullscreen */}
               <button

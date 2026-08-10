@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, CheckCheck, Smile, Ban, Palette, Trash2, User, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2 } from 'lucide-react';
+import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
@@ -9,11 +9,18 @@ import { getPdfViewUrl } from '../utils/pdfViewer';
 
 
 const THEMES = [
-  { id: 'default', name: 'Default Dark', bg: 'bg-background' },
-  { id: 'midnight', name: 'Midnight Cyber', bg: 'bg-gradient-to-b from-slate-950 via-purple-950/20 to-slate-950' },
-  { id: 'emerald', name: 'Emerald Forest', bg: 'bg-gradient-to-b from-slate-950 via-emerald-950/20 to-slate-950' },
-  { id: 'sunset', name: 'Sunset Glow', bg: 'bg-gradient-to-b from-slate-950 via-rose-950/20 to-slate-950' },
-  { id: 'sapphire', name: 'Deep Sapphire', bg: 'bg-gradient-to-b from-slate-950 via-blue-950/20 to-slate-950' }
+  // Dark Themes
+  { id: 'default', name: 'Default Theme', bg: 'bg-background' },
+  { id: 'midnight', name: 'Midnight Cyber (Dark)', bg: 'bg-gradient-to-b from-slate-950 via-purple-950/20 to-slate-950' },
+  { id: 'emerald', name: 'Emerald Forest (Dark)', bg: 'bg-gradient-to-b from-slate-950 via-emerald-950/20 to-slate-950' },
+  { id: 'sunset', name: 'Sunset Glow (Dark)', bg: 'bg-gradient-to-b from-slate-950 via-rose-950/20 to-slate-950' },
+  { id: 'sapphire', name: 'Deep Sapphire (Dark)', bg: 'bg-gradient-to-b from-slate-950 via-blue-950/20 to-slate-950' },
+  
+  // Light Themes
+  { id: 'light-lavender', name: 'Lavender (Light)', bg: 'bg-gradient-to-b from-slate-50 via-purple-100/50 to-slate-50 dark:from-slate-950 dark:via-purple-900/10 dark:to-slate-950' },
+  { id: 'light-mint', name: 'Mint Breeze (Light)', bg: 'bg-gradient-to-b from-slate-50 via-emerald-100/50 to-slate-50 dark:from-slate-950 dark:via-emerald-900/10 dark:to-slate-950' },
+  { id: 'light-peach', name: 'Peach Morning (Light)', bg: 'bg-gradient-to-b from-slate-50 via-rose-100/50 to-slate-50 dark:from-slate-950 dark:via-rose-900/10 dark:to-slate-950' },
+  { id: 'light-sky', name: 'Sky Blue (Light)', bg: 'bg-gradient-to-b from-slate-50 via-blue-100/50 to-slate-50 dark:from-slate-950 dark:via-blue-900/10 dark:to-slate-950' }
 ];
 
 const RealtimeChat = () => {
@@ -56,6 +63,8 @@ const RealtimeChat = () => {
 
   // 3-Dots Menu & Settings State
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [activeContactMenu, setActiveContactMenu] = useState(null);
+  const [personToDelete, setPersonToDelete] = useState(null);
   const [chatThemeIndex, setChatThemeIndex] = useState(0);
   const [blockedUsers, setBlockedUsers] = useState(() => {
     try {
@@ -64,6 +73,14 @@ const RealtimeChat = () => {
       return [];
     }
   });
+
+  // Local Chat Preferences
+  const [pinnedChats, setPinnedChats] = useState(() => JSON.parse(localStorage.getItem('cb_pinned_chats') || '[]'));
+  const [mutedChats, setMutedChats] = useState(() => JSON.parse(localStorage.getItem('cb_muted_chats') || '[]'));
+  const [favouriteChats, setFavouriteChats] = useState(() => JSON.parse(localStorage.getItem('cb_favourite_chats') || '[]'));
+  const [archivedChats, setArchivedChats] = useState(() => JSON.parse(localStorage.getItem('cb_archived_chats') || '[]'));
+  const [forceUnreadChats, setForceUnreadChats] = useState(() => JSON.parse(localStorage.getItem('cb_unread_chats') || '[]'));
+
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -258,6 +275,12 @@ const RealtimeChat = () => {
       }
     };
 
+    const handleMessagesDelivered = ({ userId }) => {
+      if (activeContact && (activeContact.clerkId === userId || activeContact.id === userId)) {
+        setMessages((prev) => prev.map((m) => (!m.isDelivered && m.recipientClerkId === userId) ? { ...m, isDelivered: true } : m));
+      }
+    };
+
     const handleMessageDeletedMe = ({ messageId }) => {
       setMessages((prev) => prev.filter((m) => String(m._id) !== String(messageId)));
     };
@@ -273,6 +296,7 @@ const RealtimeChat = () => {
     socket.on('receive_message', handleReceiveMessage);
     socket.on('user_typing', handleUserTyping);
     socket.on('messages_read', handleMessagesRead);
+    socket.on('user_messages_delivered', handleMessagesDelivered);
     socket.on('message_deleted_for_me', handleMessageDeletedMe);
     socket.on('message_deleted_for_everyone', handleMessageDeletedEveryone);
     socket.on('message_edited', handleMessageEdited);
@@ -282,6 +306,7 @@ const RealtimeChat = () => {
       socket.off('receive_message', handleReceiveMessage);
       socket.off('user_typing', handleUserTyping);
       socket.off('messages_read', handleMessagesRead);
+      socket.off('user_messages_delivered', handleMessagesDelivered);
       socket.off('message_deleted_for_me', handleMessageDeletedMe);
       socket.off('message_deleted_for_everyone', handleMessageDeletedEveryone);
       socket.off('message_edited', handleMessageEdited);
@@ -530,6 +555,37 @@ const RealtimeChat = () => {
     setShowMoreMenu(false);
   };
 
+  // Delete Person from chat
+  const deleteChatPerson = (contactToRemove = activeContact) => {
+    if (!contactToRemove) return;
+    setPersonToDelete(contactToRemove);
+    setShowMoreMenu(false);
+    setActiveContactMenu(null);
+  };
+
+  const deleteChatPersonConfirm = async () => {
+    if (!personToDelete) return;
+    try {
+      const res = await fetch(`/api/messages/conversation/${personToDelete.conversationId || getConvId(user.id, personToDelete.clerkId)}?userId=${user.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setContacts((prev) => prev.filter(c => c.clerkId !== personToDelete.clerkId && c.id !== personToDelete.id));
+        if (activeContact?.clerkId === personToDelete.clerkId) {
+          setActiveContact(null);
+          setMessages([]);
+        }
+        toast.success('Person removed from chat');
+      } else {
+        toast.error('Failed to remove person');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Error removing person');
+    }
+    setPersonToDelete(null);
+  };
+
   // View Profile
   const viewPartnerProfile = () => {
     if (!activeContact) return;
@@ -593,16 +649,23 @@ const RealtimeChat = () => {
                 <div
                   key={contact.clerkId}
                   onClick={() => { setActiveContact(contact); setIsMobileChatOpen(true); }}
-                  className={`p-3.5 sm:p-4 cursor-pointer transition-colors flex items-center gap-3.5 relative ${
+                  className={`group p-3.5 sm:p-4 cursor-pointer transition-colors flex items-center gap-3.5 relative ${
                     isActive ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-muted/40 border-l-4 border-l-transparent'
                   }`}
+                  onMouseLeave={() => setActiveContactMenu(null)}
                 >
                   <div className="relative shrink-0">
-                    <img
-                      src={contact.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${contact.name}`}
-                      alt={contact.name}
-                      className="w-12 h-12 rounded-full object-cover border border-border/50"
-                    />
+                    {contact.image ? (
+                      <img
+                        src={contact.image}
+                        alt={contact.name}
+                        className="w-12 h-12 rounded-full object-cover border border-border/50"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full border border-border/50 bg-muted flex items-center justify-center">
+                        <User className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    )}
                     <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-card ${
                       isContactOnline ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-400'
                     }`} title={isContactOnline ? 'Online' : 'Offline'} />
@@ -642,6 +705,35 @@ const RealtimeChat = () => {
                       {contact.unread}
                     </span>
                   )}
+                  
+                  {/* Hover 3-dot menu */}
+                  <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveContactMenu(activeContactMenu === contact.clerkId ? null : contact.clerkId);
+                      }}
+                      className="p-1 rounded-full bg-background border border-border/50 text-muted-foreground hover:text-foreground shadow-md hover:bg-muted"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5" />
+                    </button>
+                    {activeContactMenu === contact.clerkId && (
+                      <div 
+                        className="absolute right-0 top-full mt-1 w-36 bg-card border border-border/60 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteChatPerson(contact);
+                          }}
+                          className="w-full px-3 py-1.5 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                        >
+                          <UserX className="w-3.5 h-3.5" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })
@@ -669,11 +761,17 @@ const RealtimeChat = () => {
               </button>
 
               <div className="relative shrink-0">
-                <img
-                  src={activeContact.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeContact.name}`}
-                  alt={activeContact.name}
-                  className="w-10 h-10 rounded-full object-cover border border-border/50"
-                />
+                {activeContact.image ? (
+                  <img
+                    src={activeContact.image}
+                    alt={activeContact.name}
+                    className="w-10 h-10 rounded-full object-cover border border-border/50"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full border border-border/50 bg-muted flex items-center justify-center">
+                    <User className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                )}
                 <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
                   (onlineUsers.includes(activeContact.clerkId) || onlineUsers.includes(activeContact.id) || onlineUsers.includes(activeContact._id)) ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-400'
                 }`} />
@@ -765,6 +863,12 @@ const RealtimeChat = () => {
                       className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-amber-400" /> Clear Chat History
+                    </button>
+                    <button
+                      onClick={deleteChatPerson}
+                      className="w-full px-4 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                    >
+                      <UserX className="w-3.5 h-3.5 text-red-500" /> Delete Person
                     </button>
                     <div className="border-t border-border/40 my-1"></div>
                     <button
@@ -915,7 +1019,11 @@ const RealtimeChat = () => {
                         <div className={`text-[10px] text-muted-foreground mt-1 flex items-center gap-1`}>
                           <span>{formatMessageTime(msg.createdAt)}</span>
                           {isMe && (
-                            <CheckCheck className={`w-3.5 h-3.5 ${msg.isRead ? 'text-blue-500' : 'text-muted-foreground/60'}`} />
+                            msg.isRead || msg.isDelivered ? (
+                              <CheckCheck className={`w-3.5 h-3.5 ${msg.isRead ? 'text-blue-500' : 'text-muted-foreground/60'}`} />
+                            ) : (
+                              <Check className="w-3.5 h-3.5 text-muted-foreground/60" />
+                            )
                           )}
                         </div>
                       </div>
@@ -1090,6 +1198,34 @@ const RealtimeChat = () => {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Person Modal */}
+      {personToDelete && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border/50 shadow-2xl rounded-2xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mb-4">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold text-foreground mb-2">Delete Chat?</h3>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              Are you sure you want to delete your chat with <span className="font-semibold text-foreground">{personToDelete.name}</span>? This will permanently delete your chat history from the database and it cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end mt-2">
+              <button
+                onClick={() => setPersonToDelete(null)}
+                className="px-4 py-2.5 text-sm font-semibold text-foreground bg-muted hover:bg-muted/80 rounded-xl transition-colors w-full"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteChatPersonConfirm}
+                className="px-4 py-2.5 text-sm font-semibold bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors shadow-lg shadow-red-500/20 w-full"
+              >
+                Yes, Delete
+              </button>
             </div>
           </div>
         </div>

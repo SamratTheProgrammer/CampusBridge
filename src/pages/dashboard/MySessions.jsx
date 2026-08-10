@@ -134,9 +134,9 @@ const MySessions = () => {
     ...userSessions
       .filter(s => (s.status === 'accepted' || s.status === 'upcoming') && !checkIsPast(s.date, s.time))
       .map(s => ({ ...s, source: 'session' })),
-    // Registered events (upcoming)
+    // Registered events (upcoming) that are actually sessions
     ...registeredEvents
-      .filter(e => !checkIsPast(e.date, e.time))
+      .filter(e => e.category === 'session' && !checkIsPast(e.date, e.time))
       .map(e => ({ ...e, source: 'event' }))
   ]
 
@@ -148,8 +148,9 @@ const MySessions = () => {
         ((s.status === 'accepted' || s.status === 'upcoming') && checkIsPast(s.date, s.time))
       )
       .map(s => ({ ...s, source: 'session' })),
+    // Registered events (past) that are actually sessions
     ...registeredEvents
-      .filter(e => checkIsPast(e.date, e.time))
+      .filter(e => e.category === 'session' && checkIsPast(e.date, e.time))
       .map(e => ({ ...e, source: 'event' }))
   ]
 

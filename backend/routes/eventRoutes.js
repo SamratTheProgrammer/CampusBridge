@@ -135,7 +135,7 @@ router.delete('/:id', async (req, res) => {
 // Apply for an event
 router.post('/:id/apply', async (req, res) => {
   try {
-    const { clerkId, applicantRole } = req.body;
+    const { clerkId, applicantRole, applicantDetails } = req.body;
     const user = await User.findOne({ clerkId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -155,7 +155,8 @@ router.post('/:id/apply', async (req, res) => {
     const application = new EventApplication({
       event: event._id,
       applicant: user._id,
-      applicantRole: applicantRole || 'student'
+      applicantRole: applicantRole || 'student',
+      applicantDetails: applicantDetails || {}
     });
     await application.save();
 
@@ -206,6 +207,7 @@ router.get('/registered/:clerkId', async (req, res) => {
         eventId: app.event._id,
         title: app.event.title,
         description: app.event.description,
+        category: app.event.category,
         type: app.event.type || 'Masterclass',
         mode: app.event.mode || 'Online',
         date: app.event.date,
