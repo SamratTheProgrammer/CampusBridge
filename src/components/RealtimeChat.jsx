@@ -400,6 +400,21 @@ const RealtimeChat = () => {
     setSelectedFile(null);
     setFilePreview(null);
 
+    // Update contacts list to move the active contact to the top
+    setContacts(prev => {
+      const updated = prev.map(c => {
+        if (c.clerkId === activeContact.clerkId) {
+          return {
+            ...c,
+            lastMessage: text || (messageType === 'image' ? '📸 Image' : messageType === 'video' ? '🎥 Video' : '📄 Document'),
+            lastMessageTime: new Date().toISOString()
+          };
+        }
+        return c;
+      });
+      return updated.sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+    });
+
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     socket.emit('typing', { conversationId: activeContact.conversationId, userId: user.id, isTyping: false });
 

@@ -80,7 +80,7 @@ io.on('connection', (socket) => {
   // Register online user socket
   socket.on('register_user', (userId) => {
     if (userId) {
-      onlineUsers.set(userId, socket.id);
+      if (!onlineUsers.has(userId)) { onlineUsers.set(userId, new Set()); } onlineUsers.get(userId).add(socket.id);
       socket.userId = userId;
       console.log(`Registered user ${userId} to socket ${socket.id}`);
       io.emit('online_users_update', Array.from(onlineUsers.keys()));
@@ -95,7 +95,7 @@ io.on('connection', (socket) => {
   socket.on('join_room', ({ conversationId, userId }) => {
     socket.join(conversationId);
     if (userId) {
-      onlineUsers.set(userId, socket.id);
+      if (!onlineUsers.has(userId)) { onlineUsers.set(userId, new Set()); } onlineUsers.get(userId).add(socket.id);
       socket.userId = userId;
       io.emit('online_users_update', Array.from(onlineUsers.keys()));
     }
@@ -142,22 +142,21 @@ io.on('connection', (socket) => {
       // Emit to all sockets in conversation room
       io.to(convId).emit('receive_message', message);
 
-      const recipientSocketId = onlineUsers.get(recipientClerkId);
-      if (recipientSocketId) {
-        // Emit receive_message directly to recipient socket as well (in case recipient hasn't explicitly joined room)
-        io.to(recipientSocketId).emit('receive_message', message);
+      const recipientSocketIds = onlineUsers.get(recipientClerkId);
+      if (recipientSocketIds) {
+        recipientSocketIds.forEach(sockId => io.to(sockId).emit('receive_message', message));
       }
 
       const sender = await User.findOne({ clerkId: senderClerkId });
       const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'Someone';
 
       // Also emit to recipient directly if online for sidebar updates
-      if (recipientSocketId) {
-        io.to(recipientSocketId).emit('update_sidebar', {
+      if (recipientSocketIds) {
+        recipientSocketIds.forEach(sockId => io.to(sockId).emit('update_sidebar', {
           ...message.toObject(),
           senderName,
           senderImage: sender?.imageUrl
-        });
+        }));
       }
 
       // Trigger notification for recipient
@@ -252,7 +251,7 @@ io.on('connection', (socket) => {
   // Initiate Call
   socket.on('call_user', async ({ recipientClerkId, callerClerkId, callerName, callerImage, offer, callType }) => {
     if (callerClerkId) {
-      onlineUsers.set(callerClerkId, socket.id);
+      if (!onlineUsers.has(callerClerkId)) { onlineUsers.set(callerClerkId, new Set()); } onlineUsers.get(callerClerkId).add(socket.id);
       socket.userId = callerClerkId;
     }
 
@@ -269,7 +268,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const recipientSocketId = onlineUsers.get(recipientClerkId);
+    const recipientSocketIds = onlineUsers.get(recipientClerkId);
     const convId = Message.getConversationId(callerClerkId, recipientClerkId);
 
     const callPayload = {
@@ -280,8 +279,8 @@ io.on('connection', (socket) => {
       callType: callType || 'video'
     };
 
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit('incoming_call', callPayload);
+    if (recipientSocketIds) {
+      recipientSocketIds.forEach(sockId => io.to(sockId).emit('incoming_call', callPayload));
     }
     // Also emit to conversation room as fallback
     socket.to(convId).emit('incoming_call', callPayload);
@@ -290,14 +289,14 @@ io.on('connection', (socket) => {
   // Answer Call
   socket.on('answer_call', ({ toClerkId, answer, fromClerkId }) => {
     if (fromClerkId) {
-      onlineUsers.set(fromClerkId, socket.id);
+      if (!onlineUsers.has(fromClerkId)) { onlineUsers.set(fromClerkId, new Set()); } onlineUsers.get(fromClerkId).add(socket.id);
       socket.userId = fromClerkId;
     }
-    const callerSocketId = onlineUsers.get(toClerkId);
+    const callerSocketIds = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
 
-    if (callerSocketId) {
-      io.to(callerSocketId).emit('call_accepted', { answer });
+    if (callerSocketIds) {
+      callerSocketIds.forEach(sockId => io.to(sockId).emit('call_accepted', { answer }));
     }
     socket.to(convId).emit('call_accepted', { answer });
   });
@@ -305,13 +304,13 @@ io.on('connection', (socket) => {
   // Reject Call
   socket.on('reject_call', ({ toClerkId, fromClerkId }) => {
     if (fromClerkId) {
-      onlineUsers.set(fromClerkId, socket.id);
+      if (!onlineUsers.has(fromClerkId)) { onlineUsers.set(fromClerkId, new Set()); } onlineUsers.get(fromClerkId).add(socket.id);
       socket.userId = fromClerkId;
     }
-    const callerSocketId = onlineUsers.get(toClerkId);
+    const callerSocketIds = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-    if (callerSocketId) {
-      io.to(callerSocketId).emit('call_rejected');
+    if (callerSocketIds) {
+      callerSocketIds.forEach(sockId => io.to(sockId).emit('call_rejected'));
     }
     socket.to(convId).emit('call_rejected');
   });
@@ -319,13 +318,13 @@ io.on('connection', (socket) => {
   // End Call
   socket.on('end_call', ({ toClerkId, fromClerkId }) => {
     if (fromClerkId) {
-      onlineUsers.set(fromClerkId, socket.id);
+      if (!onlineUsers.has(fromClerkId)) { onlineUsers.set(fromClerkId, new Set()); } onlineUsers.get(fromClerkId).add(socket.id);
       socket.userId = fromClerkId;
     }
-    const partnerSocketId = onlineUsers.get(toClerkId);
+    const partnerSocketIds = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-    if (partnerSocketId) {
-      io.to(partnerSocketId).emit('call_ended');
+    if (partnerSocketIds) {
+      partnerSocketIds.forEach(sockId => io.to(sockId).emit('call_ended'));
     }
     socket.to(convId).emit('call_ended');
   });
@@ -333,21 +332,27 @@ io.on('connection', (socket) => {
   // ICE Candidates exchange
   socket.on('ice_candidate', ({ toClerkId, candidate, fromClerkId }) => {
     if (fromClerkId) {
-      onlineUsers.set(fromClerkId, socket.id);
+      if (!onlineUsers.has(fromClerkId)) { onlineUsers.set(fromClerkId, new Set()); } onlineUsers.get(fromClerkId).add(socket.id);
       socket.userId = fromClerkId;
     }
-    const partnerSocketId = onlineUsers.get(toClerkId);
+    const partnerSocketIds = onlineUsers.get(toClerkId);
     const convId = Message.getConversationId(fromClerkId || socket.userId, toClerkId);
-    if (partnerSocketId) {
-      io.to(partnerSocketId).emit('ice_candidate', { candidate });
+    if (partnerSocketIds) {
+      partnerSocketIds.forEach(sockId => io.to(sockId).emit('ice_candidate', { candidate }));
     }
     socket.to(convId).emit('ice_candidate', { candidate });
   });
 
   socket.on('disconnect', () => {
     if (socket.userId) {
-      onlineUsers.delete(socket.userId);
-      io.emit('online_users_update', Array.from(onlineUsers.keys()));
+      const userSockets = onlineUsers.get(socket.userId);
+      if (userSockets) {
+        userSockets.delete(socket.id);
+        if (userSockets.size === 0) {
+          onlineUsers.delete(socket.userId);
+          io.emit('online_users_update', Array.from(onlineUsers.keys()));
+        }
+      }
     }
     console.log(`Socket disconnected: ${socket.id}`);
   });

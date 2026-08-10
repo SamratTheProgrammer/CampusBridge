@@ -4,6 +4,7 @@ import { Loader2, Calendar, Clock, MapPin, Users, X, CheckCircle2, Globe } from 
 import { format } from 'date-fns'
 import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
 
 const Events = () => {
   const { user } = useUser()
@@ -11,9 +12,7 @@ const Events = () => {
   const [events, setEvents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Registration Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState(null)
+  // Registration State
   const [applicantRole, setApplicantRole] = useState('student')
   const [isRegistering, setIsRegistering] = useState(false)
   
@@ -56,18 +55,12 @@ const Events = () => {
     }
   }, [user])
 
-  const handleRegisterClick = (event) => {
-    setSelectedEvent(event)
-    setIsModalOpen(true)
-  }
-
-  const handleConfirmRegistration = async (e) => {
-    e.preventDefault()
+  const handleRegisterClick = async (event) => {
     if (!user) return
     setIsRegistering(true)
     
     try {
-      const res = await fetch(`/api/events/${selectedEvent._id}/apply`, {
+      const res = await fetch(`/api/events/${event._id}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,11 +73,10 @@ const Events = () => {
       if (!res.ok) throw new Error(data.error || 'Failed to register')
       
       toast.success('Successfully registered for event!')
-      setIsModalOpen(false)
       
       // Update local event attendees count if not already in it
       setEvents(events.map(ev => {
-        if (ev._id === selectedEvent._id) {
+        if (ev._id === event._id) {
           const attendees = ev.attendees || [];
           if (!attendees.includes(userDbData?._id)) {
             return { ...ev, attendees: [...attendees, userDbData?._id || 'new'] }
@@ -209,102 +201,7 @@ const Events = () => {
         )}
       </div>
 
-      {/* Registration Modal */}
-      <AnimatePresence>
-        {isModalOpen && selectedEvent && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-card border border-border/50 rounded-2xl w-full max-w-md shadow-xl flex flex-col"
-            >
-              <div className="p-6 border-b border-border/50 flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-bold text-foreground">Complete Registration</h2>
-                  <p className="text-sm text-muted-foreground mt-1 truncate max-w-[280px]">{selectedEvent.title}</p>
-                </div>
-                <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:bg-muted p-1.5 rounded-lg transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <div className="p-6">
-                <form onSubmit={handleConfirmRegistration} className="space-y-6">
-                  
-                  {/* Profile Summary */}
-                  <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
-                    <h3 className="text-sm font-semibold text-foreground mb-3">Your Details</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Name</span>
-                        <span className="font-medium text-foreground">{user?.fullName}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Email</span>
-                        <span className="font-medium text-foreground">{user?.primaryEmailAddress?.emailAddress}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Phone</span>
-                        <span className="font-medium text-foreground">
-                          {userDbData?.phone || <span className="text-red-400 italic">Not provided in settings</span>}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-3">I am attending as a:</label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <label className={`border rounded-xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${applicantRole === 'student' ? 'border-primary bg-primary/5 text-primary' : 'border-border/50 text-foreground hover:bg-muted/50'}`}>
-                        <input 
-                          type="radio" 
-                          name="role" 
-                          value="student" 
-                          checked={applicantRole === 'student'}
-                          onChange={() => setApplicantRole('student')}
-                          className="sr-only"
-                        />
-                        <span className="font-semibold text-sm">Student</span>
-                      </label>
-                      <label className={`border rounded-xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${applicantRole === 'alumni' ? 'border-primary bg-primary/5 text-primary' : 'border-border/50 text-foreground hover:bg-muted/50'}`}>
-                        <input 
-                          type="radio" 
-                          name="role" 
-                          value="alumni" 
-                          checked={applicantRole === 'alumni'}
-                          onChange={() => setApplicantRole('alumni')}
-                          className="sr-only"
-                        />
-                        <span className="font-semibold text-sm">Alumni</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <button 
-                      type="button" 
-                      disabled={isRegistering}
-                      onClick={() => setIsModalOpen(false)}
-                      className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2.5 rounded-xl font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="submit"
-                      disabled={isRegistering}
-                      className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-50"
-                    >
-                      {isRegistering && <Loader2 className="w-4 h-4 animate-spin" />}
-                      Confirm Registration
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
