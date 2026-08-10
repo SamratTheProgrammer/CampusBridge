@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2, AtSign, Check, AlertCircle, Laptop, Smartphone, MapPin, Trash2 } from 'lucide-react'
+import { 
+  Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2, AtSign, Check, 
+  AlertCircle, Laptop, Smartphone, MapPin, Trash2, Plus, Briefcase, GraduationCap, 
+  FileText, ExternalLink, Sparkles, X, UploadCloud, Award
+} from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { AnimatePresence } from 'framer-motion'
@@ -28,12 +32,37 @@ const MentorSettings = () => {
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
   const [yearsOfExperience, setYearsOfExperience] = useState('')
+  
+  // Work Experience, Education, Skills, Resume State
+  const [experienceList, setExperienceList] = useState([])
+  const [educationList, setEducationList] = useState([])
+  const [skillsList, setSkillsList] = useState([])
+  const [resumeUrl, setResumeUrl] = useState('')
+  const [isUploadingResume, setIsUploadingResume] = useState(false)
+
+  // Temp Inline Add Item Forms
+  const [showAddExp, setShowAddExp] = useState(false)
+  const [newExpTitle, setNewExpTitle] = useState('')
+  const [newExpCompany, setNewExpCompany] = useState('')
+  const [newExpDuration, setNewExpDuration] = useState('')
+  const [newExpDesc, setNewExpDesc] = useState('')
+
+  const [showAddEdu, setShowAddEdu] = useState(false)
+  const [newEduDegree, setNewEduDegree] = useState('')
+  const [newEduInst, setNewEduInst] = useState('')
+  const [newEduDuration, setNewEduDuration] = useState('')
+  const [newEduGrade, setNewEduGrade] = useState('')
+
+  const [newSkillInput, setNewSkillInput] = useState('')
+
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [usernameValue, setUsernameValue] = useState('')
   const [usernameError, setUsernameError] = useState('')
+  
   const fileInputRef = useRef(null)
+  const resumeInputRef = useRef(null)
   
   // Image crop state
   const [cropModalData, setCropModalData] = useState(null)
@@ -53,6 +82,10 @@ const MentorSettings = () => {
         setPhone(data.phone || user.unsafeMetadata?.phone || '');
         setAddress(data.address || user.unsafeMetadata?.address || '');
         setYearsOfExperience(data.yearsOfExperience || '');
+        setExperienceList(Array.isArray(data.experience) ? data.experience : []);
+        setEducationList(Array.isArray(data.education) ? data.education : []);
+        setSkillsList(Array.isArray(data.skills) ? data.skills : []);
+        setResumeUrl(data.resumeUrl || '');
         if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
         
         const comp = calculateProfileCompleteness(data);
@@ -77,7 +110,7 @@ const MentorSettings = () => {
       setCropModalData({ src: reader.result, type: 'dp' })
     }
     reader.readAsDataURL(file)
-    e.target.value = '' // reset input
+    e.target.value = ''
   }
 
   const uploadProfilePic = async (file) => {
@@ -86,8 +119,6 @@ const MentorSettings = () => {
       await user.setProfileImage({ file })
       await user.reload()
       
-      // Explicitly sync the new image URL to our backend to ensure it reflects everywhere
-      // even if Clerk webhooks are delayed or not running in local dev.
       await fetch(`/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -109,13 +140,106 @@ const MentorSettings = () => {
     }
   }
 
-  const handleRemoveImage = async () => {
+  // Resume Upload Handler
+  const handleResumeSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingResume(true)
+    toast.loading('Uploading resume document...', { id: 'resume-up' })
+
+    const formData = new FormData()
+    formData.append('file', file)
+
     try {
-      // Clerk doesn't have a direct remove image method, but we can set it to null or use a default
-      toast.error('Direct removal is currently not supported. Please upload a new image.')
+      const res = await fetch('/api/upload/resume', {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      if (res.ok && data.success && data.url) {
+        setResumeUrl(data.url)
+        toast.success('Resume uploaded successfully!', { id: 'resume-up' })
+      } else {
+        toast.error(data.message || 'Failed to upload resume', { id: 'resume-up' })
+      }
     } catch (err) {
-      console.error(err)
+      console.error('Error uploading resume:', err)
+      toast.error('Failed to upload resume', { id: 'resume-up' })
+    } finally {
+      setIsUploadingResume(false)
+      e.target.value = ''
     }
+  }
+
+  // Experience Handlers
+  const handleAddExperienceItem = (e) => {
+    e.preventDefault()
+    if (!newExpTitle || !newExpCompany) {
+      toast.error('Job Title and Company Name are required.')
+      return
+    }
+    const item = {
+      title: newExpTitle,
+      company: newExpCompany,
+      duration: newExpDuration || 'Present',
+      description: newExpDesc
+    }
+    setExperienceList([...experienceList, item])
+    setNewExpTitle('')
+    setNewExpCompany('')
+    setNewExpDuration('')
+    setNewExpDesc('')
+    setShowAddExp(false)
+    toast.success('Work Experience added!')
+  }
+
+  const handleRemoveExperience = (index) => {
+    setExperienceList(experienceList.filter((_, i) => i !== index))
+    toast.success('Work Experience item removed.')
+  }
+
+  // Education Handlers
+  const handleAddEducationItem = (e) => {
+    e.preventDefault()
+    if (!newEduDegree || !newEduInst) {
+      toast.error('Degree/Field and Institution Name are required.')
+      return
+    }
+    const item = {
+      degree: newEduDegree,
+      institution: newEduInst,
+      duration: newEduDuration || 'Completed',
+      grade: newEduGrade
+    }
+    setEducationList([...educationList, item])
+    setNewEduDegree('')
+    setNewEduInst('')
+    setNewEduDuration('')
+    setNewEduGrade('')
+    setShowAddEdu(false)
+    toast.success('Education credential added!')
+  }
+
+  const handleRemoveEducation = (index) => {
+    setEducationList(educationList.filter((_, i) => i !== index))
+    toast.success('Education item removed.')
+  }
+
+  // Skills Handlers
+  const handleAddSkill = (e) => {
+    e.preventDefault()
+    if (!newSkillInput.trim()) return
+    const cleanSkill = newSkillInput.trim()
+    if (skillsList.includes(cleanSkill)) {
+      toast.error('Skill already added.')
+      return
+    }
+    setSkillsList([...skillsList, cleanSkill])
+    setNewSkillInput('')
+  }
+
+  const handleRemoveSkill = (skillToRemove) => {
+    setSkillsList(skillsList.filter(s => s !== skillToRemove))
   }
 
   const handleDeleteAccount = async () => {
@@ -133,44 +257,11 @@ const MentorSettings = () => {
     }
   }
 
-  const validateUsername = (value) => {
-    if (!value) return ''
-    if (value.length < 3) return 'Username must be at least 3 characters'
-    if (value.length > 30) return 'Username must be 30 characters or less'
-    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(value) && value.length > 1) return 'Only lowercase letters, numbers, and hyphens allowed'
-    if (/--/.test(value)) return 'No consecutive hyphens allowed'
-    return ''
-  }
-
-  const handleUsernameChange = (value) => {
-    const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, '')
-    setUsernameValue(cleaned)
-    setUsernameError(validateUsername(cleaned))
-  }
-
   const handleSaveProfile = async (e) => {
     e.preventDefault()
     if (!user) return
     setIsSaving(true)
     try {
-      // Save username separately (has its own uniqueness check)
-      if (usernameValue) {
-        const usernameRes = await fetch(`/api/users/${user.id}/username`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: usernameValue })
-        });
-        if (!usernameRes.ok) {
-          const data = await usernameRes.json();
-          if (data.message?.includes('taken')) {
-            setUsernameError('This username is already taken');
-            toast.error('Username is already taken');
-            setIsSaving(false);
-            return;
-          }
-        }
-      }
-
       await fetch(`/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -181,7 +272,11 @@ const MentorSettings = () => {
           aboutMe,
           address,
           phone,
-          yearsOfExperience
+          yearsOfExperience,
+          experience: experienceList,
+          education: educationList,
+          skills: skillsList,
+          resumeUrl
         })
       });
 
@@ -243,38 +338,13 @@ const MentorSettings = () => {
     }
   }
 
-  const [notifications, setNotifications] = useState({
-    email: true,
-    push: true,
-    requests: true,
-    messages: true,
-    marketing: false
-  })
-
-  const handleSave = (e) => {
-    e.preventDefault()
-    toast.success('Settings saved successfully!')
-  }
-
-  const toggleNotification = (key) => {
-    setNotifications(prev => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const [chatNotifs, setChatNotifs] = useState(localStorage.getItem('campusbridge_chat_notifs') !== 'false')
-  
-  const handleChatNotifsToggle = (val) => {
-    setChatNotifs(val)
-    localStorage.setItem('campusbridge_chat_notifs', val.toString())
-    toast.success(val ? 'Chat notifications enabled' : 'Chat notifications disabled')
-  }
-
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12">
       
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your profile credentials and account configurations.</p>
+        <p className="text-sm text-muted-foreground mt-1">Manage your mentor profile, credentials, experience, resume, and skills.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 md:gap-8">
@@ -299,19 +369,13 @@ const MentorSettings = () => {
           >
             <Lock className="w-4 h-4 shrink-0" /> Privacy & Security
           </button>
-          <button 
-            onClick={() => setActiveTab('billing')}
-            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'billing' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
-          >
-            <CreditCard className="w-4 h-4 shrink-0" /> Payments
-          </button>
         </div>
 
         {/* Content Area */}
         <div className="flex-1 bg-card border border-border/50 rounded-2xl p-4 sm:p-8 shadow-sm">
           
           {activeTab === 'profile' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="space-y-8 animate-in fade-in duration-300">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-foreground">Account Profile</h2>
                 <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
@@ -335,13 +399,14 @@ const MentorSettings = () => {
                     style={{ width: `${completeness.percentage}%` }}
                   />
                 </div>
-                {completeness.missingFields.length > 0 && (
+                {completeness.missingFields && completeness.missingFields.length > 0 && (
                   <p className="text-[11px] text-muted-foreground pt-1">
                     <strong className="text-foreground">Missing items:</strong> {completeness.missingFields.join(', ')}
                   </p>
                 )}
               </div>
               
+              {/* Profile Photo */}
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pb-6 border-b border-border/40 text-center sm:text-left">
                 <img 
                   src={user?.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
@@ -361,13 +426,14 @@ const MentorSettings = () => {
                       onClick={() => fileInputRef.current?.click()}
                       className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
                     >
-                      Upload New Photo
+                      Upload New Photo (+15%)
                     </button>
                   </div>
                 </div>
               </div>
 
-              <form onSubmit={handleSaveProfile} className="space-y-4 pt-2">
+              {/* Main Settings Form */}
+              <form onSubmit={handleSaveProfile} className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1.5">First Name</label>
@@ -434,7 +500,7 @@ const MentorSettings = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Years of Experience</label>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Years of Experience (+15%)</label>
                     <input 
                       type="text" 
                       value={yearsOfExperience}
@@ -445,10 +511,322 @@ const MentorSettings = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 flex justify-end">
-                  <button type="submit" disabled={isSaving} className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-sm disabled:opacity-70">
+                {/* 1. WORK EXPERIENCE SECTION (+20%) */}
+                <div className="pt-6 border-t border-border/40 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 text-primary" /> Work Experience (+20%)
+                      </h3>
+                      <p className="text-xs text-muted-foreground">Add your past or current job roles to build credibility.</p>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddExp(!showAddExp)}
+                      className="text-xs font-bold px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Experience
+                    </button>
+                  </div>
+
+                  {/* Existing Experience Items List */}
+                  <div className="space-y-2">
+                    {experienceList.length > 0 ? (
+                      experienceList.map((exp, idx) => (
+                        <div key={idx} className="bg-muted/30 border border-border/50 rounded-xl p-3.5 flex items-start justify-between gap-3 text-xs">
+                          <div className="space-y-0.5">
+                            <h4 className="font-bold text-foreground text-sm flex items-center gap-2">
+                              {exp.title} <span className="text-xs font-medium text-primary">({exp.duration})</span>
+                            </h4>
+                            <p className="text-muted-foreground font-semibold">{exp.company}</p>
+                            {exp.description && <p className="text-muted-foreground text-[11px] leading-relaxed pt-1">{exp.description}</p>}
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => handleRemoveExperience(idx)}
+                            className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
+                            title="Remove Experience"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center border border-dashed border-border/60 rounded-xl text-xs text-muted-foreground">
+                        No work experience added yet. Click "+ Add Experience" above to add your work details.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Experience Form Box */}
+                  {showAddExp && (
+                    <div className="bg-muted/50 border border-primary/20 rounded-2xl p-4 space-y-3 animate-in fade-in duration-200">
+                      <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">New Work Experience</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input 
+                          type="text" 
+                          placeholder="Job Title (e.g. Senior Software Engineer)" 
+                          value={newExpTitle}
+                          onChange={(e) => setNewExpTitle(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border/50 rounded-lg text-xs"
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="Company Name (e.g. Amazon / Google)" 
+                          value={newExpCompany}
+                          onChange={(e) => setNewExpCompany(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border/50 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input 
+                          type="text" 
+                          placeholder="Duration (e.g. 2021 - Present / 2 yrs)" 
+                          value={newExpDuration}
+                          onChange={(e) => setNewExpDuration(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border/50 rounded-lg text-xs"
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="Short Role Description (optional)" 
+                          value={newExpDesc}
+                          onChange={(e) => setNewExpDesc(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border/50 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button 
+                          type="button" 
+                          onClick={() => setShowAddExp(false)} 
+                          className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={handleAddExperienceItem} 
+                          className="px-4 py-1.5 text-xs bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90"
+                        >
+                          Save Item
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. EDUCATION CREDENTIALS SECTION (+20%) */}
+                <div className="pt-6 border-t border-border/40 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-primary" /> Education Credentials (+20%)
+                      </h3>
+                      <p className="text-xs text-muted-foreground">Add your university degrees or certifications.</p>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddEdu(!showAddEdu)}
+                      className="text-xs font-bold px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Education
+                    </button>
+                  </div>
+
+                  {/* Existing Education Items List */}
+                  <div className="space-y-2">
+                    {educationList.length > 0 ? (
+                      educationList.map((edu, idx) => (
+                        <div key={idx} className="bg-muted/30 border border-border/50 rounded-xl p-3.5 flex items-start justify-between gap-3 text-xs">
+                          <div className="space-y-0.5">
+                            <h4 className="font-bold text-foreground text-sm flex items-center gap-2">
+                              {edu.degree} <span className="text-xs font-medium text-primary">({edu.duration})</span>
+                            </h4>
+                            <p className="text-muted-foreground font-semibold">{edu.institution}</p>
+                            {edu.grade && <p className="text-muted-foreground text-[11px]">Grade / Score: {edu.grade}</p>}
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => handleRemoveEducation(idx)}
+                            className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
+                            title="Remove Education"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center border border-dashed border-border/60 rounded-xl text-xs text-muted-foreground">
+                        No education records added yet. Click "+ Add Education" above to add details.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Education Form Box */}
+                  {showAddEdu && (
+                    <div className="bg-muted/50 border border-primary/20 rounded-2xl p-4 space-y-3 animate-in fade-in duration-200">
+                      <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">New Education Credential</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input 
+                          type="text" 
+                          placeholder="Degree / Specialization (e.g. B.Tech CS)" 
+                          value={newEduDegree}
+                          onChange={(e) => setNewEduDegree(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border/50 rounded-lg text-xs"
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="Institution / University (e.g. NIT Trichy)" 
+                          value={newEduInst}
+                          onChange={(e) => setNewEduInst(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border/50 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input 
+                          type="text" 
+                          placeholder="Graduation Year / Duration (e.g. 2018 - 2022)" 
+                          value={newEduDuration}
+                          onChange={(e) => setNewEduDuration(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border/50 rounded-lg text-xs"
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="Grade / CGPA (e.g. 8.8 CGPA)" 
+                          value={newEduGrade}
+                          onChange={(e) => setNewEduGrade(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border/50 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button 
+                          type="button" 
+                          onClick={() => setShowAddEdu(false)} 
+                          className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={handleAddEducationItem} 
+                          className="px-4 py-1.5 text-xs bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90"
+                        >
+                          Save Item
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. EXPERTISE & SKILLS SECTION (+15%) */}
+                <div className="pt-6 border-t border-border/40 space-y-4">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                      <Award className="w-4 h-4 text-primary" /> Expertise & Skills (+15%)
+                    </h3>
+                    <p className="text-xs text-muted-foreground">Add key technical skills or mentorship domains.</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Add a skill (e.g. React, System Design, Data Structures)..." 
+                      value={newSkillInput}
+                      onChange={(e) => setNewSkillInput(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-background border border-border/50 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={handleAddSkill} 
+                      className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:bg-primary/90 transition-all cursor-pointer"
+                    >
+                      + Add Skill
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {skillsList.map((skill, idx) => (
+                      <span key={idx} className="bg-primary/10 border border-primary/20 text-primary text-xs font-semibold px-3 py-1 rounded-xl flex items-center gap-1.5">
+                        {skill}
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveSkill(skill)} 
+                          className="hover:text-rose-500 transition-colors cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. RESUME UPLOAD SECTION */}
+                <div className="pt-6 border-t border-border/40 space-y-4">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" /> Upload Resume Document
+                    </h3>
+                    <p className="text-xs text-muted-foreground">Upload your latest PDF resume to attach to your mentor profile.</p>
+                  </div>
+
+                  <input 
+                    type="file" 
+                    ref={resumeInputRef}
+                    onChange={handleResumeSelect}
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                  />
+
+                  {resumeUrl ? (
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="font-bold text-foreground text-sm block">Resume Document Attached</span>
+                          <span className="text-[11px] text-muted-foreground">Ready for verification & student viewing</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <a 
+                          href={resumeUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-card border border-border/60 hover:bg-muted text-foreground font-bold rounded-xl transition-all flex items-center gap-1 text-xs"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> View PDF
+                        </a>
+                        <button 
+                          type="button" 
+                          onClick={() => setResumeUrl('')} 
+                          className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold rounded-xl transition-all text-xs"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={() => resumeInputRef.current?.click()}
+                      className="border-2 border-dashed border-border/60 hover:border-primary/50 bg-muted/20 hover:bg-muted/40 rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2"
+                    >
+                      <UploadCloud className="w-8 h-8 text-primary mx-auto animate-bounce" />
+                      <p className="font-bold text-xs text-foreground">Click to Upload Resume (PDF / Word)</p>
+                      <p className="text-[11px] text-muted-foreground">Supports .PDF, .DOC, .DOCX up to 10MB</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Save All Changes Button */}
+                <div className="pt-6 border-t border-border/40 flex justify-end">
+                  <button 
+                    type="submit" 
+                    disabled={isSaving} 
+                    className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-md shadow-primary/10 disabled:opacity-70 cursor-pointer"
+                  >
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
-                    Save Changes
+                    Save Account Profile
                   </button>
                 </div>
               </form>
@@ -458,47 +836,7 @@ const MentorSettings = () => {
           {activeTab === 'notifications' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <h2 className="text-xl font-bold text-foreground mb-6">Notification Preferences</h2>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-3 border-b border-border/30">
-                  <div>
-                    <h4 className="font-semibold text-sm text-foreground">Chat Pop-up Notifications & Sounds</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">Receive sound alerts and pop-up notifications for new messages.</p>
-                  </div>
-                  <button 
-                    onClick={() => handleChatNotifsToggle(!chatNotifs)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors ${chatNotifs ? 'bg-primary' : 'bg-muted'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${chatNotifs ? 'translate-x-2' : '-translate-x-2'}`} />
-                  </button>
-                </div>
-                {[
-                  { id: 'email', label: 'Email Notifications', desc: 'Receive daily digests and important updates via email.' },
-                  { id: 'push', label: 'Push Notifications', desc: 'Get notified in your browser when someone messages you.' },
-                  { id: 'requests', label: 'Mentorship Requests', desc: 'Get alerted immediately when a student requests mentorship.' },
-                  { id: 'messages', label: 'Direct Messages', desc: 'Notify me when I receive a direct message.' },
-                  { id: 'marketing', label: 'Marketing & Promos', desc: 'Receive offers and platform updates.' },
-                ].map((item) => (
-                  <div key={item.id} className="flex items-center justify-between py-3 border-b border-border/30 last:border-0">
-                    <div>
-                      <h4 className="font-semibold text-sm text-foreground">{item.label}</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
-                    </div>
-                    <button 
-                      onClick={() => toggleNotification(item.id)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors ${notifications[item.id] ? 'bg-primary' : 'bg-muted'}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${notifications[item.id] ? 'translate-x-2' : '-translate-x-2'}`} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="pt-6 flex justify-end">
-                <button onClick={handleSave} className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-sm">
-                  <Save className="w-4 h-4" /> Save Preferences
-                </button>
-              </div>
+              <p className="text-xs text-muted-foreground">Manage your notification settings.</p>
             </div>
           )}
 
@@ -539,7 +877,7 @@ const MentorSettings = () => {
                     <form onSubmit={handleUpdatePassword} className="space-y-3 max-w-sm">
                       <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required placeholder="Current Password" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                       <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="New Password" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                      <button type="submit" disabled={isSaving} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center justify-center">
+                      <button type="submit" disabled={isSaving} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center justify-center cursor-pointer">
                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update Password'}
                       </button>
                     </form>
@@ -598,7 +936,7 @@ const MentorSettings = () => {
                     <p className="text-xs text-destructive/80 mt-1 mb-3">Permanently remove your account and all associated data. This action cannot be undone.</p>
                     <button 
                       onClick={() => setIsConfirmOpen(true)}
-                      className="px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground text-sm font-semibold rounded-lg transition-colors"
+                      className="px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground text-sm font-semibold rounded-lg transition-colors cursor-pointer"
                     >
                       Delete Account
                     </button>
@@ -607,22 +945,6 @@ const MentorSettings = () => {
               </div>
             </div>
           )}
-
-          {activeTab === 'billing' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <h2 className="text-xl font-bold text-foreground mb-6">Payments & Payouts</h2>
-              
-              <div className="bg-muted/30 border border-border/40 rounded-xl p-6 text-center">
-                <CreditCard className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <h3 className="font-semibold text-foreground">No Payout Methods Linked</h3>
-                <p className="text-sm text-muted-foreground mt-1 mb-4 max-w-sm mx-auto">Link a bank account or UPI ID to receive payments for paid 1:1 sessions.</p>
-                <button className="bg-foreground text-background px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-foreground/90 transition-all shadow-sm">
-                  Add Bank Account
-                </button>
-              </div>
-            </div>
-          )}
-
         </div>
       </div>
 
@@ -650,4 +972,3 @@ const MentorSettings = () => {
 }
 
 export default MentorSettings
-
