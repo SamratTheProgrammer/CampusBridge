@@ -32,22 +32,31 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
         return
       }
 
-      // Check Clerk metadata first
-      let role = user.publicMetadata?.role || user.unsafeMetadata?.role
+      // Check Clerk metadata or existing session storage first
+      let role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
 
-      // If missing from Clerk metadata, fetch from MongoDB API
-      if (!role) {
-        try {
-          const res = await fetch(`/api/users/${user.id}`)
-          if (res.ok) {
-            const data = await res.json()
-            if (data && data.role) {
-              role = data.role
-            }
+      if (role && isMounted) {
+        setUserRole(role)
+        sessionStorage.setItem('campusbridge_user_role', role)
+        setIsRoleLoading(false)
+        return
+      }
+
+      // If missing from metadata & storage, fetch from MongoDB API with timeout
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 1000)
+        
+        const res = await fetch(`/api/users/${user.id}`, { signal: controller.signal })
+        clearTimeout(timeoutId)
+        if (res.ok) {
+          const data = await res.json()
+          if (data && data.role) {
+            role = data.role
           }
-        } catch (err) {
-          console.error('Failed to fetch user role:', err)
         }
+      } catch (err) {
+        console.error('Failed to fetch user role:', err)
       }
 
       // Fallback default
@@ -60,10 +69,18 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
       }
     }
 
+    // Safety fallback timeout to ensure page never gets stuck loading
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted && isRoleLoading) {
+        setIsRoleLoading(false)
+      }
+    }, 1200)
+
     checkUserRole()
 
     return () => {
       isMounted = false
+      clearTimeout(safetyTimeout)
     }
   }, [isLoaded, isSignedIn, user])
 
@@ -88,7 +105,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
     if (!isAllowed) {
       // Redirect to authorized dashboard based on actual user role
-      if (userRole === 'mentor') {
+      if (userRole === 'mentor' || userRole === 'alumni') {
         return <Navigate to="/mentor-dashboard" replace />
       } else if (userRole === 'admin') {
         return <Navigate to="/admin" replace />

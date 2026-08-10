@@ -53,7 +53,7 @@ const DashboardLayout = () => {
         navigate('/login', { replace: true })
       } else if (user) {
         const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
-        if (role === 'mentor') {
+        if (role === 'mentor' || role === 'alumni') {
           navigate('/mentor-dashboard', { replace: true })
         }
       }
@@ -72,9 +72,22 @@ const DashboardLayout = () => {
     }
   }, [])
 
-  // Global Chat Notification Listener
+  // Global Socket Registration & Chat Notification Listener
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
+
+    const registerSocket = () => {
+      socket.emit('register_user', user.id);
+      socket.emit('get_online_users');
+    };
+
+    if (socket.connected) {
+      registerSocket();
+    } else {
+      socket.connect();
+    }
+
+    socket.on('connect', registerSocket);
 
     const handleNewMessage = (msg) => {
       // Don't show toast if we are currently looking at the chat page (optional: can be more strict about activeContact)
@@ -138,6 +151,7 @@ const DashboardLayout = () => {
     socket.on('update_sidebar', handleNewMessage);
 
     return () => {
+      socket.off('connect', registerSocket);
       socket.off('update_sidebar', handleNewMessage);
     };
   }, [user, navigate]);

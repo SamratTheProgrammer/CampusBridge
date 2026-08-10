@@ -7,7 +7,8 @@ const getSocketUrl = () => {
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
     const hostname = window.location.hostname;
-    if (window.location.port === '5173') {
+    // If accessing via local network or dev port (e.g., 5173, 5174, etc.)
+    if (window.location.port && window.location.port !== '5000' && window.location.port !== '80' && window.location.port !== '443') {
       return `${protocol}//${hostname}:5000`;
     }
     return window.location.origin;
@@ -17,7 +18,24 @@ const getSocketUrl = () => {
 
 export const socket = io(getSocketUrl(), {
   autoConnect: true,
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 20000,
+});
+
+socket.on('connect', () => {
+  console.log('[Socket] Connected successfully:', socket.id);
+});
+
+socket.on('connect_error', (err) => {
+  console.error('[Socket] Connection error:', err.message);
+});
+
+socket.on('disconnect', (reason) => {
+  console.log('[Socket] Disconnected:', reason);
 });
 
 export default socket;
