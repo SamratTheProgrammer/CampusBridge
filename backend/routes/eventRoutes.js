@@ -6,16 +6,68 @@ import Post from '../models/Post.js';
 
 const router = express.Router();
 
-// Get all active events (supports ?category=event or ?category=session filter)
+// Get all active events (supports ?category=event or ?category=session filter, with auto-seeding)
 router.get('/', async (req, res) => {
   try {
     const filter = { active: true };
-    if (req.query.category) {
+    if (req.query.category && req.query.category !== 'all') {
       filter.category = req.query.category;
     }
-    const events = await Event.find(filter)
+
+    let events = await Event.find(filter)
       .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company')
       .sort({ createdAt: -1 });
+
+    // Seed sample events if none exist in database
+    if (events.length === 0) {
+      try {
+        const SAMPLE_EVENTS = [
+          {
+            title: 'AI & Deep Learning Masterclass',
+            type: 'Masterclass',
+            mode: 'Online',
+            date: new Date('2026-08-25'),
+            time: '6:00 PM - 8:00 PM',
+            link: 'https://meet.google.com/campusbridge-ai',
+            description: 'Join top AI researchers for an interactive deep dive into Generative AI, Neural Networks, and LLM Fine-Tuning.',
+            category: 'event',
+            active: true,
+            imageUrl: 'https://images.unsplash.com/photo-1591453089816-0fbb971b454c?w=600&q=80'
+          },
+          {
+            title: 'Global Placement & Internship Fair 2026',
+            type: 'Career Fair',
+            mode: 'Offline',
+            location: 'Main Campus Auditorium, Block C',
+            date: new Date('2026-09-10'),
+            time: '10:00 AM - 5:00 PM',
+            description: 'Connect directly with hiring managers from Google, Microsoft, Amazon, Swiggy, and 50+ top tech startups.',
+            category: 'event',
+            active: true,
+            imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&q=80'
+          },
+          {
+            title: 'Web3 & Full-Stack Development Bootcamp',
+            type: 'Workshop',
+            mode: 'Online',
+            date: new Date('2026-09-02'),
+            time: '4:00 PM - 6:30 PM',
+            link: 'https://meet.google.com/campusbridge-web3',
+            description: 'Hands-on workshop building production-ready React + Node.js full-stack applications with live Q&A.',
+            category: 'event',
+            active: true,
+            imageUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600&q=80'
+          }
+        ];
+        await Event.insertMany(SAMPLE_EVENTS);
+        events = await Event.find(filter)
+          .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company')
+          .sort({ createdAt: -1 });
+      } catch (seedErr) {
+        console.error('Error seeding initial events:', seedErr);
+      }
+    }
+
     res.json(events);
   } catch (error) {
     res.status(500).json({ error: error.message });
