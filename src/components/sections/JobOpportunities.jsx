@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { formatDistanceToNow } from 'date-fns'
+import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 
 const JobOpportunities = () => {
   const [jobs, setJobs] = useState([])
@@ -58,7 +59,7 @@ const JobOpportunities = () => {
 
         <div className="flex flex-col gap-4">
           {jobs.map((job, index) => {
-            const logo = job.companyLogo || 'https://images.unsplash.com/photo-1496200502057-a79909144510?ixlib=rb-4.0.3&auto=format&fit=crop&w=256&q=80'
+            const logo = getCompanyLogo(job.company, job.companyLogo)
             const posted = job.createdAt ? formatDistanceToNow(new Date(job.createdAt), { addSuffix: true }) : 'Recently'
             
             return (
@@ -71,8 +72,13 @@ const JobOpportunities = () => {
                 className="bg-card border rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-shadow group"
               >
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-xl border bg-background flex items-center justify-center p-2 shrink-0">
-                    <img src={logo} alt={job.company} className="max-w-full max-h-full object-contain" />
+                  <div className="w-14 h-14 rounded-xl border bg-background flex items-center justify-center p-2 shrink-0 overflow-hidden">
+                    <img 
+                      src={logo} 
+                      alt={job.company} 
+                      className="max-w-full max-h-full object-contain"
+                      onError={(e) => handleImageError(e, job.company)}
+                    />
                   </div>
                   <div>
                     <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">{job.title}</h3>

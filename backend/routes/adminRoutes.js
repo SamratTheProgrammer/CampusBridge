@@ -315,17 +315,198 @@ router.put('/users/:id/role', async (req, res) => {
   }
 });
 
-// Delete User
-router.delete('/users/:id', async (req, res) => {
+// Get All Admin Jobs (MongoDB dynamic data + seed)
+router.get('/jobs', async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    let jobs = await Job.find().sort({ createdAt: -1 });
+
+    // Seed sample jobs if none exist in database
+    if (jobs.length === 0) {
+      try {
+        const SAMPLE_JOBS = [
+          {
+            title: 'Frontend Developer',
+            company: 'TechNova Inc.',
+            location: 'Remote',
+            type: 'Full-time',
+            salary: '₹12,00,000 / year',
+            description: 'We are looking for a skilled React / Frontend developer.',
+            status: 'Approved',
+            active: true,
+            createdAt: new Date('2026-05-28')
+          },
+          {
+            title: 'Backend Developer',
+            company: 'ByteShift Solutions',
+            location: 'Bangalore',
+            type: 'Full-time',
+            salary: '₹15,00,000 / year',
+            description: 'Node.js & MongoDB developer needed for cloud platform.',
+            status: 'Approved',
+            active: true,
+            createdAt: new Date('2026-05-28')
+          },
+          {
+            title: 'UI/UX Designer',
+            company: 'Creative Minds',
+            location: 'Hybrid',
+            type: 'Internship',
+            salary: '₹30,000 / month',
+            description: 'UI/UX designer needed for user interface redesign.',
+            status: 'Pending',
+            active: true,
+            createdAt: new Date('2026-05-24')
+          },
+          {
+            title: 'Data Scientist',
+            company: 'AI Labs',
+            location: 'Mumbai',
+            type: 'Full-time',
+            salary: '₹18,00,000 / year',
+            description: 'Python & machine learning specialist for predictive analytics.',
+            status: 'Approved',
+            active: true,
+            createdAt: new Date('2026-05-22')
+          },
+          {
+            title: 'DevOps Engineer',
+            company: 'CloudScale',
+            location: 'Remote',
+            type: 'Full-time',
+            salary: '₹14,00,000 / year',
+            description: 'AWS, Docker & Kubernetes specialist needed.',
+            status: 'Rejected',
+            active: false,
+            createdAt: new Date('2026-05-20')
+          }
+        ];
+        await Job.insertMany(SAMPLE_JOBS);
+        jobs = await Job.find().sort({ createdAt: -1 });
+      } catch (seedErr) {
+        console.error('Error seeding initial jobs:', seedErr);
+      }
     }
-    return res.status(200).json({ success: true, message: 'User deleted successfully' });
+
+    const formattedJobs = jobs.map(j => ({
+      id: j._id,
+      title: j.title,
+      company: j.company,
+      location: j.location || 'Remote',
+      type: j.type || 'Full-time',
+      salary: j.salary || 'Competitive',
+      description: j.description || '',
+      posted: new Date(j.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      applications: j.applicants ? j.applicants.length : 0,
+      status: j.status || 'Approved',
+      active: !!j.active
+    }));
+
+    return res.status(200).json({ success: true, jobs: formattedJobs });
   } catch (error) {
-    console.error('Admin Delete User Error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to delete user' });
+    console.error('Admin Fetch Jobs Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch jobs' });
+  }
+});
+
+// Admin Create New Job Endpoint
+router.post('/jobs', async (req, res) => {
+  try {
+    const { title, company, companyLogo, location, type, salary, description, status } = req.body;
+
+    if (!title || !company) {
+      return res.status(400).json({ success: false, message: 'Job title and company name are required' });
+    }
+
+    const cleanComp = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const domainMap = {
+      swiggy: 'swiggy.com',
+      zomato: 'zomato.com',
+      google: 'google.com',
+      microsoft: 'microsoft.com',
+      amazon: 'amazon.com',
+      apple: 'apple.com',
+      adobe: 'adobe.com',
+      meta: 'meta.com',
+      facebook: 'facebook.com',
+      netflix: 'netflix.com',
+      tcs: 'tcs.com',
+      infosys: 'infosys.com',
+      wipro: 'wipro.com',
+      flipkart: 'flipkart.com',
+    };
+    const domain = domainMap[cleanComp] || `${cleanComp}.com`;
+    const autoLogo = companyLogo || `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
+
+    const newJob = new Job({
+      title,
+      company,
+      companyLogo: autoLogo,
+      location: location || 'Remote',
+      type: type || 'Full-time',
+      salary: salary || '',
+      description: description || '',
+      status: status || 'Approved',
+      active: status !== 'Rejected'
+    });
+
+    await newJob.save();
+
+    const formattedJob = {
+      id: newJob._id,
+      title: newJob.title,
+      company: newJob.company,
+      location: newJob.location,
+      type: newJob.type,
+      salary: newJob.salary,
+      description: newJob.description,
+      posted: new Date(newJob.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      applications: 0,
+      status: newJob.status,
+      active: newJob.active
+    };
+
+    return res.status(201).json({ success: true, message: 'Job created successfully', job: formattedJob });
+  } catch (error) {
+    console.error('Admin Create Job Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to create job posting' });
+  }
+});
+
+// Admin Update Job Status Endpoint
+router.put('/jobs/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['Approved', 'Pending', 'Rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job posting not found' });
+    }
+
+    job.status = status;
+    job.active = (status === 'Approved');
+    await job.save();
+
+    return res.status(200).json({ success: true, message: `Job status updated to ${status}`, job });
+  } catch (error) {
+    console.error('Admin Update Job Status Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update job status' });
+  }
+});
+
+// Admin Delete Job Endpoint
+router.delete('/jobs/:id', async (req, res) => {
+  try {
+    const job = await Job.findByIdAndDelete(req.params.id);
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job posting not found' });
+    }
+    return res.status(200).json({ success: true, message: 'Job posting deleted successfully' });
+  } catch (error) {
+    console.error('Admin Delete Job Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete job posting' });
   }
 });
 

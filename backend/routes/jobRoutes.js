@@ -42,10 +42,30 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
+    const cleanComp = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const domainMap = {
+      swiggy: 'swiggy.com',
+      zomato: 'zomato.com',
+      google: 'google.com',
+      microsoft: 'microsoft.com',
+      amazon: 'amazon.com',
+      apple: 'apple.com',
+      adobe: 'adobe.com',
+      meta: 'meta.com',
+      facebook: 'facebook.com',
+      netflix: 'netflix.com',
+      tcs: 'tcs.com',
+      infosys: 'infosys.com',
+      wipro: 'wipro.com',
+      flipkart: 'flipkart.com',
+    };
+    const domain = domainMap[cleanComp] || `${cleanComp}.com`;
+    const autoLogo = companyLogo || `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
+
     const newJob = new Job({
       title,
       company,
-      companyLogo,
+      companyLogo: autoLogo,
       location,
       type,
       salary,
