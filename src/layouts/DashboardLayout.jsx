@@ -11,6 +11,7 @@ import VideoCallModal from '../components/VideoCallModal'
 import { socket } from '../services/socket'
 import { ringtoneService } from '../utils/ringtone'
 import toast from 'react-hot-toast'
+import StudentProfileGuard from '../components/dashboard/StudentProfileGuard'
 
 const MOCK_MENTOR = [
   { id: 1, name: 'Arjun Mehta', role: 'Software Engineer', company: 'Google' },
@@ -356,7 +357,9 @@ const DashboardLayout = () => {
         <main className="flex-1 p-4 sm:p-8">
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>
-              <Outlet />
+              <StudentProfileGuard>
+                <Outlet />
+              </StudentProfileGuard>
             </PageTransition>
           </AnimatePresence>
         </main>

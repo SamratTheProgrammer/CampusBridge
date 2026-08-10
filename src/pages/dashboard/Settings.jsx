@@ -7,6 +7,7 @@ import { AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
+import { calculateStudentProfileProgress } from '../../utils/profileProgress'
 
 const Settings = () => {
   const { user, isLoaded } = useUser()
@@ -328,15 +329,9 @@ const Settings = () => {
   const isResumeComplete = Boolean(resumeUrl?.trim());
 
   const calculateProgress = () => {
-    const sections = [
-      isBasicComplete,
-      isExperienceComplete,
-      isEducationComplete,
-      isSkillsComplete,
-      isResumeComplete
-    ];
-    const completedCount = sections.filter(Boolean).length;
-    return Math.round((completedCount / sections.length) * 100);
+    return calculateStudentProfileProgress({
+      firstName, lastName, headline, location, address, phone, aboutMe, skills, education, experience, resumeUrl
+    }, user);
   }
 
   const completionPercentage = calculateProgress()
