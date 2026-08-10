@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Users, 
@@ -11,36 +11,77 @@ import {
   Clock, 
   TrendingUp, 
   TrendingDown, 
-  ArrowUpRight 
+  ArrowUpRight,
+  Loader2
 } from 'lucide-react'
 
 const AdminDashboard = () => {
+  const [data, setData] = useState({
+    stats: {
+      totalUsers: 0,
+      totalStudents: 0,
+      totalMentors: 0,
+      totalAlumni: 0,
+      activeMentors: 0,
+      jobPosts: 0,
+      internshipPosts: 0,
+      upcomingEvents: 0,
+      messagesCount: 0,
+      pendingApprovals: 0
+    },
+    recentActivity: []
+  })
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchAdminStats = async () => {
+      try {
+        const res = await fetch('/api/admin/stats')
+        if (res.ok) {
+          const result = await res.json()
+          if (result.success) {
+            setData(result)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch admin stats:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchAdminStats()
+  }, [])
+
   const stats = [
-    { title: 'Total Students', value: '12,456', trend: '+18.5%', isUp: true, icon: GraduationCap, color: 'text-blue-500 bg-blue-500/10' },
-    { title: 'Total Mentor', value: '8,912', trend: '+12.4%', isUp: true, icon: UserCheck, color: 'text-emerald-500 bg-emerald-500/10' },
-    { title: 'Active Mentors', value: '2,340', trend: '+8.6%', isUp: true, icon: HelpingHand, color: 'text-purple-500 bg-purple-500/10' },
-    { title: 'Job Posts', value: '1,245', trend: '+14.2%', isUp: true, icon: Briefcase, color: 'text-amber-500 bg-amber-500/10' },
-    { title: 'Internship Posts', value: '856', trend: '+9.1%', isUp: true, icon: Briefcase, color: 'text-indigo-500 bg-indigo-500/10' },
-    { title: 'Upcoming Events', value: '32', trend: '-2.4%', isUp: false, icon: Calendar, color: 'text-pink-500 bg-pink-500/10' },
-    { title: 'Messages Today', value: '1,256', trend: '+11.8%', isUp: true, icon: MessageSquare, color: 'text-sky-500 bg-sky-500/10' },
-    { title: 'Pending Approvals', value: '45', trend: '+19.2%', isUp: true, icon: Clock, color: 'text-rose-500 bg-rose-500/10' },
+    { title: 'Total Students', value: (data.stats.totalStudents || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: GraduationCap, color: 'text-blue-500 bg-blue-500/10' },
+    { title: 'Total Mentors', value: (data.stats.totalMentors || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: UserCheck, color: 'text-emerald-500 bg-emerald-500/10' },
+    { title: 'Active Mentors', value: (data.stats.activeMentors || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: HelpingHand, color: 'text-purple-500 bg-purple-500/10' },
+    { title: 'Job Posts', value: (data.stats.jobPosts || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: Briefcase, color: 'text-amber-500 bg-amber-500/10' },
+    { title: 'Internship Posts', value: (data.stats.internshipPosts || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: Briefcase, color: 'text-indigo-500 bg-indigo-500/10' },
+    { title: 'Upcoming Events', value: (data.stats.upcomingEvents || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: Calendar, color: 'text-pink-500 bg-pink-500/10' },
+    { title: 'Total Messages', value: (data.stats.messagesCount || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: MessageSquare, color: 'text-sky-500 bg-sky-500/10' },
+    { title: 'Pending Sessions', value: (data.stats.pendingApprovals || 0).toLocaleString(), trend: 'Pending', isUp: false, icon: Clock, color: 'text-rose-500 bg-rose-500/10' },
   ]
 
-  const recentActivity = [
-    { id: 1, user: 'Rahul Sharma', action: 'joined as student', time: '2 mins ago', type: 'student' },
-    { id: 2, user: 'Priya Verma', action: 'verified as mentor', time: '15 mins ago', type: 'mentor' },
-    { id: 3, user: 'TechNova Inc.', action: 'posted a job', time: '28 mins ago', type: 'job' },
-    { id: 4, user: 'AI Workshop', action: 'event created', time: '1 hr ago', type: 'event' },
-    { id: 5, user: 'Mentorship request', action: 'accepted by Rohan', time: '2 hrs ago', type: 'mentor' },
-    { id: 6, user: 'New blog', action: 'published: Career Tips', time: '3 hrs ago', type: 'blog' },
-  ]
+  const totalUsersCount = (data.stats.totalUsers || 0)
+  const studentsPct = totalUsersCount > 0 ? ((data.stats.totalStudents / totalUsersCount) * 100).toFixed(1) : 0
+  const mentorsPct = totalUsersCount > 0 ? ((data.stats.totalMentors / totalUsersCount) * 100).toFixed(1) : 0
+  const alumniPct = totalUsersCount > 0 ? ((data.stats.totalAlumni / totalUsersCount) * 100).toFixed(1) : 0
 
   return (
     <div className="space-y-8">
       {/* Welcome Banner */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Welcome back, Admin! Here's what's happening on CampusBridge.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground text-sm mt-1">Real-time system overview from live database.</p>
+        </div>
+        {isLoading && (
+          <div className="flex items-center gap-2 text-xs text-primary font-semibold">
+            <Loader2 className="w-4 h-4 animate-spin" /> Syncing live data...
+          </div>
+        )}
       </div>
 
       {/* Grid Stats */}
@@ -146,7 +187,7 @@ const AdminDashboard = () => {
               <circle cx="18" cy="18" r="15.915" fill="none" stroke="currentColor" className="text-purple-500" strokeWidth="3" strokeDasharray="11 89" strokeDashoffset="-89" />
             </svg>
             <div className="absolute flex flex-col items-center">
-              <span className="text-2xl font-black text-foreground">21,368</span>
+              <span className="text-2xl font-black text-foreground">{totalUsersCount}</span>
               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total Roles</span>
             </div>
           </div>
@@ -158,21 +199,21 @@ const AdminDashboard = () => {
                 <span className="w-3 h-3 rounded-full bg-primary block"></span>
                 <span className="text-muted-foreground font-medium">Students</span>
               </div>
-              <span className="font-bold text-foreground">12,456 (58.2%)</span>
+              <span className="font-bold text-foreground">{data.stats.totalStudents || 0} ({studentsPct}%)</span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-emerald-500 block"></span>
-                <span className="text-muted-foreground font-medium">Mentor</span>
+                <span className="text-muted-foreground font-medium">Mentors</span>
               </div>
-              <span className="font-bold text-foreground">6,912 (31.7%)</span>
+              <span className="font-bold text-foreground">{data.stats.totalMentors || 0} ({mentorsPct}%)</span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-purple-500 block"></span>
-                <span className="text-muted-foreground font-medium">Mentors</span>
+                <span className="text-muted-foreground font-medium">Alumni & Others</span>
               </div>
-              <span className="font-bold text-foreground">2,340 (10.1%)</span>
+              <span className="font-bold text-foreground">{data.stats.totalAlumni || 0} ({alumniPct}%)</span>
             </div>
           </div>
         </div>
@@ -188,25 +229,29 @@ const AdminDashboard = () => {
           </Link>
         </div>
 
-        <div className="divide-y divide-border/40">
-          {recentActivity.map((activity) => (
-            <div key={activity.id} className="py-3.5 flex justify-between items-center text-sm first:pt-0 last:pb-0">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center font-semibold text-xs text-muted-foreground">
-                  {activity.user.charAt(0)}
+        {data.recentActivity && data.recentActivity.length > 0 ? (
+          <div className="divide-y divide-border/40">
+            {data.recentActivity.map((activity) => (
+              <div key={activity.id} className="py-3.5 flex justify-between items-center text-sm first:pt-0 last:pb-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs uppercase">
+                    {(activity.user || 'U').charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {activity.user} <span className="text-muted-foreground font-normal">{activity.action}</span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-foreground">
-                    {activity.user} <span className="text-muted-foreground font-normal">{activity.action}</span>
-                  </p>
-                </div>
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {activity.time}
+                </span>
               </div>
-              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3" /> {activity.time}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic py-4 text-center">No recent activity logged yet.</p>
+        )}
       </div>
     </div>
   )
