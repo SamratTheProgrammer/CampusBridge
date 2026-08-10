@@ -16,7 +16,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Lock
+  Lock,
+  ShieldCheck
 } from 'lucide-react'
 import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
@@ -28,6 +29,8 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navigate = useNavigate()
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 100, isEligibleForVerification: true })
+  const [verificationStatus, setVerificationStatus] = useState('Pending')
+  const [isVerified, setIsVerified] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -39,6 +42,8 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
           const data = await res.json()
           const comp = calculateProfileCompleteness(data)
           setProfileCompleteness(comp)
+          if (data.verificationStatus) setVerificationStatus(data.verificationStatus)
+          if (data.isVerified !== undefined) setIsVerified(data.isVerified)
         }
       } catch (err) {
         console.error('Failed to fetch profile completeness:', err)
@@ -72,15 +77,23 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
     }
   }, [user])
 
-  const isLocked = profileCompleteness.percentage < 80
+  const isApproved = verificationStatus === 'Approved' || isVerified
+  const isLocked = profileCompleteness.percentage < 80 || !isApproved
 
   const handleLockedClick = (e, itemName) => {
     if (isLocked) {
       e.preventDefault()
       e.stopPropagation()
-      toast.error(`🔒 ${itemName} is locked! Complete at least 80% of your profile in Settings to unlock.`, {
-        duration: 4000
-      })
+      
+      if (profileCompleteness.percentage < 80) {
+        toast.error(`🔒 ${itemName} is locked! Complete at least 80% of your profile in Settings to request verification.`, {
+          duration: 4000
+        })
+      } else {
+        toast.error(`⏳ ${itemName} is locked! Your profile is 100% complete and pending Admin Verification. Once Admin approves your profile, all features will unlock!`, {
+          duration: 5000
+        })
+      }
       navigate('/mentor-dashboard/settings')
     }
   }
@@ -161,15 +174,15 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
       {!isCollapsed && (
         <div className="px-4 py-3 border-t border-border/40 bg-muted/20">
           <div className="flex items-center justify-between text-[11px] font-bold mb-1">
-            <span className="text-muted-foreground">Profile Status</span>
-            <span className={isLocked ? 'text-amber-500' : 'text-emerald-500'}>
-              {profileCompleteness.percentage}%
+            <span className="text-muted-foreground">Verification Status</span>
+            <span className={isApproved ? 'text-emerald-500 flex items-center gap-1' : 'text-amber-500'}>
+              {isApproved ? <><ShieldCheck className="w-3 h-3" /> Verified</> : `${profileCompleteness.percentage}% (Pending)`}
             </span>
           </div>
           <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
             <div 
-              className={`h-full rounded-full transition-all ${isLocked ? 'bg-amber-500' : 'bg-emerald-500'}`}
-              style={{ width: `${profileCompleteness.percentage}%` }}
+              className={`h-full transition-all ${isApproved ? 'bg-emerald-500' : 'bg-amber-500'}`}
+              style={{ width: `${isApproved ? 100 : profileCompleteness.percentage}%` }}
             />
           </div>
         </div>
