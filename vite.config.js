@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['date-fns', 'react-icons', 'cropperjs', 'react-cropper']
+    include: ['date-fns', 'react-icons', 'cropperjs', 'react-cropper', 'emoji-picker-react']
   },
   server: {
     host: true,
