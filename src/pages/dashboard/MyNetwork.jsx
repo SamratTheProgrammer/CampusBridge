@@ -110,6 +110,22 @@ const MyNetwork = () => {
     }
   };
 
+  const handleUnfriend = async (connectionId, targetName) => {
+    if (!window.confirm(`Are you sure you want to remove ${targetName} from your network?`)) return;
+    try {
+      const res = await fetch(`/api/connections/${connectionId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setConnections((prev) => prev.filter((c) => c._id !== connectionId));
+        toast.success(`${targetName} removed from network.`);
+      } else {
+        toast.error('Failed to remove connection.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Network error');
+    }
+  };
+
   // Categorize connections
   const acceptedConnections = connections.filter((c) => c.status === 'accepted');
   const incomingRequests = connections.filter(
@@ -298,6 +314,13 @@ const MyNetwork = () => {
                             title="Video Call"
                           >
                             <Video className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleUnfriend(conn._id, target?.name)}
+                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-xl text-xs font-semibold transition-colors"
+                            title="Remove Connection"
+                          >
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       </div>

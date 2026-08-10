@@ -72,6 +72,8 @@ import AdminNotifications from './pages/admin/AdminNotifications'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminActivityLogs from './pages/admin/AdminActivityLogs'
 
+import ProtectedRoute from './components/ProtectedRoute'
+
 function ScrollToHash() {
   const { hash } = useLocation()
   useEffect(() => {
@@ -114,61 +116,67 @@ function AnimatedRoutes() {
         <Route path="/sync-user" element={<SyncUser />} />
 
         {/* Authenticated Dashboard Routes */}
-        <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
-          <Route index element={<DashboardHome />} />
-          <Route path="profile" element={<MyProfile />} />
-          <Route path="mentor" element={<MentorDirectory />} />
-          <Route path="mentor/:id" element={<MentorProfile />} />
-          <Route path="student/:id" element={<StudentProfile />} />
-          <Route path="mentor/:id/book" element={<BookSession />} />
-          <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
-          <Route path="my-mentors" element={<MyMentors />} />
-          <Route path="mentorship" element={<MentorshipRequests />} />
-          <Route path="sessions" element={<MySessions />} />
-          <Route path="jobs" element={<Jobs />} />
-          <Route path="jobs/:id" element={<JobDetails />} />
-          <Route path="events" element={<Events />} />
-          <Route path="messages" element={<Messages />} />
-          <Route path="applications" element={<Applications />} />
-          <Route path="saved" element={<Saved />} />
-          <Route path="network" element={<MyNetwork />} />
-          <Route path="settings" element={<Settings />} />
+        <Route element={<ProtectedRoute allowedRoles={['student', 'user', 'alumni']} />}>
+          <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
+            <Route index element={<DashboardHome />} />
+            <Route path="profile" element={<MyProfile />} />
+            <Route path="mentor" element={<MentorDirectory />} />
+            <Route path="mentor/:id" element={<MentorProfile />} />
+            <Route path="student/:id" element={<StudentProfile />} />
+            <Route path="mentor/:id/book" element={<BookSession />} />
+            <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
+            <Route path="my-mentors" element={<MyMentors />} />
+            <Route path="mentorship" element={<MentorshipRequests />} />
+            <Route path="sessions" element={<MySessions />} />
+            <Route path="jobs" element={<Jobs />} />
+            <Route path="jobs/:id" element={<JobDetails />} />
+            <Route path="events" element={<Events />} />
+            <Route path="messages" element={<Messages />} />
+            <Route path="applications" element={<Applications />} />
+            <Route path="saved" element={<Saved />} />
+            <Route path="network" element={<MyNetwork />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
         </Route>
 
         {/* Authenticated Mentor Dashboard Routes */}
-        <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
-          <Route index element={<MentorHome />} />
-          <Route path="profile" element={<MyProfile />} />
-          <Route path="mentees" element={<MyMentees />} />
-          <Route path="requests" element={<MentorRequests />} />
-          <Route path="network" element={<MyNetwork />} />
-          <Route path="student/:id" element={<StudentProfile />} />
-          <Route path="mentor/:id" element={<MentorProfile />} />
-          <Route path="jobs" element={<MentorJobs />} />
-          <Route path="sessions" element={<MentorSessions />} />
-          <Route path="events" element={<MentorSessions />} />
-          <Route path="posts" element={<MentorPosts />} />
-          <Route path="messages" element={<MentorMessages />} />
-          <Route path="analytics" element={<MentorAnalytics />} />
-          <Route path="settings" element={<MentorSettings />} />
+        <Route element={<ProtectedRoute allowedRoles={['mentor']} />}>
+          <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
+            <Route index element={<MentorHome />} />
+            <Route path="profile" element={<MyProfile />} />
+            <Route path="mentees" element={<MyMentees />} />
+            <Route path="requests" element={<MentorRequests />} />
+            <Route path="network" element={<MyNetwork />} />
+            <Route path="student/:id" element={<StudentProfile />} />
+            <Route path="mentor/:id" element={<MentorProfile />} />
+            <Route path="jobs" element={<MentorJobs />} />
+            <Route path="sessions" element={<MentorSessions />} />
+            <Route path="events" element={<MentorSessions />} />
+            <Route path="posts" element={<MentorPosts />} />
+            <Route path="messages" element={<MentorMessages />} />
+            <Route path="analytics" element={<MentorAnalytics />} />
+            <Route path="settings" element={<MentorSettings />} />
+          </Route>
         </Route>
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<PageTransition><AdminLogin /></PageTransition>} />
-        <Route path="/admin" element={<PageTransition><AdminLayout /></PageTransition>}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="users" element={<AdminUserManagement />} />
-          <Route path="verification" element={<AdminVerification />} />
-          <Route path="mentorship" element={<AdminMentorship />} />
-          <Route path="jobs" element={<AdminJobs />} />
-          <Route path="companies" element={<AdminCompanies />} />
-          <Route path="events" element={<AdminEvents />} />
-          <Route path="communities" element={<AdminCommunities />} />
-          <Route path="announcements" element={<AdminAnnouncements />} />
-          <Route path="analytics" element={<AdminAnalytics />} />
-          <Route path="notifications" element={<AdminNotifications />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="logs" element={<AdminActivityLogs />} />
+        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+          <Route path="/admin" element={<PageTransition><AdminLayout /></PageTransition>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUserManagement />} />
+            <Route path="verification" element={<AdminVerification />} />
+            <Route path="mentorship" element={<AdminMentorship />} />
+            <Route path="jobs" element={<AdminJobs />} />
+            <Route path="companies" element={<AdminCompanies />} />
+            <Route path="events" element={<AdminEvents />} />
+            <Route path="communities" element={<AdminCommunities />} />
+            <Route path="announcements" element={<AdminAnnouncements />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="notifications" element={<AdminNotifications />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="logs" element={<AdminActivityLogs />} />
+          </Route>
         </Route>
       </Routes>
     </AnimatePresence>

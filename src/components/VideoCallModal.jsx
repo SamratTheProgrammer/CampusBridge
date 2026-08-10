@@ -351,11 +351,6 @@ const VideoCallModal = ({ currentUser }) => {
       ctx.font = 'bold 20px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(userName || 'User', canvas.width / 2, canvas.height / 2 + 65);
-
-      // Draw Subtitle Badge
-      ctx.fillStyle = '#818cf8';
-      ctx.font = '13px sans-serif';
-      ctx.fillText('Live Camera (Multi-Tab Mode)', canvas.width / 2, canvas.height / 2 + 90);
     }, 50);
 
     const stream = canvas.captureStream(20);
@@ -367,8 +362,18 @@ const VideoCallModal = ({ currentUser }) => {
     return stream;
   };
 
-  // Get User Media Helper with Fallbacks and track status sync
+  // Get User Media Helper with Stream Reuse and Fallbacks
   const getUserMediaStream = async (type) => {
+    // 1. If localStreamRef is already active and contains required live tracks, reuse it directly!
+    if (localStreamRef.current && localStreamRef.current.active) {
+      const activeVideo = localStreamRef.current.getVideoTracks().some(t => t.readyState === 'live');
+      const activeAudio = localStreamRef.current.getAudioTracks().some(t => t.readyState === 'live');
+      if ((type === 'video' && activeVideo) || (type === 'audio' && activeAudio)) {
+        console.log('Reusing existing active media stream');
+        return localStreamRef.current;
+      }
+    }
+
     if (mediaStreamPromiseRef.current) {
       try {
         return await mediaStreamPromiseRef.current;
@@ -380,45 +385,32 @@ const VideoCallModal = ({ currentUser }) => {
     const promise = (async () => {
       let stream;
       try {
+        // Request standard audio and video streams
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          },
-          video: type === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false
+          audio: true,
+          video: type === 'video'
         });
       } catch (err) {
-        console.warn('Ideal media constraints failed, falling back to basic audio/video:', err);
+        console.warn('Standard getUserMedia failed:', err);
+        let audioStream;
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: type === 'video'
-          });
-        } catch (fallbackErr) {
-          console.warn('Webcam hardware locked or unavailable. Generating live video stream:', fallbackErr);
-          
-          let audioStream;
-          try {
-            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-          } catch (audioErr) {
-            console.warn('Mic unavailable, using empty audio:', audioErr);
-            audioStream = new MediaStream();
-          }
+          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } catch (audioErr) {
+          console.warn('Mic unavailable:', audioErr);
+          audioStream = new MediaStream();
+        }
 
-          if (type === 'video') {
-            const canvasStream = createCanvasVideoStream(
-              currentUser?.fullName || currentUser?.firstName || 'User',
-              currentUser?.imageUrl
-            );
-            stream = new MediaStream([
-              ...audioStream.getAudioTracks(),
-              ...canvasStream.getVideoTracks()
-            ]);
-            toast('Webcam in use by another tab. Enabled multi-tab camera stream 🎥', { id: 'media_fallback_toast' });
-          } else {
-            stream = audioStream;
-          }
+        if (type === 'video') {
+          const canvasStream = createCanvasVideoStream(
+            currentUser?.fullName || currentUser?.firstName || 'User',
+            currentUser?.imageUrl
+          );
+          stream = new MediaStream([
+            ...audioStream.getAudioTracks(),
+            ...canvasStream.getVideoTracks()
+          ]);
+        } else {
+          stream = audioStream;
         }
       }
 
@@ -512,12 +504,24 @@ const VideoCallModal = ({ currentUser }) => {
 
   // Start Outgoing Call
   const startCall = async (targetPartner, type = 'video') => {
-    if (!currentUser || !targetPartner?.clerkId) return;
+    const targetClerkId = targetPartner?.clerkId || targetPartner?.id;
+    if (!currentUser || !targetClerkId) {
+      console.error('startCall aborted: missing currentUser or targetClerkId', { currentUser, targetPartner });
+      toast.error('Unable to start call: recipient information missing', { id: 'call_status_toast' });
+      return;
+    }
+
+    const normalizedPartner = {
+      ...targetPartner,
+      clerkId: targetClerkId,
+      name: targetPartner.name || `${targetPartner.firstName || ''} ${targetPartner.lastName || ''}`.trim() || 'User',
+      image: targetPartner.image || targetPartner.imageUrl
+    };
 
     try {
       toast.dismiss();
-      targetPartnerClerkIdRef.current = targetPartner.clerkId;
-      setPartner(targetPartner);
+      targetPartnerClerkIdRef.current = targetClerkId;
+      setPartner(normalizedPartner);
       setCallType(type);
       setIsVideoOff(type === 'audio');
       setIsMuted(false);
@@ -529,7 +533,7 @@ const VideoCallModal = ({ currentUser }) => {
 
       const stream = await getUserMediaStream(type);
 
-      const peer = createPeerConnection(targetPartner.clerkId);
+      const peer = createPeerConnection(targetClerkId);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
 
       const offer = await peer.createOffer({
@@ -539,9 +543,9 @@ const VideoCallModal = ({ currentUser }) => {
       await peer.setLocalDescription(offer);
 
       socket.emit('call_user', {
-        recipientClerkId: targetPartner.clerkId,
+        recipientClerkId: targetClerkId,
         callerClerkId: currentUser.id,
-        callerName: currentUser.fullName || 'User',
+        callerName: currentUser.fullName || currentUser.firstName || 'User',
         callerImage: currentUser.imageUrl,
         offer,
         callType: type
@@ -958,7 +962,7 @@ const VideoCallModal = ({ currentUser }) => {
                     autoPlay
                     playsInline
                     muted
-                    className={`w-full h-full object-cover ${isVideoOff ? 'hidden' : ''}`}
+                    className={`w-full h-full object-cover -scale-x-100 ${isVideoOff ? 'hidden' : ''}`}
                   />
                   {isVideoOff && (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white/60 text-xs font-medium p-2 text-center">

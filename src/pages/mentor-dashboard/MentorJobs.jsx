@@ -5,6 +5,7 @@ import { useUser } from '@clerk/clerk-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import { getPdfViewUrl } from '../../utils/pdfViewer'
 
 // ─── Comprehensive Company List with Logos ──────────────────────────────────
 const COMPANIES = [
@@ -672,7 +673,7 @@ const MentorJobs = () => {
                           <div className="flex items-center justify-between">
                             <p className="text-xs text-muted-foreground">Applied {formatDistanceToNow(new Date(app.createdAt), { addSuffix: true })}</p>
                             <a 
-                              href={app.resumeLink} 
+                              href={getPdfViewUrl(app.resumeLink)} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="text-primary text-sm font-medium hover:underline bg-primary/10 px-4 py-2 rounded-lg"

@@ -45,6 +45,22 @@ const SignUp = () => {
 
     setIsLoading(true)
     try {
+      // Check if email already exists in MongoDB
+      const checkRes = await fetch('/api/users/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
+      if (checkRes.ok) {
+        const checkData = await checkRes.json()
+        if (checkData.exists) {
+          toast.error(checkData.message || `An account with ${email} already exists as a ${checkData.role}.`)
+          setIsLoading(false)
+          return
+        }
+      }
+
       const [firstName, ...lastNameArr] = fullName.split(' ')
       const lastName = lastNameArr.join(' ')
 
@@ -93,6 +109,7 @@ const SignUp = () => {
       const lastName = lastNameArr.join(' ')
 
       // Sync with MongoDB backend
+      let syncFailed = false
       try {
         const response = await fetch('/api/users/sync', {
           method: 'POST',
@@ -106,12 +123,22 @@ const SignUp = () => {
             role: selectedRole
           })
         })
-        if (!response.ok) throw new Error('Failed to sync user')
+        const syncData = await response.json()
+        if (!response.ok) {
+          syncFailed = true
+          toast.error(syncData.message || 'Failed to sync user')
+        }
       } catch (syncErr) {
         console.error('Error syncing user:', syncErr)
       }
 
+      if (syncFailed) {
+        setIsLoading(false)
+        return
+      }
+
       await setActive({ session: completeSignUp.createdSessionId })
+      sessionStorage.setItem('campusbridge_user_role', selectedRole || 'student')
       toast.success('Account created successfully!')
       
       if (selectedRole === 'mentor') {

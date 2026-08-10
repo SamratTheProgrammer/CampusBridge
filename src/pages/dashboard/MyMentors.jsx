@@ -43,6 +43,22 @@ const MyMentors = () => {
     fetchMentors();
   }, [user]);
 
+  const handleUnfriend = async (connectionId, mentorName) => {
+    if (!window.confirm(`Are you sure you want to remove ${mentorName} from your mentors?`)) return;
+    try {
+      const res = await fetch(`/api/connections/${connectionId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMentors(prev => prev.filter(m => m.id !== connectionId));
+        toast.success(`${mentorName} removed from mentors.`);
+      } else {
+        toast.error('Failed to remove mentor.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Network error');
+    }
+  }
+
   const filteredMentors = mentors.filter(mentor => 
     mentor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     mentor.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,6 +127,12 @@ const MyMentors = () => {
                     <MessageSquare className="w-3.5 h-3.5" /> Chat
                   </button>
                 </div>
+                <button 
+                  onClick={() => handleUnfriend(mentor.id, mentor.name)}
+                  className="w-full mt-2 flex items-center justify-center gap-1 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 py-2 rounded-lg text-xs font-medium transition-colors"
+                >
+                  Unfriend
+                </button>
               </div>
             </div>
           ))}

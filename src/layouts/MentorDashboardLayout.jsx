@@ -37,10 +37,10 @@ const MentorDashboardLayout = () => {
   useEffect(() => {
     if (isLoaded) {
       if (!isSignedIn) {
-        navigate('/login')
+        navigate('/login', { replace: true })
       } else if (user) {
-        const role = user.publicMetadata?.role || user.unsafeMetadata?.role
-        if (role === 'student' || role === 'alumni') {
+        const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
+        if (role === 'student' || role === 'user') {
           navigate('/dashboard', { replace: true })
         }
       }

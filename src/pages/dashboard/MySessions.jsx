@@ -286,14 +286,25 @@ const MySessions = () => {
                 <MapPin className="w-3.5 h-3.5" /> In-Person
               </div>
             ) : (
-              <a 
-                href={joinLink || 'https://meet.google.com'} 
-                target="_blank" 
-                rel="noreferrer"
+              <button 
+                onClick={() => {
+                  const mentorObj = {
+                    clerkId: mentorInfo?.clerkId || mentorInfo?._id,
+                    name: mentorName,
+                    image: mentorImg
+                  };
+                  if (joinLink && joinLink.startsWith('http') && !joinLink.includes('meet.google.com')) {
+                    window.open(joinLink, '_blank');
+                  } else {
+                    window.dispatchEvent(new CustomEvent('initiate_call', {
+                      detail: { targetPartner: mentorObj, type: 'video' }
+                    }));
+                  }
+                }}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2 rounded-xl font-bold text-xs transition-colors shadow-sm flex items-center gap-1.5"
               >
-                <Video className="w-3.5 h-3.5" /> Join Call <ExternalLink className="w-3 h-3" />
-              </a>
+                <Video className="w-3.5 h-3.5" /> Join Call
+              </button>
             )}
 
             {!isEvent && !(isPast || item.status === 'completed' || item.status === 'declined' || item.status === 'cancelled') && (
