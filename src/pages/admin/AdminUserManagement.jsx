@@ -15,13 +15,36 @@ import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const AdminUserManagement = () => {
-  const [students, setStudents] = useState([
-    { id: 1, name: 'Rahul Sharma', email: 'rahul@gmail.com', dept: 'Computer Science', year: '3rd Year', status: 'Active' },
-    { id: 2, name: 'Priya Singh', email: 'priya@gmail.com', dept: 'IT', year: '2nd Year', status: 'Active' },
-    { id: 3, name: 'Aman Verma', email: 'aman@gmail.com', dept: 'ECE', year: '4th Year', status: 'Active' },
-    { id: 4, name: 'Sneha Patel', email: 'sneha@gmail.com', dept: 'CSE', year: '1st Year', status: 'Blocked' },
-    { id: 5, name: 'Karan Mehta', email: 'karan@gmail.com', dept: 'AI & ML', year: '2nd Year', status: 'Active' },
-  ])
+  const [students, setStudents] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.users) {
+          const formatted = data.users.map(u => ({
+            id: u._id,
+            name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+            email: u.email,
+            dept: u.headline || 'General',
+            year: u.role ? u.role.toUpperCase() : 'Student',
+            status: u.profileVisibility === 'hidden' ? 'Blocked' : 'Active'
+          }))
+          setStudents(formatted)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch users for admin management:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  React.useEffect(() => {
+    fetchUsers()
+  }, [])
 
   const [searchQuery, setSearchQuery] = useState('')
   const [deptFilter, setDeptFilter] = useState('All')
@@ -53,12 +76,25 @@ const AdminUserManagement = () => {
     setIsConfirmOpen(true)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    setStudents(students.filter(s => s.id !== deleteTarget.id))
-    toast.success(`${deleteTarget.name} has been removed.`)
-    setIsConfirmOpen(false)
-    setDeleteTarget(null)
+    try {
+      const res = await fetch(`/api/admin/users/${deleteTarget.id}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        setStudents(students.filter(s => s.id !== deleteTarget.id))
+        toast.success(`${deleteTarget.name} has been removed.`)
+      } else {
+        toast.error('Failed to delete user from database')
+      }
+    } catch (err) {
+      console.error('Error deleting user:', err)
+      toast.error('Error deleting user')
+    } finally {
+      setIsConfirmOpen(false)
+      setDeleteTarget(null)
+    }
   }
 
   const handleAddStudent = (e) => {
