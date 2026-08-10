@@ -128,12 +128,22 @@ const RealtimeChat = () => {
   useEffect(() => {
     fetchContacts();
     if (user?.id) {
-      socket.emit('register_user', user.id);
-      socket.emit('get_online_users');
+      const register = () => {
+        socket.emit('register_user', user.id);
+        socket.emit('get_online_users');
+      };
+
+      register();
+      socket.on('connect', register);
+
       fetch(`/api/messages/blocked/${user.id}`)
         .then((res) => (res.ok ? res.json() : []))
         .then((data) => setBlockedUsers(data))
         .catch((err) => console.error('Error fetching blocked list:', err));
+
+      return () => {
+        socket.off('connect', register);
+      };
     }
   }, [user]);
 
@@ -380,11 +390,13 @@ const RealtimeChat = () => {
     
     setReplyingTo(null);
 
+    const currentConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
+
     // 1. Optimistic Local UI update (Zero Latency)
     const tempId = 'temp_' + Date.now();
     const tempMessage = {
       _id: tempId,
-      conversationId: activeContact.conversationId,
+      conversationId: currentConvId,
       senderClerkId: user.id,
       recipientClerkId: activeContact.clerkId,
       text,
@@ -416,13 +428,13 @@ const RealtimeChat = () => {
     });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    socket.emit('typing', { conversationId: activeContact.conversationId, userId: user.id, isTyping: false });
+    socket.emit('typing', { conversationId: currentConvId, userId: user.id, isTyping: false });
 
     // 2. Emit live message via Socket.io
     socket.emit('send_message', {
       senderClerkId: user.id,
       recipientClerkId: activeContact.clerkId,
-      conversationId: activeContact.conversationId,
+      conversationId: currentConvId,
       text,
       type: messageType,
       attachment: attachmentData,
