@@ -6,6 +6,7 @@ import { socket } from '../services/socket';
 import toast from 'react-hot-toast';
 import EmojiPicker from 'emoji-picker-react';
 
+
 const THEMES = [
   { id: 'default', name: 'Default Dark', bg: 'bg-background' },
   { id: 'midnight', name: 'Midnight Cyber', bg: 'bg-gradient-to-b from-slate-950 via-purple-950/20 to-slate-950' },
