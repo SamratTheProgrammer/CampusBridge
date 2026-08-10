@@ -4,6 +4,7 @@ import Job from '../models/Job.js';
 import Event from '../models/Event.js';
 import Message from '../models/Message.js';
 import Session from '../models/Session.js';
+import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 
 const router = express.Router();
 
@@ -496,17 +497,48 @@ router.put('/jobs/:id/status', async (req, res) => {
   }
 });
 
-// Admin Delete Job Endpoint
-router.delete('/jobs/:id', async (req, res) => {
+// Admin Block / Unblock User Endpoint
+router.put('/users/:id/block', async (req, res) => {
   try {
-    const job = await Job.findByIdAndDelete(req.params.id);
-    if (!job) {
-      return res.status(404).json({ success: false, message: 'Job posting not found' });
+    const { isBlocked, blockReason } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
-    return res.status(200).json({ success: true, message: 'Job posting deleted successfully' });
+
+    user.isBlocked = !!isBlocked;
+    user.blockReason = isBlocked ? (blockReason || 'Account restricted by administrator') : '';
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `User ${isBlocked ? 'blocked' : 'unblocked'} successfully`,
+      user
+    });
   } catch (error) {
-    console.error('Admin Delete Job Error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to delete job posting' });
+    console.error('Admin Block User Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update block status' });
+  }
+});
+
+// Admin Delete User Endpoint (Deletes from MongoDB + Clerk)
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.clerkId) {
+      await deleteUserDataCompletely(user.clerkId);
+    } else {
+      await User.findByIdAndDelete(req.params.id);
+    }
+
+    return res.status(200).json({ success: true, message: 'User deleted from MongoDB and Clerk successfully' });
+  } catch (error) {
+    console.error('Admin Delete User Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete user' });
   }
 });
 

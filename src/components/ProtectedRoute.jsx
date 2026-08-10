@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { Loader2 } from 'lucide-react'
+import BlockedUserScreen from './BlockedUserScreen'
 
 const ProtectedRoute = ({ allowedRoles = [] }) => {
   const { user, isLoaded, isSignedIn } = useUser()
   const [userRole, setUserRole] = useState(() => {
     return sessionStorage.getItem('campusbridge_user_role') || null
   })
+  const [isBlockedUser, setIsBlockedUser] = useState(false)
+  const [blockReason, setBlockReason] = useState('')
   const [isRoleLoading, setIsRoleLoading] = useState(true)
   const location = useLocation()
 
@@ -32,31 +35,23 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
         return
       }
 
-      // Check Clerk metadata or existing session storage first
       let role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
 
-      if (role && isMounted) {
-        setUserRole(role)
-        sessionStorage.setItem('campusbridge_user_role', role)
-        setIsRoleLoading(false)
-        return
-      }
-
-      // If missing from metadata & storage, fetch from MongoDB API with timeout
+      // Fetch user profile from MongoDB API to check role and block status
       try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 1000)
-        
-        const res = await fetch(`/api/users/${user.id}`, { signal: controller.signal })
-        clearTimeout(timeoutId)
+        const res = await fetch(`/api/users/${user.id}`)
         if (res.ok) {
           const data = await res.json()
-          if (data && data.role) {
-            role = data.role
+          if (data) {
+            if (data.role) role = data.role
+            if (data.isBlocked && isMounted) {
+              setIsBlockedUser(true)
+              setBlockReason(data.blockReason || '')
+            }
           }
         }
       } catch (err) {
-        console.error('Failed to fetch user role:', err)
+        console.error('Failed to fetch user status:', err)
       }
 
       // Fallback default
@@ -69,7 +64,6 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
       }
     }
 
-    // Safety fallback timeout to ensure page never gets stuck loading
     const safetyTimeout = setTimeout(() => {
       if (isMounted && isRoleLoading) {
         setIsRoleLoading(false)
@@ -92,6 +86,11 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
         <p className="text-sm font-medium text-muted-foreground animate-pulse">Verifying route integrity...</p>
       </div>
     )
+  }
+
+  // 1.5. Blocked User Check -> Show Blocked User Screen
+  if (isSignedIn && user && isBlockedUser) {
+    return <BlockedUserScreen blockReason={blockReason} />
   }
 
   // 2. Unauthenticated check -> Redirect to /login
