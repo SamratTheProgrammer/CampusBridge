@@ -14,6 +14,7 @@ import SuccessStories from '../components/sections/SuccessStories'
 import PlatformPreview from '../components/sections/PlatformPreview'
 import FAQ from '../components/sections/FAQ'
 import Newsletter from '../components/sections/Newsletter'
+import ContactSection from '../components/sections/ContactSection'
 import FinalCTA from '../components/sections/FinalCTA'
 
 const LandingPage = () => {
@@ -34,6 +35,7 @@ const LandingPage = () => {
       <PlatformPreview />
       <FAQ />
       <Newsletter />
+      <ContactSection />
       <FinalCTA />
     </div>
   )

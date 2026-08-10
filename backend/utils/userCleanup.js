@@ -82,7 +82,28 @@ export const deleteUserDataCompletely = async (clerkId) => {
       $or: [{ blockerClerkId: clerkId }, { blockedClerkId: clerkId }]
     });
 
-    console.log(`Successfully deleted all MongoDB records for user: ${clerkId}`);
+    // 11. Delete user from Clerk Authentication System
+    if (process.env.CLERK_SECRET_KEY && clerkId && !clerkId.startsWith('seed_')) {
+      try {
+        const clerkRes = await fetch(`https://api.clerk.com/v1/users/${clerkId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${process.env.CLERK_SECRET_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (clerkRes.ok) {
+          console.log(`Successfully deleted user ${clerkId} from Clerk Authentication`);
+        } else {
+          const clerkErr = await clerkRes.json();
+          console.warn(`Clerk user deletion note for ${clerkId}:`, clerkErr);
+        }
+      } catch (clerkError) {
+        console.error(`Failed to delete user ${clerkId} from Clerk API:`, clerkError);
+      }
+    }
+
+    console.log(`Successfully deleted all MongoDB and Clerk records for user: ${clerkId}`);
     return { success: true };
   } catch (error) {
     console.error(`Error deleting user data for ${clerkId}:`, error);

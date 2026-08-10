@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Search, MapPin, Briefcase, Filter, Loader2, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
+import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -94,10 +95,10 @@ const Jobs = () => {
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 rounded-xl border border-border/50 bg-white flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
                   <img 
-                    src={getJobLogo(job)} 
+                    src={getCompanyLogo(job.company, job.companyLogo)} 
                     alt={job.company} 
                     className="max-w-full max-h-full object-contain"
-                    onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
+                    onError={(e) => handleImageError(e, job.company)}
                   />
                 </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full 

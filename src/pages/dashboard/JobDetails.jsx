@@ -7,6 +7,7 @@ import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Upload, Link as LinkIcon, FileText } from 'lucide-react'
 import emailjs from '@emailjs/browser'
+import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 
 const JobDetails = () => {
   const { id } = useParams()
@@ -192,11 +193,7 @@ const JobDetails = () => {
     )
   }
 
-  let jobLogo = job.companyLogo;
-  if (jobLogo && jobLogo.includes('logo.clearbit.com')) {
-    jobLogo = jobLogo.replace('https://logo.clearbit.com/', 'https://www.google.com/s2/favicons?sz=128&domain=');
-  }
-  jobLogo = jobLogo || `https://www.google.com/s2/favicons?domain=${job.company?.toLowerCase().replace(/\s+/g, '')}.com&sz=128`
+  const jobLogo = getCompanyLogo(job.company, job.companyLogo)
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-8">
@@ -232,7 +229,7 @@ const JobDetails = () => {
                 src={jobLogo} 
                 alt={job.company} 
                 className="max-w-full max-h-full object-contain"
-                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
+                onError={(e) => handleImageError(e, job.company)}
               />
             </div>
             <div>

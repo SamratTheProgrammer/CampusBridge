@@ -30,7 +30,7 @@ const jobSchema = new mongoose.Schema(
     postedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
     },
     applicants: [
       {
@@ -38,6 +38,11 @@ const jobSchema = new mongoose.Schema(
         ref: 'User',
       }
     ],
+    status: {
+      type: String,
+      enum: ['Approved', 'Pending', 'Rejected'],
+      default: 'Approved',
+    },
     active: {
       type: Boolean,
       default: true,
