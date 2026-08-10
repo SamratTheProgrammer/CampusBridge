@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { socket } from '../services/socket';
 import toast from 'react-hot-toast';
 import EmojiPicker from 'emoji-picker-react';
+import { getPdfViewUrl } from '../utils/pdfViewer';
 
 const THEMES = [
   { id: 'default', name: 'Default Dark', bg: 'bg-background' },
@@ -707,7 +708,7 @@ const RealtimeChat = () => {
                                   ) : msg.attachment.type === 'video' ? (
                                     <video src={msg.attachment.url} controls className="rounded-xl max-h-60 w-auto" />
                                   ) : (
-                                    <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-3 rounded-xl border ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20' : 'bg-muted/50 border-border/50 hover:bg-muted'} transition-colors`}>
+                                    <a href={getPdfViewUrl(msg.attachment.url)} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-3 rounded-xl border ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20' : 'bg-muted/50 border-border/50 hover:bg-muted'} transition-colors`}>
                                       <div className="p-2 bg-background/50 rounded-lg shrink-0">
                                         <FileText className="w-5 h-5" />
                                       </div>

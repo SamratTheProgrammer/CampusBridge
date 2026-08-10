@@ -189,11 +189,11 @@ const Navbar = () => {
                           <p className="text-xs text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</p>
                         </div>
                         <Link 
-                          to={user.publicMetadata?.role === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
-                          className="px-4 py-2 text-sm hover:bg-muted transition-colors"
+                          to={(user.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role')) === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
+                          className="px-4 py-2 text-sm hover:bg-muted transition-colors font-medium text-primary"
                           onClick={() => setIsProfileOpen(false)}
                         >
-                          Dashboard
+                          Go to Dashboard
                         </Link>
                         <button 
                           onClick={() => {
@@ -273,11 +273,11 @@ const Navbar = () => {
                   {!isLoaded ? null : isSignedIn ? (
                     <>
                       <Link
-                        to={user.publicMetadata?.role === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
+                        to={(user.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role')) === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
                         className="w-full text-center py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-colors"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        Dashboard
+                        Go to Dashboard
                       </Link>
                       <button
                         onClick={() => {

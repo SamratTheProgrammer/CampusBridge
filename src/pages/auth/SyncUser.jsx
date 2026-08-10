@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const SyncUser = () => {
   const { user, isLoaded } = useUser();
@@ -26,15 +27,35 @@ const SyncUser = () => {
           imageUrl: user.imageUrl,
           role: user.publicMetadata?.role || savedRole
         })
-      }).then(() => {
-        const finalRole = user.publicMetadata?.role || savedRole;
+      })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.message || 'An error occurred during account sync.');
+          if (data.existingRole) {
+            sessionStorage.setItem('campusbridge_user_role', data.existingRole);
+            if (data.existingRole === 'mentor') {
+              navigate('/mentor-dashboard');
+            } else {
+              navigate('/dashboard');
+            }
+          } else {
+            navigate('/login');
+          }
+          return;
+        }
+
+        const finalRole = data.role || user.publicMetadata?.role || savedRole;
+        sessionStorage.setItem('campusbridge_user_role', finalRole);
+
         if (finalRole === 'mentor') {
           navigate('/mentor-dashboard');
         } else {
           navigate('/dashboard');
         }
         localStorage.removeItem('sso_role');
-      }).catch(err => {
+      })
+      .catch(err => {
         console.error('Error syncing user:', err);
         navigate('/dashboard');
       });

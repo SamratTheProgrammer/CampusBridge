@@ -50,9 +50,9 @@ const DashboardLayout = () => {
   useEffect(() => {
     if (isLoaded) {
       if (!isSignedIn) {
-        navigate('/login')
+        navigate('/login', { replace: true })
       } else if (user) {
-        const role = user.publicMetadata?.role || user.unsafeMetadata?.role
+        const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
         if (role === 'mentor') {
           navigate('/mentor-dashboard', { replace: true })
         }

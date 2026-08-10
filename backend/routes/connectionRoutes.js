@@ -217,4 +217,18 @@ router.get('/suggestions/:clerkId', async (req, res) => {
   }
 });
 
+// Delete a connection
+router.delete('/:id', async (req, res) => {
+  try {
+    const connection = await Connection.findByIdAndDelete(req.params.id);
+    if (!connection) {
+      return res.status(404).json({ message: 'Connection not found' });
+    }
+    res.status(200).json({ message: 'Connection removed successfully' });
+  } catch (error) {
+    console.error('Error deleting connection:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;

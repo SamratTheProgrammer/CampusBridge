@@ -125,4 +125,33 @@ router.post('/file', upload.single('file'), (req, res) => {
   }
 });
 
+// PDF Proxy endpoint to safely stream Cloudinary PDFs directly with proper application/pdf headers
+router.get('/pdf-proxy', async (req, res) => {
+  try {
+    const { url, download } = req.query;
+    if (!url) {
+      return res.status(400).json({ message: 'URL query parameter is required' });
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`Failed to fetch PDF from URL ${url}: ${response.statusText}`);
+      return res.status(response.status).json({ message: 'Failed to fetch PDF document' });
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const disposition = download === 'true' ? 'attachment; filename="document.pdf"' : 'inline; filename="document.pdf"';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', disposition);
+    res.setHeader('Content-Length', buffer.length);
+    return res.send(buffer);
+  } catch (error) {
+    console.error('PDF proxy streaming error:', error);
+    return res.status(500).json({ message: 'Error streaming PDF document' });
+  }
+});
+
 export default router;

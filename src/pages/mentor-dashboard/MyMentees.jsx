@@ -48,6 +48,22 @@ const MyMentees = () => {
     fetchMentees();
   }, [user]);
 
+  const handleUnfriend = async (connectionId, studentName) => {
+    if (!window.confirm(`Are you sure you want to remove ${studentName} from your mentees?`)) return;
+    try {
+      const res = await fetch(`/api/connections/${connectionId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMentees(prev => prev.filter(m => m.id !== connectionId));
+        toast.success(`${studentName} removed from mentees.`);
+      } else {
+        toast.error('Failed to remove mentee.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Network error');
+    }
+  }
+
   const filteredMentees = mentees.filter(mentee => {
     const matchesSearch = mentee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mentee.course.toLowerCase().includes(searchQuery.toLowerCase())
@@ -152,6 +168,12 @@ const MyMentees = () => {
                   <MessageSquare className="w-4 h-4" /> Message
                 </button>
               </div>
+              <button 
+                onClick={() => handleUnfriend(mentee.id, mentee.name)}
+                className="w-full mt-2 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 py-2 rounded-lg text-xs font-medium transition-colors"
+              >
+                <X className="w-4 h-4" /> Remove Student
+              </button>
             </div>
           </div>
         ))}

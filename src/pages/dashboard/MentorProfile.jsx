@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -15,6 +15,7 @@ const MentorProfile = () => {
   const [mentor, setMentor] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [connectionStatus, setConnectionStatus] = useState('none')
+  const [connectionId, setConnectionId] = useState(null)
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false)
   const [connectMessage, setConnectMessage] = useState('')
   const [isConnecting, setIsConnecting] = useState(false)
@@ -40,6 +41,7 @@ const MentorProfile = () => {
             if (connRes.ok) {
               const connData = await connRes.json()
               setConnectionStatus(connData.status || 'none')
+              setConnectionId(connData.connectionId || null)
             }
           }
         }
@@ -182,6 +184,25 @@ const MentorProfile = () => {
     }
   }
 
+  const handleUnfriend = async () => {
+    if (!connectionId) return;
+    try {
+      const res = await fetch(`/api/connections/${connectionId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setConnectionStatus('none');
+        setConnectionId(null);
+        toast.success('Connection removed');
+      } else {
+        toast.error('Failed to remove connection');
+      }
+    } catch (err) {
+      console.error('Error removing connection:', err);
+      toast.error('Network error');
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
@@ -271,15 +292,43 @@ const MentorProfile = () => {
             )}
             
             {connectionStatus === 'accepted' && (
-              <button 
-                disabled
-                className="bg-green-500/10 text-green-500 border border-green-500/20 px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm hidden sm:flex cursor-default">
-                <CheckCircle2 className="w-4 h-4" /> Connected
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  disabled
+                  className="bg-green-500/10 text-green-500 border border-green-500/20 px-4 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm hidden sm:flex cursor-default">
+                  <CheckCircle2 className="w-4 h-4" /> Connected
+                </button>
+                <button 
+                  onClick={handleUnfriend}
+                  className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm hidden sm:flex">
+                  Unfriend
+                </button>
+              </div>
             )}
 
-            <button className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm">
+            <button 
+              onClick={() => navigate('/dashboard/messages')}
+              className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+            >
               <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
+            </button>
+
+            <button 
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('initiate_call', {
+                  detail: { 
+                    targetPartner: { 
+                      clerkId: mentor.clerkId || mentor._id, 
+                      name: fullName, 
+                      image: avatarUrl 
+                    }, 
+                    type: 'video' 
+                  }
+                }))
+              }}
+              className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Video className="w-4 h-4" /> Video Call
             </button>
           </div>
         </div>

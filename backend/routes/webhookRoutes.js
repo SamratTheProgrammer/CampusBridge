@@ -1,6 +1,7 @@
 import express from 'express';
 import { Webhook } from 'svix';
 import User from '../models/User.js';
+import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 
 const router = express.Router();
 
@@ -113,8 +114,8 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
     }
 
     if (eventType === 'user.deleted') {
-      await User.findOneAndDelete({ clerkId: id });
-      console.log(`User deleted from DB: ${id}`);
+      await deleteUserDataCompletely(id);
+      console.log(`User and all associated data completely deleted from DB: ${id}`);
     }
 
     return res.status(200).json({ success: true, message: 'Webhook received' });

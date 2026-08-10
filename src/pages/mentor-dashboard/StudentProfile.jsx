@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe } from 'react-icons/fa'
 import toast from 'react-hot-toast'
@@ -14,6 +14,8 @@ const StudentProfile = () => {
   const [student, setStudent] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [viewingImage, setViewingImage] = useState(null)
+  const [connectionStatus, setConnectionStatus] = useState('none')
+  const [connectionId, setConnectionId] = useState(null)
 
   // Post states
   const [posts, setPosts] = useState([])
@@ -34,6 +36,15 @@ const StudentProfile = () => {
         if (res.ok) {
           const data = await res.json()
           setStudent(data)
+
+          if (user && data.clerkId) {
+            const connRes = await fetch(`/api/connections/status/${user.id}/${data.clerkId}`)
+            if (connRes.ok) {
+              const connData = await connRes.json()
+              setConnectionStatus(connData.status || 'none')
+              setConnectionId(connData.connectionId || null)
+            }
+          }
         } else {
           toast.error("Failed to load student profile");
         }
@@ -111,6 +122,25 @@ const StudentProfile = () => {
       toast.error('Failed to post comment')
     } finally {
       setIsCommenting(false)
+    }
+  }
+
+  const handleUnfriend = async () => {
+    if (!connectionId) return;
+    try {
+      const res = await fetch(`/api/connections/${connectionId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setConnectionStatus('none');
+        setConnectionId(null);
+        toast.success('Student removed from connections');
+      } else {
+        toast.error('Failed to remove student');
+      }
+    } catch (err) {
+      console.error('Error removing connection:', err);
+      toast.error('Network error');
     }
   }
 
@@ -197,6 +227,40 @@ const StudentProfile = () => {
                   <MapPin className="w-3.5 h-3.5" /> {student.location || 'Location not specified'}
                   &bull; <Calendar className="w-3.5 h-3.5" /> Joined recently
                 </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button 
+                  onClick={() => navigate('/mentor-dashboard/messages')}
+                  className="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <MessageSquare className="w-4 h-4" /> Message
+                </button>
+                <button 
+                  onClick={() => {
+                    const studentName = student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name;
+                    window.dispatchEvent(new CustomEvent('initiate_call', {
+                      detail: { 
+                        targetPartner: { 
+                          clerkId: student.clerkId || student._id, 
+                          name: studentName, 
+                          image: student.imageUrl || student.image 
+                        }, 
+                        type: 'video' 
+                      }
+                    }))
+                  }}
+                  className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <Video className="w-4 h-4" /> Video Call
+                </button>
+                {connectionStatus === 'accepted' && (
+                  <button 
+                    onClick={handleUnfriend}
+                    className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <X className="w-4 h-4" /> Remove Student
+                  </button>
+                )}
               </div>
             </div>
           </div>

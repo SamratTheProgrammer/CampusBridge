@@ -109,11 +109,15 @@ const MentorSettings = () => {
   }
 
   const handleDeleteAccount = async () => {
+    if (!user?.id) return;
     try {
+      toast.loading("Deleting account and all profile data...", { id: "delete-acc" });
+      await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
       await user.delete();
-      toast.success("Account deleted successfully");
+      toast.success("Account deleted successfully", { id: "delete-acc" });
     } catch(e) {
-      toast.error("Failed to delete account");
+      console.error('Error deleting account:', e);
+      toast.error("Failed to delete account", { id: "delete-acc" });
     } finally {
       setIsConfirmOpen(false);
     }
@@ -238,44 +242,44 @@ const MentorSettings = () => {
         <p className="text-sm text-muted-foreground mt-1">Manage your account preferences and configurations.</p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-8">
+      <div className="flex flex-col md:flex-row gap-6 md:gap-8">
         
         {/* Sidebar Nav */}
-        <div className="w-full md:w-64 shrink-0 space-y-1">
+        <div className="w-full md:w-64 shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none bg-card border border-border/50 rounded-2xl p-2 sm:p-3 shadow-sm md:bg-transparent md:border-0 md:p-0 md:shadow-none">
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'profile' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'profile' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
           >
-            <User className="w-4 h-4" /> Account Profile
+            <User className="w-4 h-4 shrink-0" /> Account Profile
           </button>
           <button 
             onClick={() => setActiveTab('notifications')}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'notifications' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'notifications' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
           >
-            <Bell className="w-4 h-4" /> Notifications
+            <Bell className="w-4 h-4 shrink-0" /> Notifications
           </button>
           <button 
             onClick={() => setActiveTab('privacy')}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'privacy' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'privacy' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
           >
-            <Lock className="w-4 h-4" /> Privacy & Security
+            <Lock className="w-4 h-4 shrink-0" /> Privacy & Security
           </button>
           <button 
             onClick={() => setActiveTab('billing')}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'billing' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'billing' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
           >
-            <CreditCard className="w-4 h-4" /> Payments
+            <CreditCard className="w-4 h-4 shrink-0" /> Payments
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 bg-card border border-border/50 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <div className="flex-1 bg-card border border-border/50 rounded-2xl p-4 sm:p-8 shadow-sm">
           
           {activeTab === 'profile' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <h2 className="text-xl font-bold text-foreground mb-6">Account Profile</h2>
               
-              <div className="flex items-center gap-6 pb-6 border-b border-border/40">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pb-6 border-b border-border/40 text-center sm:text-left">
                 <img 
                   src={user?.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
                   alt="Profile" 
@@ -289,18 +293,20 @@ const MentorSettings = () => {
                     accept="image/*" 
                     className="hidden" 
                   />
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
-                  >
-                    Upload New Photo
-                  </button>
-                  <button 
-                    onClick={handleRemoveImage}
-                    className="bg-background border border-border/50 text-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-muted transition-colors ml-3"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                      Upload New Photo
+                    </button>
+                    <button 
+                      onClick={handleRemoveImage}
+                      className="bg-background border border-border/50 text-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -515,23 +521,23 @@ const MentorSettings = () => {
                     <p className="text-xs text-muted-foreground mt-1 mb-4">Devices that are currently logged into your account.</p>
                     <div className="space-y-3">
                       {sessions?.map(session => (
-                        <div key={session.id} className="flex items-center justify-between p-3 bg-background border border-border/50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            {session.latestActivity?.isMobile ? <Smartphone className="w-4 h-4 text-muted-foreground" /> : <Laptop className="w-4 h-4 text-muted-foreground" />}
-                            <div>
-                              <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                                {session.id === currentSession?.id 
+                        <div key={session.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 bg-background border border-border/50 rounded-lg">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {session.latestActivity?.isMobile ? <Smartphone className="w-4 h-4 text-muted-foreground shrink-0" /> : <Laptop className="w-4 h-4 text-muted-foreground shrink-0" />}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground flex items-center flex-wrap gap-1.5 sm:gap-2">
+                                <span className="truncate">{session.id === currentSession?.id 
                                   ? `${currentDeviceInfo.browser} on ${currentDeviceInfo.os}`
                                   : `${session.latestActivity?.browserName || 'Unknown Browser'} on ${session.latestActivity?.deviceType || 'Unknown Device'}`
-                                }
-                                {session.id === currentSession?.id && <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold">This Device</span>}
+                                }</span>
+                                {session.id === currentSession?.id && <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0">This Device</span>}
                               </p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <MapPin className="w-3 h-3" />
-                                {session.id === currentSession?.id 
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{session.id === currentSession?.id 
                                   ? `${currentDeviceInfo.city}, ${currentDeviceInfo.country} • ${currentDeviceInfo.ip}`
                                   : `${session.latestActivity?.city ? `${session.latestActivity.city}, ` : ''}${session.latestActivity?.country || 'Unknown Location'} • ${session.latestActivity?.ipAddress || 'IP Hidden'}`
-                                }
+                                }</span>
                               </p>
                             </div>
                           </div>

@@ -591,14 +591,25 @@ const MentorSessions = () => {
                   ) : (
                     <>
                       {session.mode === 'Online' && session.status === 'accepted' && (
-                        <a 
-                          href={session.meetingLink || 'https://meet.google.com'} 
-                          target="_blank" 
-                          rel="noreferrer"
+                        <button 
+                          onClick={() => {
+                            const studentObj = {
+                              clerkId: student?.clerkId || student?._id,
+                              name: studentName,
+                              image: studentImg
+                            };
+                            if (session.meetingLink && session.meetingLink.startsWith('http') && !session.meetingLink.includes('meet.google.com')) {
+                              window.open(session.meetingLink, '_blank');
+                            } else {
+                              window.dispatchEvent(new CustomEvent('initiate_call', {
+                                detail: { targetPartner: studentObj, type: 'video' }
+                              }));
+                            }
+                          }}
                           className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm"
                         >
-                          <Video className="w-3.5 h-3.5" /> Join Call
-                        </a>
+                          <Video className="w-3.5 h-3.5" /> Start Call
+                        </button>
                       )}
                       <span className="text-xs font-bold uppercase px-3 py-1.5 rounded-full bg-muted text-muted-foreground">
                         {session.status}
