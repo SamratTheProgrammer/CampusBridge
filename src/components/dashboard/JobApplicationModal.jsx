@@ -6,8 +6,8 @@ const JobApplicationModal = ({ isOpen, onClose, jobTitle, company }) => {
   const [step, setStep] = useState(1)
   const [resume, setResume] = useState(null)
   const [formData, setFormData] = useState({
-    name: 'Samrat Saha',
-    email: 'samrat@example.com',
+    name: 'Barsha Mahajan',
+    email: 'barsha@example.com',
     phone: '',
     coverLetter: ''
   })
