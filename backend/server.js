@@ -27,10 +27,17 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://campus-bridge-x5rl.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
   }
 });
 
@@ -91,7 +98,10 @@ const emitToUserSockets = (userId, eventName, data) => {
 };
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 
 // Attach socket io to req
 app.use((req, res, next) => {
