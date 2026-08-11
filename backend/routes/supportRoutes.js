@@ -6,7 +6,7 @@ const router = express.Router();
 // Public / User Submit Support Request or Contact Us form
 router.post('/contact', async (req, res) => {
   try {
-    const { name, email, subject, message } = req.body;
+    const { name, email, subject, message, clerkId } = req.body;
 
     if (!name || !email || !message) {
       return res.status(400).json({ success: false, message: 'Name, email, and message are required fields.' });
@@ -15,6 +15,7 @@ router.post('/contact', async (req, res) => {
     const newMessage = new SupportMessage({
       name: name.trim(),
       email: email.trim(),
+      clerkId: clerkId || '',
       subject: (subject || 'General Inquiry / Help Request').trim(),
       message: message.trim(),
       status: 'Pending'
