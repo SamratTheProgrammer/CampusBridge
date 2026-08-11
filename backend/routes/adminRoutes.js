@@ -1,10 +1,10 @@
 import express from 'express';
 import User from '../models/User.js';
 import Job from '../models/Job.js';
-import Event from '../models/Event.js';
 import Message from '../models/Message.js';
 import Session from '../models/Session.js';
 import Company from '../models/Company.js';
+import PlatformSetting from '../models/PlatformSetting.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 
 const router = express.Router();
@@ -628,6 +628,63 @@ router.delete('/companies/:id', async (req, res) => {
   } catch (error) {
     console.error('Admin Delete Company Error:', error);
     return res.status(500).json({ success: false, message: 'Failed to delete company' });
+  }
+});
+
+// Helper to determine suggested theme based on Indian calendar
+function getSuggestedHolidayTheme() {
+  const now = new Date();
+  const m = now.getMonth() + 1; // 1-12
+  const d = now.getDate();
+
+  if (m === 1 && d >= 20 && d <= 31) return { theme: 'independence', name: 'Republic Day' };
+  if (m === 3) return { theme: 'holi', name: 'Holi' };
+  if (m === 8 && d >= 10 && d <= 20) return { theme: 'independence', name: 'Independence Day' };
+  if (m === 10 || m === 11) return { theme: 'diwali', name: 'Diwali' };
+  
+  return null;
+}
+
+// Get Global Theme Setting
+router.get('/settings/theme', async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = await PlatformSetting.create({ globalTheme: 'none' });
+    }
+    
+    const suggestion = getSuggestedHolidayTheme();
+    
+    return res.status(200).json({ 
+      success: true, 
+      globalTheme: setting.globalTheme,
+      suggestedTheme: suggestion ? suggestion.theme : null,
+      holidayName: suggestion ? suggestion.name : null
+    });
+  } catch (error) {
+    console.error('Fetch Theme Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch theme setting' });
+  }
+});
+
+// Update Global Theme Setting
+router.put('/settings/theme', async (req, res) => {
+  try {
+    const { globalTheme } = req.body;
+    
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = new PlatformSetting({ globalTheme });
+    } else {
+      setting.globalTheme = globalTheme;
+    }
+    
+    await setting.save();
+    
+    return res.status(200).json({ success: true, globalTheme: setting.globalTheme });
+  } catch (error) {
+    console.error('Update Theme Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update theme setting' });
   }
 });
 

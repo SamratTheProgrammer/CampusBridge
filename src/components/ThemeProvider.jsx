@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react"
 
 const initialState = {
   theme: "system",
+  globalTheme: "system",
   setTheme: () => null,
 }
 
@@ -16,30 +17,56 @@ export function ThemeProvider({
   const [theme, setTheme] = useState(
     () => localStorage.getItem(storageKey) || defaultTheme
   )
+  const [globalTheme, setGlobalTheme] = useState("system")
+
+  // Fetch global theme
+  useEffect(() => {
+    const fetchGlobalTheme = async () => {
+      try {
+        const res = await fetch('/api/admin/settings/theme');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.globalTheme) {
+            setGlobalTheme(data.globalTheme);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch global theme', err);
+      }
+    };
+
+    fetchGlobalTheme();
+    // Poll every 5 minutes
+    const interval = setInterval(fetchGlobalTheme, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement
 
-    root.classList.remove("light", "dark")
+    // Remove all possible theme classes
+    root.classList.remove("light", "dark", "event-diwali", "event-holi", "event-independence")
 
+    // 1. Determine and apply Base Theme (light/dark) based on local 'theme'
+    let baseTheme = theme;
     if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
-
-      root.classList.add(systemTheme)
-      return
+      baseTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
     }
+    root.classList.add(baseTheme)
 
-    root.classList.add(theme)
-  }, [theme])
+    // 2. Apply Event Theme based on globalTheme
+    // Old DB might have 'system' instead of 'none', treat both as no-event.
+    if (globalTheme && globalTheme !== 'system' && globalTheme !== 'none') {
+      root.classList.add(`event-${globalTheme}`)
+    }
+  }, [theme, globalTheme])
 
   const value = {
     theme,
-    setTheme: (theme) => {
-      localStorage.setItem(storageKey, theme)
-      setTheme(theme)
+    globalTheme,
+    setTheme: (newTheme) => {
+      localStorage.setItem(storageKey, newTheme)
+      setTheme(newTheme)
     },
   }
 
