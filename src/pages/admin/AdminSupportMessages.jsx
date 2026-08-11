@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react'
 import { 
   Mail, Search, Filter, Clock, CheckCircle2, AlertCircle, MessageSquare, 
-  Trash2, Send, User, Shield, ChevronRight, RefreshCw, Eye, Sparkles, ExternalLink, CornerUpLeft, ChevronDown
+  Trash2, Send, User, Shield, ChevronRight, RefreshCw, Eye, Sparkles, ExternalLink, CornerUpLeft, ShieldCheck
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
+import socket from '../../services/socket'
 
-// Helper to generate domain-smart webmail URLs
-const getEmailLinks = (email, subject = '') => {
+// Helper to generate domain-smart webmail URLs with prefilled reply
+const getEmailLinks = (email, subject = '', bodyText = '') => {
   if (!email) return {}
   const encEmail = encodeURIComponent(email)
-  const encSubject = encodeURIComponent(subject ? `Re: ${subject}` : 'CampusBridge Support')
+  const encSubject = encodeURIComponent(subject ? `Re: ${subject}` : 'CampusBridge Support Reply')
+  const encBody = encodeURIComponent(bodyText || '')
   
   const domain = email.split('@')[1]?.toLowerCase() || ''
 
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encEmail}&su=${encSubject}`
-  const outlookWebUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=${encEmail}&subject=${encSubject}`
-  const yahooUrl = `https://compose.mail.yahoo.com/?to=${encEmail}&subject=${encSubject}`
-  const defaultMailto = `mailto:${email}?subject=${encSubject}`
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encEmail}&su=${encSubject}&body=${encBody}`
+  const outlookWebUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=${encEmail}&subject=${encSubject}&body=${encBody}`
+  const yahooUrl = `https://compose.mail.yahoo.com/?to=${encEmail}&subject=${encSubject}&body=${encBody}`
+  const defaultMailto = `mailto:${email}?subject=${encSubject}&body=${encBody}`
 
   let primaryUrl = gmailUrl
   let primaryName = 'Gmail Web'
@@ -58,8 +60,11 @@ const AdminSupportMessages = () => {
   const [selectedMessage, setSelectedMessage] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [isSendingReply, setIsSendingReply] = useState(false)
+  
+  // Profile modal state
   const [userProfileModal, setUserProfileModal] = useState(null)
-  const [showMailDropdown, setShowMailDropdown] = useState(false)
+  const [fetchedUserData, setFetchedUserData] = useState(null)
+  const [isFetchingUser, setIsFetchingUser] = useState(false)
 
   const fetchMessages = async () => {
     setIsLoading(true)
@@ -85,7 +90,40 @@ const AdminSupportMessages = () => {
 
   useEffect(() => {
     fetchMessages()
+
+    const handleNewMessage = () => {
+      toast.success('🔔 New help request received in real-time!')
+      fetchMessages()
+    }
+
+    socket.on('new_support_message', handleNewMessage)
+    socket.on('update_sidebar', fetchMessages)
+
+    return () => {
+      socket.off('new_support_message', handleNewMessage)
+      socket.off('update_sidebar', fetchMessages)
+    }
   }, [])
+
+  // Open profile modal & fetch real Mongo user profile
+  const handleOpenUserProfile = async (msg) => {
+    setUserProfileModal(msg)
+    setFetchedUserData(null)
+    setIsFetchingUser(true)
+
+    try {
+      const identifier = msg.clerkId || msg.email
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(identifier)}`)
+      if (res.ok) {
+        const userData = await res.json()
+        setFetchedUserData(userData)
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err)
+    } finally {
+      setIsFetchingUser(false)
+    }
+  }
 
   const handleSendReply = async (e) => {
     e.preventDefault()
@@ -104,6 +142,13 @@ const AdminSupportMessages = () => {
       const data = await res.json()
       if (data.success) {
         toast.success('🎉 Reply sent successfully!')
+        
+        // Open webmail window with prefilled reply text
+        const mailLinks = getEmailLinks(selectedMessage.email, selectedMessage.subject, replyText.trim())
+        if (mailLinks.primaryUrl) {
+          window.open(mailLinks.primaryUrl, '_blank')
+        }
+
         setReplyText('')
         
         // Update local state
@@ -111,7 +156,6 @@ const AdminSupportMessages = () => {
         setSelectedMessage(updatedMsg)
         setMessages(prev => prev.map(m => m._id === updatedMsg._id ? updatedMsg : m))
         
-        // Recalculate counts
         fetchMessages()
       } else {
         toast.error(data.message || 'Failed to send reply.')
@@ -148,14 +192,14 @@ const AdminSupportMessages = () => {
   }
 
   const handleDeleteMessage = async (msgId) => {
-    if (!window.confirm('Are you sure you want to delete this message?')) return
+    if (!window.confirm('Are you sure you want to delete this support message?')) return
     try {
       const res = await fetch(`${API_BASE}/api/admin/support-messages/${msgId}`, {
         method: 'DELETE'
       })
       const data = await res.json()
       if (data.success) {
-        toast.success('Support message deleted.')
+        toast.success('Support message deleted successfully.')
         const remaining = messages.filter(m => m._id !== msgId)
         setMessages(remaining)
         if (selectedMessage?._id === msgId) {
@@ -168,6 +212,27 @@ const AdminSupportMessages = () => {
     } catch (err) {
       console.error('Delete message error:', err)
       toast.error('Failed to delete message.')
+    }
+  }
+
+  const handleClearAllMessages = async () => {
+    if (!window.confirm('Are you sure you want to clear ALL support messages from the database? This action cannot be undone.')) return
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/support-messages-clear-all`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('All support messages cleared successfully.')
+        setMessages([])
+        setSelectedMessage(null)
+        setCounts({ total: 0, pending: 0, replied: 0, resolved: 0 })
+      } else {
+        toast.error('Failed to clear messages.')
+      }
+    } catch (err) {
+      console.error('Clear all error:', err)
+      toast.error('Failed to clear messages.')
     }
   }
 
@@ -196,7 +261,7 @@ const AdminSupportMessages = () => {
     })
   }
 
-  const activeEmailLinks = selectedMessage ? getEmailLinks(selectedMessage.email, selectedMessage.subject) : {}
+  const activeEmailLinks = selectedMessage ? getEmailLinks(selectedMessage.email, selectedMessage.subject, selectedMessage.adminReply) : {}
 
   return (
     <div className="space-y-6">
@@ -206,20 +271,31 @@ const AdminSupportMessages = () => {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">Support & Help Messages</h1>
             <span className="bg-primary/10 text-primary border border-primary/20 text-xs font-bold px-2.5 py-0.5 rounded-full">
-              Inbox
+              Live Inbox
             </span>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Manage inquiries, help requests, and account unblock appeals submitted by users.
+            Real-time inquiries, help requests, and account unblock appeals submitted dynamically by users.
           </p>
         </div>
 
-        <button
-          onClick={fetchMessages}
-          className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 border border-border/50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {messages.length > 0 && (
+            <button
+              onClick={handleClearAllMessages}
+              className="px-3.5 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Clear All
+            </button>
+          )}
+
+          <button
+            onClick={fetchMessages}
+            className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 border border-border/50 cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -302,7 +378,7 @@ const AdminSupportMessages = () => {
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
-                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
                     filterStatus === status
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -328,7 +404,7 @@ const AdminSupportMessages = () => {
                   <div
                     key={msg._id}
                     onClick={() => setSelectedMessage(msg)}
-                    className={`p-4 transition-all cursor-pointer flex items-start gap-3 relative ${
+                    className={`p-4 transition-all cursor-pointer flex items-start gap-3 relative group ${
                       isSelected 
                         ? 'bg-primary/10 border-l-4 border-primary' 
                         : 'hover:bg-muted/30'
@@ -359,22 +435,30 @@ const AdminSupportMessages = () => {
                           {msg.status}
                         </span>
 
-                        {/* View Profile Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setUserProfileModal({
-                              name: msg.name,
-                              email: msg.email,
-                              subject: msg.subject,
-                              message: msg.message,
-                              date: formatDate(msg.createdAt)
-                            })
-                          }}
-                          className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5"
-                        >
-                          Profile <ChevronRight className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {/* Quick Delete Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteMessage(msg._id)
+                            }}
+                            className="p-1 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete Message"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* View Profile Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenUserProfile(msg)
+                            }}
+                            className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5"
+                          >
+                            Profile <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -382,9 +466,11 @@ const AdminSupportMessages = () => {
               })
             ) : (
               <div className="p-12 text-center text-xs text-muted-foreground space-y-2">
-                <Mail className="w-8 h-8 mx-auto text-muted-foreground/50" />
-                <p className="font-bold">No messages found</p>
-                <p className="text-[11px]">Try adjusting your search query or filter criteria.</p>
+                <Mail className="w-8 h-8 mx-auto text-muted-foreground/40" />
+                <p className="font-bold text-foreground">No support messages found</p>
+                <p className="text-[11px] max-w-xs mx-auto">
+                  Messages submitted by users through the Contact Us form will automatically show up here in real-time.
+                </p>
               </div>
             )}
           </div>
@@ -406,13 +492,7 @@ const AdminSupportMessages = () => {
                     <h3 className="font-bold text-foreground text-base flex items-center gap-2">
                       {selectedMessage.name}
                       <button
-                        onClick={() => setUserProfileModal({
-                          name: selectedMessage.name,
-                          email: selectedMessage.email,
-                          subject: selectedMessage.subject,
-                          message: selectedMessage.message,
-                          date: formatDate(selectedMessage.createdAt)
-                        })}
+                        onClick={() => handleOpenUserProfile(selectedMessage)}
                         className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-md hover:bg-primary/20 transition-all flex items-center gap-1 cursor-pointer"
                       >
                         <User className="w-3 h-3" /> View Profile
@@ -452,7 +532,7 @@ const AdminSupportMessages = () => {
 
                   <button
                     onClick={() => handleDeleteMessage(selectedMessage._id)}
-                    className="p-2 text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
+                    className="p-2 text-destructive hover:bg-destructive/10 border border-destructive/20 rounded-xl transition-colors cursor-pointer"
                     title="Delete Message"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -510,7 +590,7 @@ const AdminSupportMessages = () => {
 
                   <div className="flex items-center justify-between pt-1">
                     <p className="text-[11px] text-muted-foreground">
-                      Replying will automatically mark this message status as <strong className="text-blue-500 font-bold">Replied</strong>.
+                      Replying will automatically mark message as <strong className="text-blue-500 font-bold">Replied</strong> and open {activeEmailLinks.primaryName}.
                     </p>
 
                     <button
@@ -539,17 +619,32 @@ const AdminSupportMessages = () => {
 
       {/* User Profile Modal Drawer */}
       {userProfileModal && (() => {
-        const links = getEmailLinks(userProfileModal.email, userProfileModal.subject)
+        const links = getEmailLinks(userProfileModal.email, userProfileModal.subject, selectedMessage?.adminReply || '')
+        const userObj = fetchedUserData
+        
         return (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-            <div className="bg-card border border-border/60 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-card border border-border/60 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+              
+              {/* Header */}
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/20 text-primary border-2 border-primary/30 flex items-center justify-center font-bold text-lg">
-                    {userProfileModal.name ? userProfileModal.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
+                  {userObj?.imageUrl ? (
+                    <img 
+                      src={userObj.imageUrl} 
+                      alt={userProfileModal.name} 
+                      className="w-12 h-12 rounded-full object-cover border-2 border-primary/30" 
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-primary/20 text-primary border-2 border-primary/30 flex items-center justify-center font-bold text-lg">
+                      {userProfileModal.name ? userProfileModal.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
                   <div>
-                    <h3 className="font-bold text-foreground text-base">{userProfileModal.name}</h3>
+                    <h3 className="font-bold text-foreground text-base flex items-center gap-1">
+                      {userObj ? `${userObj.firstName || ''} ${userObj.lastName || ''}`.trim() : userProfileModal.name}
+                      {userObj?.isVerified && <ShieldCheck className="w-4 h-4 text-emerald-500" />}
+                    </h3>
                     <p className="text-xs text-muted-foreground">{userProfileModal.email}</p>
                   </div>
                 </div>
@@ -562,30 +657,48 @@ const AdminSupportMessages = () => {
                 </button>
               </div>
 
+              {/* Body Details */}
               <div className="space-y-3 text-xs">
-                <div className="bg-muted/30 p-3.5 rounded-2xl border border-border/40 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">Sender Email Address</span>
-                  <div className="flex items-center justify-between gap-2">
+                {isFetchingUser ? (
+                  <div className="p-6 text-center text-muted-foreground flex items-center justify-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-primary" /> Fetching MongoDB User Profile...
+                  </div>
+                ) : userObj ? (
+                  <>
+                    <div className="bg-muted/30 p-3.5 rounded-2xl border border-border/40 space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">Professional Headline</span>
+                      <p className="font-bold text-foreground text-xs">{userObj.headline || 'CampusBridge Student Member'}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-muted/30 p-3 rounded-xl border border-border/40">
+                        <span className="text-[10px] text-muted-foreground block font-bold">Account Role</span>
+                        <span className="font-bold text-primary capitalize">{userObj.role || 'Student'}</span>
+                      </div>
+                      <div className="bg-muted/30 p-3 rounded-xl border border-border/40">
+                        <span className="text-[10px] text-muted-foreground block font-bold">Account Status</span>
+                        <span className={`font-bold ${userObj.isBlocked ? 'text-destructive' : 'text-emerald-500'}`}>
+                          {userObj.isBlocked ? 'Blocked' : 'Active'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {userObj.phone && (
+                      <div className="bg-muted/30 p-3 rounded-xl border border-border/40">
+                        <span className="text-[10px] text-muted-foreground block font-bold">Contact Phone</span>
+                        <span className="font-medium text-foreground">{userObj.phone}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-muted/30 p-3.5 rounded-2xl border border-border/40 space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">Submitted Email</span>
                     <span className="font-bold text-foreground text-sm">{userProfileModal.email}</span>
-                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${links.primaryColor}`}>
-                      {links.domain}
-                    </span>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-muted/30 p-3 rounded-xl border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block font-bold">Account Role</span>
-                    <span className="font-bold text-primary">Student / Campus Member</span>
-                  </div>
-                  <div className="bg-muted/30 p-3 rounded-xl border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block font-bold">Account Status</span>
-                    <span className="font-bold text-emerald-500">Active</span>
-                  </div>
-                </div>
+                )}
 
                 <div className="bg-muted/30 p-3.5 rounded-2xl border border-border/40 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">Submitted Topic</span>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">Submitted Support Request</span>
                   <span className="font-medium text-foreground">{userProfileModal.subject}</span>
                 </div>
               </div>
@@ -593,11 +706,10 @@ const AdminSupportMessages = () => {
               {/* Webmail Choice Section */}
               <div className="space-y-2 pt-2 border-t border-border/40">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">
-                  Select Webmail Client to Email User
+                  Email User via Webmail
                 </span>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {/* Primary Domain Webmail */}
                   <a
                     href={links.primaryUrl}
                     target="_blank"
@@ -607,7 +719,6 @@ const AdminSupportMessages = () => {
                     <ExternalLink className="w-4 h-4" /> Open in {links.primaryName}
                   </a>
 
-                  {/* Gmail Web */}
                   <a
                     href={links.gmailUrl}
                     target="_blank"
@@ -617,7 +728,6 @@ const AdminSupportMessages = () => {
                     <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Gmail Web
                   </a>
 
-                  {/* Outlook Web */}
                   <a
                     href={links.outlookWebUrl}
                     target="_blank"
@@ -625,24 +735,6 @@ const AdminSupportMessages = () => {
                     className="px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 border border-border/50"
                   >
                     <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> Outlook Web
-                  </a>
-
-                  {/* Yahoo Web */}
-                  <a
-                    href={links.yahooUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 border border-border/50"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-purple-500 inline-block"></span> Yahoo Web
-                  </a>
-
-                  {/* Native App (mailto) */}
-                  <a
-                    href={links.defaultMailto}
-                    className="px-3 py-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 border border-border/50"
-                  >
-                    <Mail className="w-3.5 h-3.5" /> Desktop App
                   </a>
                 </div>
               </div>

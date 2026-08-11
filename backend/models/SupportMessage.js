@@ -9,6 +9,10 @@ const supportMessageSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  clerkId: {
+    type: String,
+    default: '',
+  },
   subject: {
     type: String,
     default: 'General Inquiry / Help Request',

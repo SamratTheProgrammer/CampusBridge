@@ -166,10 +166,10 @@ router.get('/mentors/suggested', async (req, res) => {
   }
 });
 
-// Helper to query user by clerkId, _id, or username
+// Helper to query user by clerkId, _id, username, or email
 const findUserByIdentifier = async (identifier) => {
   if (!identifier || identifier === 'undefined') return null;
-  let query = [{ clerkId: identifier }, { username: identifier }];
+  let query = [{ clerkId: identifier }, { username: identifier }, { email: identifier.toLowerCase().trim() }];
   if (mongoose.Types.ObjectId.isValid(identifier)) {
     query.push({ _id: identifier });
   }
