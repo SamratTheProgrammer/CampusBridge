@@ -311,6 +311,7 @@ const Settings = () => {
       await user.update({
         firstName,
         lastName,
+        username: usernameValue || undefined,
         unsafeMetadata: {
           ...user.unsafeMetadata,
           headline,

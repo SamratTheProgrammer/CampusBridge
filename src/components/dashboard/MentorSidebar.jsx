@@ -100,7 +100,7 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
   }
 
   const navItems = [
-    { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true, locked: false },
+    { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true, locked: isLocked },
     { name: 'My Students', path: '/mentor-dashboard/mentees', icon: Users, locked: isLocked },
     { name: 'Student Requests', path: '/mentor-dashboard/requests', icon: BookOpen, locked: isLocked },
     { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase, locked: isLocked },

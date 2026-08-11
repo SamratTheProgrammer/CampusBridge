@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe } from 'react-icons/fa'
 import toast from 'react-hot-toast'
@@ -300,6 +300,50 @@ const StudentProfile = () => {
               {student.aboutMe || "This student hasn't written an about me yet."}
             </p>
           </div>
+
+          {/* Experience Section */}
+          {student.experience?.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-primary" />
+                Experience
+              </h3>
+              <div className="space-y-4">
+                {student.experience.map((exp, idx) => (
+                  <div key={idx} className="relative pl-4 border-l-2 border-primary/20">
+                    <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
+                    <h4 className="font-semibold text-foreground text-sm">{exp.role}</h4>
+                    <p className="text-sm font-medium text-foreground/90">{exp.company}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{exp.duration}</p>
+                    {exp.description && (
+                      <p className="text-xs text-foreground/80 mt-2 whitespace-pre-wrap leading-relaxed">{exp.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Education Section */}
+          {student.education?.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                Education
+              </h3>
+              <div className="space-y-4">
+                {student.education.map((edu, idx) => (
+                  <div key={idx} className="relative pl-4 border-l-2 border-primary/20">
+                    <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
+                    <h4 className="font-semibold text-foreground text-sm">{edu.degree}</h4>
+                    <p className="text-sm font-medium text-foreground/90">{edu.institution}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{edu.year}</p>
+                    {edu.score && <p className="text-xs text-muted-foreground mt-0.5">Score: {edu.score}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column - Stats & Info */}
@@ -326,6 +370,41 @@ const StudentProfile = () => {
               </div>
             </div>
           </div>
+
+          {/* Resume Card */}
+          {student.resumeUrl && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Resume
+              </h3>
+              <a 
+                href={student.resumeUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-full py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-medium text-sm flex justify-center transition-colors"
+              >
+                View Resume
+              </a>
+            </div>
+          )}
+
+          {/* Skills Card */}
+          {student.skills?.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                <Code className="w-5 h-5 text-primary" />
+                Skills
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {student.skills.map((skill, idx) => (
+                  <span key={idx} className="px-3 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-lg">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

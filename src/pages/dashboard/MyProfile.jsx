@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen } from 'lucide-react'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -391,6 +391,67 @@ const MyProfile = () => {
               )}
             </div>
           </div>
+
+          {(dbUser?.resumeUrl || user?.unsafeMetadata?.resumeUrl) && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Resume
+              </h3>
+              <a 
+                href={dbUser?.resumeUrl || user?.unsafeMetadata?.resumeUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-full py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-medium text-sm flex justify-center transition-colors"
+              >
+                View Resume
+              </a>
+            </div>
+          )}
+
+          {/* Experience Section */}
+          {(dbUser?.experience || user?.unsafeMetadata?.experience)?.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-primary" />
+                Experience
+              </h3>
+              <div className="space-y-4">
+                {(dbUser?.experience || user?.unsafeMetadata?.experience).map((exp, idx) => (
+                  <div key={idx} className="relative pl-4 border-l-2 border-primary/20">
+                    <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
+                    <h4 className="font-semibold text-foreground text-sm">{exp.role}</h4>
+                    <p className="text-sm font-medium text-foreground/90">{exp.company}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{exp.duration}</p>
+                    {exp.description && (
+                      <p className="text-xs text-foreground/80 mt-2 whitespace-pre-wrap leading-relaxed">{exp.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Education Section */}
+          {(dbUser?.education || user?.unsafeMetadata?.education)?.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                Education
+              </h3>
+              <div className="space-y-4">
+                {(dbUser?.education || user?.unsafeMetadata?.education).map((edu, idx) => (
+                  <div key={idx} className="relative pl-4 border-l-2 border-primary/20">
+                    <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
+                    <h4 className="font-semibold text-foreground text-sm">{edu.degree}</h4>
+                    <p className="text-sm font-medium text-foreground/90">{edu.institution}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{edu.year}</p>
+                    {edu.score && <p className="text-xs text-muted-foreground mt-0.5">Score: {edu.score}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column - User Posts */}

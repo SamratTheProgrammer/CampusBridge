@@ -221,11 +221,22 @@ const AdminEvents = () => {
                 {events.map((event) => (
                   <tr key={event._id} className="hover:bg-muted/10 transition-colors">
                     <td className="px-6 py-4 font-bold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-primary shrink-0" />
-                        <div>
-                          <p className="font-bold text-foreground">{event.title}</p>
+                      <div className="flex items-center gap-3">
+                        {event.imageUrl ? (
+                          <img src={event.imageUrl} alt={event.title} className="w-12 h-12 rounded-xl object-cover border border-border/40 shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+                            <Calendar className="w-6 h-6" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-bold text-foreground truncate">{event.title}</p>
                           <p className="text-xs text-muted-foreground font-normal line-clamp-1">{event.description || 'No description'}</p>
+                          {event.organizer && (
+                            <span className="text-[10px] text-primary font-semibold block mt-0.5">
+                              Hosted by {event.organizer.firstName || event.organizer.name || 'Mentor'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>

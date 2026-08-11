@@ -10,6 +10,8 @@ import { AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
+import MentorOnboardingBanner from '../../components/mentor/MentorOnboardingBanner'
+import { socket } from '../../services/socket'
 
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
 import API_BASE from '../../utils/api'
@@ -313,6 +315,8 @@ const MentorSettings = () => {
         } else {
           toast.success(`Profile updated (${comp.percentage}% complete). Reach 80% to unlock full features.`);
         }
+        
+        socket.emit('update_sidebar');
       }
     } catch (err) {
       toast.error('Failed to save changes')
@@ -347,6 +351,12 @@ const MentorSettings = () => {
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage your mentor profile, credentials, experience, resume, and skills.</p>
       </div>
+
+      {/* Onboarding & Verification Completeness Banner */}
+      <MentorOnboardingBanner 
+        completeness={completeness} 
+        verificationStatus={userDoc?.verificationStatus || (userDoc?.isVerified ? 'Approved' : 'Pending')} 
+      />
 
       <div className="flex flex-col md:flex-row gap-6 md:gap-8">
         

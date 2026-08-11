@@ -16,21 +16,28 @@ const NotificationDropdown = () => {
 
   const fetchNotifications = async () => {
     if (!user) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const res = await fetch(`${API_BASE}/api/notifications/${user.id}`);
+      const res = await fetch(`${API_BASE}/api/notifications/${user.id}`, { signal: controller.signal });
       if (res.ok) {
         const data = await res.json();
         setNotifications(data.notifications || []);
         setUnreadCount(data.unreadCount || 0);
       }
     } catch (err) {
-      console.error('Error fetching notifications:', err);
+      // Silently ignore network/abort errors — polling will retry
+      if (err.name !== 'AbortError') {
+        console.debug('Notification fetch skipped:', err.message);
+      }
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000); // poll every 15s
+    const interval = setInterval(fetchNotifications, 30000); // poll every 30s
     return () => clearInterval(interval);
   }, [user]);
 

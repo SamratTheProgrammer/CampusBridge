@@ -110,6 +110,7 @@ function AnimatedRoutes() {
         <Route path="/otp" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><OTPVerification /></main><Footer /></div></PageTransition>} />
         <Route path="/sso-callback" element={<SSOCallback />} />
         <Route path="/sync-user" element={<SyncUser />} />
+        <Route path="/u/:id" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1 bg-background pt-20 pb-10"><StudentProfile /></main><Footer /></div></PageTransition>} />
 
         {/* Authenticated Dashboard Routes */}
         <Route element={<ProtectedRoute allowedRoles={['student', 'user']} />}>

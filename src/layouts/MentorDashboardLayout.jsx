@@ -10,6 +10,7 @@ import NotificationDropdown from '../components/NotificationDropdown'
 import VideoCallModal from '../components/VideoCallModal'
 import { socket } from '../services/socket'
 import { ringtoneService } from '../utils/ringtone'
+import { calculateProfileCompleteness } from '../utils/profileCompleteness'
 import toast from 'react-hot-toast'
 
 const MOCK_STUDENTS = [
@@ -34,6 +35,46 @@ const MentorDashboardLayout = () => {
   
   const { user, isLoaded, isSignedIn } = useUser()
 
+  const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 100, isEligibleForVerification: true })
+  const [verificationStatus, setVerificationStatus] = useState('Pending')
+  const [isVerified, setIsVerified] = useState(false)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+
+  const fetchUserProfile = async () => {
+    if (!user?.id) return
+    try {
+      const res = await fetch(`/api/users/${user.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        const comp = calculateProfileCompleteness(data)
+        setProfileCompleteness(comp)
+        if (data.verificationStatus) setVerificationStatus(data.verificationStatus)
+        if (data.isVerified !== undefined) setIsVerified(data.isVerified)
+      }
+    } catch (err) {
+      console.error('Failed to fetch user profile in MentorDashboardLayout:', err)
+    } finally {
+      setIsLoadingProfile(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserProfile()
+    }
+  }, [user])
+
+  useEffect(() => {
+    const handleUpdate = () => fetchUserProfile()
+    socket.on('update_sidebar', handleUpdate)
+    return () => {
+      socket.off('update_sidebar', handleUpdate)
+    }
+  }, [user])
+
+  const isApproved = verificationStatus === 'Approved' || isVerified
+  const isLocked = profileCompleteness.percentage < 80 || !isApproved
+
   useEffect(() => {
     if (isLoaded) {
       if (!isSignedIn) {
@@ -42,10 +83,20 @@ const MentorDashboardLayout = () => {
         const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
         if (role === 'student' || role === 'user') {
           navigate('/dashboard', { replace: true })
+        } else if (!isLoadingProfile && (role === 'mentor' || role === 'alumni')) {
+          if (isLocked && location.pathname !== '/mentor-dashboard/settings') {
+            toast.error(
+              profileCompleteness.percentage < 80
+                ? '🔒 Access Restricted! Complete at least 80% of your profile in Settings to unlock dashboard features.'
+                : '⏳ Access Restricted! Your profile is complete and pending Admin Verification. Features will unlock once approved by Admin.',
+              { id: 'mentor-locked-guard', duration: 4000 }
+            )
+            navigate('/mentor-dashboard/settings', { replace: true })
+          }
         }
       }
     }
-  }, [isLoaded, isSignedIn, user, navigate])
+  }, [isLoaded, isSignedIn, user, navigate, isLoadingProfile, isLocked, location.pathname, profileCompleteness.percentage])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
