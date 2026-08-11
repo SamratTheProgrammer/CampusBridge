@@ -8,6 +8,7 @@ import confetti from 'canvas-confetti'
 const EventPopup = () => {
   const { globalTheme } = useTheme()
   const [show, setShow] = useState(false)
+  const [hasShown, setHasShown] = useState(false)
   const location = useLocation()
 
   useEffect(() => {
@@ -17,13 +18,15 @@ const EventPopup = () => {
     }
 
     if (globalTheme && globalTheme !== 'system' && globalTheme !== 'none') {
-      const hasShown = sessionStorage.getItem(`event-popup-${globalTheme}`)
       if (!hasShown) {
-        // Show after a small delay to let page load and sync with PageTransition animations
+        // Delay popup so it doesn't block complex animations
+        // Independence day animation takes 5s to form the flag
+        const delay = globalTheme === 'independence' ? 5000 : 1000;
+        
         const timer = setTimeout(() => {
           setShow(true)
-          sessionStorage.setItem(`event-popup-${globalTheme}`, 'true')
-        }, 1000)
+          setHasShown(true)
+        }, delay)
         return () => clearTimeout(timer)
       }
     }
