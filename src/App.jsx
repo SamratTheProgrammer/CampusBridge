@@ -15,6 +15,7 @@ import { AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 import { ClerkProvider } from '@clerk/clerk-react'
 import ErrorBoundary from './components/ErrorBoundary'
+import EventPopup from './components/EventPopup'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -89,7 +90,7 @@ function AnimatedRoutes() {
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location}>
+      <Routes location={location} key={location.pathname}>
         {/* Public Routes with Navbar and Footer */}
         <Route path="/" element={
           <PageTransition>
@@ -185,6 +186,7 @@ function App() {
           <ErrorBoundary>
             <AnimatedRoutes />
           </ErrorBoundary>
+          <EventPopup />
           <Toaster position="bottom-right" />
         </Router>
       </ThemeProvider>

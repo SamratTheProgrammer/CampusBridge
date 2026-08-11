@@ -3,28 +3,36 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Fireworks } from '@fireworks-js/react'
 import confetti from 'canvas-confetti'
 
+import { useTheme } from './ThemeProvider'
+import { useLocation } from 'react-router-dom'
+
 const PageTransition = ({ children }) => {
   const [showFireworks, setShowFireworks] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const confettiCanvasRef = useRef(null)
+  const { globalTheme } = useTheme()
+  const location = useLocation()
 
   useEffect(() => {
-    const rootClasses = document.documentElement.classList
-    
+    // Disable animations on admin routes
+    if (location.pathname.startsWith('/admin')) {
+      return;
+    }
+
     // Diwali Fireworks
-    if (rootClasses.contains('event-diwali')) {
+    if (globalTheme === 'diwali') {
       setShowFireworks(true)
       const timer = setTimeout(() => setShowFireworks(false), 5000)
       return () => clearTimeout(timer)
     }
     
     // Holi Confetti
-    if (rootClasses.contains('event-holi')) {
+    if (globalTheme === 'holi') {
       setShowConfetti(true)
       const timer = setTimeout(() => setShowConfetti(false), 5000)
       return () => clearTimeout(timer)
     }
-  }, [])
+  }, [globalTheme, location.pathname])
 
   useEffect(() => {
     if (showConfetti && confettiCanvasRef.current) {
@@ -38,14 +46,14 @@ const PageTransition = ({ children }) => {
 
       const frame = () => {
         myConfetti({
-          particleCount: 5,
+          particleCount: 3,
           angle: 60,
           spread: 55,
           origin: { x: 0 },
           colors: ['#ff00ff', '#00ffff', '#ffff00', '#ff00aa', '#00ff00']
         });
         myConfetti({
-          particleCount: 5,
+          particleCount: 3,
           angle: 120,
           spread: 55,
           origin: { x: 1 },
@@ -72,13 +80,13 @@ const PageTransition = ({ children }) => {
           >
             <Fireworks 
               options={{ 
-                opacity: 0.8,
-                explosion: 5,
-                intensity: 30,
-                traceLength: 3,
+                opacity: 0.6,
+                explosion: 3,
+                intensity: 15,
+                traceLength: 2,
                 traceSpeed: 10,
-                particles: 100,
-                friction: 0.95
+                particles: 60,
+                friction: 0.96
               }} 
               style={{ width: '100%', height: '100%', position: 'absolute' }} 
             />
