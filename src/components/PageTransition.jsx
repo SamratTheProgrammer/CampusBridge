@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import confetti from 'canvas-confetti'
 
 const CanvasFireworks = () => {
   const canvasRef = useRef(null)
@@ -97,15 +98,60 @@ const CanvasFireworks = () => {
 
 const PageTransition = ({ children }) => {
   const [showFireworks, setShowFireworks] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const confettiCanvasRef = useRef(null)
 
   useEffect(() => {
     const rootClasses = document.documentElement.classList
+    
+    // Diwali Fireworks
     if (rootClasses.contains('event-diwali')) {
       setShowFireworks(true)
       const timer = setTimeout(() => setShowFireworks(false), 5000)
       return () => clearTimeout(timer)
     }
+    
+    // Holi Confetti
+    if (rootClasses.contains('event-holi')) {
+      setShowConfetti(true)
+      const timer = setTimeout(() => setShowConfetti(false), 5000)
+      return () => clearTimeout(timer)
+    }
   }, [])
+
+  useEffect(() => {
+    if (showConfetti && confettiCanvasRef.current) {
+      const myConfetti = confetti.create(confettiCanvasRef.current, {
+        resize: true,
+        useWorker: true
+      })
+      
+      const duration = 5000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        myConfetti({
+          particleCount: 5,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#ff00ff', '#00ffff', '#ffff00', '#ff00aa', '#00ff00']
+        });
+        myConfetti({
+          particleCount: 5,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#ff00ff', '#00ffff', '#ffff00', '#ff00aa', '#00ff00']
+        });
+
+        if (Date.now() < end && showConfetti) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    }
+  }, [showConfetti])
 
   return (
     <>
@@ -117,6 +163,17 @@ const PageTransition = ({ children }) => {
             transition={{ duration: 1.5 }}
           >
             <CanvasFireworks />
+          </motion.div>
+        )}
+        
+        {showConfetti && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5 }}
+            style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999, pointerEvents: 'none' }}
+          >
+            <canvas ref={confettiCanvasRef} style={{ width: '100%', height: '100%', position: 'absolute' }} />
           </motion.div>
         )}
       </AnimatePresence>
