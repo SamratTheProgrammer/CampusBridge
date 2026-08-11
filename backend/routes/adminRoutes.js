@@ -695,6 +695,14 @@ router.put('/settings/theme', async (req, res) => {
 // Fetch all support messages dynamically from MongoDB
 router.get('/support-messages', async (req, res) => {
   try {
+    // Automatically purge legacy dummy seed messages
+    await SupportMessage.deleteMany({
+      $or: [
+        { email: { $in: ['ananya.s@gmail.com', 'rahul.v@gmail.com', 'sneha.p@gmail.com', 'david.m@gmail.com'] } },
+        { name: { $in: ['Ananya Sharma', 'Rahul Verma', 'Sneha Patel', 'David Miller'] } }
+      ]
+    });
+
     const messages = await SupportMessage.find().sort({ createdAt: -1 });
 
     const pendingCount = messages.filter(m => m.status === 'Pending').length;
