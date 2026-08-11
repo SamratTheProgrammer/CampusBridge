@@ -61,7 +61,7 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
               className="w-12 h-12 rounded-full object-cover shrink-0 border-2 border-border/50"
             />
             <div>
-              <h3 className="font-bold text-foreground text-sm">Samrat Saha</h3>
+              <h3 className="font-bold text-foreground text-sm">Barsha Mahajan</h3>
               <select className="text-xs bg-muted/50 border border-border/50 rounded px-2 py-1 mt-1 text-foreground focus:outline-none hover:bg-muted transition-colors cursor-pointer font-medium">
                 <option>Anyone</option>
                 <option>Connections only</option>

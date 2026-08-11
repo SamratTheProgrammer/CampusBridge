@@ -589,7 +589,7 @@ const Settings = () => {
                       type="text" 
                       value={usernameValue} 
                       onChange={(e) => handleUsernameChange(e.target.value)} 
-                      placeholder="samrat-saha-1234" 
+                      placeholder="barsha-mahajan-1234" 
                       className={`w-full bg-background border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 text-sm text-foreground transition-all ${
                         usernameError 
                           ? 'border-red-500/50 focus:ring-red-500/50' 
