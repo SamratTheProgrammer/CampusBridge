@@ -17,6 +17,7 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import ErrorBoundary from './components/ErrorBoundary'
 import EventPopup from './components/EventPopup'
 import IndependenceDayConfetti from './components/IndependenceDayConfetti'
+import HoliSplashAnimation from './components/HoliSplashAnimation'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -197,6 +198,23 @@ function IndependenceDayWrapper() {
   return null
 }
 
+function HoliSplashWrapper() {
+  const { globalTheme } = useTheme()
+  const location = useLocation()
+  const [hasPlayed, setHasPlayed] = useState(false)
+
+  useEffect(() => {
+    if (globalTheme === 'holi' && !hasPlayed && !location.pathname.startsWith('/admin')) {
+      setHasPlayed(true)
+    }
+  }, [globalTheme, hasPlayed, location.pathname])
+
+  if (hasPlayed) {
+    return <HoliSplashAnimation />
+  }
+  return null
+}
+
 function App() {
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
@@ -208,6 +226,7 @@ function App() {
           </ErrorBoundary>
           <EventPopup />
           <IndependenceDayWrapper />
+          <HoliSplashWrapper />
           <Toaster position="bottom-right" />
         </Router>
       </ThemeProvider>

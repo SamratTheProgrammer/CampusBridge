@@ -98,94 +98,8 @@ const CanvasFireworks = () => {
   )
 }
 
-const CanvasConfetti = () => {
-  const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    let animationFrameId
-    let particles = []
-
-    const resize = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-    }
-    resize()
-    window.addEventListener('resize', resize)
-
-    const colors = ['#ff00ff', '#00ffff', '#ffff00', '#ff00aa', '#00ff00', '#ff5500']
-
-    for (let i = 0; i < 120; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * (canvas.height * 0.5) - 50,
-        vx: (Math.random() - 0.5) * 6,
-        vy: Math.random() * 4 + 2,
-        size: Math.random() * 8 + 4,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        rotation: Math.random() * 360,
-        rSpeed: (Math.random() - 0.5) * 10,
-        alpha: 1,
-        decay: 0.005 + Math.random() * 0.005,
-      })
-    }
-
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      particles.forEach((p, index) => {
-        p.x += p.vx
-        p.y += p.vy
-        p.rotation += p.rSpeed
-        p.alpha -= p.decay
-
-        if (p.alpha <= 0 || p.y > canvas.height) {
-          particles.splice(index, 1)
-        } else {
-          ctx.save()
-          ctx.translate(p.x, p.y)
-          ctx.rotate((p.rotation * Math.PI) / 180)
-          ctx.fillStyle = p.color
-          ctx.globalAlpha = Math.max(0, p.alpha)
-          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6)
-          ctx.restore()
-        }
-      })
-
-      if (particles.length > 0) {
-        animationFrameId = requestAnimationFrame(render)
-      }
-    }
-
-    render()
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      window.removeEventListener('resize', resize)
-    }
-  }, [])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        zIndex: 9999,
-        pointerEvents: 'none',
-      }}
-    />
-  )
-}
-
 const PageTransition = ({ children }) => {
   const [showFireworks, setShowFireworks] = useState(false)
-  const [showConfetti, setShowConfetti] = useState(false)
   const { globalTheme } = useTheme()
   const location = useLocation()
 
@@ -201,13 +115,6 @@ const PageTransition = ({ children }) => {
       const timer = setTimeout(() => setShowFireworks(false), 5000)
       return () => clearTimeout(timer)
     }
-    
-    // Holi Confetti
-    if (globalTheme === 'holi') {
-      setShowConfetti(true)
-      const timer = setTimeout(() => setShowConfetti(false), 5000)
-      return () => clearTimeout(timer)
-    }
   }, [globalTheme, location.pathname])
 
 
@@ -221,16 +128,6 @@ const PageTransition = ({ children }) => {
             transition={{ duration: 1.5 }}
           >
             <CanvasFireworks />
-          </motion.div>
-        )}
-        
-        {showConfetti && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.5 }}
-          >
-            <CanvasConfetti />
           </motion.div>
         )}
       </AnimatePresence>
