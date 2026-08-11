@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle } from 'lucide-react'
+import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
@@ -8,6 +8,115 @@ import ImageCropModal from '../../components/ImageCropModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
 import { calculateStudentProfileProgress } from '../../utils/profileProgress'
+import API_BASE from '../../utils/api'
+
+const JOB_TITLES = [
+  "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
+  "Mobile Developer", "iOS Developer", "Android Developer", "Web Developer",
+  "Data Scientist", "Data Analyst", "Machine Learning Engineer", "AI Engineer",
+  "DevOps Engineer", "Cloud Engineer", "Site Reliability Engineer (SRE)",
+  "Systems Administrator", "Database Administrator (DBA)", "Network Engineer",
+  "Security Analyst", "Cybersecurity Engineer", "Penetration Tester",
+  "Product Manager", "Project Manager", "Scrum Master", "Agile Coach",
+  "UI/UX Designer", "Product Designer", "Graphic Designer", "Web Designer",
+  "Quality Assurance (QA) Engineer", "Test Automation Engineer", "Software Tester",
+  "Business Analyst", "Systems Analyst", "Technical Writer", "Developer Advocate",
+  "IT Support Specialist", "Help Desk Technician", "Network Administrator",
+  "Marketing Manager", "Digital Marketer", "SEO Specialist", "Content Writer",
+  "Sales Representative", "Account Executive", "Customer Success Manager",
+  "Human Resources (HR) Manager", "Recruiter", "Operations Manager",
+  "Financial Analyst", "Accountant", "Consultant", "Research Assistant",
+  "Teaching Assistant", "Intern", "Other"
+];
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const jobTypes = ["Full-time", "Part-time", "Internship", "Freelance", "Contract"];
+const EDUCATION_LEVELS = ["10th", "12th", "Graduation", "Post Graduation (PG)", "Higher Studies", "Other"];
+
+const UG_DEGREES = [
+  "B.Tech / B.E.", "B.Sc", "BCA (Computer Applications)", "B.Com", "B.A", "BBA", "B.Des",
+  "MBBS", "B.Arch", "B.Pharm", "BHM (Hotel Management)", "LLB", "B.Ed", "BFA (Fine Arts)", "Other"
+];
+const PG_DEGREES = [
+  "M.Tech / M.E.", "M.Sc", "MCA (Computer Applications)", "M.Com", "M.A", "MBA",
+  "M.Sc (AI & Machine Learning)", "M.Sc (Data Science)", "M.Sc (Cybersecurity)", "M.Sc (Cloud Computing)",
+  "M.Tech (AI & ML)", "M.Tech (Cloud Computing & DevOps)", "M.Tech (Data Science & Analytics)",
+  "M.Tech (Cybersecurity)", "M.Tech (IoT)", "M.Tech (Software Engineering)",
+  "MD", "M.Arch", "M.Pharm", "M.Des", "LLM", "M.Ed", "MFA (Fine Arts)",
+  "PGDM", "PGDCA (Computer Applications)", "Other"
+];
+const STREAMS = [
+  "Computer Science & Engineering (CSE)", "Computer Applications (CA)", "Information Technology (IT)",
+  "Electronics & Communication (ECE)", "Electrical & Electronics (EEE)", "Electrical Engineering (EE)",
+  "Mechanical Engineering (ME)", "Civil Engineering (CE)", "Chemical Engineering",
+  "Artificial Intelligence & Machine Learning (AI/ML)", "Data Science & Analytics", "Cloud Computing & DevOps",
+  "Cybersecurity & Ethical Hacking", "Internet of Things (IoT)", "Blockchain Technology",
+  "Robotics & Automation", "Software Engineering", "Full Stack Development",
+  "Business Administration / Management", "Finance / Accounting", "Marketing / Digital Marketing",
+  "Human Resource Management", "Operations & Supply Chain", "International Business",
+  "Physics", "Mathematics", "Chemistry", "Biotechnology / Bioinformatics",
+  "Arts / Humanities", "Psychology", "Economics", "Political Science", "Sociology",
+  "Law", "Medicine / Surgery", "Pharmacy", "Architecture", "Design / UX",
+  "Journalism & Mass Communication", "Education / Teaching", "Other"
+];
+
+const POPULAR_SKILLS = [
+  "JavaScript", "TypeScript", "Python", "Java", "C++", "C#", "Ruby", "Go", "Rust", "PHP", "Swift", "Kotlin", "HTML", "CSS",
+  "React.js", "Next.js", "Vue.js", "Angular", "Svelte", "Node.js", "Express.js", "Django", "Flask", "Spring Boot", "Ruby on Rails",
+  "MongoDB", "PostgreSQL", "MySQL", "SQLite", "Redis", "Elasticsearch", "Cassandra", "Oracle DB", "Microsoft SQL Server",
+  "Docker", "Kubernetes", "AWS", "Google Cloud Platform (GCP)", "Microsoft Azure", "Terraform", "Ansible", "Jenkins", "GitHub Actions",
+  "Git", "GitHub", "GitLab", "Bitbucket", "Linux", "Bash", "PowerShell",
+  "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Pandas", "NumPy", "Scikit-Learn", "Data Analysis", "Data Visualization",
+  "Figma", "Adobe XD", "Sketch", "Photoshop", "Illustrator",
+  "Agile Methodologies", "Scrum", "Jira", "Trello", "Confluence", "REST APIs", "GraphQL", "WebSockets", "Microservices"
+].sort();
+
+const COUNTRIES = [
+  { name: 'Afghanistan', code: '+93', flag: '🇦🇫' }, { name: 'Albania', code: '+355', flag: '🇦🇱' }, { name: 'Algeria', code: '+213', flag: '🇩🇿' },
+  { name: 'Andorra', code: '+376', flag: '🇦🇩' }, { name: 'Angola', code: '+244', flag: '🇦🇴' }, { name: 'Argentina', code: '+54', flag: '🇦🇷' },
+  { name: 'Armenia', code: '+374', flag: '🇦🇲' }, { name: 'Australia', code: '+61', flag: '🇦🇺' }, { name: 'Austria', code: '+43', flag: '🇦🇹' },
+  { name: 'Azerbaijan', code: '+994', flag: '🇦🇿' }, { name: 'Bahrain', code: '+973', flag: '🇧🇭' }, { name: 'Bangladesh', code: '+880', flag: '🇧🇩' },
+  { name: 'Belarus', code: '+375', flag: '🇧🇾' }, { name: 'Belgium', code: '+32', flag: '🇧🇪' }, { name: 'Bhutan', code: '+975', flag: '🇧🇹' },
+  { name: 'Bolivia', code: '+591', flag: '🇧🇴' }, { name: 'Bosnia and Herzegovina', code: '+387', flag: '🇧🇦' }, { name: 'Brazil', code: '+55', flag: '🇧🇷' },
+  { name: 'Bulgaria', code: '+359', flag: '🇧🇬' }, { name: 'Cambodia', code: '+855', flag: '🇰🇭' }, { name: 'Cameroon', code: '+237', flag: '🇨🇲' },
+  { name: 'Canada', code: '+1', flag: '🇨🇦' }, { name: 'Chile', code: '+56', flag: '🇨🇱' }, { name: 'China', code: '+86', flag: '🇨🇳' },
+  { name: 'Colombia', code: '+57', flag: '🇨🇴' }, { name: 'Costa Rica', code: '+506', flag: '🇨🇷' }, { name: 'Croatia', code: '+385', flag: '🇭🇷' },
+  { name: 'Cuba', code: '+53', flag: '🇨🇺' }, { name: 'Cyprus', code: '+357', flag: '🇨🇾' }, { name: 'Czech Republic', code: '+420', flag: '🇨🇿' },
+  { name: 'Denmark', code: '+45', flag: '🇩🇰' }, { name: 'Ecuador', code: '+593', flag: '🇪🇨' }, { name: 'Egypt', code: '+20', flag: '🇪🇬' },
+  { name: 'El Salvador', code: '+503', flag: '🇸🇻' }, { name: 'Estonia', code: '+372', flag: '🇪🇪' }, { name: 'Ethiopia', code: '+251', flag: '🇪🇹' },
+  { name: 'Fiji', code: '+679', flag: '🇫🇯' }, { name: 'Finland', code: '+358', flag: '🇫🇮' }, { name: 'France', code: '+33', flag: '🇫🇷' },
+  { name: 'Georgia', code: '+995', flag: '🇬🇪' }, { name: 'Germany', code: '+49', flag: '🇩🇪' }, { name: 'Ghana', code: '+233', flag: '🇬🇭' },
+  { name: 'Greece', code: '+30', flag: '🇬🇷' }, { name: 'Guatemala', code: '+502', flag: '🇬🇹' }, { name: 'Honduras', code: '+504', flag: '🇭🇳' },
+  { name: 'Hong Kong', code: '+852', flag: '🇭🇰' }, { name: 'Hungary', code: '+36', flag: '🇭🇺' }, { name: 'Iceland', code: '+354', flag: '🇮🇸' },
+  { name: 'India', code: '+91', flag: '🇮🇳' }, { name: 'Indonesia', code: '+62', flag: '🇮🇩' }, { name: 'Iran', code: '+98', flag: '🇮🇷' },
+  { name: 'Iraq', code: '+964', flag: '🇮🇶' }, { name: 'Ireland', code: '+353', flag: '🇮🇪' }, { name: 'Israel', code: '+972', flag: '🇮🇱' },
+  { name: 'Italy', code: '+39', flag: '🇮🇹' }, { name: 'Jamaica', code: '+1-876', flag: '🇯🇲' }, { name: 'Japan', code: '+81', flag: '🇯🇵' },
+  { name: 'Jordan', code: '+962', flag: '🇯🇴' }, { name: 'Kazakhstan', code: '+7', flag: '🇰🇿' }, { name: 'Kenya', code: '+254', flag: '🇰🇪' },
+  { name: 'Kuwait', code: '+965', flag: '🇰🇼' }, { name: 'Lebanon', code: '+961', flag: '🇱🇧' }, { name: 'Malaysia', code: '+60', flag: '🇲🇾' },
+  { name: 'Maldives', code: '+960', flag: '🇲🇻' }, { name: 'Mexico', code: '+52', flag: '🇲🇽' }, { name: 'Monaco', code: '+377', flag: '🇲🇨' },
+  { name: 'Morocco', code: '+212', flag: '🇲🇦' }, { name: 'Myanmar', code: '+95', flag: '🇲🇲' }, { name: 'Nepal', code: '+977', flag: '🇳🇵' },
+  { name: 'Netherlands', code: '+31', flag: '🇳🇱' }, { name: 'New Zealand', code: '+64', flag: '🇳🇿' }, { name: 'Nigeria', code: '+234', flag: '🇳🇬' },
+  { name: 'Norway', code: '+47', flag: '🇳🇴' }, { name: 'Oman', code: '+968', flag: '🇴🇲' }, { name: 'Pakistan', code: '+92', flag: '🇵🇰' },
+  { name: 'Panama', code: '+507', flag: '🇵🇦' }, { name: 'Paraguay', code: '+595', flag: '🇵🇾' }, { name: 'Peru', code: '+51', flag: '🇵🇪' },
+  { name: 'Philippines', code: '+63', flag: '🇵🇭' }, { name: 'Poland', code: '+48', flag: '🇵🇱' }, { name: 'Portugal', code: '+351', flag: '🇵🇹' },
+  { name: 'Qatar', code: '+974', flag: '🇶🇦' }, { name: 'Romania', code: '+40', flag: '🇷🇴' }, { name: 'Russia', code: '+7', flag: '🇷🇺' },
+  { name: 'Saudi Arabia', code: '+966', flag: '🇸🇦' }, { name: 'Senegal', code: '+221', flag: '🇸🇳' }, { name: 'Serbia', code: '+381', flag: '🇷🇸' },
+  { name: 'Singapore', code: '+65', flag: '🇸🇬' }, { name: 'South Africa', code: '+27', flag: '🇿🇦' }, { name: 'South Korea', code: '+82', flag: '🇰🇷' },
+  { name: 'Spain', code: '+34', flag: '🇪🇸' }, { name: 'Sri Lanka', code: '+94', flag: '🇱🇰' }, { name: 'Sweden', code: '+46', flag: '🇸🇪' },
+  { name: 'Switzerland', code: '+41', flag: '🇨🇭' }, { name: 'Taiwan', code: '+886', flag: '🇹🇼' }, { name: 'Thailand', code: '+66', flag: '🇹🇭' },
+  { name: 'Tunisia', code: '+216', flag: '🇹🇳' }, { name: 'Turkey', code: '+90', flag: '🇹🇷' }, { name: 'Uganda', code: '+256', flag: '🇺🇬' },
+  { name: 'Ukraine', code: '+380', flag: '🇺🇦' }, { name: 'United Arab Emirates', code: '+971', flag: '🇦🇪' }, { name: 'United Kingdom', code: '+44', flag: '🇬🇧' },
+  { name: 'United States', code: '+1', flag: '🇺🇸' }, { name: 'Uruguay', code: '+598', flag: '🇺🇾' }, { name: 'Uzbekistan', code: '+998', flag: '🇺🇿' },
+  { name: 'Vatican City', code: '+379', flag: '🇻🇦' }, { name: 'Venezuela', code: '+58', flag: '🇻🇪' }, { name: 'Vietnam', code: '+84', flag: '🇻🇳' },
+  { name: 'Yemen', code: '+967', flag: '🇾🇪' }, { name: 'Zambia', code: '+260', flag: '🇿🇲' }, { name: 'Zimbabwe', code: '+263', flag: '🇿🇼' }
+];
+
+const getIso2FromFlag = (emoji) => {
+  if (!emoji) return 'in';
+  const code1 = emoji.codePointAt(0);
+  const code2 = emoji.codePointAt(2);
+  if (!code1 || !code2) return 'in';
+  return String.fromCharCode(code1 - 0x1F1E6 + 97) + String.fromCharCode(code2 - 0x1F1E6 + 97);
+};
 
 const Settings = () => {
   const { user, isLoaded } = useUser()
@@ -36,9 +145,25 @@ const Settings = () => {
   const [usernameError, setUsernameError] = useState('')
   const [isCheckingUsername, setIsCheckingUsername] = useState(false)
   const [showExpForm, setShowExpForm] = useState(false)
-  const [newExp, setNewExp] = useState({ title: '', company: '', duration: '', description: '' })
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 50 }, (_, i) => (currentYear - i).toString());
+  const [newExp, setNewExp] = useState({ 
+    title: '', customTitle: '', type: 'Full-time', company: '', 
+    startMonth: 'Jan', startYear: currentYear.toString(), 
+    endMonth: 'Dec', endYear: currentYear.toString(), 
+    isCurrent: false, description: '', searchQuery: '' 
+  })
+  const [showJobDropdown, setShowJobDropdown] = useState(false)
+  const [editExpIndex, setEditExpIndex] = useState(null)
+  
   const [showEduForm, setShowEduForm] = useState(false)
-  const [newEdu, setNewEdu] = useState({ degree: '', institution: '', duration: '', grade: '' })
+  const [eduSelectionMode, setEduSelectionMode] = useState(false)
+  const [editEduIndex, setEditEduIndex] = useState(null)
+  const [newEdu, setNewEdu] = useState({ level: '', degree: '', degreeBase: '', stream: '', institution: '', startMonth: 'Jan', startYear: currentYear.toString(), endMonth: 'Dec', endYear: currentYear.toString(), isCurrent: false, grade: '' })
+  
+  const [showSkillDropdown, setShowSkillDropdown] = useState(false)
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false)
+  
   const [isUploading, setIsUploading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -78,7 +203,7 @@ const Settings = () => {
       // Fetch from MongoDB for the source of truth
       const fetchMongoProfile = async () => {
         try {
-          const res = await fetch(`/api/users/${user.id}`);
+          const res = await fetch(`${API_BASE}/api/users/${user.id}`);
           if (res.ok) {
             const data = await res.json();
             setFirstName(data.firstName || user.firstName || '');
@@ -122,7 +247,7 @@ const Settings = () => {
       await user.reload()
       
       // Immediately sync the new image URL to MongoDB
-      await fetch(`/api/users/${user.id}/profile`, {
+      await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -166,7 +291,7 @@ const Settings = () => {
     try {
       // Save username separately (has its own uniqueness check)
       if (usernameValue) {
-        const usernameRes = await fetch(`/api/users/${user.id}/username`, {
+        const usernameRes = await fetch(`${API_BASE}/api/users/${user.id}/username`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: usernameValue })
@@ -202,7 +327,7 @@ const Settings = () => {
       })
 
       // Save to MongoDB (primary database layer)
-      const res = await fetch(`/api/users/${user.id}/profile`, {
+      const res = await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -245,7 +370,7 @@ const Settings = () => {
     formData.append('file', file)
     
     try {
-      const response = await fetch('/api/upload/resume', {
+      const response = await fetch(`${API_BASE}/api/upload/resume`, {
         method: 'POST',
         body: formData
       })
@@ -293,7 +418,7 @@ const Settings = () => {
     if (!user?.id) return;
     try {
       toast.loading("Deleting account and all profile data...", { id: "delete-acc" });
-      await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/users/${user.id}`, { method: 'DELETE' });
       await user.delete();
       toast.success("Account deleted successfully", { id: "delete-acc" });
     } catch(e) {
@@ -499,7 +624,52 @@ const Settings = () => {
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm font-medium text-foreground">Phone Number</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 9876543210" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                  <div className="flex flex-col sm:flex-row gap-2 relative">
+                    <div className="relative w-full sm:w-[140px] shrink-0">
+                      <button 
+                        onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                        onBlur={() => setTimeout(() => setShowCountryDropdown(false), 200)}
+                        className="w-full h-[42px] flex items-center justify-between bg-background border border-border/50 rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all"
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          <img src={`https://flagcdn.com/w20/${getIso2FromFlag(COUNTRIES.find(c => phone.startsWith(c.code))?.flag || '🇮🇳')}.png`} alt="flag" className="w-5 h-auto rounded-sm object-cover shadow-sm" />
+                          <span className="truncate">{COUNTRIES.find(c => phone.startsWith(c.code))?.code || '+91'}</span>
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                      </button>
+                      
+                      {showCountryDropdown && (
+                        <div className="absolute z-[100] w-[300px] mt-1 bg-background border border-border/50 rounded-lg shadow-xl max-h-60 overflow-y-auto left-0">
+                          {COUNTRIES.map(c => (
+                            <div 
+                              key={c.name}
+                              className="px-3 py-2.5 text-sm hover:bg-muted cursor-pointer flex items-center gap-3 transition-colors"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                const currentNumber = phone.replace(/^\+\d+(-\d+)?\s*/, '');
+                                setPhone(`${c.code} ${currentNumber}`);
+                                setShowCountryDropdown(false);
+                              }}
+                            >
+                              <img src={`https://flagcdn.com/w20/${getIso2FromFlag(c.flag)}.png`} alt="flag" className="w-5 h-auto rounded-sm object-cover shrink-0 shadow-sm" />
+                              <span className="font-medium text-foreground">{c.name}</span>
+                              <span className="text-muted-foreground ml-auto">{c.code}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <input 
+                      type="tel" 
+                      value={phone.replace(/^\+\d+(-\d+)?\s*/, '')} // Show only the number part in input
+                      onChange={(e) => {
+                        const code = COUNTRIES.find(c => phone.startsWith(c.code))?.code || '+91';
+                        setPhone(`${code} ${e.target.value}`);
+                      }} 
+                      placeholder="9876543210" 
+                      className="flex-1 w-full h-[42px] bg-background border border-border/50 rounded-xl px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" 
+                    />
+                  </div>
                 </div>
                 <div className="sm:col-span-2 mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between">
                   <div>
@@ -600,22 +770,140 @@ const Settings = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <h2 className="text-xl font-bold text-foreground">Experience</h2>
-                <button onClick={() => setShowExpForm(!showExpForm)} className="text-primary text-sm font-medium hover:underline">{showExpForm ? 'Cancel' : '+ Add Experience'}</button>
+                <button onClick={() => {
+                  if (showExpForm) {
+                    setShowExpForm(false);
+                    setEditExpIndex(null);
+                    setNewExp({ title: '', customTitle: '', type: 'Full-time', company: '', startMonth: 'Jan', startYear: currentYear.toString(), endMonth: 'Dec', endYear: currentYear.toString(), isCurrent: false, description: '', searchQuery: '' });
+                  } else {
+                    setShowExpForm(true);
+                  }
+                }} className="text-primary text-sm font-medium hover:underline">{showExpForm ? 'Cancel' : '+ Add Experience'}</button>
               </div>
               
               {showExpForm && (
-                <div className="bg-muted/10 border border-border/50 rounded-xl p-4 space-y-4 my-4">
-                  <input type="text" placeholder="Job Title (e.g. Web Developer Intern)" value={newExp.title} onChange={e => setNewExp({...newExp, title: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <input type="text" placeholder="Company (e.g. Tech Solutions Inc.)" value={newExp.company} onChange={e => setNewExp({...newExp, company: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <input type="text" placeholder="Duration (e.g. Jun 2023 - Aug 2023)" value={newExp.duration} onChange={e => setNewExp({...newExp, duration: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <textarea placeholder="Description" rows="2" value={newExp.description} onChange={e => setNewExp({...newExp, description: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"></textarea>
+                <div className="bg-muted/10 border border-border/50 rounded-xl p-4 space-y-4 my-4 relative">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Job Title</label>
+                    <div className="relative">
+                      <input 
+                        type="text"
+                        placeholder="Search job title..."
+                        value={newExp.searchQuery}
+                        onFocus={() => setShowJobDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowJobDropdown(false), 200)}
+                        onChange={e => setNewExp({...newExp, searchQuery: e.target.value, title: ''})}
+                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      {showJobDropdown && (
+                        <div className="absolute z-10 w-full mt-1 bg-background border border-border/50 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {JOB_TITLES.filter(j => j.toLowerCase().includes(newExp.searchQuery.toLowerCase())).map((job, idx) => (
+                            <div 
+                              key={idx}
+                              className="px-3 py-2 text-sm hover:bg-muted cursor-pointer"
+                              onMouseDown={(e) => {
+                                e.preventDefault(); // Prevent input from losing focus if we want, or just let onBlur handle the close
+                                setNewExp({...newExp, title: job, searchQuery: job});
+                                setShowJobDropdown(false);
+                              }}
+                            >
+                              {job}
+                            </div>
+                          ))}
+                          {JOB_TITLES.filter(j => j.toLowerCase().includes(newExp.searchQuery.toLowerCase())).length === 0 && (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">No matches found. Select "Other" to type custom.</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {newExp.title === 'Other' && (
+                    <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                      <label className="text-xs font-medium text-foreground">Custom Job Title</label>
+                      <input type="text" placeholder="e.g. Chief Happiness Officer" value={newExp.customTitle} onChange={e => setNewExp({...newExp, customTitle: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">Company</label>
+                      <input type="text" placeholder="e.g. Tech Solutions Inc." value={newExp.company} onChange={e => setNewExp({...newExp, company: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">Job Type</label>
+                      <select value={newExp.type} onChange={e => setNewExp({...newExp, type: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                        {jobTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Duration</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <select value={newExp.startMonth} onChange={e => setNewExp({...newExp, startMonth: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                        {months.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <select value={newExp.startYear} onChange={e => setNewExp({...newExp, startYear: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                      
+                      {!newExp.isCurrent && (
+                        <>
+                          <select value={newExp.endMonth} onChange={e => setNewExp({...newExp, endMonth: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                            {months.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                          <select value={newExp.endYear} onChange={e => setNewExp({...newExp, endYear: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                        </>
+                      )}
+                      {newExp.isCurrent && (
+                        <div className="col-span-2 flex items-center px-3 bg-muted/30 border border-border/50 rounded-lg text-sm text-muted-foreground">
+                          Present
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <input type="checkbox" id="isCurrent" checked={newExp.isCurrent} onChange={e => setNewExp({...newExp, isCurrent: e.target.checked})} className="rounded text-primary focus:ring-primary/50" />
+                      <label htmlFor="isCurrent" className="text-xs text-foreground cursor-pointer">I currently work here</label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Description</label>
+                    <textarea placeholder="What did you do?" rows="2" value={newExp.description} onChange={e => setNewExp({...newExp, description: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"></textarea>
+                  </div>
+
                   <button onClick={() => {
-                    if(newExp.title) {
-                      setExperience([...experience, newExp]);
-                      setNewExp({ title: '', company: '', duration: '', description: '' });
+                    const finalTitle = newExp.title === 'Other' ? newExp.customTitle : newExp.searchQuery || newExp.title;
+                    if(finalTitle && newExp.company) {
+                      const durationStr = `${newExp.startMonth} ${newExp.startYear} - ${newExp.isCurrent ? 'Present' : `${newExp.endMonth} ${newExp.endYear}`}`;
+                      const expData = {
+                        title: finalTitle,
+                        company: newExp.company,
+                        type: newExp.type,
+                        duration: durationStr,
+                        description: newExp.description
+                      };
+                      
+                      if (editExpIndex !== null) {
+                        const updated = [...experience];
+                        updated[editExpIndex] = expData;
+                        setExperience(updated);
+                        setEditExpIndex(null);
+                      } else {
+                        setExperience([...experience, expData]);
+                      }
+                      
+                      setNewExp({ title: '', customTitle: '', type: 'Full-time', company: '', startMonth: 'Jan', startYear: currentYear.toString(), endMonth: 'Dec', endYear: currentYear.toString(), isCurrent: false, description: '', searchQuery: '' });
                       setShowExpForm(false);
+                    } else {
+                      toast.error('Please fill required fields (Title, Company)');
                     }
-                  }} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">Add to Profile</button>
+                  }} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+                    {editExpIndex !== null ? 'Update Experience' : 'Add to Profile'}
+                  </button>
                 </div>
               )}
 
@@ -623,9 +911,36 @@ const Settings = () => {
                 <div className="space-y-4 mt-4">
                   {experience.map((exp, i) => (
                     <div key={i} className="border border-border/50 rounded-xl p-5 bg-muted/10 relative group">
-                      <button onClick={() => setExperience(experience.filter((_, idx) => idx !== i))} className="absolute top-4 right-4 text-xs font-medium text-destructive hover:underline transition-colors opacity-0 group-hover:opacity-100">Delete</button>
+                      <div className="absolute top-4 right-4 flex gap-3 opacity-100 transition-opacity">
+                        <button onClick={() => {
+                          const [start, end] = (exp.duration || '').split(' - ');
+                          const [startMonth = 'Jan', startYear = currentYear.toString()] = (start || '').split(' ');
+                          let endMonth = 'Dec', endYear = currentYear.toString(), isCurrent = false;
+                          if (end === 'Present') {
+                            isCurrent = true;
+                          } else if (end) {
+                            [endMonth, endYear] = end.split(' ');
+                          }
+                          setNewExp({
+                            title: exp.title,
+                            customTitle: '',
+                            type: exp.type || 'Full-time',
+                            company: exp.company,
+                            startMonth,
+                            startYear,
+                            endMonth,
+                            endYear,
+                            isCurrent,
+                            description: exp.description || '',
+                            searchQuery: exp.title
+                          });
+                          setEditExpIndex(i);
+                          setShowExpForm(true);
+                        }} className="text-xs font-medium text-blue-500 hover:underline">Edit</button>
+                        <button onClick={() => setExperience(experience.filter((_, idx) => idx !== i))} className="text-xs font-medium text-destructive hover:underline">Delete</button>
+                      </div>
                       <h3 className="font-bold text-foreground">{exp.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">{exp.company} • {exp.duration}</p>
+                      <p className="text-sm text-muted-foreground mb-3">{exp.company} • {exp.type ? `${exp.type} • ` : ''}{exp.duration}</p>
                       <p className="text-sm text-foreground/80 whitespace-pre-line">{exp.description}</p>
                     </div>
                   ))}
@@ -641,22 +956,176 @@ const Settings = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <h2 className="text-xl font-bold text-foreground">Education</h2>
-                <button onClick={() => setShowEduForm(!showEduForm)} className="text-primary text-sm font-medium hover:underline">{showEduForm ? 'Cancel' : '+ Add Education'}</button>
+                <button onClick={() => {
+                  if (showEduForm || eduSelectionMode) {
+                    setShowEduForm(false);
+                    setEduSelectionMode(false);
+                    setEditEduIndex(null);
+                    setNewEdu({ level: '', degree: '', institution: '', startMonth: 'Jan', startYear: currentYear.toString(), endMonth: 'Dec', endYear: currentYear.toString(), isCurrent: false, grade: '' });
+                  } else {
+                    setEduSelectionMode(true);
+                  }
+                }} className="text-primary text-sm font-medium hover:underline">{showEduForm || eduSelectionMode ? 'Cancel' : '+ Add Education'}</button>
               </div>
               
+              {eduSelectionMode && (
+                <div className="bg-muted/10 border border-border/50 rounded-xl p-4 my-4">
+                  <h4 className="text-sm font-medium text-foreground mb-3">What type of education do you want to add?</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {EDUCATION_LEVELS.filter(level => level === "Other" || !education.some(edu => edu.level === level)).map(level => (
+                      <button 
+                        key={level}
+                        onClick={() => {
+                          let initialDegree = level;
+                          if (['Other', 'Higher Studies'].includes(level)) initialDegree = '';
+                          setNewEdu({ level, degree: initialDegree, degreeBase: '', stream: '', institution: '', startMonth: 'Jan', startYear: currentYear.toString(), endMonth: 'Dec', endYear: currentYear.toString(), isCurrent: false, grade: '' });
+                          setEduSelectionMode(false);
+                          setShowEduForm(true);
+                        }}
+                        className="bg-background border border-border/50 hover:border-primary hover:text-primary px-4 py-3 rounded-xl text-sm font-medium transition-colors text-center"
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {showEduForm && (
-                <div className="bg-muted/10 border border-border/50 rounded-xl p-4 space-y-4 my-4">
-                  <input type="text" placeholder="Degree (e.g. Master of Computer Applications)" value={newEdu.degree} onChange={e => setNewEdu({...newEdu, degree: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <input type="text" placeholder="Institution (e.g. National Institute of Technology)" value={newEdu.institution} onChange={e => setNewEdu({...newEdu, institution: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <input type="text" placeholder="Duration (e.g. 2022 - 2024)" value={newEdu.duration} onChange={e => setNewEdu({...newEdu, duration: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <input type="text" placeholder="Grade/CGPA (e.g. 8.5/10)" value={newEdu.grade} onChange={e => setNewEdu({...newEdu, grade: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                <div className="bg-muted/10 border border-border/50 rounded-xl p-4 space-y-4 my-4 relative">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-xs font-semibold">{newEdu.level || 'Education'}</span>
+                  </div>
+                  
+                  {['Graduation', 'Post Graduation (PG)'].includes(newEdu.level) ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-foreground">Degree</label>
+                        <select 
+                          value={newEdu.degreeBase || ''}
+                          onChange={e => setNewEdu({...newEdu, degreeBase: e.target.value})}
+                          className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="" disabled>Select Degree</option>
+                          {(newEdu.level === 'Graduation' ? UG_DEGREES : PG_DEGREES).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-foreground">Stream / Specialization</label>
+                        <select 
+                          value={newEdu.stream || ''}
+                          onChange={e => setNewEdu({...newEdu, stream: e.target.value})}
+                          className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="" disabled>Select Stream</option>
+                          {STREAMS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      {(newEdu.degreeBase === 'Other' || newEdu.stream === 'Other') && (
+                        <div className="space-y-1.5 sm:col-span-2 mt-2">
+                          <label className="text-xs font-medium text-foreground">Specify Degree & Stream</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. B.Voc in Software Development" 
+                            value={newEdu.degree} 
+                            onChange={e => setNewEdu({...newEdu, degree: e.target.value})} 
+                            className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">Degree / Stream</label>
+                      <input 
+                        type="text" 
+                        placeholder={['10th', '12th'].includes(newEdu.level) ? "Board / Stream (e.g. CBSE, Science)" : "Degree (e.g. Ph.D in AI)"} 
+                        value={newEdu.degree} 
+                        onChange={e => setNewEdu({...newEdu, degree: e.target.value})} 
+                        className={`w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary ${!['Other', 'Higher Studies'].includes(newEdu.level) ? 'opacity-70 bg-muted/50 cursor-not-allowed' : ''}`}
+                        readOnly={!['Other', 'Higher Studies'].includes(newEdu.level)}
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Institution / School</label>
+                    <input type="text" placeholder="e.g. National Institute of Technology" value={newEdu.institution} onChange={e => setNewEdu({...newEdu, institution: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Duration</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <select value={newEdu.startMonth} onChange={e => setNewEdu({...newEdu, startMonth: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                        {months.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <select value={newEdu.startYear} onChange={e => setNewEdu({...newEdu, startYear: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                      
+                      {!newEdu.isCurrent && (
+                        <>
+                          <select value={newEdu.endMonth} onChange={e => setNewEdu({...newEdu, endMonth: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                            {months.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                          <select value={newEdu.endYear} onChange={e => setNewEdu({...newEdu, endYear: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                        </>
+                      )}
+                      
+                      {newEdu.isCurrent && (
+                        <div className="col-span-2 flex items-center px-3 bg-muted/30 border border-border/50 rounded-lg text-sm text-foreground">
+                          Present
+                        </div>
+                      )}
+                    </div>
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer w-fit">
+                      <input type="checkbox" checked={newEdu.isCurrent} onChange={e => setNewEdu({...newEdu, isCurrent: e.target.checked})} className="rounded border-border text-primary focus:ring-primary" />
+                      <span className="text-xs text-foreground">I currently study here</span>
+                    </label>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Grade/CGPA</label>
+                    <input type="text" placeholder="e.g. 8.5/10 or 90%" value={newEdu.grade} onChange={e => setNewEdu({...newEdu, grade: e.target.value})} className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  </div>
+                  
                   <button onClick={() => {
-                    if(newEdu.degree) {
-                      setEducation([...education, newEdu]);
-                      setNewEdu({ degree: '', institution: '', duration: '', grade: '' });
-                      setShowEduForm(false);
+                    let finalDegree = newEdu.degree;
+                    if (['Graduation', 'Post Graduation (PG)'].includes(newEdu.level)) {
+                      if (newEdu.degreeBase && newEdu.stream && newEdu.degreeBase !== 'Other' && newEdu.stream !== 'Other') {
+                        finalDegree = `${newEdu.degreeBase} in ${newEdu.stream}`;
+                      }
                     }
-                  }} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">Add to Profile</button>
+                    
+                    if(finalDegree && newEdu.institution) {
+                      const durationStr = `${newEdu.startMonth} ${newEdu.startYear} - ${newEdu.isCurrent ? 'Present' : `${newEdu.endMonth} ${newEdu.endYear}`}`;
+                      const eduData = {
+                        level: newEdu.level,
+                        degree: finalDegree,
+                        degreeBase: newEdu.degreeBase,
+                        stream: newEdu.stream,
+                        institution: newEdu.institution,
+                        duration: durationStr,
+                        grade: newEdu.grade
+                      };
+                      if (editEduIndex !== null) {
+                        const updated = [...education];
+                        updated[editEduIndex] = eduData;
+                        setEducation(updated);
+                        setEditEduIndex(null);
+                      } else {
+                        setEducation([...education, eduData]);
+                      }
+                      setNewEdu({ level: '', degree: '', degreeBase: '', stream: '', institution: '', startMonth: 'Jan', startYear: currentYear.toString(), endMonth: 'Dec', endYear: currentYear.toString(), isCurrent: false, grade: '' });
+                      setShowEduForm(false);
+                    } else {
+                      toast.error('Please fill required fields (Degree/Stream, Institution)');
+                    }
+                  }} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+                    {editEduIndex !== null ? 'Update Education' : 'Add to Profile'}
+                  </button>
                 </div>
               )}
 
@@ -664,8 +1133,40 @@ const Settings = () => {
                 <div className="space-y-4 mt-4">
                   {education.map((edu, i) => (
                     <div key={i} className="border border-border/50 rounded-xl p-5 bg-muted/10 relative group">
-                      <button onClick={() => setEducation(education.filter((_, idx) => idx !== i))} className="absolute top-4 right-4 text-xs font-medium text-destructive hover:underline transition-colors opacity-0 group-hover:opacity-100">Delete</button>
-                      <h3 className="font-bold text-foreground">{edu.degree}</h3>
+                      <div className="absolute top-4 right-4 flex gap-3 opacity-100 transition-opacity">
+                        <button onClick={() => {
+                          const [start, end] = (edu.duration || '').split(' - ');
+                          const [startMonth = 'Jan', startYear = currentYear.toString()] = (start || '').split(' ');
+                          let endMonth = 'Dec', endYear = currentYear.toString(), isCurrent = false;
+                          if (end === 'Present') {
+                            isCurrent = true;
+                          } else if (end) {
+                            [endMonth, endYear] = end.split(' ');
+                          }
+                          
+                          setNewEdu({
+                            level: edu.level || 'Other',
+                            degree: edu.degree,
+                            degreeBase: edu.degreeBase || '',
+                            stream: edu.stream || '',
+                            institution: edu.institution,
+                            startMonth,
+                            startYear,
+                            endMonth,
+                            endYear,
+                            isCurrent,
+                            grade: edu.grade
+                          });
+                          setEditEduIndex(i);
+                          setShowEduForm(true);
+                          setEduSelectionMode(false);
+                        }} className="text-xs font-medium text-blue-500 hover:underline">Edit</button>
+                        <button onClick={() => setEducation(education.filter((_, idx) => idx !== i))} className="text-xs font-medium text-destructive hover:underline">Delete</button>
+                      </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {edu.level && edu.level !== 'Other' && <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">{edu.level}</span>}
+                        <h3 className="font-bold text-foreground">{edu.degree}</h3>
+                      </div>
                       <p className="text-sm text-muted-foreground mb-1">{edu.institution} • {edu.duration}</p>
                       <p className="text-sm font-medium text-foreground">Grade: {edu.grade}</p>
                     </div>
@@ -683,12 +1184,67 @@ const Settings = () => {
               <h2 className="text-xl font-bold text-foreground border-b border-border/40 pb-4">Skills</h2>
               
               <div className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <label className="text-sm font-medium text-foreground">Add a new skill</label>
                   <div className="flex gap-2">
-                    <input type="text" value={newSkill} onChange={e => setNewSkill(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && newSkill) { setSkills([...skills, newSkill]); setNewSkill(''); } }} placeholder="e.g. React, Python, Data Analysis" className="flex-1 bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
-                    <button onClick={() => { if(newSkill) { setSkills([...skills, newSkill]); setNewSkill(''); } }} className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors">Add</button>
+                    <input 
+                      type="text" 
+                      value={newSkill} 
+                      onChange={e => {
+                        setNewSkill(e.target.value);
+                        setShowSkillDropdown(true);
+                      }} 
+                      onFocus={() => setShowSkillDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowSkillDropdown(false), 200)}
+                      onKeyDown={e => { 
+                        if(e.key === 'Enter' && newSkill) { 
+                          if(!skills.includes(newSkill.trim())) setSkills([...skills, newSkill.trim()]); 
+                          setNewSkill(''); 
+                          setShowSkillDropdown(false);
+                        } 
+                      }} 
+                      placeholder="e.g. React, Python, MongoDB" 
+                      className="flex-1 bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" 
+                    />
+                    <button onClick={() => { 
+                      if(newSkill && !skills.includes(newSkill.trim())) setSkills([...skills, newSkill.trim()]); 
+                      setNewSkill(''); 
+                      setShowSkillDropdown(false);
+                    }} className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors">Add</button>
                   </div>
+                  
+                  {showSkillDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-background border border-border/50 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {POPULAR_SKILLS.filter(s => s.toLowerCase().includes(newSkill.toLowerCase()) && !skills.includes(s)).map((skill, idx) => (
+                        <div 
+                          key={idx}
+                          className="px-3 py-2 text-sm hover:bg-muted cursor-pointer flex items-center justify-between group"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            if(!skills.includes(skill)) setSkills([...skills, skill]);
+                            setNewSkill('');
+                            setShowSkillDropdown(false);
+                          }}
+                        >
+                          <span>{skill}</span>
+                          <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">Add</span>
+                        </div>
+                      ))}
+                      {newSkill.trim() && POPULAR_SKILLS.filter(s => s.toLowerCase().includes(newSkill.toLowerCase()) && !skills.includes(s)).length === 0 && !skills.includes(newSkill.trim()) && (
+                        <div 
+                          className="px-3 py-2 text-sm text-primary hover:bg-muted cursor-pointer font-medium"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSkills([...skills, newSkill.trim()]);
+                            setNewSkill('');
+                            setShowSkillDropdown(false);
+                          }}
+                        >
+                          + Add "{newSkill.trim()}" as a custom skill
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4">
@@ -831,7 +1387,7 @@ const Settings = () => {
                       onChange={(e) => {
                         setProfileVisibility(e.target.value);
                         // Auto-save this setting for better UX
-                        fetch(`/api/users/${user.id}/profile`, {
+                        fetch(`${API_BASE}/api/users/${user.id}/profile`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ profileVisibility: e.target.value })

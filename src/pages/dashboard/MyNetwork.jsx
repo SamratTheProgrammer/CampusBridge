@@ -5,6 +5,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
+import API_BASE from '../../utils/api'
 
 const MyNetwork = () => {
   const { user } = useUser();
@@ -26,8 +27,8 @@ const MyNetwork = () => {
         setIsLoading(true);
 
         const [connRes, sugRes] = await Promise.all([
-          fetch(`/api/connections/user/${user.id}`),
-          fetch(`/api/connections/suggestions/${user.id}`)
+          fetch(`${API_BASE}/api/connections/user/${user.id}`),
+          fetch(`${API_BASE}/api/connections/suggestions/${user.id}`)
         ]);
 
         if (connRes.ok) {
@@ -53,7 +54,7 @@ const MyNetwork = () => {
   // Handle Accept / Decline connection request
   const handleUpdateStatus = async (connectionId, newStatus) => {
     try {
-      const res = await fetch(`/api/connections/${connectionId}`, {
+      const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -78,7 +79,7 @@ const MyNetwork = () => {
     if (!user) return;
     setIsConnecting(targetClerkId);
     try {
-      const res = await fetch('/api/connections', {
+      const res = await fetch(`${API_BASE}/api/connections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -113,7 +114,7 @@ const MyNetwork = () => {
   const handleUnfriend = async (connectionId, targetName) => {
     if (!window.confirm(`Are you sure you want to remove ${targetName} from your network?`)) return;
     try {
-      const res = await fetch(`/api/connections/${connectionId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, { method: 'DELETE' });
       if (res.ok) {
         setConnections((prev) => prev.filter((c) => c._id !== connectionId));
         toast.success(`${targetName} removed from network.`);

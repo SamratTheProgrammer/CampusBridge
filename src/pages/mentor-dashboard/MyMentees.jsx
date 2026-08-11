@@ -3,6 +3,7 @@ import { Search, Filter, MessageSquare, User, CheckCircle2, Loader2, X } from 'l
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const MyMentees = () => {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ const MyMentees = () => {
     
     const fetchMentees = async () => {
       try {
-        const res = await fetch(`/api/connections/user/${user.id}`);
+        const res = await fetch(`${API_BASE}/api/connections/user/${user.id}`);
         if (res.ok) {
           const data = await res.json();
           // Filter to only accepted requests where the current user is the recipient (mentor)
@@ -51,7 +52,7 @@ const MyMentees = () => {
   const handleUnfriend = async (connectionId, studentName) => {
     if (!window.confirm(`Are you sure you want to remove ${studentName} from your mentees?`)) return;
     try {
-      const res = await fetch(`/api/connections/${connectionId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, { method: 'DELETE' });
       if (res.ok) {
         setMentees(prev => prev.filter(m => m.id !== connectionId));
         toast.success(`${studentName} removed from mentees.`);

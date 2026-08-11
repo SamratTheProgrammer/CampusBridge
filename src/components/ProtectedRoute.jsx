@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { Loader2 } from 'lucide-react'
 import BlockedUserScreen from './BlockedUserScreen'
+import API_BASE from '../utils/api'
 
 const ProtectedRoute = ({ allowedRoles = [] }) => {
   const { user, isLoaded, isSignedIn } = useUser()
@@ -39,7 +40,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
       // Fetch user profile from MongoDB API to check role and block status
       try {
-        const res = await fetch(`/api/users/${user.id}`)
+        const res = await fetch(`${API_BASE}/api/users/${user.id}`)
         if (res.ok) {
           const data = await res.json()
           if (data) {

@@ -3,6 +3,7 @@ import { Search, Filter, MapPin, ChevronLeft, ChevronRight, Loader2, UserPlus, C
 import { Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const MentorDirectory = () => {
   const { user } = useUser()
@@ -19,8 +20,8 @@ const MentorDirectory = () => {
     const fetchData = async () => {
       try {
         const [mentorsRes, connsRes] = await Promise.all([
-          fetch('/api/users/mentors/all'),
-          user ? fetch(`/api/connections/user/${user.id}`) : Promise.resolve({ ok: false })
+          fetch(`${API_BASE}/api/users/mentors/all`),
+          user ? fetch(`${API_BASE}/api/connections/user/${user.id}`) : Promise.resolve({ ok: false })
         ]);
 
         if (mentorsRes.ok) {
@@ -55,7 +56,7 @@ const MentorDirectory = () => {
     if (!user) return;
     setIsConnecting(mentorId);
     try {
-      const res = await fetch('/api/connections', {
+      const res = await fetch(`${API_BASE}/api/connections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

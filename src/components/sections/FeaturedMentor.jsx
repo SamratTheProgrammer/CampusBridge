@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { MessageSquare, UserPlus } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
+import API_BASE from '../../utils/api'
 
 const FeaturedMentor = () => {
   const [mentors, setMentors] = useState([])
@@ -13,7 +14,7 @@ const FeaturedMentor = () => {
   useEffect(() => {
     const fetchMentors = async () => {
       try {
-        const res = await fetch('/api/users/mentors/all')
+        const res = await fetch(`${API_BASE}/api/users/mentors/all`)
         if (res.ok) {
           const data = await res.json()
           setMentors(data.slice(0, 4))

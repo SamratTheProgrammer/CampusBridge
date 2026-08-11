@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { socket } from '../services/socket';
 import toast from 'react-hot-toast';
 import ringtoneService from '../utils/ringtone';
+import API_BASE from '../utils/api'
 
 const ICE_SERVERS = {
   iceServers: [
@@ -211,7 +212,7 @@ const VideoCallModal = ({ currentUser }) => {
         duration: durationSec
       };
 
-      const res = await fetch('/api/messages/call-log', {
+      const res = await fetch(`${API_BASE}/api/messages/call-log`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

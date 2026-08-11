@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Upload, Link as LinkIcon, FileText } from 'lucide-react'
 import emailjs from '@emailjs/browser'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
+import API_BASE from '../../utils/api'
 
 const JobDetails = () => {
   const { id } = useParams()
@@ -28,20 +29,20 @@ const JobDetails = () => {
   useEffect(() => {
     const fetchJobAndApplicationStatus = async () => {
       try {
-        const res = await fetch(`/api/jobs/${id}`)
+        const res = await fetch(`${API_BASE}/api/jobs/${id}`)
         if (!res.ok) throw new Error('Failed to fetch job')
         const data = await res.json()
         setJob(data)
 
         if (user) {
-          const appRes = await fetch(`/api/jobs/student/applications/${user.id}`)
+          const appRes = await fetch(`${API_BASE}/api/jobs/student/applications/${user.id}`)
           if (appRes.ok) {
             const apps = await appRes.json()
             const applied = apps.some(app => app.job?._id === data._id)
             setHasApplied(applied)
           }
 
-          const savedRes = await fetch(`/api/users/${user.id}/saved-jobs`)
+          const savedRes = await fetch(`${API_BASE}/api/users/${user.id}/saved-jobs`)
           if (savedRes.ok) {
             const savedData = await savedRes.json()
             setIsSaved(savedData.some(savedJob => savedJob._id === data._id))
@@ -74,7 +75,7 @@ const JobDetails = () => {
       if (inputType === 'upload' && resumeFile) {
         const formData = new FormData();
         formData.append('file', resumeFile);
-        const uploadRes = await fetch('/api/upload/resume', {
+        const uploadRes = await fetch(`${API_BASE}/api/upload/resume`, {
           method: 'POST',
           body: formData
         });
@@ -84,7 +85,7 @@ const JobDetails = () => {
         finalResumeLink = uploadData.url;
       }
 
-      const res = await fetch(`/api/jobs/${id}/apply`, {
+      const res = await fetch(`${API_BASE}/api/jobs/${id}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -154,7 +155,7 @@ const JobDetails = () => {
     }
     setIsSaving(true)
     try {
-      const res = await fetch(`/api/users/${user.id}/save-job`, {
+      const res = await fetch(`${API_BASE}/api/users/${user.id}/save-job`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: id })

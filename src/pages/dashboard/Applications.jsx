@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
@@ -27,7 +28,7 @@ const Applications = () => {
     const fetchApplications = async () => {
       try {
         if (!user) return;
-        const res = await fetch(`/api/jobs/student/applications/${user.id}`)
+        const res = await fetch(`${API_BASE}/api/jobs/student/applications/${user.id}`)
         if (!res.ok) throw new Error('Failed to fetch applications')
         const data = await res.json()
         setApplications(data)

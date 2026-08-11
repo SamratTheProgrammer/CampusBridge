@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import PostComments from '../../components/PostComments'
+import API_BASE from '../../utils/api'
 
 const StudentProfile = () => {
   const navigate = useNavigate();
@@ -32,13 +33,13 @@ const StudentProfile = () => {
     }
     const fetchStudent = async () => {
       try {
-        const res = await fetch(`/api/users/${id}`)
+        const res = await fetch(`${API_BASE}/api/users/${id}`)
         if (res.ok) {
           const data = await res.json()
           setStudent(data)
 
           if (user && data.clerkId) {
-            const connRes = await fetch(`/api/connections/status/${user.id}/${data.clerkId}`)
+            const connRes = await fetch(`${API_BASE}/api/connections/status/${user.id}/${data.clerkId}`)
             if (connRes.ok) {
               const connData = await connRes.json()
               setConnectionStatus(connData.status || 'none')
@@ -63,7 +64,7 @@ const StudentProfile = () => {
     if (!student?.clerkId) return;
     const fetchPosts = async () => {
       try {
-        const res = await fetch(`/api/posts/user/${student.clerkId}`);
+        const res = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}`);
         if (res.ok) {
           const data = await res.json();
           setPosts(data);
@@ -94,7 +95,7 @@ const StudentProfile = () => {
       return p
     }))
     try {
-      await fetch(`/api/posts/${postId}/like`, {
+      await fetch(`${API_BASE}/api/posts/${postId}/like`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkId: user.id })
@@ -108,14 +109,14 @@ const StudentProfile = () => {
     if (!commentText.trim() || !user || !student?.clerkId) return;
     setIsCommenting(true)
     try {
-      const res = await fetch(`/api/posts/${postId}/comment`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
       })
       if (res.ok) {
         setCommentText('')
-        const postsRes = await fetch(`/api/posts/user/${student.clerkId}`);
+        const postsRes = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}`);
         if (postsRes.ok) setPosts(await postsRes.json());
       }
     } catch (err) {
@@ -128,7 +129,7 @@ const StudentProfile = () => {
   const handleUnfriend = async () => {
     if (!connectionId) return;
     try {
-      const res = await fetch(`/api/connections/${connectionId}`, {
+      const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -426,7 +427,7 @@ const StudentProfile = () => {
                           currentUser={user}
                           onRefresh={async () => {
                             if (student?.clerkId) {
-                              const postsRes = await fetch(`/api/posts/user/${student.clerkId}`);
+                              const postsRes = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}`);
                               if (postsRes.ok) setPosts(await postsRes.json());
                             }
                           }}

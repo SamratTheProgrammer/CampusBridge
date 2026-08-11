@@ -22,6 +22,7 @@ import {
 import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
 import logoIcon from '../../assets/CampusLogoHalf.png'
+import API_BASE from '../../utils/api'
 
 const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const { signOut } = useClerk()
@@ -37,7 +38,7 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
     const fetchUserProfile = async () => {
       try {
-        const res = await fetch(`/api/users/${user.id}`)
+        const res = await fetch(`${API_BASE}/api/users/${user.id}`)
         if (res.ok) {
           const data = await res.json()
           const comp = calculateProfileCompleteness(data)
@@ -53,7 +54,7 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
     const fetchUnread = async () => {
       try {
-        const res = await fetch(`/api/messages/unread-count/${user.id}`)
+        const res = await fetch(`${API_BASE}/api/messages/unread-count/${user.id}`)
         if (res.ok) {
           const data = await res.json()
           setUnreadMessages(data.count)

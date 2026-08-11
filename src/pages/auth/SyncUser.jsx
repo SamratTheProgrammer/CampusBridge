@@ -3,6 +3,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import API_BASE from '../../utils/api'
 
 const SyncUser = () => {
   const { user, isLoaded } = useUser();
@@ -15,7 +16,7 @@ const SyncUser = () => {
       const savedRole = localStorage.getItem('sso_role') || 'student';
       
       // Sync user with backend
-      fetch('/api/users/sync', {
+      fetch(`${API_BASE}/api/users/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

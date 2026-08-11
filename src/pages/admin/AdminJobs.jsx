@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import API_BASE from '../../utils/api'
 
 const AdminJobs = () => {
   const [jobs, setJobs] = useState([])
@@ -44,7 +45,7 @@ const AdminJobs = () => {
   const fetchJobs = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch('/api/admin/jobs')
+      const res = await fetch(`${API_BASE}/api/admin/jobs`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && Array.isArray(data.jobs)) {
@@ -75,7 +76,7 @@ const AdminJobs = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return
     try {
-      const res = await fetch(`/api/admin/jobs/${deleteTarget.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/api/admin/jobs/${deleteTarget.id}`, { method: 'DELETE' })
       const data = await res.json()
       if (res.ok && data.success) {
         setJobs(prev => prev.filter(j => j.id !== deleteTarget.id))
@@ -95,7 +96,7 @@ const AdminJobs = () => {
   // Handle status update API
   const handleStatusChange = async (id, nextStatus) => {
     try {
-      const res = await fetch(`/api/admin/jobs/${id}/status`, {
+      const res = await fetch(`${API_BASE}/api/admin/jobs/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus })
@@ -124,7 +125,7 @@ const AdminJobs = () => {
 
     try {
       setIsSubmitting(true)
-      const res = await fetch('/api/admin/jobs', {
+      const res = await fetch(`${API_BASE}/api/admin/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newJobData)

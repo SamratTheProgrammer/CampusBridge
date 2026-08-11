@@ -4,6 +4,7 @@ import { Calendar, Clock, Video, XCircle, CheckCircle2, Globe, MapPin, Loader2, 
 import { useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const MySessions = () => {
   const { user } = useUser()
@@ -27,7 +28,7 @@ const MySessions = () => {
       setIsLoading(true)
       
       // 1. Fetch available mentor-hosted sessions
-      const availableRes = await fetch('/api/events?category=session')
+      const availableRes = await fetch(`${API_BASE}/api/events?category=session`)
       if (availableRes.ok) {
         const availableData = await availableRes.json()
         setAvailableSessions(availableData)
@@ -35,14 +36,14 @@ const MySessions = () => {
 
       if (user) {
         // 2. Fetch user's booked 1-on-1 sessions
-        const userRes = await fetch(`/api/sessions/user/${user.id}`)
+        const userRes = await fetch(`${API_BASE}/api/sessions/user/${user.id}`)
         if (userRes.ok) {
           const userData = await userRes.json()
           setUserSessions(userData)
         }
 
         // 3. Fetch events user has registered for
-        const regRes = await fetch(`/api/events/registered/${user.id}`)
+        const regRes = await fetch(`${API_BASE}/api/events/registered/${user.id}`)
         if (regRes.ok) {
           const regData = await regRes.json()
           setRegisteredEvents(regData)
@@ -63,7 +64,7 @@ const MySessions = () => {
   const handleCancelSession = async (sessionId) => {
     if (!window.confirm('Are you sure you want to cancel this session?')) return;
     try {
-      const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/api/sessions/${sessionId}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Session cancelled')
         setUserSessions(userSessions.filter(s => s._id !== sessionId))
@@ -80,7 +81,7 @@ const MySessions = () => {
     if (!user || !selectedSession) return;
     setIsRegistering(true)
     try {
-      const res = await fetch(`/api/events/${selectedSession._id}/apply`, {
+      const res = await fetch(`${API_BASE}/api/events/${selectedSession._id}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkId: user.id })

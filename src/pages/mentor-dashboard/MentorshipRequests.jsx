@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
+import API_BASE from '../../utils/api'
 
 const MentorshipRequests = () => {
   const { user } = useUser()
@@ -19,7 +20,7 @@ const MentorshipRequests = () => {
       setIsLoading(true)
 
       // Fetch connection requests
-      const connRes = await fetch(`/api/connections/user/${user.id}`)
+      const connRes = await fetch(`${API_BASE}/api/connections/user/${user.id}`)
       if (connRes.ok) {
         const data = await connRes.json()
         const received = data.filter(conn => conn.recipientClerkId === user.id)
@@ -44,7 +45,7 @@ const MentorshipRequests = () => {
   const handleConnectionAction = async (id, action) => {
     try {
       const status = action === 'accept' ? 'accepted' : 'declined'
-      const res = await fetch(`/api/connections/${id}`, {
+      const res = await fetch(`${API_BASE}/api/connections/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })

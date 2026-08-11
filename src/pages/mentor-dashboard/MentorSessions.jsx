@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import ImageCropModal from '../../components/ImageCropModal'
+import API_BASE from '../../utils/api'
 
 const MentorSessions = () => {
   const { user } = useUser()
@@ -96,14 +97,14 @@ const MentorSessions = () => {
     try {
       setIsLoading(true)
       // Fetch mentor's hosted sessions / masterclasses
-      const hostedRes = await fetch(`/api/events/mentor/${user.id}`)
+      const hostedRes = await fetch(`${API_BASE}/api/events/mentor/${user.id}`)
       if (hostedRes.ok) {
         const hostedData = await hostedRes.json()
         setHostedSessions(hostedData)
       }
 
       // Fetch 1-on-1 sessions
-      const indivRes = await fetch(`/api/sessions/user/${user.id}`)
+      const indivRes = await fetch(`${API_BASE}/api/sessions/user/${user.id}`)
       if (indivRes.ok) {
         const indivData = await indivRes.json()
         setIndividualSessions(indivData)
@@ -124,7 +125,7 @@ const MentorSessions = () => {
       const payload = { status };
       if (meetingLink) payload.meetingLink = meetingLink;
 
-      const res = await fetch(`/api/sessions/${id}`, {
+      const res = await fetch(`${API_BASE}/api/sessions/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -162,7 +163,7 @@ const MentorSessions = () => {
       const uploadData = new FormData()
       uploadData.append('file', croppedImageBlob, 'banner.jpg')
       try {
-        const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: uploadData })
+        const uploadRes = await fetch(`${API_BASE}/api/upload/image`, { method: 'POST', body: uploadData })
         if (uploadRes.ok) {
           const uploadJson = await uploadRes.json()
           imageUrl = uploadJson.url
@@ -193,7 +194,7 @@ const MentorSessions = () => {
     }
 
     try {
-      const res = await fetch('/api/events', {
+      const res = await fetch(`${API_BASE}/api/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSession)
@@ -224,7 +225,7 @@ const MentorSessions = () => {
       const uploadData = new FormData()
       uploadData.append('file', croppedImageBlob, 'banner.jpg')
       try {
-        const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: uploadData })
+        const uploadRes = await fetch(`${API_BASE}/api/upload/image`, { method: 'POST', body: uploadData })
         if (uploadRes.ok) {
           const uploadJson = await uploadRes.json()
           imageUrl = uploadJson.url
@@ -253,7 +254,7 @@ const MentorSessions = () => {
     }
 
     try {
-      const res = await fetch(`/api/events/${selectedSession._id}`, {
+      const res = await fetch(`${API_BASE}/api/events/${selectedSession._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
@@ -281,7 +282,7 @@ const MentorSessions = () => {
   const handleDeleteSession = async () => {
     if (!sessionToDelete) return;
     try {
-      const res = await fetch(`/api/events/${sessionToDelete}`, {
+      const res = await fetch(`${API_BASE}/api/events/${sessionToDelete}`, {
         method: 'DELETE'
       })
       if (!res.ok) throw new Error('Failed to delete session')
@@ -301,7 +302,7 @@ const MentorSessions = () => {
     setIsApplicationsModalOpen(true)
     setIsLoadingStudents(true)
     try {
-      const res = await fetch(`/api/events/${session._id}/applications`)
+      const res = await fetch(`${API_BASE}/api/events/${session._id}/applications`)
       if (!res.ok) throw new Error('Failed to fetch registered students')
       const data = await res.json()
       setRegisteredStudents(data)

@@ -4,6 +4,7 @@ import { Eye, EyeOff, Lock, Mail, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
+import API_BASE from '../../utils/api'
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('')
@@ -22,7 +23,7 @@ const AdminLogin = () => {
     
     setIsLoading(true)
     try {
-      const response = await fetch('/api/admin/login', {
+      const response = await fetch(`${API_BASE}/api/admin/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

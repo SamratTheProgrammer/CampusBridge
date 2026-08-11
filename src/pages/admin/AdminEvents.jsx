@@ -3,6 +3,7 @@ import { Plus, Trash2, Edit3, Calendar, Video, MapPin, Loader2, Globe, Clock, X 
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { useUser } from '@clerk/clerk-react'
+import API_BASE from '../../utils/api'
 
 const AdminEvents = () => {
   const { user } = useUser()
@@ -33,7 +34,7 @@ const AdminEvents = () => {
   const fetchEvents = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch('/api/events?category=event')
+      const res = await fetch(`${API_BASE}/api/events?category=event`)
       if (res.ok) {
         const data = await res.json()
         setEvents(data)
@@ -99,7 +100,7 @@ const AdminEvents = () => {
         const uploadData = new FormData()
         uploadData.append('file', imageFile)
         try {
-          const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: uploadData })
+          const uploadRes = await fetch(`${API_BASE}/api/upload/image`, { method: 'POST', body: uploadData })
           if (uploadRes.ok) {
             const uploadJson = await uploadRes.json()
             uploadedImageUrl = uploadJson.url
@@ -130,13 +131,13 @@ const AdminEvents = () => {
 
       let res;
       if (editingEvent) {
-        res = await fetch(`/api/events/${editingEvent._id}`, {
+        res = await fetch(`${API_BASE}/api/events/${editingEvent._id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
       } else {
-        res = await fetch('/api/events', {
+        res = await fetch(`${API_BASE}/api/events`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -167,7 +168,7 @@ const AdminEvents = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const res = await fetch(`/api/events/${deleteTarget.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/api/events/${deleteTarget.id}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Event cancelled & deleted successfully.')
         setEvents(events.filter(e => e._id !== deleteTarget.id))

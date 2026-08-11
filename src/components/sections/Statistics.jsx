@@ -2,6 +2,7 @@ import React from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Users, GraduationCap, Building2, Briefcase, Calendar, MessageCircle } from 'lucide-react'
 import { useRef, useState, useEffect } from 'react'
+import API_BASE from '../../utils/api'
 
 const Counter = ({ value, label, icon: Icon, delay = 0 }) => {
   const ref = useRef(null)
@@ -37,7 +38,7 @@ const Statistics = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('/api/analytics/platform-stats');
+        const res = await fetch(`${API_BASE}/api/analytics/platform-stats`);
         if (res.ok) {
           const data = await res.json();
           setStatsData(data);

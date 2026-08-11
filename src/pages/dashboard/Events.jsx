@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const Events = () => {
   const { user } = useUser()
@@ -30,7 +31,7 @@ const Events = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch('/api/events?category=event')
+        const res = await fetch(`${API_BASE}/api/events?category=event`)
         if (!res.ok) throw new Error('Failed to fetch events')
         const data = await res.json()
         setEvents(data)
@@ -47,7 +48,7 @@ const Events = () => {
     if (user) {
       const fetchUserData = async () => {
         try {
-          const res = await fetch(`/api/users/${user.id}`)
+          const res = await fetch(`${API_BASE}/api/users/${user.id}`)
           if (res.ok) {
             const data = await res.json()
             setUserDbData(data)
@@ -80,7 +81,7 @@ const Events = () => {
     setIsRegistering(true)
     
     try {
-      const res = await fetch(`/api/events/${selectedEvent._id}/apply`, {
+      const res = await fetch(`${API_BASE}/api/events/${selectedEvent._id}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

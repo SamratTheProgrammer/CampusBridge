@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Star, Calendar, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
+import API_BASE from '../../utils/api'
 
 const MentorSpotlight = () => {
   const navigate = useNavigate()
@@ -13,7 +14,7 @@ const MentorSpotlight = () => {
   useEffect(() => {
     const fetchMentors = async () => {
       try {
-        const res = await fetch('/api/users/mentors/all')
+        const res = await fetch(`${API_BASE}/api/users/mentors/all`)
         if (res.ok) {
           const data = await res.json()
           // Take top 3 mentors

@@ -3,6 +3,7 @@ import { Search, MessageSquare, User, Loader2, CheckCircle2, Calendar } from 'lu
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
+import API_BASE from '../../utils/api'
 
 const MyMentors = () => {
   const { user } = useUser()
@@ -16,7 +17,7 @@ const MyMentors = () => {
     
     const fetchMentors = async () => {
       try {
-        const res = await fetch(`/api/connections/user/${user.id}`);
+        const res = await fetch(`${API_BASE}/api/connections/user/${user.id}`);
         if (res.ok) {
           const data = await res.json();
           // Filter to only accepted requests where the current user is the requester (student)
@@ -46,7 +47,7 @@ const MyMentors = () => {
   const handleUnfriend = async (connectionId, mentorName) => {
     if (!window.confirm(`Are you sure you want to remove ${mentorName} from your mentors?`)) return;
     try {
-      const res = await fetch(`/api/connections/${connectionId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, { method: 'DELETE' });
       if (res.ok) {
         setMentors(prev => prev.filter(m => m.id !== connectionId));
         toast.success(`${mentorName} removed from mentors.`);

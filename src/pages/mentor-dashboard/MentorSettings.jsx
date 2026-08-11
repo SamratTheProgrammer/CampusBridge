@@ -12,6 +12,7 @@ import ConfirmModal from '../../components/modals/ConfirmModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
 
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
+import API_BASE from '../../utils/api'
 
 const MentorSettings = () => {
   const { user, isLoaded } = useUser()
@@ -70,7 +71,7 @@ const MentorSettings = () => {
   const fetchProfile = async () => {
     if (!user) return
     try {
-      const res = await fetch(`/api/users/${user.id}`);
+      const res = await fetch(`${API_BASE}/api/users/${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setUserDoc(data);
@@ -119,7 +120,7 @@ const MentorSettings = () => {
       await user.setProfileImage({ file })
       await user.reload()
       
-      await fetch(`/api/users/${user.id}/profile`, {
+      await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: user.imageUrl })
@@ -151,7 +152,7 @@ const MentorSettings = () => {
     formData.append('file', file)
 
     try {
-      const res = await fetch('/api/upload/resume', {
+      const res = await fetch(`${API_BASE}/api/upload/resume`, {
         method: 'POST',
         body: formData
       })
@@ -246,7 +247,7 @@ const MentorSettings = () => {
     if (!user?.id) return;
     try {
       toast.loading("Deleting account and all profile data...", { id: "delete-acc" });
-      await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/users/${user.id}`, { method: 'DELETE' });
       await user.delete();
       toast.success("Account deleted successfully", { id: "delete-acc" });
     } catch(e) {
@@ -262,7 +263,7 @@ const MentorSettings = () => {
     if (!user) return
     setIsSaving(true)
     try {
-      await fetch(`/api/users/${user.id}/profile`, {
+      await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -291,7 +292,7 @@ const MentorSettings = () => {
         }
       })
 
-      const checkRes = await fetch(`/api/users/${user.id}`);
+      const checkRes = await fetch(`${API_BASE}/api/users/${user.id}`);
       if (checkRes.ok) {
         const updatedData = await checkRes.json();
         setUserDoc(updatedData);
@@ -300,7 +301,7 @@ const MentorSettings = () => {
 
         if (comp.percentage >= 80) {
           if (updatedData.verificationStatus !== 'Approved') {
-            await fetch(`/api/users/${user.id}/profile`, {
+            await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ verificationStatus: 'Pending' })
@@ -854,7 +855,7 @@ const MentorSettings = () => {
                       value={profileVisibility}
                       onChange={(e) => {
                         setProfileVisibility(e.target.value);
-                        fetch(`/api/users/${user.id}/profile`, {
+                        fetch(`${API_BASE}/api/users/${user.id}/profile`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ profileVisibility: e.target.value })

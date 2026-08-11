@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Building, MapPin, ExternalLink } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
+import API_BASE from '../../utils/api'
 
 const Internships = () => {
   const [internships, setInternships] = useState([])
@@ -13,7 +14,7 @@ const Internships = () => {
   useEffect(() => {
     const fetchInternships = async () => {
       try {
-        const res = await fetch('/api/jobs')
+        const res = await fetch(`${API_BASE}/api/jobs`)
         if (res.ok) {
           const data = await res.json()
           // Filter internships and take top 4

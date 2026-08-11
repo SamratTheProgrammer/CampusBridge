@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import API_BASE from '../../utils/api'
 
 const AdminUserManagement = () => {
   const [students, setStudents] = useState([])
@@ -23,7 +24,7 @@ const AdminUserManagement = () => {
   const fetchUsers = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch('/api/admin/users')
+      const res = await fetch(`${API_BASE}/api/admin/users`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.users) {
@@ -88,7 +89,7 @@ const AdminUserManagement = () => {
 
     try {
       setIsBlocking(true)
-      const res = await fetch(`/api/admin/users/${blockTargetUser.id}/block`, {
+      const res = await fetch(`${API_BASE}/api/admin/users/${blockTargetUser.id}/block`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isBlocked: true, blockReason: blockReasonInput })
@@ -119,7 +120,7 @@ const AdminUserManagement = () => {
   // Unblock API
   const handleUnblockUser = async (student) => {
     try {
-      const res = await fetch(`/api/admin/users/${student.id}/block`, {
+      const res = await fetch(`${API_BASE}/api/admin/users/${student.id}/block`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isBlocked: false })
@@ -152,7 +153,7 @@ const AdminUserManagement = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return
     try {
-      const res = await fetch(`/api/admin/users/${deleteTarget.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/users/${deleteTarget.id}`, {
         method: 'DELETE'
       })
       const data = await res.json()

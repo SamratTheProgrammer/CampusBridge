@@ -7,6 +7,7 @@ import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import PostComments from '../../components/PostComments'
+import API_BASE from '../../utils/api'
 
 const MentorProfile = () => {
   const navigate = useNavigate();
@@ -31,13 +32,13 @@ const MentorProfile = () => {
   useEffect(() => {
     const fetchMentorAndConnection = async () => {
       try {
-        const res = await fetch(`/api/users/${id}`)
+        const res = await fetch(`${API_BASE}/api/users/${id}`)
         if (res.ok) {
           const data = await res.json()
           setMentor(data)
           
           if (user && data.clerkId) {
-            const connRes = await fetch(`/api/connections/status/${user.id}/${data.clerkId}`)
+            const connRes = await fetch(`${API_BASE}/api/connections/status/${user.id}/${data.clerkId}`)
             if (connRes.ok) {
               const connData = await connRes.json()
               setConnectionStatus(connData.status || 'none')
@@ -59,7 +60,7 @@ const MentorProfile = () => {
     if (!id) return;
     const fetchPosts = async () => {
       try {
-        const res = await fetch(`/api/posts/user/${id}`);
+        const res = await fetch(`${API_BASE}/api/posts/user/${id}`);
         if (res.ok) {
           const data = await res.json();
           setPosts(data);
@@ -90,7 +91,7 @@ const MentorProfile = () => {
       return p
     }))
     try {
-      await fetch(`/api/posts/${postId}/like`, {
+      await fetch(`${API_BASE}/api/posts/${postId}/like`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkId: user.id })
@@ -104,7 +105,7 @@ const MentorProfile = () => {
     if (!commentText.trim() || !user) return;
     setIsCommenting(true)
     try {
-      const res = await fetch(`/api/posts/${postId}/comment`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
@@ -112,7 +113,7 @@ const MentorProfile = () => {
       if (res.ok) {
         setCommentText('')
         // Refresh posts
-        const postsRes = await fetch(`/api/posts/user/${id}`);
+        const postsRes = await fetch(`${API_BASE}/api/posts/user/${id}`);
         if (postsRes.ok) setPosts(await postsRes.json());
       }
     } catch (err) {
@@ -153,7 +154,7 @@ const MentorProfile = () => {
     if (!user || !mentor) return;
     setIsConnecting(true);
     try {
-      const res = await fetch('/api/connections', {
+      const res = await fetch(`${API_BASE}/api/connections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +188,7 @@ const MentorProfile = () => {
   const handleUnfriend = async () => {
     if (!connectionId) return;
     try {
-      const res = await fetch(`/api/connections/${connectionId}`, {
+      const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -360,7 +361,7 @@ const MentorProfile = () => {
                     <div>
                       <h4 className="font-bold text-foreground text-sm sm:text-base">{exp.title}</h4>
                       <p className="text-sm text-foreground/80 mt-0.5">{exp.company}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{exp.duration}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{exp.type ? `${exp.type} • ` : ''}{exp.duration}</p>
                       {exp.description && (
                         <p className="text-sm text-foreground/70 mt-2 leading-relaxed">{exp.description}</p>
                       )}
@@ -382,7 +383,10 @@ const MentorProfile = () => {
                       <GraduationCap className="w-5 h-5 text-foreground/70" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-foreground text-sm sm:text-base">{edu.degree}</h4>
+                      <div className="flex items-center gap-2 mb-1">
+                        {edu.level && edu.level !== 'Other' && <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">{edu.level}</span>}
+                        <h4 className="font-bold text-foreground text-sm sm:text-base">{edu.degree}</h4>
+                      </div>
                       <p className="text-sm text-foreground/80 mt-0.5">{edu.institution}</p>
                       <p className="text-xs text-muted-foreground mt-1">{edu.duration}</p>
                       {edu.grade && <p className="text-sm text-foreground/70 mt-1">Grade: {edu.grade}</p>}
@@ -553,7 +557,7 @@ const MentorProfile = () => {
                           post={post}
                           currentUser={user}
                           onRefresh={async () => {
-                            const postsRes = await fetch(`/api/posts/user/${id}`);
+                            const postsRes = await fetch(`${API_BASE}/api/posts/user/${id}`);
                             if (postsRes.ok) setPosts(await postsRes.json());
                           }}
                           formatTime={formatTime}

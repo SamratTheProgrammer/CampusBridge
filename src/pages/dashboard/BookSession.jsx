@@ -6,6 +6,7 @@ import {
   ChevronLeft, Calendar as CalendarIcon, Clock, Video, FileText, Briefcase,
   GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2, Globe, MapPin
 } from 'lucide-react'
+import API_BASE from '../../utils/api'
 
 // Dynamic mentor data will be fetched
 
@@ -45,7 +46,7 @@ const BookSession = () => {
   useEffect(() => {
     const fetchMentor = async () => {
       try {
-        const res = await fetch(`/api/users/${id}`)
+        const res = await fetch(`${API_BASE}/api/users/${id}`)
         if (res.ok) {
           setMentor(await res.json())
         }
@@ -82,7 +83,7 @@ const BookSession = () => {
     try {
       const selectedSession = SESSION_TYPES.find(t => t.id === sessionType)
       
-      const res = await fetch('/api/sessions', {
+      const res = await fetch(`${API_BASE}/api/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

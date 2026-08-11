@@ -4,6 +4,7 @@ import { BookmarkMinus, MapPin, Building2, Calendar, ExternalLink, GraduationCap
 import { Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 // Mock events for now, since we haven't implemented saved events yet
 const mockSavedEvents = [
@@ -21,7 +22,7 @@ const Saved = () => {
     const fetchSavedJobs = async () => {
       try {
         if (!user) return;
-        const res = await fetch(`/api/users/${user.id}/saved-jobs`)
+        const res = await fetch(`${API_BASE}/api/users/${user.id}/saved-jobs`)
         if (!res.ok) throw new Error('Failed to fetch saved jobs')
         const data = await res.json()
         setSavedJobs(data)
@@ -40,7 +41,7 @@ const Saved = () => {
       // Optimistic update
       setSavedJobs(prev => prev.filter(job => job._id !== jobId))
       
-      const res = await fetch(`/api/users/${user.id}/save-job`, {
+      const res = await fetch(`${API_BASE}/api/users/${user.id}/save-job`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId })

@@ -6,6 +6,7 @@ import { socket } from '../services/socket';
 import toast from 'react-hot-toast';
 import EmojiPicker from 'emoji-picker-react';
 import { getPdfViewUrl } from '../utils/pdfViewer';
+import API_BASE from '../utils/api'
 
 
 const THEMES = [
@@ -127,7 +128,7 @@ const RealtimeChat = () => {
   const fetchContacts = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/messages/conversations/${user.id}`);
+      const res = await fetch(`${API_BASE}/api/messages/conversations/${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setContacts(data);
@@ -153,7 +154,7 @@ const RealtimeChat = () => {
       register();
       socket.on('connect', register);
 
-      fetch(`/api/messages/blocked/${user.id}`)
+      fetch(`${API_BASE}/api/messages/blocked/${user.id}`)
         .then((res) => (res.ok ? res.json() : []))
         .then((data) => setBlockedUsers(data))
         .catch((err) => console.error('Error fetching blocked list:', err));
@@ -177,7 +178,7 @@ const RealtimeChat = () => {
       }
 
       try {
-        const res = await fetch(`/api/users/${targetUserId}`);
+        const res = await fetch(`${API_BASE}/api/users/${targetUserId}`);
         if (res.ok) {
           const u = await res.json();
           const newContact = {
@@ -220,7 +221,7 @@ const RealtimeChat = () => {
     // Fetch conversation messages history
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`/api/messages/${conversationId}?userId=${user.id}`);
+        const res = await fetch(`${API_BASE}/api/messages/${conversationId}?userId=${user.id}`);
         if (res.ok) {
           const data = await res.json();
           setMessages(data);
@@ -359,7 +360,7 @@ const RealtimeChat = () => {
 
       // 3. REST API persistence
       try {
-        await fetch(`/api/messages/${msgId}`, {
+        await fetch(`${API_BASE}/api/messages/${msgId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ newText: text, userId: user.id })
@@ -384,7 +385,7 @@ const RealtimeChat = () => {
       formData.append('type', fileType === 'document' ? 'raw' : 'auto');
       
       try {
-        const uploadRes = await fetch('/api/upload/file', { method: 'POST', body: formData });
+        const uploadRes = await fetch(`${API_BASE}/api/upload/file`, { method: 'POST', body: formData });
         if (uploadRes.ok) {
           const data = await uploadRes.json();
           attachmentData = {
@@ -499,7 +500,7 @@ const RealtimeChat = () => {
 
     // 3. REST API persistence
     try {
-      await fetch(`/api/messages/${messageId}?type=${type}&userId=${user.id}`, {
+      await fetch(`${API_BASE}/api/messages/${messageId}?type=${type}&userId=${user.id}`, {
         method: 'DELETE'
       });
     } catch (err) {
@@ -511,7 +512,7 @@ const RealtimeChat = () => {
   const toggleBlockUser = async () => {
     if (!activeContact || !user) return;
     try {
-      const res = await fetch('/api/messages/block', {
+      const res = await fetch(`${API_BASE}/api/messages/block`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -566,7 +567,7 @@ const RealtimeChat = () => {
   const deleteChatPersonConfirm = async () => {
     if (!personToDelete) return;
     try {
-      const res = await fetch(`/api/messages/conversation/${personToDelete.conversationId || getConvId(user.id, personToDelete.clerkId)}?userId=${user.id}`, {
+      const res = await fetch(`${API_BASE}/api/messages/conversation/${personToDelete.conversationId || getConvId(user.id, personToDelete.clerkId)}?userId=${user.id}`, {
         method: 'DELETE'
       });
       if (res.ok) {

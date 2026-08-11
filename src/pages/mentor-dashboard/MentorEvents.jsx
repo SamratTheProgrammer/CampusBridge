@@ -5,6 +5,7 @@ import { useUser } from '@clerk/clerk-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import API_BASE from '../../utils/api'
 
 const MentorEvents = () => {
   const { user } = useUser()
@@ -28,7 +29,7 @@ const MentorEvents = () => {
   const fetchEvents = async () => {
     if (!user) return
     try {
-      const res = await fetch(`/api/events/mentor/${user.id}`)
+      const res = await fetch(`${API_BASE}/api/events/mentor/${user.id}`)
       if (!res.ok) throw new Error('Failed to fetch events')
       const data = await res.json()
       setEvents(data)
@@ -55,7 +56,7 @@ const MentorEvents = () => {
       const uploadData = new FormData()
       uploadData.append('file', file)
       try {
-        const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: uploadData })
+        const uploadRes = await fetch(`${API_BASE}/api/upload/image`, { method: 'POST', body: uploadData })
         if (uploadRes.ok) {
           const uploadJson = await uploadRes.json()
           imageUrl = uploadJson.url
@@ -85,7 +86,7 @@ const MentorEvents = () => {
     }
 
     try {
-      const res = await fetch('/api/events', {
+      const res = await fetch(`${API_BASE}/api/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEvent)
@@ -114,7 +115,7 @@ const MentorEvents = () => {
       const uploadData = new FormData()
       uploadData.append('file', file)
       try {
-        const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: uploadData })
+        const uploadRes = await fetch(`${API_BASE}/api/upload/image`, { method: 'POST', body: uploadData })
         if (uploadRes.ok) {
           const uploadJson = await uploadRes.json()
           imageUrl = uploadJson.url
@@ -142,7 +143,7 @@ const MentorEvents = () => {
     }
 
     try {
-      const res = await fetch(`/api/events/${selectedEvent._id}`, {
+      const res = await fetch(`${API_BASE}/api/events/${selectedEvent._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
@@ -168,7 +169,7 @@ const MentorEvents = () => {
   const handleDeleteEvent = async () => {
     if (!eventToDelete) return;
     try {
-      const res = await fetch(`/api/events/${eventToDelete}`, {
+      const res = await fetch(`${API_BASE}/api/events/${eventToDelete}`, {
         method: 'DELETE'
       })
       if (!res.ok) throw new Error('Failed to delete event')
@@ -188,7 +189,7 @@ const MentorEvents = () => {
     setIsApplicationsModalOpen(true)
     setIsLoadingApps(true)
     try {
-      const res = await fetch(`/api/events/${event._id}/applications`)
+      const res = await fetch(`${API_BASE}/api/events/${event._id}/applications`)
       if (!res.ok) throw new Error('Failed to fetch applications')
       const data = await res.json()
       setApplications(data)

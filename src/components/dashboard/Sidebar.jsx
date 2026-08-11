@@ -19,6 +19,7 @@ import {
 import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
 import logoIcon from '../../assets/CampusLogoHalf.png'
+import API_BASE from '../../utils/api'
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const { signOut } = useClerk()
@@ -30,7 +31,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
 
     const fetchUnread = async () => {
       try {
-        const res = await fetch(`/api/messages/unread-count/${user.id}`)
+        const res = await fetch(`${API_BASE}/api/messages/unread-count/${user.id}`)
         if (res.ok) {
           const data = await res.json()
           setUnreadMessages(data.count)

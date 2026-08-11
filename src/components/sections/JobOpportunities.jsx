@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { formatDistanceToNow } from 'date-fns'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
+import API_BASE from '../../utils/api'
 
 const JobOpportunities = () => {
   const [jobs, setJobs] = useState([])
@@ -15,7 +16,7 @@ const JobOpportunities = () => {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const res = await fetch('/api/jobs')
+        const res = await fetch(`${API_BASE}/api/jobs`)
         if (res.ok) {
           const data = await res.json()
           // Filter out internships and take top 3

@@ -28,6 +28,7 @@ import {
   Clock,
   MapPin
 } from 'lucide-react'
+import API_BASE from '../../utils/api'
 
 const DashboardHome = () => {
   const { user, isLoaded } = useUser()
@@ -83,7 +84,7 @@ const DashboardHome = () => {
 
   const fetchPosts = async () => {
     try {
-      const res = await fetch('/api/posts')
+      const res = await fetch(`${API_BASE}/api/posts`)
       if (res.ok) {
         const data = await res.json()
         setPosts(data)
@@ -98,10 +99,10 @@ const DashboardHome = () => {
   const fetchMentorsAndConnections = async () => {
     try {
       const [mentorsRes, connsRes, userRes, jobsRes] = await Promise.all([
-        user ? fetch(`/api/users/mentors/suggested?userId=${user.id}`) : fetch('/api/users/mentors/suggested'),
-        user ? fetch(`/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
-        user ? fetch(`/api/users/${user.id}`) : Promise.resolve({ ok: false }),
-        fetch('/api/jobs')
+        user ? fetch(`${API_BASE}/api/users/mentors/suggested?userId=${user.id}`) : fetch(`${API_BASE}/api/users/mentors/suggested`),
+        user ? fetch(`${API_BASE}/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
+        user ? fetch(`${API_BASE}/api/users/${user.id}`) : Promise.resolve({ ok: false }),
+        fetch(`${API_BASE}/api/jobs`)
       ])
       
       if (mentorsRes.ok) {
@@ -172,7 +173,7 @@ const DashboardHome = () => {
     if (!user) return
     setIsConnecting(mentorId)
     try {
-      const res = await fetch('/api/connections', {
+      const res = await fetch(`${API_BASE}/api/connections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -217,7 +218,7 @@ const DashboardHome = () => {
         const formData = new FormData()
         formData.append('file', newPostImage)
         
-        const uploadRes = await fetch('/api/upload/image', {
+        const uploadRes = await fetch(`${API_BASE}/api/upload/image`, {
           method: 'POST',
           body: formData
         })
@@ -233,7 +234,7 @@ const DashboardHome = () => {
       }
 
       // Create the post
-      const res = await fetch('/api/posts', {
+      const res = await fetch(`${API_BASE}/api/posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -274,7 +275,7 @@ const DashboardHome = () => {
     if (!postToDelete) return
     setIsDeleting(true)
     try {
-      const res = await fetch(`/api/posts/${postToDelete}`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postToDelete}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id })
@@ -296,7 +297,7 @@ const DashboardHome = () => {
 
   const handleSaveEdit = async (postId) => {
     try {
-      const res = await fetch(`/api/posts/${postId}`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id, content: editContent })
@@ -335,7 +336,7 @@ const DashboardHome = () => {
     }))
 
     try {
-      await fetch(`/api/posts/${postId}/like`, {
+      await fetch(`${API_BASE}/api/posts/${postId}/like`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkId: user.id })
@@ -351,7 +352,7 @@ const DashboardHome = () => {
     if (!commentText.trim() || !user) return;
     setIsCommenting(true)
     try {
-      const res = await fetch(`/api/posts/${postId}/comment`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })

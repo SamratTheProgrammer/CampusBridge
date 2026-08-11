@@ -30,6 +30,7 @@ import {
   Check,
   BookOpen
 } from 'lucide-react'
+import API_BASE from '../../utils/api'
 
 const MentorHome = () => {
   const { user, isLoaded } = useUser()
@@ -84,9 +85,9 @@ const MentorHome = () => {
   const fetchMentorsAndConnections = async () => {
     try {
       const [mentorsRes, connsRes, userRes] = await Promise.all([
-        fetch('/api/users/mentors/suggested'),
-        user ? fetch(`/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
-        user ? fetch(`/api/users/${user.id}`) : Promise.resolve({ ok: false })
+        fetch(`${API_BASE}/api/users/mentors/suggested`),
+        user ? fetch(`${API_BASE}/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
+        user ? fetch(`${API_BASE}/api/users/${user.id}`) : Promise.resolve({ ok: false })
       ])
       
       if (mentorsRes.ok) {
@@ -124,7 +125,7 @@ const MentorHome = () => {
   // Fetch Posts
   const fetchPosts = async () => {
     try {
-      const res = await fetch('/api/posts')
+      const res = await fetch(`${API_BASE}/api/posts`)
       if (res.ok) {
         const data = await res.json()
         setPosts(data)
@@ -175,7 +176,7 @@ const MentorHome = () => {
         const formData = new FormData()
         formData.append('file', newPostImage)
         
-        const uploadRes = await fetch('/api/upload/image', {
+        const uploadRes = await fetch(`${API_BASE}/api/upload/image`, {
           method: 'POST',
           body: formData
         })
@@ -191,7 +192,7 @@ const MentorHome = () => {
       }
 
       // Create the post
-      const res = await fetch('/api/posts', {
+      const res = await fetch(`${API_BASE}/api/posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -230,7 +231,7 @@ const MentorHome = () => {
     if (!postToDelete) return
     setIsDeleting(true)
     try {
-      const res = await fetch(`/api/posts/${postToDelete}`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postToDelete}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id })
@@ -252,7 +253,7 @@ const MentorHome = () => {
 
   const handleSaveEdit = async (postId) => {
     try {
-      const res = await fetch(`/api/posts/${postId}`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id, content: editContent })
@@ -290,7 +291,7 @@ const MentorHome = () => {
     }))
 
     try {
-      await fetch(`/api/posts/${postId}/like`, {
+      await fetch(`${API_BASE}/api/posts/${postId}/like`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkId: user.id })
@@ -306,7 +307,7 @@ const MentorHome = () => {
     if (!commentText.trim() || !user) return;
     setIsCommenting(true)
     try {
-      const res = await fetch(`/api/posts/${postId}/comment`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
@@ -755,7 +756,7 @@ const MentorHome = () => {
                     <button 
                       onClick={async () => {
                         try {
-                          await fetch(`/api/connections/${req._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'accepted' }) })
+                          await fetch(`${API_BASE}/api/connections/${req._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'accepted' }) })
                           fetchMentorsAndConnections()
                           toast.success('Accepted!')
                         } catch(e) {}
@@ -767,7 +768,7 @@ const MentorHome = () => {
                     <button 
                       onClick={async () => {
                         try {
-                          await fetch(`/api/connections/${req._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'declined' }) })
+                          await fetch(`${API_BASE}/api/connections/${req._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'declined' }) })
                           fetchMentorsAndConnections()
                           toast.success('Declined')
                         } catch(e) {}

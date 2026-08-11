@@ -3,6 +3,7 @@ import { UserPlus, CheckCircle2, Clock, Loader2, Sparkles } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import API_BASE from '../../utils/api'
 
 const PeopleYouMayKnow = () => {
   const { user } = useUser();
@@ -16,7 +17,7 @@ const PeopleYouMayKnow = () => {
 
     const fetchSuggestions = async () => {
       try {
-        const res = await fetch(`/api/connections/suggestions/${user.id}`);
+        const res = await fetch(`${API_BASE}/api/connections/suggestions/${user.id}`);
         if (res.ok) {
           const data = await res.json();
           setSuggestions(data);
@@ -35,7 +36,7 @@ const PeopleYouMayKnow = () => {
     if (!user) return;
     setIsConnecting(targetClerkId);
     try {
-      const res = await fetch('/api/connections', {
+      const res = await fetch(`${API_BASE}/api/connections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

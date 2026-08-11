@@ -4,6 +4,7 @@ import { Search, MapPin, Briefcase, Filter, Loader2, Calendar } from 'lucide-rea
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
+import API_BASE from '../../utils/api'
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -14,7 +15,7 @@ const Jobs = () => {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const res = await fetch('/api/jobs')
+        const res = await fetch(`${API_BASE}/api/jobs`)
         if (!res.ok) throw new Error('Failed to fetch jobs')
         const data = await res.json()
         setJobs(data)

@@ -14,6 +14,7 @@ import {
   ArrowUpRight,
   Loader2
 } from 'lucide-react'
+import API_BASE from '../../utils/api'
 
 const AdminDashboard = () => {
   const [data, setData] = useState({
@@ -36,7 +37,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchAdminStats = async () => {
       try {
-        const res = await fetch('/api/admin/stats')
+        const res = await fetch(`${API_BASE}/api/admin/stats`)
         if (res.ok) {
           const result = await res.json()
           if (result.success) {

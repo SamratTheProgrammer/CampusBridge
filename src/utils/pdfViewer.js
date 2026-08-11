@@ -2,6 +2,8 @@
  * Utility to helper format PDF view/download URLs
  * Uses backend proxy /api/upload/pdf-proxy to bypass Cloudinary raw attachment blocks
  */
+import API_BASE from './api';
+
 export const getPdfViewUrl = (url, download = false) => {
   if (!url) return '';
   
@@ -11,7 +13,7 @@ export const getPdfViewUrl = (url, download = false) => {
   // Use backend PDF proxy for any Cloudinary URL or .pdf document link
   if (url.includes('cloudinary') || url.toLowerCase().includes('.pdf')) {
     const encodedUrl = encodeURIComponent(url);
-    return `/api/upload/pdf-proxy?url=${encodedUrl}${download ? '&download=true' : ''}`;
+    return `${API_BASE}/api/upload/pdf-proxy?url=${encodedUrl}${download ? '&download=true' : ''}`;
   }
 
   return url;

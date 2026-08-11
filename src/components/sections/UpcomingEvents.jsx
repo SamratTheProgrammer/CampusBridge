@@ -4,6 +4,7 @@ import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar as CalendarIcon, Clock, MapPin, Users, X, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const EventCard = ({ event, index, onRegister }) => {
   // Simple countdown logic for visual purposes
@@ -102,7 +103,7 @@ const UpcomingEvents = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch('/api/events?category=event')
+        const res = await fetch(`${API_BASE}/api/events?category=event`)
         if (res.ok) {
           let data = await res.json()
           data = data.filter(e => {
@@ -128,7 +129,7 @@ const UpcomingEvents = () => {
     }
 
     try {
-      const res = await fetch(`/api/events/${selectedEvent._id}/apply`, {
+      const res = await fetch(`${API_BASE}/api/events/${selectedEvent._id}/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

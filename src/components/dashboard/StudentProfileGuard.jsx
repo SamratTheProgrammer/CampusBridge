@@ -4,6 +4,7 @@ import { useUser } from '@clerk/clerk-react';
 import { AlertCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateStudentProfileProgress } from '../../utils/profileProgress';
+import API_BASE from '../../utils/api'
 
 const StudentProfileGuard = ({ children }) => {
   const { user, isLoaded } = useUser();
@@ -32,7 +33,7 @@ const StudentProfileGuard = ({ children }) => {
 
     const checkProfile = async () => {
       try {
-        const res = await fetch(`/api/users/${user.id}`);
+        const res = await fetch(`${API_BASE}/api/users/${user.id}`);
         let mongoData = null;
         if (res.ok) {
           mongoData = await res.json();
@@ -62,7 +63,7 @@ const StudentProfileGuard = ({ children }) => {
     <>
       {children}
       <AnimatePresence>
-        {percentage < 100 && showModal && (
+        {percentage < 80 && showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}

@@ -6,6 +6,7 @@ import { formatDistanceToNow, format } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
+import API_BASE from '../../utils/api'
 
 // ─── Comprehensive Company List with Logos ──────────────────────────────────
 const COMPANIES = [
@@ -275,7 +276,7 @@ const MentorJobs = () => {
   const fetchJobs = async () => {
     if (!user) return
     try {
-      const res = await fetch(`/api/jobs/mentor/${user.id}`)
+      const res = await fetch(`${API_BASE}/api/jobs/mentor/${user.id}`)
       if (!res.ok) throw new Error('Failed to fetch jobs')
       const data = await res.json()
       setJobs(data)
@@ -354,7 +355,7 @@ const MentorJobs = () => {
     if (!jobToDelete) return;
     
     try {
-      const res = await fetch(`/api/jobs/${jobToDelete}`, {
+      const res = await fetch(`${API_BASE}/api/jobs/${jobToDelete}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error('Failed to delete job');
@@ -374,7 +375,7 @@ const MentorJobs = () => {
     setIsApplicationsModalOpen(true)
     setIsLoadingApps(true)
     try {
-      const res = await fetch(`/api/jobs/${job._id}/applications`)
+      const res = await fetch(`${API_BASE}/api/jobs/${job._id}/applications`)
       if (!res.ok) throw new Error('Failed to fetch applications')
       const data = await res.json()
       setApplications(data)
@@ -387,7 +388,7 @@ const MentorJobs = () => {
 
   const handleUpdateAppStatus = async (appId, status) => {
     try {
-      const res = await fetch(`/api/jobs/applications/${appId}/status`, {
+      const res = await fetch(`${API_BASE}/api/jobs/applications/${appId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })

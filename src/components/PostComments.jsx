@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Loader2, CornerDownRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+import API_BASE from '../utils/api'
 
 const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallback }) => {
   const [commentText, setCommentText] = useState('');
@@ -17,7 +18,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
     if (!commentText.trim() || !currentUser) return;
     setIsCommenting(true);
     try {
-      const res = await fetch(`/api/posts/${post._id}/comment`, {
+      const res = await fetch(`${API_BASE}/api/posts/${post._id}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: currentUser.id, content: commentText })
@@ -40,7 +41,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
     if (!replyText.trim() || !currentUser) return;
     setIsReplying(true);
     try {
-      const res = await fetch(`/api/posts/${post._id}/comment/${commentId}/reply`, {
+      const res = await fetch(`${API_BASE}/api/posts/${post._id}/comment/${commentId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: currentUser.id, content: replyText })

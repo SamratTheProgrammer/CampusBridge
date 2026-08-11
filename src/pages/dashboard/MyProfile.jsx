@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import PostComments from '../../components/PostComments'
 import { motion, AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
+import API_BASE from '../../utils/api'
 
 const MyProfile = () => {
   const { user, isLoaded } = useUser()
@@ -42,7 +43,7 @@ const MyProfile = () => {
 
   const fetchUserProfile = async () => {
     try {
-      const res = await fetch(`/api/users/${user.id}`)
+      const res = await fetch(`${API_BASE}/api/users/${user.id}`)
       if (res.ok) {
         const data = await res.json()
         setDbUser(data)
@@ -54,7 +55,7 @@ const MyProfile = () => {
 
   const fetchUserPosts = async () => {
     try {
-      const res = await fetch(`/api/posts/user/${user.id}`)
+      const res = await fetch(`${API_BASE}/api/posts/user/${user.id}`)
       if (res.ok) {
         const data = await res.json()
         setPosts(data)
@@ -83,7 +84,7 @@ const MyProfile = () => {
       const formData = new FormData()
       formData.append('file', file)
       
-      const uploadRes = await fetch('/api/upload/image', {
+      const uploadRes = await fetch(`${API_BASE}/api/upload/image`, {
         method: 'POST',
         body: formData
       })
@@ -101,7 +102,7 @@ const MyProfile = () => {
         })
         
         // Update MongoDB
-        await fetch(`/api/users/${user.id}/profile`, {
+        await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -141,7 +142,7 @@ const MyProfile = () => {
       await user.setProfileImage({ file })
       await user.reload()
       
-      await fetch(`/api/users/${user.id}/profile`, {
+      await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: user.imageUrl })
@@ -182,7 +183,7 @@ const MyProfile = () => {
       return p
     }))
     try {
-      await fetch(`/api/posts/${postId}/like`, {
+      await fetch(`${API_BASE}/api/posts/${postId}/like`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkId: user.id })
@@ -196,7 +197,7 @@ const MyProfile = () => {
     if (!commentText.trim() || !user) return;
     setIsCommenting(true)
     try {
-      const res = await fetch(`/api/posts/${postId}/comment`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
@@ -216,7 +217,7 @@ const MyProfile = () => {
     if (!postToDelete) return;
     setIsDeleting(true)
     try {
-      const res = await fetch(`/api/posts/${postToDelete}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/api/posts/${postToDelete}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Post deleted')
         setPosts(posts.filter(p => p._id !== postToDelete))
@@ -231,7 +232,7 @@ const MyProfile = () => {
 
   const handleSaveEdit = async (postId) => {
     try {
-      const res = await fetch(`/api/posts/${postId}`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id, content: editContent })

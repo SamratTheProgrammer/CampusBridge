@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Check, X, FileText, ExternalLink, ShieldCheck, Loader2, User, Building, Briefcase, GraduationCap, Clock, Award, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const AdminVerification = () => {
   const [activeTab, setActiveTab] = useState('Pending')
@@ -13,7 +14,7 @@ const AdminVerification = () => {
   const fetchVerifications = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch('/api/admin/verifications')
+      const res = await fetch(`${API_BASE}/api/admin/verifications`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && Array.isArray(data.verifications)) {
@@ -38,7 +39,7 @@ const AdminVerification = () => {
   const handleAction = async (id, newStatus, name) => {
     try {
       setUpdatingId(id)
-      const res = await fetch(`/api/admin/verifications/${id}/status`, {
+      const res = await fetch(`${API_BASE}/api/admin/verifications/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })

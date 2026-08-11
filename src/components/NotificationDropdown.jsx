@@ -3,6 +3,7 @@ import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, Messa
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import API_BASE from '../utils/api'
 
 const NotificationDropdown = () => {
   const { user } = useUser();
@@ -16,7 +17,7 @@ const NotificationDropdown = () => {
   const fetchNotifications = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/notifications/${user.id}`);
+      const res = await fetch(`${API_BASE}/api/notifications/${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setNotifications(data.notifications || []);
@@ -46,7 +47,7 @@ const NotificationDropdown = () => {
 
   const handleMarkAsRead = async (id) => {
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: 'PUT' });
+      await fetch(`${API_BASE}/api/notifications/${id}/read`, { method: 'PUT' });
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
@@ -57,7 +58,7 @@ const NotificationDropdown = () => {
   const handleMarkAllRead = async () => {
     if (!user) return;
     try {
-      await fetch(`/api/notifications/read-all/${user.id}`, { method: 'PUT' });
+      await fetch(`${API_BASE}/api/notifications/read-all/${user.id}`, { method: 'PUT' });
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (err) {
@@ -68,7 +69,7 @@ const NotificationDropdown = () => {
   const handleDelete = async (id, e) => {
     e.stopPropagation();
     try {
-      await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/notifications/${id}`, { method: 'DELETE' });
       setNotifications(prev => {
         const target = prev.find(n => n._id === id);
         if (target && !target.isRead) {
@@ -84,7 +85,7 @@ const NotificationDropdown = () => {
   const handleClearAll = async () => {
     if (!user) return;
     try {
-      await fetch(`/api/notifications/clear-all/${user.id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/notifications/clear-all/${user.id}`, { method: 'DELETE' });
       setNotifications([]);
       setUnreadCount(0);
     } catch (err) {

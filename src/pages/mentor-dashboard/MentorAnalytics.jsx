@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Users, Eye, MousePointerClick, TrendingUp, Star, Award, Loader2 } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
+import API_BASE from '../../utils/api'
 
 const STATS = [
   { label: 'Total Students', value: '48', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
@@ -29,7 +30,7 @@ const MentorAnalytics = () => {
     const fetchAnalytics = async () => {
       if (!user) return;
       try {
-        const res = await fetch(`/api/analytics/mentor/${user.id}`);
+        const res = await fetch(`${API_BASE}/api/analytics/mentor/${user.id}`);
         if (res.ok) {
           const data = await res.json();
           setAnalyticsData(data);

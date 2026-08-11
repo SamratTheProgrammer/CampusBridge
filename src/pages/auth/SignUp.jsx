@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, User, AtSign, Loader2 } from 'lucide-react'
 import { useSignUp } from '@clerk/clerk-react'
+import API_BASE from '../../utils/api'
 
 const SignUp = () => {
   const location = useLocation()
@@ -46,7 +47,7 @@ const SignUp = () => {
     setIsLoading(true)
     try {
       // Check if email already exists in MongoDB
-      const checkRes = await fetch('/api/users/check-email', {
+      const checkRes = await fetch(`${API_BASE}/api/users/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -111,7 +112,7 @@ const SignUp = () => {
       // Sync with MongoDB backend
       let syncFailed = false
       try {
-        const response = await fetch('/api/users/sync', {
+        const response = await fetch(`${API_BASE}/api/users/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
