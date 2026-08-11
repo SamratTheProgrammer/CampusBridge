@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { 
   Mail, Search, Filter, Clock, CheckCircle2, AlertCircle, MessageSquare, 
-  Trash2, Send, User, Shield, ChevronRight, RefreshCw, Eye, Sparkles, ExternalLink, CornerUpLeft, ChevronDown
+  Trash2, Send, User, Shield, ChevronRight, RefreshCw, Eye, Sparkles, ExternalLink, CornerUpLeft
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
+import socket from '../../services/socket'
 
 // Helper to generate domain-smart webmail URLs
 const getEmailLinks = (email, subject = '') => {
@@ -59,7 +60,6 @@ const AdminSupportMessages = () => {
   const [replyText, setReplyText] = useState('')
   const [isSendingReply, setIsSendingReply] = useState(false)
   const [userProfileModal, setUserProfileModal] = useState(null)
-  const [showMailDropdown, setShowMailDropdown] = useState(false)
 
   const fetchMessages = async () => {
     setIsLoading(true)
@@ -85,6 +85,20 @@ const AdminSupportMessages = () => {
 
   useEffect(() => {
     fetchMessages()
+
+    // Real-time socket listener for incoming help requests
+    const handleNewMessage = () => {
+      toast.success('🔔 New help request received in real-time!')
+      fetchMessages()
+    }
+
+    socket.on('new_support_message', handleNewMessage)
+    socket.on('update_sidebar', fetchMessages)
+
+    return () => {
+      socket.off('new_support_message', handleNewMessage)
+      socket.off('update_sidebar', fetchMessages)
+    }
   }, [])
 
   const handleSendReply = async (e) => {
@@ -111,7 +125,6 @@ const AdminSupportMessages = () => {
         setSelectedMessage(updatedMsg)
         setMessages(prev => prev.map(m => m._id === updatedMsg._id ? updatedMsg : m))
         
-        // Recalculate counts
         fetchMessages()
       } else {
         toast.error(data.message || 'Failed to send reply.')
@@ -155,7 +168,7 @@ const AdminSupportMessages = () => {
       })
       const data = await res.json()
       if (data.success) {
-        toast.success('Support message deleted.')
+        toast.success('Support message deleted successfully.')
         const remaining = messages.filter(m => m._id !== msgId)
         setMessages(remaining)
         if (selectedMessage?._id === msgId) {
@@ -168,6 +181,27 @@ const AdminSupportMessages = () => {
     } catch (err) {
       console.error('Delete message error:', err)
       toast.error('Failed to delete message.')
+    }
+  }
+
+  const handleClearAllMessages = async () => {
+    if (!window.confirm('Are you sure you want to clear ALL support messages from the database? This action cannot be undone.')) return
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/support-messages-clear-all`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('All support messages cleared successfully.')
+        setMessages([])
+        setSelectedMessage(null)
+        setCounts({ total: 0, pending: 0, replied: 0, resolved: 0 })
+      } else {
+        toast.error('Failed to clear messages.')
+      }
+    } catch (err) {
+      console.error('Clear all error:', err)
+      toast.error('Failed to clear messages.')
     }
   }
 
@@ -206,20 +240,31 @@ const AdminSupportMessages = () => {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">Support & Help Messages</h1>
             <span className="bg-primary/10 text-primary border border-primary/20 text-xs font-bold px-2.5 py-0.5 rounded-full">
-              Inbox
+              Live Inbox
             </span>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Manage inquiries, help requests, and account unblock appeals submitted by users.
+            Real-time inquiries, help requests, and account unblock appeals submitted dynamically by users.
           </p>
         </div>
 
-        <button
-          onClick={fetchMessages}
-          className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 border border-border/50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {messages.length > 0 && (
+            <button
+              onClick={handleClearAllMessages}
+              className="px-3.5 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Clear All
+            </button>
+          )}
+
+          <button
+            onClick={fetchMessages}
+            className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 border border-border/50 cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -302,7 +347,7 @@ const AdminSupportMessages = () => {
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
-                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
                     filterStatus === status
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -328,7 +373,7 @@ const AdminSupportMessages = () => {
                   <div
                     key={msg._id}
                     onClick={() => setSelectedMessage(msg)}
-                    className={`p-4 transition-all cursor-pointer flex items-start gap-3 relative ${
+                    className={`p-4 transition-all cursor-pointer flex items-start gap-3 relative group ${
                       isSelected 
                         ? 'bg-primary/10 border-l-4 border-primary' 
                         : 'hover:bg-muted/30'
@@ -359,22 +404,36 @@ const AdminSupportMessages = () => {
                           {msg.status}
                         </span>
 
-                        {/* View Profile Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setUserProfileModal({
-                              name: msg.name,
-                              email: msg.email,
-                              subject: msg.subject,
-                              message: msg.message,
-                              date: formatDate(msg.createdAt)
-                            })
-                          }}
-                          className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5"
-                        >
-                          Profile <ChevronRight className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {/* Quick Delete Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteMessage(msg._id)
+                            }}
+                            className="p-1 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete Message"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* View Profile Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setUserProfileModal({
+                                name: msg.name,
+                                email: msg.email,
+                                subject: msg.subject,
+                                message: msg.message,
+                                date: formatDate(msg.createdAt)
+                              })
+                            }}
+                            className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5"
+                          >
+                            Profile <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -382,9 +441,11 @@ const AdminSupportMessages = () => {
               })
             ) : (
               <div className="p-12 text-center text-xs text-muted-foreground space-y-2">
-                <Mail className="w-8 h-8 mx-auto text-muted-foreground/50" />
-                <p className="font-bold">No messages found</p>
-                <p className="text-[11px]">Try adjusting your search query or filter criteria.</p>
+                <Mail className="w-8 h-8 mx-auto text-muted-foreground/40" />
+                <p className="font-bold text-foreground">No support messages found</p>
+                <p className="text-[11px] max-w-xs mx-auto">
+                  Messages submitted by users through the Contact Us form will automatically show up here in real-time.
+                </p>
               </div>
             )}
           </div>
@@ -452,7 +513,7 @@ const AdminSupportMessages = () => {
 
                   <button
                     onClick={() => handleDeleteMessage(selectedMessage._id)}
-                    className="p-2 text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
+                    className="p-2 text-destructive hover:bg-destructive/10 border border-destructive/20 rounded-xl transition-colors cursor-pointer"
                     title="Delete Message"
                   >
                     <Trash2 className="w-4 h-4" />

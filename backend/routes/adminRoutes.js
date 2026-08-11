@@ -692,58 +692,10 @@ router.put('/settings/theme', async (req, res) => {
 
 // --- SUPPORT & HELP REQUEST MESSAGES ENDPOINTS ---
 
-const SAMPLE_SUPPORT_MESSAGES = [
-  {
-    name: 'Ananya Sharma',
-    email: 'ananya.s@gmail.com',
-    subject: 'Account Unblock Appeal Request',
-    message: 'Hello Admin, my mentor account was restricted yesterday due to profile verification pending. I have updated all credentials and requested verification.',
-    status: 'Pending',
-    createdAt: new Date(Date.now() - 3600000 * 2)
-  },
-  {
-    name: 'Rahul Verma',
-    email: 'rahul.v@gmail.com',
-    subject: 'Issue with Session Booking Confirmation',
-    message: 'I booked a mock interview session with Mentor Karan Sharma, but the calendar invite link seems to be unconfirmed.',
-    status: 'Replied',
-    adminReply: 'Hi Rahul, we checked your session and resent the updated calendar invite to your registered email.',
-    repliedAt: new Date(Date.now() - 3600000 * 5),
-    createdAt: new Date(Date.now() - 3600000 * 8)
-  },
-  {
-    name: 'Sneha Patel',
-    email: 'sneha.p@gmail.com',
-    subject: 'Unable to Upload Resume PDF',
-    message: 'Whenever I try to upload my resume PDF on the settings page, it gets stuck at 90%. Could you please help?',
-    status: 'Pending',
-    createdAt: new Date(Date.now() - 3600000 * 12)
-  },
-  {
-    name: 'David Miller',
-    email: 'david.m@gmail.com',
-    subject: 'Inquiry regarding Job Posting Guidelines',
-    message: 'We represent TechNova Inc. and want to post internship roles for university graduates. How do we verify our company profile?',
-    status: 'Resolved',
-    adminReply: 'Hello David, your company profile has been approved for job postings. You can post directly from your dashboard.',
-    repliedAt: new Date(Date.now() - 3600000 * 24),
-    createdAt: new Date(Date.now() - 3600000 * 30)
-  }
-];
-
-// Fetch all support messages
+// Fetch all support messages dynamically from MongoDB
 router.get('/support-messages', async (req, res) => {
   try {
-    let messages = await SupportMessage.find().sort({ createdAt: -1 });
-
-    if (messages.length === 0) {
-      try {
-        await SupportMessage.insertMany(SAMPLE_SUPPORT_MESSAGES);
-        messages = await SupportMessage.find().sort({ createdAt: -1 });
-      } catch (seedErr) {
-        console.error('Error seeding initial support messages:', seedErr);
-      }
-    }
+    const messages = await SupportMessage.find().sort({ createdAt: -1 });
 
     const pendingCount = messages.filter(m => m.status === 'Pending').length;
     const repliedCount = messages.filter(m => m.status === 'Replied').length;
@@ -836,6 +788,20 @@ router.delete('/support-messages/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete Support Message Error:', error);
     return res.status(500).json({ success: false, message: 'Failed to delete support message' });
+  }
+});
+
+// Clear All Support Messages (Admin Cleanup)
+router.delete('/support-messages-clear-all', async (req, res) => {
+  try {
+    await SupportMessage.deleteMany({});
+    return res.status(200).json({
+      success: true,
+      message: 'All support messages cleared successfully'
+    });
+  } catch (error) {
+    console.error('Clear All Support Messages Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to clear support messages' });
   }
 });
 
