@@ -805,5 +805,199 @@ router.delete('/support-messages-clear-all', async (req, res) => {
   }
 });
 
-export default router;
+// Get Authentication Settings
+router.get('/settings/auth', async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = await PlatformSetting.create({ authSettings: {} });
+    }
+    
+    return res.status(200).json({ 
+      success: true, 
+      authSettings: setting.authSettings
+    });
+  } catch (error) {
+    console.error('Fetch Auth Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch auth setting' });
+  }
+});
 
+// Update Authentication Settings
+router.put('/settings/auth', async (req, res) => {
+  try {
+    const { authSettings } = req.body;
+    
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = new PlatformSetting({ authSettings });
+    } else {
+      setting.authSettings = { ...setting.authSettings, ...authSettings };
+    }
+    
+    await setting.save();
+    
+    return res.status(200).json({ success: true, authSettings: setting.authSettings });
+  } catch (error) {
+    console.error('Update Auth Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update auth setting' });
+  }
+});
+
+// Get Email & Notification Settings
+router.get('/settings/email', async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = await PlatformSetting.create({ emailSettings: {} });
+    }
+    
+    return res.status(200).json({ 
+      success: true, 
+      emailSettings: setting.emailSettings
+    });
+  } catch (error) {
+    console.error('Fetch Email Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch email setting' });
+  }
+});
+
+// Update Email & Notification Settings
+router.put('/settings/email', async (req, res) => {
+  try {
+    const { emailSettings } = req.body;
+    
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = new PlatformSetting({ emailSettings });
+    } else {
+      setting.emailSettings = { ...setting.emailSettings, ...emailSettings };
+    }
+    
+    await setting.save();
+    
+    return res.status(200).json({ success: true, emailSettings: setting.emailSettings });
+  } catch (error) {
+    console.error('Update Email Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update email setting' });
+  }
+});
+
+// Get Security Settings
+router.get('/settings/security', async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = await PlatformSetting.create({ securitySettings: {} });
+    }
+    
+    return res.status(200).json({ 
+      success: true, 
+      securitySettings: setting.securitySettings
+    });
+  } catch (error) {
+    console.error('Fetch Security Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch security setting' });
+  }
+});
+
+// Update Security Settings
+router.put('/settings/security', async (req, res) => {
+  try {
+    const { securitySettings } = req.body;
+    
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = new PlatformSetting({ securitySettings });
+    } else {
+      setting.securitySettings = { ...setting.securitySettings, ...securitySettings };
+    }
+    
+    await setting.save();
+    
+    return res.status(200).json({ success: true, securitySettings: setting.securitySettings });
+  } catch (error) {
+    console.error('Update Security Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update security setting' });
+  }
+});
+
+// Get Privacy Settings
+router.get('/settings/privacy', async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = await PlatformSetting.create({ privacySettings: {} });
+    }
+    
+    return res.status(200).json({ 
+      success: true, 
+      privacySettings: setting.privacySettings
+    });
+  } catch (error) {
+    console.error('Fetch Privacy Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch privacy setting' });
+  }
+});
+
+// Update Privacy Settings
+router.put('/settings/privacy', async (req, res) => {
+  try {
+    const { privacySettings } = req.body;
+    
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = new PlatformSetting({ privacySettings });
+    } else {
+      setting.privacySettings = { ...setting.privacySettings, ...privacySettings };
+    }
+    
+    await setting.save();
+    
+    return res.status(200).json({ success: true, privacySettings: setting.privacySettings });
+  } catch (error) {
+    console.error('Update Privacy Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update privacy setting' });
+  }
+});
+
+// Get Integration Settings
+router.get('/settings/integrations', async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = await PlatformSetting.create({ integrationSettings: {} });
+    }
+    
+    return res.status(200).json({ 
+      success: true, 
+      integrationSettings: setting.integrationSettings
+    });
+  } catch (error) {
+    console.error('Fetch Integration Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch integration setting' });
+  }
+});
+
+// Update Integration Settings
+router.put('/settings/integrations', async (req, res) => {
+  try {
+    const { integrationSettings } = req.body;
+    
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = new PlatformSetting({ integrationSettings });
+    } else {
+      setting.integrationSettings = { ...setting.integrationSettings, ...integrationSettings };
+    }
+    
+    await setting.save();
+    
+    return res.status(200).json({ success: true, integrationSettings: setting.integrationSettings });
+  } catch (error) {
+    console.error('Update Integration Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update integration setting' });
+  }
+});
+
+export default router;
