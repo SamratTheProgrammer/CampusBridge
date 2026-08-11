@@ -225,9 +225,6 @@ const AdminDashboard = () => {
       <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-bold text-foreground text-lg">Recent Activity</h3>
-          <Link to="/admin/logs" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
-            View All <ArrowUpRight className="w-3 h-3" />
-          </Link>
         </div>
 
         {data.recentActivity && data.recentActivity.length > 0 ? (
