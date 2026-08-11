@@ -3,7 +3,6 @@ import { useTheme } from './ThemeProvider'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PartyPopper, X } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import confetti from 'canvas-confetti'
 
 const EventPopup = () => {
   const { globalTheme } = useTheme()
