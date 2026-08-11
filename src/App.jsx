@@ -66,7 +66,6 @@ import AdminJobs from './pages/admin/AdminJobs'
 import AdminCompanies from './pages/admin/AdminCompanies'
 import AdminEvents from './pages/admin/AdminEvents'
 import AdminSettings from './pages/admin/AdminSettings'
-import AdminActivityLogs from './pages/admin/AdminActivityLogs'
 
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -167,7 +166,6 @@ function AnimatedRoutes() {
             <Route path="companies" element={<AdminCompanies />} />
             <Route path="events" element={<AdminEvents />} />
             <Route path="settings" element={<AdminSettings />} />
-            <Route path="logs" element={<AdminActivityLogs />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
         </Route>
