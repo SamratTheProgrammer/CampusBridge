@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+import { useTheme } from './ThemeProvider'
+import { useLocation } from 'react-router-dom'
+
 const CanvasFireworks = () => {
   const canvasRef = useRef(null)
 
@@ -183,24 +186,30 @@ const CanvasConfetti = () => {
 const PageTransition = ({ children }) => {
   const [showFireworks, setShowFireworks] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  const { globalTheme } = useTheme()
+  const location = useLocation()
 
   useEffect(() => {
-    const rootClasses = document.documentElement.classList
-    
+    // Disable animations on admin routes
+    if (location.pathname.startsWith('/admin')) {
+      return;
+    }
+
     // Diwali Fireworks
-    if (rootClasses.contains('event-diwali')) {
+    if (globalTheme === 'diwali') {
       setShowFireworks(true)
       const timer = setTimeout(() => setShowFireworks(false), 5000)
       return () => clearTimeout(timer)
     }
     
     // Holi Confetti
-    if (rootClasses.contains('event-holi')) {
+    if (globalTheme === 'holi') {
       setShowConfetti(true)
       const timer = setTimeout(() => setShowConfetti(false), 5000)
       return () => clearTimeout(timer)
     }
-  }, [])
+  }, [globalTheme, location.pathname])
+
 
   return (
     <>

@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom'
-import { ThemeProvider } from './components/ThemeProvider'
+import { ThemeProvider, useTheme } from './components/ThemeProvider'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/auth/Login'
 import SignUp from './pages/auth/SignUp'
@@ -15,6 +15,8 @@ import { AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 import { ClerkProvider } from '@clerk/clerk-react'
 import ErrorBoundary from './components/ErrorBoundary'
+import EventPopup from './components/EventPopup'
+import IndependenceDayConfetti from './components/IndependenceDayConfetti'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -90,7 +92,7 @@ function AnimatedRoutes() {
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location}>
+      <Routes location={location} key={location.pathname}>
         {/* Public Routes with Navbar and Footer */}
         <Route path="/" element={
           <PageTransition>
@@ -178,6 +180,23 @@ function AnimatedRoutes() {
   )
 }
 
+function IndependenceDayWrapper() {
+  const { globalTheme } = useTheme()
+  const location = useLocation()
+  const [hasPlayed, setHasPlayed] = useState(false)
+
+  useEffect(() => {
+    if (globalTheme === 'independence' && !hasPlayed && !location.pathname.startsWith('/admin')) {
+      setHasPlayed(true)
+    }
+  }, [globalTheme, hasPlayed, location.pathname])
+
+  if (hasPlayed) {
+    return <IndependenceDayConfetti />
+  }
+  return null
+}
+
 function App() {
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
@@ -187,6 +206,8 @@ function App() {
           <ErrorBoundary>
             <AnimatedRoutes />
           </ErrorBoundary>
+          <EventPopup />
+          <IndependenceDayWrapper />
           <Toaster position="bottom-right" />
         </Router>
       </ThemeProvider>
