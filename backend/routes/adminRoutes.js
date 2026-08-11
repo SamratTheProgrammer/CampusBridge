@@ -1,10 +1,12 @@
 import express from 'express';
 import User from '../models/User.js';
 import Job from '../models/Job.js';
+import Event from '../models/Event.js';
 import Message from '../models/Message.js';
 import Session from '../models/Session.js';
 import Company from '../models/Company.js';
 import PlatformSetting from '../models/PlatformSetting.js';
+import SupportMessage from '../models/SupportMessage.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 
 const router = express.Router();
@@ -685,6 +687,155 @@ router.put('/settings/theme', async (req, res) => {
   } catch (error) {
     console.error('Update Theme Setting Error:', error);
     return res.status(500).json({ success: false, message: 'Failed to update theme setting' });
+  }
+});
+
+// --- SUPPORT & HELP REQUEST MESSAGES ENDPOINTS ---
+
+const SAMPLE_SUPPORT_MESSAGES = [
+  {
+    name: 'Ananya Sharma',
+    email: 'ananya.s@gmail.com',
+    subject: 'Account Unblock Appeal Request',
+    message: 'Hello Admin, my mentor account was restricted yesterday due to profile verification pending. I have updated all credentials and requested verification.',
+    status: 'Pending',
+    createdAt: new Date(Date.now() - 3600000 * 2)
+  },
+  {
+    name: 'Rahul Verma',
+    email: 'rahul.v@gmail.com',
+    subject: 'Issue with Session Booking Confirmation',
+    message: 'I booked a mock interview session with Mentor Karan Sharma, but the calendar invite link seems to be unconfirmed.',
+    status: 'Replied',
+    adminReply: 'Hi Rahul, we checked your session and resent the updated calendar invite to your registered email.',
+    repliedAt: new Date(Date.now() - 3600000 * 5),
+    createdAt: new Date(Date.now() - 3600000 * 8)
+  },
+  {
+    name: 'Sneha Patel',
+    email: 'sneha.p@gmail.com',
+    subject: 'Unable to Upload Resume PDF',
+    message: 'Whenever I try to upload my resume PDF on the settings page, it gets stuck at 90%. Could you please help?',
+    status: 'Pending',
+    createdAt: new Date(Date.now() - 3600000 * 12)
+  },
+  {
+    name: 'David Miller',
+    email: 'david.m@gmail.com',
+    subject: 'Inquiry regarding Job Posting Guidelines',
+    message: 'We represent TechNova Inc. and want to post internship roles for university graduates. How do we verify our company profile?',
+    status: 'Resolved',
+    adminReply: 'Hello David, your company profile has been approved for job postings. You can post directly from your dashboard.',
+    repliedAt: new Date(Date.now() - 3600000 * 24),
+    createdAt: new Date(Date.now() - 3600000 * 30)
+  }
+];
+
+// Fetch all support messages
+router.get('/support-messages', async (req, res) => {
+  try {
+    let messages = await SupportMessage.find().sort({ createdAt: -1 });
+
+    if (messages.length === 0) {
+      try {
+        await SupportMessage.insertMany(SAMPLE_SUPPORT_MESSAGES);
+        messages = await SupportMessage.find().sort({ createdAt: -1 });
+      } catch (seedErr) {
+        console.error('Error seeding initial support messages:', seedErr);
+      }
+    }
+
+    const pendingCount = messages.filter(m => m.status === 'Pending').length;
+    const repliedCount = messages.filter(m => m.status === 'Replied').length;
+    const resolvedCount = messages.filter(m => m.status === 'Resolved').length;
+
+    return res.status(200).json({
+      success: true,
+      messages,
+      counts: {
+        total: messages.length,
+        pending: pendingCount,
+        replied: repliedCount,
+        resolved: resolvedCount
+      }
+    });
+  } catch (error) {
+    console.error('Fetch Support Messages Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch support messages' });
+  }
+});
+
+// Admin Reply to Support Message
+router.put('/support-messages/:id/reply', async (req, res) => {
+  try {
+    const { replyText } = req.body;
+    if (!replyText || !replyText.trim()) {
+      return res.status(400).json({ success: false, message: 'Reply message cannot be empty' });
+    }
+
+    const message = await SupportMessage.findById(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Support message not found' });
+    }
+
+    message.adminReply = replyText.trim();
+    message.status = 'Replied';
+    message.repliedAt = new Date();
+    await message.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Reply sent successfully and marked as Replied',
+      data: message
+    });
+  } catch (error) {
+    console.error('Reply Support Message Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to reply to support message' });
+  }
+});
+
+// Update Support Message Status
+router.put('/support-messages/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['Pending', 'Replied', 'Resolved'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const message = await SupportMessage.findById(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Support message not found' });
+    }
+
+    message.status = status;
+    await message.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Status updated to ${status}`,
+      data: message
+    });
+  } catch (error) {
+    console.error('Update Support Message Status Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update support message status' });
+  }
+});
+
+// Delete Support Message
+router.delete('/support-messages/:id', async (req, res) => {
+  try {
+    const message = await SupportMessage.findByIdAndDelete(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Support message not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Support message deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete Support Message Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete support message' });
   }
 });
 

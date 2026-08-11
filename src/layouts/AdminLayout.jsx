@@ -10,6 +10,7 @@ import {
   Building2, 
   Calendar, 
   MessageSquare, 
+  Mail,
   Volume2, 
   BarChart3, 
   Bell, 
@@ -57,6 +58,7 @@ const AdminLayout = () => {
     { name: 'Jobs & Internships', path: '/admin/jobs', icon: Briefcase },
     { name: 'Companies', path: '/admin/companies', icon: Building2 },
     { name: 'Events', path: '/admin/events', icon: Calendar },
+    { name: 'Support Messages', path: '/admin/messages', icon: Mail },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ]
 
