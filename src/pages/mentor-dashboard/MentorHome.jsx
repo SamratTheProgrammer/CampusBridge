@@ -115,6 +115,9 @@ const MentorHome = () => {
       if (userRes.ok) {
         const userData = await userRes.json()
         setProfileViews(userData.profileViews || 0)
+        const comp = calculateProfileCompleteness(userData)
+        setProfileCompleteness(comp)
+        if (userData.verificationStatus) setVerificationStatus(userData.verificationStatus)
       }
     } catch (err) {
       console.error('Error fetching data:', err)
