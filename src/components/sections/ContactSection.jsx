@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Mail, Send, Phone, MapPin, MessageSquare, CheckCircle2, ShieldAlert } from 'lucide-react'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const ContactSection = () => {
   const [formData, setFormData] = useState({
@@ -12,7 +13,7 @@ const ContactSection = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.name || !formData.email || !formData.message) {
       toast.error('Please fill in all required fields.')
@@ -20,12 +21,27 @@ const ContactSection = () => {
     }
 
     setIsSubmitting(true)
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_BASE}/api/support/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setIsSubmitted(true)
+        toast.success('Your message has been delivered to CampusBridge Support & Admin!')
+        setFormData({ name: '', email: '', subject: '', message: '' })
+      } else {
+        toast.error(data.message || 'Failed to send message.')
+      }
+    } catch (err) {
+      console.error('Contact submit error:', err)
+      toast.error('Could not connect to server. Please try again.')
+    } finally {
       setIsSubmitting(false)
-      setIsSubmitted(true)
-      toast.success('Your message has been sent! Our support team will get back to you shortly.')
-      setFormData({ name: '', email: '', subject: '', message: '' })
-    }, 800)
+    }
   }
 
   return (
