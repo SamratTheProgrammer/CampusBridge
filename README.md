@@ -49,7 +49,7 @@ The **Alumni Networking and Mentorship Management Platform** is a web-based appl
 - Git
 - GitHub
 - REST API
-- JWT Authentication
+- Clerk Authentication
 
 ---
 
