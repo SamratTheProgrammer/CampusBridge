@@ -128,10 +128,9 @@ A secure and user-friendly alumni networking platform that promotes mentorship, 
 ---
 
 ## Contributors
-
--Samrat Saha - 25MCC20059
--Barsha Mahajan - 25MCC20058
--Deepsa Baidya - 25MCC20004
+- Samrat Saha 25MCC20059
+- Barsha Mahajan 25MCC20058
+- Deepsa Baidya 25MCC20004
 
 ---
 
