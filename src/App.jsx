@@ -18,6 +18,8 @@ import ErrorBoundary from './components/ErrorBoundary'
 import EventPopup from './components/EventPopup'
 import IndependenceDayConfetti from './components/IndependenceDayConfetti'
 import HoliSplashAnimation from './components/HoliSplashAnimation'
+import DiwaliFireworks from './components/DiwaliFireworks'
+
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -215,6 +217,23 @@ function HoliSplashWrapper() {
   return null
 }
 
+function DiwaliWrapper() {
+  const { globalTheme } = useTheme()
+  const location = useLocation()
+  const [hasPlayed, setHasPlayed] = useState(false)
+
+  useEffect(() => {
+    if (globalTheme === 'diwali' && !hasPlayed && !location.pathname.startsWith('/admin')) {
+      setHasPlayed(true)
+    }
+  }, [globalTheme, hasPlayed, location.pathname])
+
+  if (hasPlayed) {
+    return <DiwaliFireworks />
+  }
+  return null
+}
+
 function App() {
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
@@ -227,6 +246,7 @@ function App() {
           <EventPopup />
           <IndependenceDayWrapper />
           <HoliSplashWrapper />
+          <DiwaliWrapper />
           <Toaster position="bottom-right" />
         </Router>
       </ThemeProvider>

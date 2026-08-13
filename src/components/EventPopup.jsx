@@ -20,7 +20,10 @@ const EventPopup = () => {
       if (!hasShown) {
         // Delay popup so it doesn't block complex animations
         // Independence day animation takes 5s to form the flag
-        const delay = globalTheme === 'independence' ? 5000 : 1000;
+        // Diwali animation takes 6s to draw the rangoli
+        let delay = 1000;
+        if (globalTheme === 'independence') delay = 5000;
+        if (globalTheme === 'diwali') delay = 6000;
         
         const timer = setTimeout(() => {
           setShow(true)
@@ -49,7 +52,7 @@ const EventPopup = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-background/60 pointer-events-auto"
+            className={`absolute inset-0 pointer-events-auto ${['holi', 'diwali', 'independence'].includes(globalTheme) ? 'bg-black/60' : 'bg-background/60'}`}
             onClick={handleClose}
           />
           

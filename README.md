@@ -4,7 +4,7 @@
 
 The **Alumni Networking and Mentorship Management Platform** is a web-based application that connects students with alumni for mentorship, career guidance, professional networking, and opportunity sharing. The platform aims to strengthen alumni engagement by providing a centralized space for communication and collaboration.
 
-**Project Status:** 🚧 In Progress
+**Project Status:** In Progress
 
 ---
 
@@ -20,13 +20,13 @@ The **Alumni Networking and Mentorship Management Platform** is a web-based appl
 
 ## Features
 
-- User Registration and Login
-- Student and Alumni Profiles
-- Mentorship Request System
-- Job & Internship Posting
-- Search Alumni by Domain
-- Dashboard for Students and Alumni
-- Admin Management Panel
+- **Secure Authentication:** SSO and password-based login powered by Clerk.
+- **Role-based Dashboards:** Dedicated, intuitive interfaces for Students, Mentors/Alumni, and Admins.
+- **Mentorship Management:** Browse mentors by domain, request sessions, and manage bookings.
+- **Career Portal:** Dedicated space for alumni to post and students to find job & internship opportunities.
+- **Admin Management Panel:** Comprehensive infrastructure to manage platform settings, users, and site configurations.
+- **Dynamic Theming & Animations:** Built-in festive `<canvas>` animations (Diwali, Holi, Independence Day) and theme switching.
+- **Networking & Messaging:** In-app communication tools to foster long-term alumni engagement.
 
 ---
 
@@ -56,15 +56,17 @@ The **Alumni Networking and Mentorship Management Platform** is a web-based appl
 ## Project Structure
 
 ```
-Alumni-Networking-Platform/
+CampusBridge/
 │
-├── client/
+├── src/           (React Frontend)
 │
-├── server/
+├── backend/       (Node.js API)
 │
-├── README.md
+├── public/        (Static Assets)
 │
-└── .gitignore
+├── package.json   (Frontend Dependencies)
+│
+└── README.md
 ```
 
 ---
@@ -73,24 +75,27 @@ Alumni-Networking-Platform/
 
 ### ✔ Completed
 
-- Project planning
-- Requirement analysis
-- Technology stack selection
-- Repository setup
+- Project planning & Requirement analysis
+- Technology stack selection & Repository setup
+- Authentication module (Clerk Integration)
+- Core UI development (Tailwind CSS & Framer Motion)
+- Database schema design (MongoDB/Mongoose)
+- Backend API foundation
+- Dynamic theming with custom canvas animations (Diwali, Holi, Independence Day)
+- Admin Dashboard infrastructure & Platform Settings
 
-### 🚧 In Progress
+### In Progress
 
-- UI development
-- Authentication module
-- Database design
-- Backend APIs
+- Mentorship management system
+- Mentor booking and sessions workflow
+- Job & Internship opportunity portal
+- Messaging system
 
 ### 📌 Upcoming
 
-- Mentorship management
-- Opportunity portal
-- Notifications
-- Testing and deployment
+- Real-time Notifications
+- Advanced Analytics for Admin and Mentors
+- Deployment & CI/CD Pipeline
 
 ---
 
@@ -121,18 +126,20 @@ A secure and user-friendly alumni networking platform that promotes mentorship, 
 
 ## SDG Mapping
 
-- 🎯 Goal 4 – Quality Education
-- 🎯 Goal 8 – Decent Work and Economic Growth
-- 🎯 Goal 9 – Industry, Innovation and Infrastructure
+- 🎯 **Goal 4: Quality Education** – Enhancing student learning and career readiness through continuous alumni mentorship and guidance.
+- 🎯 **Goal 8: Decent Work and Economic Growth** – Facilitating career opportunities by connecting students directly with industry professionals and job postings.
+- 🎯 **Goal 9: Industry, Innovation, and Infrastructure** – Building robust digital infrastructure for educational institutions to modernize their alumni networks.
+- 🎯 **Goal 10: Reduced Inequalities** – Democratizing access to professional networks and mentorship for students from all backgrounds.
+- 🎯 **Goal 17: Partnerships for the Goals** – Fostering strong, collaborative communities between current students, alumni, and educational institutions.
 
 ---
 
 ## Contributors
 
-- Member 1
-- Member 2
-- Member 3
+- Samrat Saha - 25MCC20059
+- Barsha Mahajan - 25MCC20058
+- Deepsa Baidya - 25MCC20004
 
 ---
 
-**Project Status:** 🚧 Currently under development.
+**Project Status:** Currently under development.
