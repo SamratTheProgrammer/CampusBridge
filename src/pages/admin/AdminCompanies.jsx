@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, Building2, ExternalLink, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import API_BASE from '../../utils/api'
 
 const AdminCompanies = () => {
   const [companies, setCompanies] = useState([])
@@ -17,7 +18,7 @@ const AdminCompanies = () => {
   const fetchCompanies = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch('/api/admin/companies')
+      const res = await fetch(`${API_BASE}/api/admin/companies`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.companies) {
@@ -42,7 +43,7 @@ const AdminCompanies = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const res = await fetch(`/api/admin/companies/${deleteTarget.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/api/admin/companies/${deleteTarget.id}`, { method: 'DELETE' })
       if (res.ok) {
         const data = await res.json()
         if (data.success) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Settings, Shield, Key, Mail, Lock, Sliders, Globe, Eye, Sun, Moon, MonitorSmartphone, PartyPopper, Sparkles } from 'lucide-react'
 import { useTheme } from '../../components/ThemeProvider'
 import toast from 'react-hot-toast'
+import API_BASE from '../../utils/api'
 
 const AdminSettings = () => {
   const [activeTab, setActiveTab] = useState('General')
@@ -27,7 +28,7 @@ const AdminSettings = () => {
 
   const fetchGlobalThemeSettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings/theme')
+      const res = await fetch(`${API_BASE}/api/admin/settings/theme`)
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
@@ -44,7 +45,7 @@ const AdminSettings = () => {
   const handleUpdateGlobalTheme = async (newTheme) => {
     setIsThemeLoading(true)
     try {
-      const res = await fetch('/api/admin/settings/theme', {
+      const res = await fetch(`${API_BASE}/api/admin/settings/theme`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ globalTheme: newTheme })

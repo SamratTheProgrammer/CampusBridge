@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, HelpingHand, Star, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import API_BASE from '../../utils/api'
 
 const AdminMentorship = () => {
   const [mentors, setMentors] = useState([])
@@ -17,7 +18,7 @@ const AdminMentorship = () => {
   const fetchMentors = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch('/api/admin/mentors')
+      const res = await fetch(`${API_BASE}/api/admin/mentors`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.mentors) {
@@ -42,7 +43,7 @@ const AdminMentorship = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const res = await fetch(`/api/admin/users/${deleteTarget.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/api/admin/users/${deleteTarget.id}`, { method: 'DELETE' })
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
