@@ -20,9 +20,66 @@ const AdminSettings = () => {
   const [holidayName, setHolidayName] = useState(null)
   const [isThemeLoading, setIsThemeLoading] = useState(false)
 
+  // Auth State
+  const [authSettings, setAuthSettings] = useState({
+    allowSignups: true,
+    requireEmailVerification: true,
+    enableGoogleAuth: true,
+    enableMagicLinks: false
+  })
+  const [isAuthLoading, setIsAuthLoading] = useState(false)
+
+  // Email & Notifications State
+  const [emailSettings, setEmailSettings] = useState({
+    enableEmailNotifications: true,
+    enablePushNotifications: true,
+    notifyOnNewJobPost: true,
+    notifyOnNewEvent: true,
+    senderEmailAddress: 'noreply@campusbridge.com'
+  })
+  const [isEmailLoading, setIsEmailLoading] = useState(false)
+
+  // Security State
+  const [securitySettings, setSecuritySettings] = useState({
+    requireTwoFactorAuth: false,
+    enforceStrongPasswords: true,
+    sessionTimeoutMinutes: 60,
+    maxFailedLoginAttempts: 5,
+    allowedIPRanges: ''
+  })
+  const [isSecurityLoading, setIsSecurityLoading] = useState(false)
+
+  // Privacy State
+  const [privacySettings, setPrivacySettings] = useState({
+    requireCookieConsent: true,
+    allowAnalyticsTracking: true,
+    dataRetentionDays: 365,
+    displayUserProfilesPublicly: false
+  })
+  const [isPrivacyLoading, setIsPrivacyLoading] = useState(false)
+
+  // Integrations State
+  const [integrationSettings, setIntegrationSettings] = useState({
+    enableZoomIntegration: false,
+    enableGoogleCalendar: false,
+    googleAnalyticsTrackingId: '',
+    slackWebhookUrl: ''
+  })
+  const [isIntegrationLoading, setIsIntegrationLoading] = useState(false)
+
   useEffect(() => {
     if (activeTab === 'Appearance') {
       fetchGlobalThemeSettings()
+    } else if (activeTab === 'Authentication') {
+      fetchAuthSettings()
+    } else if (activeTab === 'Email & Notifications') {
+      fetchEmailSettings()
+    } else if (activeTab === 'Security') {
+      fetchSecuritySettings()
+    } else if (activeTab === 'Privacy') {
+      fetchPrivacySettings()
+    } else if (activeTab === 'Integrations') {
+      fetchIntegrationSettings()
     }
   }, [activeTab])
 
@@ -66,6 +123,246 @@ const AdminSettings = () => {
     } finally {
       setIsThemeLoading(false)
     }
+  }
+
+  const fetchAuthSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/auth')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.authSettings) {
+          setAuthSettings(prev => ({ ...prev, ...data.authSettings }))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching auth settings:', error)
+    }
+  }
+
+  const handleUpdateAuthSettings = async (e) => {
+    e.preventDefault()
+    setIsAuthLoading(true)
+    try {
+      const res = await fetch('/api/admin/settings/auth', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authSettings })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setAuthSettings(prev => ({ ...prev, ...data.authSettings }))
+          toast.success('Authentication settings updated!')
+        }
+      } else {
+        toast.error('Failed to update auth settings')
+      }
+    } catch (error) {
+      console.error('Error updating auth settings:', error)
+      toast.error('Server error updating auth settings')
+    } finally {
+      setIsAuthLoading(false)
+    }
+  }
+
+  const handleAuthToggle = (key) => {
+    setAuthSettings(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const fetchEmailSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/email')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.emailSettings) {
+          setEmailSettings(prev => ({ ...prev, ...data.emailSettings }))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching email settings:', error)
+    }
+  }
+
+  const handleUpdateEmailSettings = async (e) => {
+    e.preventDefault()
+    setIsEmailLoading(true)
+    try {
+      const res = await fetch('/api/admin/settings/email', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailSettings })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setEmailSettings(prev => ({ ...prev, ...data.emailSettings }))
+          toast.success('Email & Notification settings updated!')
+        }
+      } else {
+        toast.error('Failed to update email settings')
+      }
+    } catch (error) {
+      console.error('Error updating email settings:', error)
+      toast.error('Server error updating email settings')
+    } finally {
+      setIsEmailLoading(false)
+    }
+  }
+
+  const handleEmailToggle = (key) => {
+    setEmailSettings(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handleEmailInputChange = (e) => {
+    const { name, value } = e.target;
+    setEmailSettings(prev => ({ ...prev, [name]: value }))
+  }
+
+  const fetchSecuritySettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/security')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.securitySettings) {
+          setSecuritySettings(prev => ({ ...prev, ...data.securitySettings }))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching security settings:', error)
+    }
+  }
+
+  const handleUpdateSecuritySettings = async (e) => {
+    e.preventDefault()
+    setIsSecurityLoading(true)
+    try {
+      const res = await fetch('/api/admin/settings/security', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ securitySettings })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setSecuritySettings(prev => ({ ...prev, ...data.securitySettings }))
+          toast.success('Security settings updated!')
+        }
+      } else {
+        toast.error('Failed to update security settings')
+      }
+    } catch (error) {
+      console.error('Error updating security settings:', error)
+      toast.error('Server error updating security settings')
+    } finally {
+      setIsSecurityLoading(false)
+    }
+  }
+
+  const handleSecurityToggle = (key) => {
+    setSecuritySettings(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handleSecurityInputChange = (e) => {
+    const { name, value } = e.target;
+    setSecuritySettings(prev => ({ ...prev, [name]: value }))
+  }
+
+  const fetchPrivacySettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/privacy')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.privacySettings) {
+          setPrivacySettings(prev => ({ ...prev, ...data.privacySettings }))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching privacy settings:', error)
+    }
+  }
+
+  const handleUpdatePrivacySettings = async (e) => {
+    e.preventDefault()
+    setIsPrivacyLoading(true)
+    try {
+      const res = await fetch('/api/admin/settings/privacy', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ privacySettings })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setPrivacySettings(prev => ({ ...prev, ...data.privacySettings }))
+          toast.success('Privacy settings updated!')
+        }
+      } else {
+        toast.error('Failed to update privacy settings')
+      }
+    } catch (error) {
+      console.error('Error updating privacy settings:', error)
+      toast.error('Server error updating privacy settings')
+    } finally {
+      setIsPrivacyLoading(false)
+    }
+  }
+
+  const handlePrivacyToggle = (key) => {
+    setPrivacySettings(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handlePrivacyInputChange = (e) => {
+    const { name, value } = e.target;
+    setPrivacySettings(prev => ({ ...prev, [name]: value }))
+  }
+
+  const fetchIntegrationSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/integrations')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.integrationSettings) {
+          setIntegrationSettings(prev => ({ ...prev, ...data.integrationSettings }))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching integration settings:', error)
+    }
+  }
+
+  const handleUpdateIntegrationSettings = async (e) => {
+    e.preventDefault()
+    setIsIntegrationLoading(true)
+    try {
+      const res = await fetch('/api/admin/settings/integrations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ integrationSettings })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setIntegrationSettings(prev => ({ ...prev, ...data.integrationSettings }))
+          toast.success('Integration settings updated!')
+        }
+      } else {
+        toast.error('Failed to update integration settings')
+      }
+    } catch (error) {
+      console.error('Error updating integration settings:', error)
+      toast.error('Server error updating integration settings')
+    } finally {
+      setIsIntegrationLoading(false)
+    }
+  }
+
+  const handleIntegrationToggle = (key) => {
+    setIntegrationSettings(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handleIntegrationInputChange = (e) => {
+    const { name, value } = e.target;
+    setIntegrationSettings(prev => ({ ...prev, [name]: value }))
   }
 
   const handleSave = (e) => {
@@ -272,6 +569,274 @@ const AdminSettings = () => {
                 </p>
               </div>
             </div>
+          ) : activeTab === 'Authentication' ? (
+            <form onSubmit={handleUpdateAuthSettings} className="space-y-6">
+              <div className="space-y-4">
+                {[
+                  { key: 'allowSignups', title: 'Allow New Signups', desc: 'Enable or disable new user registrations across the platform.' },
+                  { key: 'requireEmailVerification', title: 'Require Email Verification', desc: 'Force users to verify their email before accessing the platform.' },
+                  { key: 'enableGoogleAuth', title: 'Enable Google SSO', desc: 'Allow users to sign in using their Google account.' },
+                  { key: 'enableMagicLinks', title: 'Enable Magic Links', desc: 'Allow passwordless sign in via email magic links.' }
+                ].map(setting => (
+                  <div key={setting.key} className="flex items-center justify-between p-4 bg-muted/40 border border-border/50 rounded-xl">
+                    <div>
+                      <h4 className="font-semibold text-sm text-foreground">{setting.title}</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">{setting.desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAuthToggle(setting.key)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${authSettings[setting.key] ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${authSettings[setting.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button 
+                type="submit"
+                disabled={isAuthLoading}
+                className="bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all text-sm shadow-md shadow-primary/10 disabled:opacity-70"
+              >
+                {isAuthLoading ? 'Saving...' : 'Save Settings'}
+              </button>
+            </form>
+          ) : activeTab === 'Email & Notifications' ? (
+            <form onSubmit={handleUpdateEmailSettings} className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Sender Email Address</label>
+                  <input 
+                    type="email" 
+                    name="senderEmailAddress"
+                    value={emailSettings.senderEmailAddress}
+                    onChange={handleEmailInputChange}
+                    className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">This email will be used as the "From" address for all automated platform emails.</p>
+                </div>
+
+                <div className="pt-4 border-t border-border/40">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Notification Preferences</h3>
+                  <div className="space-y-4">
+                    {[
+                      { key: 'enableEmailNotifications', title: 'Global Email Notifications', desc: 'Enable or disable all outbound email communications.' },
+                      { key: 'enablePushNotifications', title: 'Global Push Notifications', desc: 'Enable or disable web push notifications for users.' },
+                      { key: 'notifyOnNewJobPost', title: 'New Job Alerts', desc: 'Automatically notify eligible users when a new job is posted.' },
+                      { key: 'notifyOnNewEvent', title: 'New Event Alerts', desc: 'Automatically notify users when a new event is scheduled.' }
+                    ].map(setting => (
+                      <div key={setting.key} className="flex items-center justify-between p-4 bg-muted/40 border border-border/50 rounded-xl">
+                        <div>
+                          <h4 className="font-semibold text-sm text-foreground">{setting.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">{setting.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleEmailToggle(setting.key)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${emailSettings[setting.key] ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${emailSettings[setting.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="submit"
+                disabled={isEmailLoading}
+                className="bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all text-sm shadow-md shadow-primary/10 disabled:opacity-70"
+              >
+                {isEmailLoading ? 'Saving...' : 'Save Settings'}
+              </button>
+            </form>
+          ) : activeTab === 'Security' ? (
+            <form onSubmit={handleUpdateSecuritySettings} className="space-y-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Session Timeout (Minutes)</label>
+                    <input 
+                      type="number" 
+                      name="sessionTimeoutMinutes"
+                      value={securitySettings.sessionTimeoutMinutes}
+                      onChange={handleSecurityInputChange}
+                      min="5"
+                      className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Max Failed Logins</label>
+                    <input 
+                      type="number" 
+                      name="maxFailedLoginAttempts"
+                      value={securitySettings.maxFailedLoginAttempts}
+                      onChange={handleSecurityInputChange}
+                      min="1"
+                      className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Allowed IP Ranges (Comma separated)</label>
+                  <input 
+                    type="text" 
+                    name="allowedIPRanges"
+                    value={securitySettings.allowedIPRanges}
+                    onChange={handleSecurityInputChange}
+                    placeholder="e.g. 192.168.1.1, 10.0.0.0/24"
+                    className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">Leave blank to allow access from any IP address.</p>
+                </div>
+
+                <div className="pt-4 border-t border-border/40">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Security Policies</h3>
+                  <div className="space-y-4">
+                    {[
+                      { key: 'requireTwoFactorAuth', title: 'Require 2FA', desc: 'Force all users to configure Two-Factor Authentication.' },
+                      { key: 'enforceStrongPasswords', title: 'Enforce Strong Passwords', desc: 'Require at least 8 characters, numbers, and symbols.' }
+                    ].map(setting => (
+                      <div key={setting.key} className="flex items-center justify-between p-4 bg-muted/40 border border-border/50 rounded-xl">
+                        <div>
+                          <h4 className="font-semibold text-sm text-foreground">{setting.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">{setting.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSecurityToggle(setting.key)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${securitySettings[setting.key] ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${securitySettings[setting.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="submit"
+                disabled={isSecurityLoading}
+                className="bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all text-sm shadow-md shadow-primary/10 disabled:opacity-70"
+              >
+                {isSecurityLoading ? 'Saving...' : 'Save Settings'}
+              </button>
+            </form>
+          ) : activeTab === 'Privacy' ? (
+            <form onSubmit={handleUpdatePrivacySettings} className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Data Retention (Days)</label>
+                  <input 
+                    type="number" 
+                    name="dataRetentionDays"
+                    value={privacySettings.dataRetentionDays}
+                    onChange={handlePrivacyInputChange}
+                    min="30"
+                    className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">How long deleted accounts and inactive data should be retained on our servers.</p>
+                </div>
+
+                <div className="pt-4 border-t border-border/40">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Privacy Policies</h3>
+                  <div className="space-y-4">
+                    {[
+                      { key: 'requireCookieConsent', title: 'Require Cookie Consent', desc: 'Display a cookie consent banner to all new visitors.' },
+                      { key: 'allowAnalyticsTracking', title: 'Allow Analytics Tracking', desc: 'Collect anonymous usage statistics to improve the platform.' },
+                      { key: 'displayUserProfilesPublicly', title: 'Public Profiles', desc: 'Allow non-logged-in users (guests) to view user profiles.' }
+                    ].map(setting => (
+                      <div key={setting.key} className="flex items-center justify-between p-4 bg-muted/40 border border-border/50 rounded-xl">
+                        <div>
+                          <h4 className="font-semibold text-sm text-foreground">{setting.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">{setting.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePrivacyToggle(setting.key)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${privacySettings[setting.key] ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${privacySettings[setting.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="submit"
+                disabled={isPrivacyLoading}
+                className="bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all text-sm shadow-md shadow-primary/10 disabled:opacity-70"
+              >
+                {isPrivacyLoading ? 'Saving...' : 'Save Settings'}
+              </button>
+            </form>
+          ) : activeTab === 'Integrations' ? (
+            <form onSubmit={handleUpdateIntegrationSettings} className="space-y-6">
+              <div className="space-y-4">
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Google Analytics Measurement ID</label>
+                    <input 
+                      type="text" 
+                      name="googleAnalyticsTrackingId"
+                      value={integrationSettings.googleAnalyticsTrackingId}
+                      onChange={handleIntegrationInputChange}
+                      placeholder="G-XXXXXXXXXX"
+                      className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Slack Webhook URL</label>
+                    <input 
+                      type="url" 
+                      name="slackWebhookUrl"
+                      value={integrationSettings.slackWebhookUrl}
+                      onChange={handleIntegrationInputChange}
+                      placeholder="https://hooks.slack.com/services/..."
+                      className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-border/40">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Service Integrations</h3>
+                  <div className="space-y-4">
+                    {[
+                      { key: 'enableZoomIntegration', title: 'Zoom Meetings Integration', desc: 'Allow mentors to automatically generate Zoom meeting links for sessions.' },
+                      { key: 'enableGoogleCalendar', title: 'Google Calendar Sync', desc: 'Sync scheduled events and sessions directly to Google Calendar.' }
+                    ].map(setting => (
+                      <div key={setting.key} className="flex items-center justify-between p-4 bg-muted/40 border border-border/50 rounded-xl">
+                        <div>
+                          <h4 className="font-semibold text-sm text-foreground">{setting.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">{setting.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleIntegrationToggle(setting.key)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${integrationSettings[setting.key] ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${integrationSettings[setting.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="submit"
+                disabled={isIntegrationLoading}
+                className="bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all text-sm shadow-md shadow-primary/10 disabled:opacity-70"
+              >
+                {isIntegrationLoading ? 'Saving...' : 'Save Settings'}
+              </button>
+            </form>
           ) : (
             <div className="py-12 text-center text-muted-foreground text-sm">
               Configuration options for {activeTab} will be available in the next release.

@@ -1,17 +1,33 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Mail, Send, Phone, MapPin, MessageSquare, CheckCircle2, ShieldAlert } from 'lucide-react'
+import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 
 const ContactSection = () => {
+  const { user, isSignedIn } = useUser()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     subject: '',
-    message: ''
+    message: '',
+    clerkId: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+
+  useEffect(() => {
+    if (isSignedIn && user) {
+      const fullName = user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim()
+      const userEmail = user.primaryEmailAddress?.emailAddress || ''
+      setFormData(prev => ({
+        ...prev,
+        name: prev.name || fullName,
+        email: prev.email || userEmail,
+        clerkId: user.id
+      }))
+    }
+  }, [user, isSignedIn])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
