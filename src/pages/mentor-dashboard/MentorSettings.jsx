@@ -26,6 +26,7 @@ const MentorSettings = () => {
   const [profileVisibility, setProfileVisibility] = useState('public')
   const [userDoc, setUserDoc] = useState(null)
   const [completeness, setCompleteness] = useState({ percentage: 0, missingFields: [] })
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   
   // Form State
   const [firstName, setFirstName] = useState('')
@@ -96,6 +97,8 @@ const MentorSettings = () => {
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
+    } finally {
+      setIsLoadingProfile(false);
     }
   };
 
@@ -353,10 +356,12 @@ const MentorSettings = () => {
       </div>
 
       {/* Onboarding & Verification Completeness Banner */}
-      <MentorOnboardingBanner 
-        completeness={completeness} 
-        verificationStatus={userDoc?.verificationStatus || (userDoc?.isVerified ? 'Approved' : 'Pending')} 
-      />
+      {!isLoadingProfile && (
+        <MentorOnboardingBanner 
+          completeness={completeness} 
+          verificationStatus={userDoc?.verificationStatus || (userDoc?.isVerified ? 'Approved' : 'Pending')} 
+        />
+      )}
 
       <div className="flex flex-col md:flex-row gap-6 md:gap-8">
         

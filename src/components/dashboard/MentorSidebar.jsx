@@ -32,6 +32,7 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 100, isEligibleForVerification: true })
   const [verificationStatus, setVerificationStatus] = useState('Pending')
   const [isVerified, setIsVerified] = useState(false)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
 
   useEffect(() => {
     if (!user) return
@@ -48,6 +49,8 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
         }
       } catch (err) {
         console.error('Failed to fetch profile completeness:', err)
+      } finally {
+        setIsLoadingProfile(false)
       }
     }
     fetchUserProfile()
@@ -79,7 +82,7 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
   }, [user])
 
   const isApproved = verificationStatus === 'Approved' || isVerified
-  const isLocked = profileCompleteness.percentage < 80 || !isApproved
+  const isLocked = !isLoadingProfile && (profileCompleteness.percentage < 80 || !isApproved)
 
   const handleLockedClick = (e, itemName) => {
     if (isLocked) {

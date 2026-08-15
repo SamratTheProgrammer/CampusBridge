@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import API_BASE from '../../utils/api'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const MyNetwork = () => {
   const { user } = useUser();
@@ -17,6 +18,7 @@ const MyNetwork = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(null);
+  const [unfriendConfirm, setUnfriendConfirm] = useState({ isOpen: false, connectionId: null, targetName: '' });
 
   // Fetch connections and suggestions
   useEffect(() => {
@@ -111,8 +113,9 @@ const MyNetwork = () => {
     }
   };
 
-  const handleUnfriend = async (connectionId, targetName) => {
-    if (!window.confirm(`Are you sure you want to remove ${targetName} from your network?`)) return;
+  const handleUnfriendConfirm = async () => {
+    const { connectionId, targetName } = unfriendConfirm;
+    if (!connectionId) return;
     try {
       const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, { method: 'DELETE' });
       if (res.ok) {
@@ -125,6 +128,10 @@ const MyNetwork = () => {
       console.error(err);
       toast.error('Network error');
     }
+  };
+
+  const handleUnfriend = (connectionId, targetName) => {
+    setUnfriendConfirm({ isOpen: true, connectionId, targetName });
   };
 
   // Categorize connections
@@ -517,6 +524,16 @@ const MyNetwork = () => {
 
         </AnimatePresence>
       )}
+
+      <ConfirmModal
+        isOpen={unfriendConfirm.isOpen}
+        onClose={() => setUnfriendConfirm({ isOpen: false, connectionId: null, targetName: '' })}
+        onConfirm={handleUnfriendConfirm}
+        title="Remove Connection"
+        message={`Are you sure you want to remove ${unfriendConfirm.targetName} from your network?`}
+        confirmText="Remove"
+        isDestructive={true}
+      />
     </div>
   );
 };

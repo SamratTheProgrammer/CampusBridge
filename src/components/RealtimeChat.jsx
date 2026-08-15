@@ -56,6 +56,7 @@ const RealtimeChat = () => {
   const [editingMessage, setEditingMessage] = useState(null);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [deleteModalMsg, setDeleteModalMsg] = useState(null);
+  const [fullscreenAttachment, setFullscreenAttachment] = useState(null);
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -990,13 +991,19 @@ const RealtimeChat = () => {
                               {msg.attachment && (
                                 <div className="mb-2">
                                   {msg.attachment.type === 'image' ? (
-                                    <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer">
-                                      <img src={msg.attachment.url} alt="attachment" className="rounded-xl max-h-60 w-auto object-cover cursor-pointer hover:opacity-90 transition-opacity" />
-                                    </a>
+                                    <div 
+                                      onClick={() => setFullscreenAttachment({ url: msg.attachment.url, type: 'image' })} 
+                                      className="cursor-pointer"
+                                    >
+                                      <img src={msg.attachment.url} alt="attachment" className="rounded-xl max-h-60 w-auto object-cover hover:opacity-90 transition-opacity" />
+                                    </div>
                                   ) : msg.attachment.type === 'video' ? (
                                     <video src={msg.attachment.url} controls className="rounded-xl max-h-60 w-auto" />
                                   ) : (
-                                    <a href={getPdfViewUrl(msg.attachment.url)} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-3 rounded-xl border ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20' : 'bg-muted/50 border-border/50 hover:bg-muted'} transition-colors`}>
+                                    <div 
+                                      onClick={() => setFullscreenAttachment({ url: msg.attachment.url, type: 'document' })} 
+                                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20' : 'bg-muted/50 border-border/50 hover:bg-muted'} transition-colors`}
+                                    >
                                       <div className="p-2 bg-background/50 rounded-lg shrink-0">
                                         <FileText className="w-5 h-5" />
                                       </div>
@@ -1004,8 +1011,8 @@ const RealtimeChat = () => {
                                         <p className="text-xs font-semibold truncate" title={msg.attachment.name}>{msg.attachment.name}</p>
                                         <p className="text-[10px] opacity-70 mt-0.5">{(msg.attachment.size / 1024).toFixed(1)} KB</p>
                                       </div>
-                                      <Download className="w-4 h-4 shrink-0 opacity-70" />
-                                    </a>
+                                      <Eye className="w-4 h-4 shrink-0 opacity-70" />
+                                    </div>
                                   )}
                                 </div>
                               )}
@@ -1228,6 +1235,46 @@ const RealtimeChat = () => {
                 Yes, Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Attachment Viewer Modal */}
+      {fullscreenAttachment && (
+        <div className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+          <button 
+            onClick={() => setFullscreenAttachment(null)}
+            className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            title="Close"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          
+          <a 
+            href={fullscreenAttachment.url}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute top-6 right-20 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            title="Download Original"
+          >
+            <Download className="w-6 h-6" />
+          </a>
+          
+          <div className="max-w-6xl w-full h-[85vh] flex items-center justify-center relative mt-8">
+            {fullscreenAttachment.type === 'image' ? (
+              <img 
+                src={fullscreenAttachment.url} 
+                alt="Fullscreen View" 
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+            ) : fullscreenAttachment.type === 'document' ? (
+              <iframe 
+                src={getPdfViewUrl(fullscreenAttachment.url)} 
+                title="Document Viewer"
+                className="w-full h-full bg-white rounded-xl shadow-2xl"
+              />
+            ) : null}
           </div>
         </div>
       )}

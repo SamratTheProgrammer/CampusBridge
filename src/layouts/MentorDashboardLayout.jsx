@@ -81,7 +81,8 @@ const MentorDashboardLayout = () => {
       } else if (user) {
         const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
         if (role === 'student' || role === 'user') {
-          navigate('/dashboard', { replace: true })
+          const subPath = location.pathname.replace(/^\/mentor-dashboard\/?/, '/');
+          navigate(`/dashboard${subPath === '/' ? '' : subPath}`, { replace: true })
         } else if (!isLoadingProfile && (role === 'mentor' || role === 'alumni')) {
           if (isLocked && location.pathname !== '/mentor-dashboard/settings') {
             toast.error(

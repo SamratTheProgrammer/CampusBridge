@@ -44,6 +44,7 @@ const MentorHome = () => {
   const [profileViews, setProfileViews] = useState(0)
   const [acceptedConnectionsCount, setAcceptedConnectionsCount] = useState(0)
   const [pendingRequestsList, setPendingRequestsList] = useState([])
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
 
   const upcomingSessions = [
     { id: 1, student: 'Rahul Verma', type: 'Resume Review', date: 'Tomorrow', time: '10:00 AM' },
@@ -122,6 +123,8 @@ const MentorHome = () => {
       }
     } catch (err) {
       console.error('Error fetching data:', err)
+    } finally {
+      setIsLoadingProfile(false)
     }
   }
 
@@ -383,7 +386,9 @@ const MentorHome = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-8">
       {/* Onboarding & Verification Completeness Banner */}
-      <MentorOnboardingBanner completeness={profileCompleteness} verificationStatus={verificationStatus} />
+      {!isLoadingProfile && (
+        <MentorOnboardingBanner completeness={profileCompleteness} verificationStatus={verificationStatus} />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 

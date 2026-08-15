@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import PostComments from '../../components/PostComments'
 import API_BASE from '../../utils/api'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const StudentProfile = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const StudentProfile = () => {
   const [viewingImage, setViewingImage] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('none')
   const [connectionId, setConnectionId] = useState(null)
+  const [unfriendConfirm, setUnfriendConfirm] = useState(false)
 
   // Post states
   const [posts, setPosts] = useState([])
@@ -126,7 +128,7 @@ const StudentProfile = () => {
     }
   }
 
-  const handleUnfriend = async () => {
+  const handleUnfriendConfirm = async () => {
     if (!connectionId) return;
     try {
       const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, {
@@ -143,6 +145,10 @@ const StudentProfile = () => {
       console.error('Error removing connection:', err);
       toast.error('Network error');
     }
+  }
+
+  const handleUnfriend = () => {
+    setUnfriendConfirm(true);
   }
 
   const formatTime = (dateString) => {
@@ -552,6 +558,16 @@ const StudentProfile = () => {
         </div>
       )}
     </AnimatePresence>
+
+    <ConfirmModal
+      isOpen={unfriendConfirm}
+      onClose={() => setUnfriendConfirm(false)}
+      onConfirm={handleUnfriendConfirm}
+      title="Remove Connection"
+      message={`Are you sure you want to remove ${student?.name} from your connections?`}
+      confirmText="Remove"
+      isDestructive={true}
+    />
     </>
   )
 }

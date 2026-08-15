@@ -54,7 +54,8 @@ const DashboardLayout = () => {
       } else if (user) {
         const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
         if (role === 'mentor' || role === 'alumni') {
-          navigate('/mentor-dashboard', { replace: true })
+          const subPath = location.pathname.replace(/^\/dashboard\/?/, '/');
+          navigate(`/mentor-dashboard${subPath === '/' ? '' : subPath}`, { replace: true })
         }
       }
     }

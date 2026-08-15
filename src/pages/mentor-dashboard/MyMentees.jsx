@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const MyMentees = () => {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ const MyMentees = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [unfriendConfirm, setUnfriendConfirm] = useState({ isOpen: false, connectionId: null, targetName: '' })
 
   useEffect(() => {
     if (!user) return;
@@ -49,13 +51,15 @@ const MyMentees = () => {
     fetchMentees();
   }, [user]);
 
-  const handleUnfriend = async (connectionId, studentName) => {
-    if (!window.confirm(`Are you sure you want to remove ${studentName} from your mentees?`)) return;
+  const handleUnfriendConfirm = async () => {
+    const { connectionId, targetName } = unfriendConfirm;
+    if (!connectionId) return;
     try {
       const res = await fetch(`${API_BASE}/api/connections/${connectionId}`, { method: 'DELETE' });
       if (res.ok) {
         setMentees(prev => prev.filter(m => m.id !== connectionId));
-        toast.success(`${studentName} removed from mentees.`);
+        toast.success(`${targetName} removed from mentees.`);
+        setUnfriendConfirm({ isOpen: false, connectionId: null, targetName: '' });
       } else {
         toast.error('Failed to remove mentee.');
       }
@@ -63,6 +67,10 @@ const MyMentees = () => {
       console.error(err);
       toast.error('Network error');
     }
+  }
+
+  const handleUnfriend = (connectionId, studentName) => {
+    setUnfriendConfirm({ isOpen: true, connectionId, targetName: studentName });
   }
 
   const filteredMentees = mentees.filter(mentee => {
@@ -187,9 +195,17 @@ const MyMentees = () => {
       </div>
       )}
 
+      <ConfirmModal
+        isOpen={unfriendConfirm.isOpen}
+        onClose={() => setUnfriendConfirm({ isOpen: false, connectionId: null, targetName: '' })}
+        onConfirm={handleUnfriendConfirm}
+        title="Remove Mentee"
+        message={`Are you sure you want to remove ${unfriendConfirm.targetName} from your mentees?`}
+        confirmText="Remove"
+        isDestructive={true}
+      />
     </div>
   )
 }
 
 export default MyMentees
-
