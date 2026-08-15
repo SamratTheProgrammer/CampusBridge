@@ -10,7 +10,7 @@ const MentorOnboardingBanner = ({ completeness, verificationStatus, onGoToSettin
   const isPending = percentage >= 80 && !isApproved
   const isIncomplete = percentage < 80
 
-  if (percentage >= 100 || (isApproved && percentage >= 80)) return null;
+  if (percentage >= 80) return null;
 
   const handleAction = () => {
     if (onGoToSettings) {

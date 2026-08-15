@@ -455,8 +455,8 @@ const DashboardHome = () => {
               </div>
             )}
             <div className="border-t border-border/40 pt-4 flex justify-between text-sm">
-              <span className="text-muted-foreground font-medium">Profile Views</span>
-              <span className="text-primary font-bold">{profileViews}</span>
+              <span className="text-muted-foreground font-medium">Total Posts</span>
+              <span className="text-primary font-bold">{posts.filter(p => p.authorClerkId === user?.id).length}</span>
             </div>
             <div className="flex justify-between text-sm mt-2">
               <span className="text-muted-foreground font-medium">Connections</span>

@@ -500,7 +500,7 @@ const Settings = () => {
       <div className="flex flex-col md:flex-row gap-6 items-start">
         
         {/* Left Sidebar (Tabs) */}
-        <div className="w-full md:w-64 bg-card border border-border/50 rounded-2xl p-2 sm:p-4 shadow-sm shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none">
+        <div className="w-full md:w-64 bg-card border border-border/50 rounded-2xl p-2 sm:p-4 shadow-sm shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none md:sticky md:top-24">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -533,7 +533,7 @@ const Settings = () => {
         </div>
 
         {/* Right Content Area (Forms) */}
-        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-6 sm:p-8 shadow-sm min-h-[500px]">
+        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-6 sm:p-8 shadow-sm md:h-[calc(100vh-240px)] min-h-[500px] md:overflow-y-auto">
           
           {/* --- BASIC INFO --- */}
           {activeTab === 'basic' && (

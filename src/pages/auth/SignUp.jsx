@@ -23,20 +23,22 @@ const SignUp = () => {
   const [pendingVerification, setPendingVerification] = useState(false)
   const [code, setCode] = useState('')
 
-  const handleGoogleAuth = async () => {
+  const handleGoogleAuth = async (e) => {
+    e?.preventDefault()
     if (!isLoaded) return
-    if (selectedRole) {
-      localStorage.setItem('sso_role', selectedRole)
-    }
+    
     try {
+      if (selectedRole) {
+        localStorage.setItem('sso_role', selectedRole)
+      }
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/sync-user',
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}/sync-user`,
       })
     } catch (err) {
       console.error('Google Auth Error:', err)
-      toast.error(err.errors?.[0]?.longMessage || 'Google Sign Up failed. Check if it is enabled in your Clerk dashboard.')
+      toast.error(err?.errors?.[0]?.longMessage || 'Google Sign Up failed. Check if it is enabled in your Clerk dashboard.')
     }
   }
 

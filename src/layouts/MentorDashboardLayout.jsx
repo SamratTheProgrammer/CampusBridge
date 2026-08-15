@@ -72,7 +72,7 @@ const MentorDashboardLayout = () => {
   }, [user])
 
   const isApproved = verificationStatus === 'Approved' || isVerified
-  const isLocked = profileCompleteness.percentage < 80 || !isApproved
+  const isLocked = profileCompleteness.percentage < 80
 
   useEffect(() => {
     if (isLoaded) {

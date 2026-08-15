@@ -28,20 +28,22 @@ const Login = () => {
     }
   }, [isUserLoaded, isSignedIn, user, selectedRole, navigate])
 
-  const handleGoogleAuth = async () => {
+  const handleGoogleAuth = async (e) => {
+    e?.preventDefault()
     if (!isLoaded) return
-    if (selectedRole) {
-      localStorage.setItem('sso_role', selectedRole)
-    }
+    
     try {
+      if (selectedRole) {
+        localStorage.setItem('sso_role', selectedRole)
+      }
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/sync-user',
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}/sync-user`,
       })
     } catch (err) {
       console.error('Google Auth Error:', err)
-      toast.error(err.errors?.[0]?.longMessage || 'Google Sign In failed. Check if it is enabled in your Clerk dashboard.')
+      toast.error(err?.errors?.[0]?.longMessage || 'Google Sign In failed. Check if it is enabled in your Clerk dashboard.')
     }
   }
 
