@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, FileText, Users, Briefcase, Calendar, Info, LogIn, UserPlus, BookOpen } from 'lucide-react'
+import { Search, X, FileText, Users, Briefcase, Calendar, Info, LogIn, UserPlus, BookOpen, Loader2 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
-const searchData = [
+
+const staticSearchData = [
   {
     category: 'Pages',
     items: [
@@ -27,8 +28,11 @@ const searchData = [
 
 const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [dynamicResults, setDynamicResults] = useState({ users: [], events: [], jobs: [] })
   const inputRef = useRef(null)
   const navigate = useNavigate()
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
   useEffect(() => {
     if (isOpen) {
@@ -37,6 +41,7 @@ const SearchModal = ({ isOpen, onClose }) => {
       }, 100)
     } else {
       setQuery('')
+      setDynamicResults({ users: [], events: [], jobs: [] })
     }
   }, [isOpen])
 
@@ -51,13 +56,94 @@ const SearchModal = ({ isOpen, onClose }) => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
-  const filteredData = searchData.map(group => ({
+  // Debounced Search API Call
+  useEffect(() => {
+    const fetchDynamicResults = async () => {
+      if (query.trim().length < 2) {
+        setDynamicResults({ users: [], events: [], jobs: [] })
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const response = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(query)}`)
+        if (response.ok) {
+          const data = await response.json()
+          setDynamicResults(data)
+        }
+      } catch (error) {
+        console.error("Error fetching search results:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchDynamicResults()
+    }, 300)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [query, API_URL])
+
+  // Filter static data based on query
+  const filteredStaticData = staticSearchData.map(group => ({
     ...group,
     items: group.items.filter(item => 
       item.title.toLowerCase().includes(query.toLowerCase()) || 
       item.description.toLowerCase().includes(query.toLowerCase())
     )
   })).filter(group => group.items.length > 0)
+
+  // Combine static and dynamic data into a unified array for rendering
+  const getCombinedData = () => {
+    const combined = [...filteredStaticData]
+
+    if (dynamicResults.users?.length > 0) {
+      combined.push({
+        category: 'Users',
+        items: dynamicResults.users.map(u => ({
+          id: u._id || u.clerkId,
+          title: `${u.firstName} ${u.lastName || ''}`.trim(),
+          path: `/profile/${u.clerkId}`,
+          icon: Users,
+          description: u.headline || (u.role === 'mentor' ? 'Mentor' : 'Student'),
+          image: u.imageUrl
+        }))
+      })
+    }
+
+    if (dynamicResults.events?.length > 0) {
+      combined.push({
+        category: 'Events',
+        items: dynamicResults.events.map(e => ({
+          id: e._id,
+          title: e.title,
+          path: `/events/${e._id}`, // Adjust path as needed
+          icon: Calendar,
+          description: `${e.type || 'Event'} • ${e.mode}`,
+          image: e.imageUrl
+        }))
+      })
+    }
+
+    if (dynamicResults.jobs?.length > 0) {
+      combined.push({
+        category: 'Jobs',
+        items: dynamicResults.jobs.map(j => ({
+          id: j._id,
+          title: j.title,
+          path: `/jobs/${j._id}`, // Adjust path as needed
+          icon: Briefcase,
+          description: `${j.company} • ${j.location}`,
+          image: j.companyLogo
+        }))
+      })
+    }
+
+    return combined
+  }
+
+  const currentDisplayData = getCombinedData()
 
   const handleSelect = (path) => {
     onClose()
@@ -101,22 +187,26 @@ const SearchModal = ({ isOpen, onClose }) => {
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder="Search documentation, sections, pages..."
+                  placeholder="Search users, jobs, events, pages..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground text-lg"
                 />
-                <button
-                  onClick={onClose}
-                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors shrink-0"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 text-primary animate-spin shrink-0" />
+                ) : (
+                  <button
+                    onClick={onClose}
+                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors shrink-0"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
               </div>
 
               <div className="overflow-y-auto flex-1 p-2 sm:p-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                {filteredData.length > 0 ? (
-                  filteredData.map((group, groupIdx) => (
+                {currentDisplayData.length > 0 ? (
+                  currentDisplayData.map((group, groupIdx) => (
                     <div key={group.category} className={groupIdx > 0 ? 'mt-6' : ''}>
                       <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         {group.category}
@@ -128,14 +218,18 @@ const SearchModal = ({ isOpen, onClose }) => {
                               onClick={() => handleSelect(item.path)}
                               className="w-full flex items-center gap-4 px-3 py-3 rounded-xl hover:bg-muted/60 hover:text-primary transition-all text-left group"
                             >
-                              <div className="bg-muted p-2 rounded-lg group-hover:bg-background transition-colors shadow-sm">
-                                <item.icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                              <div className="bg-muted p-2 rounded-lg group-hover:bg-background transition-colors shadow-sm overflow-hidden shrink-0 flex items-center justify-center w-9 h-9">
+                                {item.image ? (
+                                  <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <item.icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                )}
                               </div>
-                              <div className="flex flex-col flex-1">
-                                <span className="font-medium text-foreground group-hover:text-primary transition-colors">
+                              <div className="flex flex-col flex-1 overflow-hidden">
+                                <span className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
                                   {item.title}
                                 </span>
-                                <span className="text-xs text-muted-foreground line-clamp-1">
+                                <span className="text-xs text-muted-foreground truncate">
                                   {item.description}
                                 </span>
                               </div>
@@ -146,11 +240,13 @@ const SearchModal = ({ isOpen, onClose }) => {
                     </div>
                   ))
                 ) : (
-                  <div className="py-14 text-center flex flex-col items-center justify-center">
-                    <Search className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-lg font-medium text-foreground">No results found</p>
-                    <p className="text-sm text-muted-foreground mt-1">Try searching for something else like "Jobs" or "Mentors".</p>
-                  </div>
+                  !isLoading && (
+                    <div className="py-14 text-center flex flex-col items-center justify-center">
+                      <Search className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                      <p className="text-lg font-medium text-foreground">No results found</p>
+                      <p className="text-sm text-muted-foreground mt-1">Try searching for something else like "Jobs" or "Mentors".</p>
+                    </div>
+                  )
                 )}
               </div>
               

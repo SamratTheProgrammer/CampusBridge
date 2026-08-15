@@ -40,4 +40,19 @@ router.post('/contact', async (req, res) => {
   }
 });
 
+// Get user support history
+router.get('/user/:clerkId', async (req, res) => {
+  try {
+    const { clerkId } = req.params;
+    if (!clerkId) {
+      return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+    const history = await SupportMessage.find({ clerkId }).sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, data: history });
+  } catch (error) {
+    console.error('Error fetching support history:', error);
+    return res.status(500).json({ success: false, message: 'Server error while fetching history.' });
+  }
+});
+
 export default router;

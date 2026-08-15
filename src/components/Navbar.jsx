@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Moon, Sun, Menu, X, Search } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
+import ThemeToggle from './ThemeToggle'
 import { useUser, useClerk } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import SearchModal from './SearchModal'
@@ -151,13 +152,7 @@ const Navbar = () => {
                   ⌘K
                 </kbd>
               </button>
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-md hover:bg-muted transition-colors"
-                aria-label="Toggle dark mode"
-              >
-                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </button>
+              <ThemeToggle />
               
               {!isLoaded ? (
                 <div className="w-20 h-8 bg-muted animate-pulse rounded-md"></div>
@@ -228,12 +223,7 @@ const Navbar = () => {
               >
                 <Search className="h-5 w-5" />
               </button>
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-md hover:bg-muted transition-colors"
-              >
-                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </button>
+              <ThemeToggle />
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="p-2 rounded-md hover:bg-muted transition-colors"

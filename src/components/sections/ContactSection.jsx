@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Mail, Send, Phone, MapPin, MessageSquare, CheckCircle2, ShieldAlert } from 'lucide-react'
+import { Mail, Send, Phone, MapPin, MessageSquare, CheckCircle2, ShieldAlert, History, Calendar } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
@@ -15,6 +15,23 @@ const ContactSection = () => {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [history, setHistory] = useState([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  const fetchHistory = async (clerkId) => {
+    setIsLoadingHistory(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/support/user/${clerkId}`)
+      const data = await res.json()
+      if (data.success) {
+        setHistory(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch history', err)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
 
   useEffect(() => {
     if (isSignedIn && user) {
@@ -26,6 +43,7 @@ const ContactSection = () => {
         email: prev.email || userEmail,
         clerkId: user.id
       }))
+      fetchHistory(user.id)
     }
   }, [user, isSignedIn])
 
@@ -49,6 +67,9 @@ const ContactSection = () => {
         setIsSubmitted(true)
         toast.success('Your message has been delivered to CampusBridge Support & Admin!')
         setFormData({ name: '', email: '', subject: '', message: '' })
+        if (isSignedIn && user) {
+           fetchHistory(user.id)
+        }
       } else {
         toast.error(data.message || 'Failed to send message.')
       }
@@ -115,6 +136,50 @@ const ContactSection = () => {
               <span className="font-bold text-foreground block mb-1">⚡ Fast-Track Account Appeal</span>
               If your account has been blocked or suspended by administration, please include your registered account email and reason for appeal.
             </div>
+
+            {isSignedIn && (
+              <div className="bg-card border border-border/50 rounded-3xl p-6 shadow-sm space-y-4 max-h-[400px] overflow-y-auto">
+                <div className="flex items-center gap-2 mb-2">
+                  <History className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-bold text-foreground">Your Support History</h3>
+                </div>
+                {isLoadingHistory ? (
+                  <p className="text-xs text-muted-foreground animate-pulse">Loading history...</p>
+                ) : history.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">You have no previous support requests.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {history.map((msg, idx) => (
+                      <div key={idx} className="border border-border/50 rounded-2xl p-4 bg-muted/20 space-y-2">
+                        <div className="flex justify-between items-start gap-2">
+                          <h4 className="font-bold text-foreground text-sm line-clamp-1" title={msg.subject}>{msg.subject || 'Inquiry'}</h4>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                            msg.status === 'Resolved' ? 'bg-emerald-500/10 text-emerald-500' :
+                            msg.status === 'Replied' ? 'bg-blue-500/10 text-blue-500' :
+                            'bg-amber-500/10 text-amber-500'
+                          }`}>
+                            {msg.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{msg.message}</p>
+                        
+                        {msg.adminReply && (
+                          <div className="mt-2 pt-2 border-t border-border/50">
+                            <span className="text-[10px] font-bold text-primary block mb-1">Admin Reply:</span>
+                            <p className="text-xs text-foreground bg-primary/5 p-2 rounded-lg">{msg.adminReply}</p>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-2">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(msg.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Form Side */}

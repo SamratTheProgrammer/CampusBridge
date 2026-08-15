@@ -28,11 +28,14 @@ const EventPopup = () => {
         const timer = setTimeout(() => {
           setShow(true)
           setHasShown(true)
+          
+          // Auto close after 8 seconds
+          setTimeout(() => setShow(false), 8000)
         }, delay)
         return () => clearTimeout(timer)
       }
     }
-  }, [globalTheme])
+  }, [globalTheme, location.pathname, hasShown])
 
   const handleClose = () => {
     setShow(false)
@@ -46,51 +49,37 @@ const EventPopup = () => {
   return (
     <AnimatePresence>
       {show && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center pointer-events-none p-4">
-          {/* Backdrop (optimized for performance by removing blur) */}
+        <div className="fixed top-4 left-0 right-0 z-[10000] flex justify-center pointer-events-none px-4">
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className={`absolute inset-0 pointer-events-auto ${['holi', 'diwali', 'independence'].includes(globalTheme) ? 'bg-black/60' : 'bg-background/60'}`}
-            onClick={handleClose}
-          />
-          
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="relative bg-card border-2 border-primary/30 shadow-2xl shadow-primary/20 rounded-3xl p-8 max-w-sm w-full text-center pointer-events-auto overflow-hidden"
+            initial={{ opacity: 0, y: -50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className={`border border-primary/30 shadow-lg shadow-primary/10 rounded-2xl p-4 w-full max-w-md pointer-events-auto relative overflow-hidden flex items-center gap-4 bg-card ${
+              globalTheme === 'independence' 
+                ? 'bg-gradient-to-b from-[#FF9933]/30 via-transparent to-[#138808]/30 dark:from-[#FF9933]/20 dark:to-[#138808]/20' 
+                : ''
+            }`}
           >
             {/* Decorative background blur */}
-            <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-24 h-24 bg-primary/20 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary ring-2 ring-primary/20">
+              <PartyPopper className="w-5 h-5 animate-bounce" />
+            </div>
+            
+            <div className="flex-1 pr-6">
+              <h2 className="text-sm font-bold text-foreground">
+                Wishing you and your family a Happy {getEventName(globalTheme)}!
+              </h2>
+            </div>
 
             <button 
               onClick={handleClose}
-              className="absolute top-4 right-4 text-muted-foreground hover:bg-muted p-1.5 rounded-full transition-colors z-10"
+              className="absolute top-2 right-2 text-muted-foreground hover:bg-muted p-1 rounded-full transition-colors z-10"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
-            
-            <div className="relative z-10 flex flex-col items-center">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-6 ring-8 ring-primary/5">
-                <PartyPopper className="w-10 h-10 animate-bounce" />
-              </div>
-              
-              <h2 className="text-3xl font-extrabold text-foreground mb-3 text-center px-4 leading-tight">
-                Wishing you and your family a Happy {getEventName(globalTheme)}.
-              </h2>
-              
-              <button
-                onClick={handleClose}
-                className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-95"
-              >
-                Thank you!
-              </button>
-            </div>
           </motion.div>
         </div>
       )}

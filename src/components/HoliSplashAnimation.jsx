@@ -1,41 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-// Easing functions
-const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-const easeInOutQuad = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-
-// Offscreen cache for rendering performance
-const plumeCache = {};
-const getPlumeCanvas = (colorStr) => {
-  if (plumeCache[colorStr]) return plumeCache[colorStr];
-  
-  const offCanvas = document.createElement('canvas');
-  const size = 128; // Reduced for massive performance gains, scaling up naturally blurs it
-  offCanvas.width = size;
-  offCanvas.height = size;
-  const offCtx = offCanvas.getContext('2d');
-  
-  // Parse hex color
-  let r = 255, g = 255, b = 255;
-  if (colorStr.startsWith('#')) {
-    r = parseInt(colorStr.slice(1, 3), 16);
-    g = parseInt(colorStr.slice(3, 5), 16);
-    b = parseInt(colorStr.slice(5, 7), 16);
-  }
-
-  // Create soft cinematic smoke plume gradient
-  const gradient = offCtx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
-  gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.6)`);
-  gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.2)`);
-  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-
-  offCtx.fillStyle = gradient;
-  offCtx.fillRect(0, 0, size, size);
-  
-  plumeCache[colorStr] = offCanvas;
-  return offCanvas;
-};
+// Helpers
+const randomRange = (min, max) => Math.random() * (max - min) + min;
 
 export default function HoliSplashAnimation() {
   const canvasRef = useRef(null);
@@ -47,11 +13,11 @@ export default function HoliSplashAnimation() {
     const container = containerRef.current;
     if (!canvas || !container) return;
 
-    const ctx = canvas.getContext('2d', { alpha: true });
+    const ctx = canvas.getContext('2d');
     let animationFrameId;
     let startTime = null;
     let lastTime = null;
-    const duration = 7000;
+    const duration = 8000; // Total duration of animation
 
     let w = window.innerWidth;
     let h = window.innerHeight;
@@ -65,70 +31,52 @@ export default function HoliSplashAnimation() {
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    const plumes = [];
-    const dustParticles = [];
+    const pichkaris = [];
+    const balloons = [];
+    const splashes = [];
+    const drops = [];
 
-    // Factory for spawning a cloud of smoke plumes and edge dust
-    const createBurst = (emitTime, startX, startY, vxBase, vyBase, color, plumeCount, dustCount) => {
-      // Spawn large smoke plumes
-      for (let i = 0; i < plumeCount; i++) {
-        const speed = Math.random() * 0.6 + 0.4;
-        const spread = (Math.random() - 0.5) * 1.2; // Cone spread
-        
-        const baseAngle = Math.atan2(vyBase, vxBase);
-        const finalAngle = baseAngle + spread;
-        const finalSpeed = Math.sqrt(vxBase*vxBase + vyBase*vyBase) * speed;
+    // --- PICHKARI (Water Gun Streams) ---
+    const createPichkari = (x, y, angle, color, startDelay, activeDuration) => {
+      pichkaris.push({ x, y, angle, color, startDelay, duration: activeDuration, active: false });
+    };
 
-        plumes.push({
-          x: startX * w,
-          y: startY * h,
-          vx: Math.cos(finalAngle) * finalSpeed,
-          vy: Math.sin(finalAngle) * finalSpeed,
-          radius: Math.random() * 300 + 150, // Massive soft plumes
-          color: color,
-          alpha: Math.random() * 0.4 + 0.4,
-          emitTime: emitTime,
-          drag: Math.random() * 0.02 + 0.95, // Glides further
-          turbulence: Math.random() * 1.5,
-          offset: Math.random() * 100
-        });
-      }
+    // Setup Pichkaris (from screen edges)
+    createPichkari(0, h * 0.8, -Math.PI / 4, '#FF0080', 500, 2000); // Bottom left shooting up right
+    createPichkari(w, h * 0.7, -Math.PI * 0.8, '#00CED1', 1200, 1800); // Bottom right shooting up left
+    createPichkari(0, h * 0.2, Math.PI / 8, '#FF8C00', 2500, 1500); // Top left shooting down right
+    createPichkari(w, h * 0.3, Math.PI * 0.9, '#8A2BE2', 3000, 2000); // Top right shooting down left
 
-      // Spawn fine edge dust
-      for (let i = 0; i < dustCount; i++) {
-        const speed = Math.random() * 1.2 + 0.8; // Dust flies faster and wider
-        const spread = (Math.random() - 0.5) * 2.0; 
-        const baseAngle = Math.atan2(vyBase, vxBase);
-        const finalAngle = baseAngle + spread;
-        const finalSpeed = Math.sqrt(vxBase*vxBase + vyBase*vyBase) * speed;
+    // --- WATER BALLOONS ---
+    const spawnBalloon = (x, y, vx, vy, color, delay) => {
+      balloons.push({ x, y, vx, vy, color, delay, active: false, burst: false, gravity: 0.15 });
+    };
 
-        dustParticles.push({
-          x: startX * w,
-          y: startY * h,
-          vx: Math.cos(finalAngle) * finalSpeed,
-          vy: Math.sin(finalAngle) * finalSpeed,
-          size: Math.random() * 4 + 1,
-          color: color,
-          alpha: Math.random() * 0.6 + 0.2,
-          emitTime: emitTime,
-          drag: Math.random() * 0.03 + 0.93,
-          turbulence: Math.random() * 3,
-          offset: Math.random() * 100
+    // Setup Balloons
+    spawnBalloon(-50, h * 0.6, 12, -15, '#FF0080', 200); // Left to right
+    spawnBalloon(w + 50, h * 0.5, -15, -18, '#00CED1', 1000); // Right to left
+    spawnBalloon(-50, h * 0.8, 18, -22, '#FF8C00', 2200); // High arc from left
+    spawnBalloon(w + 50, h * 0.9, -12, -24, '#8A2BE2', 3500); // High arc from right
+
+    const createSplash = (x, y, color) => {
+      // Create big paint splatter (main puddle)
+      splashes.push({ x, y, color, radius: 0, maxRadius: randomRange(80, 150), alpha: 1, age: 0 });
+      
+      // Create flying drops that explode outward
+      for(let i=0; i<40; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = randomRange(5, 20);
+        drops.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color,
+          size: randomRange(3, 10),
+          gravity: 0.3,
+          alpha: 1
         });
       }
     };
-
-    // 0-1s: Massive Red & Pink from Left
-    createBurst(0, -0.1, 0.4, 30, 8, '#FF1744', 20, 60); // Red
-    createBurst(200, -0.1, 0.6, 35, -5, '#FF4DA6', 20, 60); // Pink
-
-    // 0.4-1.4s: Massive Blue & Green from Right
-    createBurst(400, 1.1, 0.5, -35, -5, '#4D96FF', 20, 60); // Blue
-    createBurst(600, 1.1, 0.7, -40, -12, '#4CAF50', 20, 60); // Green
-
-    // 1-2s: Yellow & Orange from Corners
-    createBurst(1000, 0.1, -0.1, 20, 25, '#FFD93D', 15, 40); // Yellow (top left)
-    createBurst(1200, 0.9, 1.1, -20, -25, '#FF8A3D', 15, 40); // Orange (bottom right)
 
     const render = (timestamp) => {
       if (!startTime) {
@@ -140,123 +88,124 @@ export default function HoliSplashAnimation() {
       const dt = timestamp - lastTime;
       lastTime = timestamp;
 
-      const safeDt = Math.min(dt, 32); 
-      const timeScale = safeDt / 16.66;
+      // Global fade out near the end of the 8 seconds
+      let fadeOutAlpha = 1;
+      if (elapsed > duration - 1000) {
+         fadeOutAlpha = Math.max(0, 1 - (elapsed - (duration - 1000)) / 1000);
+      }
 
-      // Use a subtle blur on the entire canvas to melt the plumes together smoothly
-      // and contrast to keep colors vibrant.
       ctx.clearRect(0, 0, w, h);
-      
-      let globalAlpha = 1;
-      let upwardWind = 0; // The 4-6s upward drift
 
-      if (elapsed > 4000 && elapsed <= 6000) {
-        // 4-6s: translucent + wind drift
-        const t = (elapsed - 4000) / 2000;
-        globalAlpha = 1 - (easeInOutQuad(t) * 0.4); 
-        upwardWind = easeInOutQuad(t) * -2; // Start drifting up
-      } else if (elapsed > 6000) {
-        // 6-7s: dissolve
-        const t = (elapsed - 6000) / 1000;
-        globalAlpha = 0.6 * (1 - easeOutCubic(t));
-        upwardWind = -2 - (easeOutCubic(t) * 1); // Accelerate upward
-      }
+      // 1. Render Background Splashes (from burst balloons)
+      splashes.forEach(s => {
+         s.age += dt;
+         s.radius += (s.maxRadius - s.radius) * 0.15; // Ease out growing radius
+         s.alpha = Math.max(0, 1 - s.age / 3500); // Fade out over 3.5 seconds
 
-      // Use 'screen' blending to prevent muddy colors when clouds overlap
-      ctx.globalCompositeOperation = 'screen';
-
-      // 1. Draw volumetric smoke plumes
-      plumes.forEach(p => {
-        if (elapsed < p.emitTime) return;
-
-        p.x += p.vx * timeScale;
-        p.y += (p.vy + upwardWind) * timeScale;
-        
-        p.vx *= Math.pow(p.drag, timeScale);
-        p.vy *= Math.pow(p.drag, timeScale);
-
-        // Fluid turbulence
-        if (elapsed > 1000) {
-          const t = elapsed * 0.001;
-          p.x += Math.sin(t + p.offset) * p.turbulence * timeScale;
-          p.y += Math.cos(t + p.offset) * p.turbulence * timeScale;
-          // Plumes slowly expand as they dissipate
-          p.radius += 0.2 * timeScale;
-        }
-
-        const pAlpha = p.alpha * globalAlpha;
-        if (pAlpha <= 0.01) return;
-
-        ctx.globalAlpha = pAlpha;
-        const img = getPlumeCanvas(p.color);
-        // Draw the cached radial gradient image
-        ctx.drawImage(img, p.x - p.radius, p.y - p.radius, p.radius * 2, p.radius * 2);
+         ctx.globalAlpha = s.alpha * fadeOutAlpha;
+         ctx.fillStyle = s.color;
+         ctx.beginPath();
+         // Main splatter blob
+         ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+         ctx.fill();
+         
+         // Secondary irregular blobs around the splash
+         for(let i=0; i<6; i++) {
+             ctx.beginPath();
+             const angle = (i * Math.PI) / 3;
+             const dist = s.radius * 1.2;
+             ctx.arc(s.x + Math.sin(angle)*dist, s.y + Math.cos(angle)*dist, s.radius*0.3, 0, Math.PI*2);
+             ctx.fill();
+         }
       });
 
-      // 2. Draw fine edge dust
-      // Use 'lighter' for dust so it pops brightly
-      ctx.globalCompositeOperation = 'lighter';
-      dustParticles.forEach(d => {
-        if (elapsed < d.emitTime) return;
+      // 2. Process and Render Pichkaris (Water Guns)
+      ctx.globalAlpha = 0.9 * fadeOutAlpha;
+      pichkaris.forEach(p => {
+        if (elapsed > p.startDelay && elapsed < p.startDelay + p.duration) {
+          // Spawn continuous stream of drops every frame
+          for(let i=0; i<6; i++) {
+            const spread = randomRange(-0.12, 0.12);
+            const speed = randomRange(15, 28);
+            drops.push({
+              x: p.x, 
+              y: p.y,
+              vx: Math.cos(p.angle + spread) * speed,
+              vy: Math.sin(p.angle + spread) * speed,
+              color: p.color,
+              size: randomRange(3, 12),
+              gravity: 0.15,
+              alpha: 1
+            });
+          }
+        }
+      });
 
-        d.x += d.vx * timeScale;
-        d.y += (d.vy + upwardWind * 1.5) * timeScale; // Dust catches wind faster
-        
-        d.vx *= Math.pow(d.drag, timeScale);
-        d.vy *= Math.pow(d.drag, timeScale);
+      // 3. Process and Render Drops
+      for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i];
+        d.x += d.vx;
+        d.y += d.vy;
+        d.vy += d.gravity; // Gravity pulling drops down
+        d.alpha -= 0.015; // Drops fade as they fly
 
-        if (elapsed > 1000) {
-          const t = elapsed * 0.002;
-          d.x += Math.sin(t + d.offset) * d.turbulence * timeScale;
-          d.y += Math.cos(t + d.offset) * d.turbulence * timeScale;
+        if (d.alpha <= 0 || d.y > h + 50) {
+          drops.splice(i, 1);
+          continue;
         }
 
-        const dAlpha = d.alpha * globalAlpha;
-        if (dAlpha <= 0.01) return;
-
-        ctx.globalAlpha = dAlpha;
+        ctx.globalAlpha = Math.max(0, d.alpha * fadeOutAlpha);
         ctx.fillStyle = d.color;
-        // Small arc for dust
         ctx.beginPath();
-        ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+        // Drop shape (elongated horizontally based on velocity)
+        const stretch = 1 + Math.abs(d.vx)*0.02 + Math.abs(d.vy)*0.02;
+        ctx.ellipse(d.x, d.y, d.size * stretch, d.size, Math.atan2(d.vy, d.vx), 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      // 4. Process and Render Balloons
+      ctx.globalAlpha = 1 * fadeOutAlpha;
+      balloons.forEach(b => {
+        if (elapsed > b.delay && !b.burst) {
+          b.active = true;
+        }
+
+        if (b.active) {
+          b.x += b.vx;
+          b.y += b.vy;
+          b.vy += b.gravity;
+
+          // Burst condition: falls below 70% of screen height and is falling downwards
+          if (b.y > h * 0.7 && b.vy > 0) {
+            b.burst = true;
+            b.active = false;
+            createSplash(b.x, b.y, b.color);
+            
+            // Subtle screen shake on burst
+            const shakeX = randomRange(-10, 10);
+            const shakeY = randomRange(-10, 10);
+            container.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
+            setTimeout(() => {
+                if(containerRef.current) containerRef.current.style.transform = 'translate(0px, 0px)';
+            }, 60);
+          }
+
+          // Draw unburst Balloon
+          if (!b.burst) {
+            ctx.fillStyle = b.color;
+            ctx.beginPath();
+            // Teardrop / oval shape aligned with trajectory
+            ctx.ellipse(b.x, b.y, 25, 30, Math.atan2(b.vy, b.vx) + Math.PI/2, 0, Math.PI*2);
+            ctx.fill();
+            
+            // White highlight reflection for a glossy wet balloon look
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.beginPath();
+            ctx.arc(b.x - 8, b.y - 8, 6, 0, Math.PI*2);
+            ctx.fill();
+          }
+        }
       });
-
-      // 3. Center Masking (The Clear Reveal)
-      // We use destination-out to gently punch a hole in the rendered smoke
-      if (elapsed > 2000) {
-        ctx.globalCompositeOperation = 'destination-out';
-        let maskOpacity = 0;
-        
-        if (elapsed <= 4000) {
-           // Slowly reveal the center between 2-4s
-           maskOpacity = easeInOutQuad((elapsed - 2000) / 2000) * 0.85;
-        } else {
-           maskOpacity = 0.85;
-        }
-
-        if (maskOpacity > 0) {
-           const maskRadius = Math.min(w, h) * 0.35; // 35% of screen
-           const maskGradient = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, maskRadius);
-           maskGradient.addColorStop(0, `rgba(0,0,0, ${maskOpacity})`);
-           maskGradient.addColorStop(0.5, `rgba(0,0,0, ${maskOpacity * 0.5})`);
-           maskGradient.addColorStop(1, 'rgba(0,0,0,0)');
-           
-           ctx.globalAlpha = 1;
-           ctx.fillStyle = maskGradient;
-           ctx.fillRect(0, 0, w, h);
-        }
-      }
-
-      // Screen shake (highest intensity during main collisions)
-      let shakeX = 0;
-      let shakeY = 0;
-      if (elapsed > 400 && elapsed < 1400) {
-        const shakeIntensity = (1 - Math.abs(elapsed - 900) / 500) * 12; 
-        shakeX = (Math.random() - 0.5) * shakeIntensity;
-        shakeY = (Math.random() - 0.5) * shakeIntensity;
-      }
-      container.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
 
       if (elapsed < duration) {
         animationFrameId = requestAnimationFrame(render);
@@ -284,31 +233,14 @@ export default function HoliSplashAnimation() {
         left: 0,
         width: '100vw',
         height: '100vh',
-        zIndex: 9990,
+        zIndex: 9999, // Render above the navbar and UI
         pointerEvents: 'none',
         overflow: 'hidden'
       }}
     >
       <canvas
         ref={canvasRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          // Removed expensive CSS filter for massive performance boost
-        }}
-      />
-      
-      {/* Noise overlay to add grain texture to the smoke clouds */}
-      <div 
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          opacity: 0.08, // Very low opacity, removed mixBlendMode for performance
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
-        }}
+        style={{ width: '100%', height: '100%' }}
       />
     </div>
   );

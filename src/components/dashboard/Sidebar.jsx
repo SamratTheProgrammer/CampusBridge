@@ -67,7 +67,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   ]
 
   return (
-    <div className={`border-r border-border/40 bg-card h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} z-40`}>
+    <div className={`border-r border-border/40 bg-card flex flex-col h-full w-full relative transition-all duration-300 sidebar-container`}>
       <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between'}`}>
         <Link to="/" className="flex items-center gap-2 overflow-hidden">
           {isCollapsed ? (

@@ -17,6 +17,7 @@ import sessionRoutes from './routes/sessionRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
+import searchRoutes from './routes/searchRoutes.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
 import Block from './models/Block.js';
@@ -30,6 +31,10 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://192.168.56.1:5173',
+  'http://192.168.242.1:5173',
+  'http://192.168.209.1:5173',
+  'http://10.83.114.85:5173',
   'https://campus-bridge-x5rl.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -128,6 +133,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/search', searchRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {

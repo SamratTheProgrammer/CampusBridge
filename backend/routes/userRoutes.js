@@ -243,7 +243,8 @@ router.put('/:clerkId/profile', async (req, res) => {
       imageUrl,
       coverPhoto,
       yearsOfExperience,
-      profileVisibility
+      profileVisibility,
+      role
     } = req.body;
 
     if (firstName !== undefined) targetUser.firstName = firstName;
@@ -262,6 +263,17 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (coverPhoto !== undefined) targetUser.coverPhoto = coverPhoto;
     if (yearsOfExperience !== undefined) targetUser.yearsOfExperience = yearsOfExperience;
     if (profileVisibility !== undefined) targetUser.profileVisibility = profileVisibility;
+
+    // Manual role update
+    if (role !== undefined && ['student', 'mentor', 'alumni', 'admin'].includes(role)) {
+      targetUser.role = role;
+    } else if (targetUser.role === 'student') {
+      // Auto-detect alumni status
+      // If user has both education and experience (working), automatically promote to alumni
+      if (targetUser.education && targetUser.education.length > 0 && targetUser.experience && targetUser.experience.length > 0) {
+        targetUser.role = 'alumni';
+      }
+    }
 
     await targetUser.save();
     res.status(200).json(targetUser);

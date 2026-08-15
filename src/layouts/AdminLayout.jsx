@@ -25,13 +25,12 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { useClerk } from '@clerk/clerk-react'
-import { useTheme } from '../components/ThemeProvider'
+import ThemeToggle from '../components/ThemeToggle'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
 import logoHalf from '../assets/CampusLogoHalf.png'
 
 const AdminLayout = () => {
-  const { theme, setTheme } = useTheme()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const navigate = useNavigate()
@@ -56,7 +55,6 @@ const AdminLayout = () => {
     { name: 'Mentor Verification', path: '/admin/verification', icon: UserCheck },
     { name: 'Mentorship', path: '/admin/mentorship', icon: HelpingHand },
     { name: 'Jobs & Internships', path: '/admin/jobs', icon: Briefcase },
-    { name: 'Companies', path: '/admin/companies', icon: Building2 },
     { name: 'Events', path: '/admin/events', icon: Calendar },
     { name: 'Support Messages', path: '/admin/messages', icon: Mail },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
@@ -69,9 +67,9 @@ const AdminLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="flex min-h-screen bg-transparent relative">
       {/* Sidebar for Desktop */}
-      <div className={`hidden md:block border-r border-border/50 bg-card fixed inset-y-0 left-0 z-40 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
+      <div className={`hidden md:block border-r border-border/50 bg-card fixed inset-y-0 left-0 z-40 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} sidebar-container`}>
         <div className="h-full flex flex-col justify-between py-6">
           <div>
             {/* Logo */}
@@ -128,11 +126,11 @@ const AdminLayout = () => {
       <div className={`fixed inset-0 z-50 transition-all duration-300 md:hidden ${isMobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
         {/* Overlay */}
         <div 
-          className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
         {/* Drawer container */}
-        <div className={`absolute top-0 bottom-0 left-0 w-64 bg-card border-r border-border/50 py-6 transition-transform duration-300 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className={`absolute top-0 bottom-0 left-0 w-64 bg-card border-r border-border/50 py-6 transition-transform duration-300 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sidebar-container`}>
           <div className="px-6 flex items-center justify-between mb-8">
             <Link to="/admin" className="flex items-center">
               <img src={logoLight} alt="CampusBridge" className="h-16 w-auto block dark:hidden" />
@@ -177,7 +175,7 @@ const AdminLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen transition-all duration-300`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <button 
               className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
@@ -206,12 +204,7 @@ const AdminLayout = () => {
 
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Light/Dark Toggle */}
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
-            >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+            <ThemeToggle />
 
             {/* Notifications */}
             <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors relative">

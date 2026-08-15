@@ -4,7 +4,7 @@ import Sidebar from '../components/dashboard/Sidebar'
 import PageTransition from '../components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
 import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2 } from 'lucide-react'
-import { useTheme } from '../components/ThemeProvider'
+import ThemeToggle from '../components/ThemeToggle'
 import { useUser } from '@clerk/clerk-react'
 import NotificationDropdown from '../components/NotificationDropdown'
 import VideoCallModal from '../components/VideoCallModal'
@@ -37,7 +37,6 @@ const MOCK_EVENTS = [
 ]
 
 const DashboardLayout = () => {
-  const { theme, setTheme } = useTheme()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -194,7 +193,7 @@ const DashboardLayout = () => {
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
@@ -207,7 +206,7 @@ const DashboardLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen transition-all duration-300`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <button
               className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
@@ -326,12 +325,7 @@ const DashboardLayout = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
-            >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+            <ThemeToggle />
             <NotificationDropdown />
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
               {isLoaded && user ? (

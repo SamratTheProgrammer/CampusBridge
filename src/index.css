@@ -124,6 +124,27 @@
     --ring: 50 100% 50%;
   }
 
+  /* Immersive Diwali Theme (Festival of Lights) */
+  html.event-diwali .bg-primary {
+    background: linear-gradient(135deg, #FFA500, #FF4500, #FFD700) !important;
+    color: white !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(255, 165, 0, 0.4);
+  }
+  html.event-diwali .bg-primary:hover {
+    background: linear-gradient(135deg, #ffb31a, #ff5c1a, #ffe033) !important;
+    box-shadow: 0 6px 20px rgba(255, 165, 0, 0.6);
+  }
+
+  /* Glassmorphism for Diwali cards */
+  html.event-diwali .bg-card {
+    background-color: hsl(var(--card) / 0.65) !important;
+    backdrop-filter: blur(12px);
+    border-color: hsl(var(--border) / 0.5) !important;
+  }
+
+
   /* HOLI THEME */
   .event-holi {
     --background: 300 100% 98%;
@@ -169,6 +190,24 @@
     --ring: 320 100% 60%;
   }
 
+  /* Multi-color Holi Buttons */
+  html.event-holi .bg-primary {
+    background: linear-gradient(45deg, #FF0080, #FF8C00, #00CED1) !important;
+    color: white !important;
+    border: none !important;
+  }
+  html.event-holi .bg-primary:hover {
+    background: linear-gradient(45deg, #E60073, #E67E00, #00B8BA) !important;
+  }
+
+  /* Glassmorphism for Holi cards so the colorful background shines through */
+  html.event-holi .bg-card {
+    background-color: hsl(var(--card) / 0.6) !important;
+    backdrop-filter: blur(12px);
+    border-color: hsl(var(--border) / 0.4) !important;
+  }
+
+
   /* INDEPENDENCE THEME */
   .event-independence {
     --background: 0 0% 100%;
@@ -177,9 +216,9 @@
     --card-foreground: 222 84% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 84% 15%;
-    --primary: 29 100% 60%;
+    --primary: 29 100% 60%; /* Saffron */
     --primary-foreground: 0 0% 100%;
-    --secondary: 115 89% 30%;
+    --secondary: 115 89% 30%; /* Green */
     --secondary-foreground: 0 0% 100%;
     --muted: 115 20% 95%;
     --muted-foreground: 115 15% 40%;
@@ -199,9 +238,9 @@
     --card-foreground: 0 0% 95%;
     --popover: 222 84% 7%;
     --popover-foreground: 0 0% 95%;
-    --primary: 29 100% 60%;
+    --primary: 29 100% 60%; /* Saffron */
     --primary-foreground: 0 0% 0%;
-    --secondary: 115 89% 30%;
+    --secondary: 115 89% 30%; /* Green */
     --secondary-foreground: 0 0% 100%;
     --muted: 222 84% 15%;
     --muted-foreground: 222 50% 60%;
@@ -213,6 +252,71 @@
     --input: 222 84% 20%;
     --ring: 240 100% 50%;
   }
+
+  /* Tricolor Buttons */
+  html.event-independence .bg-primary {
+    background: linear-gradient(90deg, #FF9933 0%, #FFFFFF 50%, #138808 100%) !important;
+    color: #000080 !important; /* Navy Blue text (Chakra color) for visibility */
+    text-shadow: 0 1px 2px rgba(255,255,255,0.5); /* subtle shadow for readability */
+    border: none !important;
+  }
+  html.event-independence .bg-primary:hover {
+    background: linear-gradient(90deg, #e68a2e 0%, #f0f0f0 50%, #107a07 100%) !important;
+  }
+
+  /* Glassmorphism for cards so the flag background shines through */
+  html.event-independence .bg-card {
+    background-color: hsl(var(--card) / 0.5) !important;
+    backdrop-filter: blur(12px);
+    border-color: hsl(var(--border) / 0.3) !important;
+  }
+}
+
+html.event-independence body {
+  background-image: 
+    linear-gradient(to bottom, rgba(255, 153, 51, 0.4) 0%, rgba(255, 255, 255, 0.7) 50%, rgba(19, 136, 8, 0.4) 100%),
+    radial-gradient(ellipse at top right, hsl(var(--primary) / 0.07), transparent 40%),
+    radial-gradient(ellipse at bottom left, hsl(var(--secondary) / 0.07), transparent 40%);
+}
+
+html.dark.event-independence body {
+  background-image: 
+    linear-gradient(to bottom, rgba(255, 153, 51, 0.3) 0%, rgba(0, 0, 0, 0.3) 50%, rgba(19, 136, 8, 0.3) 100%),
+    radial-gradient(ellipse at top right, hsl(var(--primary) / 0.07), transparent 40%),
+    radial-gradient(ellipse at bottom left, hsl(var(--secondary) / 0.07), transparent 40%);
+}
+
+html.event-holi body {
+  background-image: 
+    radial-gradient(circle at top left, rgba(255, 0, 128, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at top right, rgba(0, 206, 209, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at bottom left, rgba(255, 140, 0, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at bottom right, rgba(128, 0, 255, 0.3) 0%, transparent 50%);
+}
+
+html.dark.event-holi body {
+  background-image: 
+    radial-gradient(circle at top left, rgba(255, 0, 128, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at top right, rgba(0, 206, 209, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at bottom left, rgba(255, 140, 0, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at bottom right, rgba(128, 0, 255, 0.2) 0%, transparent 50%);
+}
+
+/* Diwali Background Gradients (Glowing Lights & Diyas) */
+html.event-diwali body {
+  background-color: #fff9e6;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(255, 165, 0, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(255, 69, 0, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.15) 0%, transparent 50%);
+}
+
+html.dark.event-diwali body {
+  background-color: #0a0500;
+  background-image: 
+    radial-gradient(circle at 15% 25%, rgba(255, 165, 0, 0.25) 0%, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(255, 69, 0, 0.25) 0%, transparent 45%),
+    radial-gradient(circle at 50% 10%, rgba(255, 215, 0, 0.25) 0%, transparent 40%);
 }
 
 body {

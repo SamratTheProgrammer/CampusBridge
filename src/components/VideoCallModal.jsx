@@ -46,6 +46,7 @@ const VideoCallModal = ({ currentUser }) => {
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   // Live Timer State
   const [callDuration, setCallDuration] = useState(0); // in seconds
@@ -299,6 +300,7 @@ const VideoCallModal = ({ currentUser }) => {
     setIsVideoOff(false);
     setIsSpeakerOn(true);
     setIsScreenSharing(false);
+    setIsMinimized(false);
     setCallDuration(0);
     pendingOfferRef.current = null;
     iceCandidateQueueRef.current = [];
@@ -944,7 +946,7 @@ const VideoCallModal = ({ currentUser }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+      <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isMinimized ? 'pointer-events-none' : 'bg-black/85 backdrop-blur-md'}`}>
         
         {/* PREMIUM INCOMING CALL SCREEN WITH SELF CAMERA PREVIEW */}
         {callState === 'incoming' && (
@@ -1042,6 +1044,7 @@ const VideoCallModal = ({ currentUser }) => {
 
         {/* CALLING / CONNECTED SCREEN */}
         {(callState === 'calling' || callState === 'connected') && (
+          !isMinimized ? (
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -1241,8 +1244,60 @@ const VideoCallModal = ({ currentUser }) => {
               >
                 {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
               </button>
+
+              {/* Minimize to Background UI */}
+              <button
+                onClick={() => {
+                  setIsFullscreen(false);
+                  setIsMinimized(true);
+                }}
+                className="p-3.5 text-white/70 hover:text-white transition-colors"
+                title="Minimize Call"
+              >
+                <Minimize2 className="w-5 h-5" />
+              </button>
             </div>
           </motion.div>
+          ) : (
+            <motion.div
+              key="minimized-call"
+              drag
+              dragMomentum={false}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="pointer-events-auto fixed bottom-6 right-6 bg-zinc-900 border border-white/20 shadow-2xl rounded-2xl overflow-hidden w-64 group flex flex-col z-[250] cursor-move"
+            >
+              {/* Hidden Video Elements to keep streams active */}
+              <video ref={setRemoteVideoRef} autoPlay playsInline className="hidden" />
+              <video ref={setLocalVideoRef} autoPlay playsInline muted className="hidden" />
+
+              <div className="flex items-center gap-3 p-3 cursor-pointer bg-zinc-900 hover:bg-zinc-800 transition-colors" onClick={() => setIsMinimized(false)}>
+                <img
+                  src={partner?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${partner?.name}`}
+                  alt={partner?.name}
+                  className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/50"
+                />
+                <div className="flex-1 truncate">
+                  <h4 className="text-white font-bold text-sm truncate">{partner?.name}</h4>
+                  <p className="text-xs text-primary font-medium">{formatTimer(callDuration)}</p>
+                </div>
+              </div>
+              
+              {/* Hover Controls */}
+              <div className="h-0 opacity-0 group-hover:h-12 group-hover:opacity-100 overflow-hidden transition-all duration-300 bg-zinc-950 flex items-center justify-around px-2 border-t border-white/5">
+                <button onClick={toggleMute} className={`p-2 rounded-full ${isMuted ? 'text-red-400 bg-red-500/20' : 'text-white hover:bg-white/10'}`}>
+                  {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+                <button onClick={toggleSpeaker} className={`p-2 rounded-full ${!isSpeakerOn ? 'text-amber-500 bg-amber-500/20' : 'text-white hover:bg-white/10'}`}>
+                  {isSpeakerOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+                <button onClick={endCall} className="p-2 rounded-full text-red-500 hover:bg-red-500/20">
+                  <PhoneOff className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          )
         )}
       </div>
     </AnimatePresence>
