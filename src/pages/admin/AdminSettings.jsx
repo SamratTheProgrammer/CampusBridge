@@ -24,8 +24,7 @@ const AdminSettings = () => {
   const [authSettings, setAuthSettings] = useState({
     allowSignups: true,
     requireEmailVerification: true,
-    enableGoogleAuth: true,
-    enableMagicLinks: false
+    enableGoogleAuth: true
   })
   const [isAuthLoading, setIsAuthLoading] = useState(false)
 
@@ -39,11 +38,11 @@ const AdminSettings = () => {
   })
   const [isEmailLoading, setIsEmailLoading] = useState(false)
 
-  // Security State
   const [securitySettings, setSecuritySettings] = useState({
     requireTwoFactorAuth: false,
     enforceStrongPasswords: true,
-    sessionTimeoutMinutes: 60,
+    sessionTimeoutValue: 60,
+    sessionTimeoutUnit: 'minutes',
     maxFailedLoginAttempts: 5,
     allowedIPRanges: ''
   })
@@ -575,8 +574,7 @@ const AdminSettings = () => {
                 {[
                   { key: 'allowSignups', title: 'Allow New Signups', desc: 'Enable or disable new user registrations across the platform.' },
                   { key: 'requireEmailVerification', title: 'Require Email Verification', desc: 'Force users to verify their email before accessing the platform.' },
-                  { key: 'enableGoogleAuth', title: 'Enable Google SSO', desc: 'Allow users to sign in using their Google account.' },
-                  { key: 'enableMagicLinks', title: 'Enable Magic Links', desc: 'Allow passwordless sign in via email magic links.' }
+                  { key: 'enableGoogleAuth', title: 'Enable Google SSO', desc: 'Allow users to sign in using their Google account.' }
                 ].map(setting => (
                   <div key={setting.key} className="flex items-center justify-between p-4 bg-muted/40 border border-border/50 rounded-xl">
                     <div>
@@ -656,19 +654,31 @@ const AdminSettings = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Session Timeout (Minutes)</label>
-                    <input 
-                      type="number" 
-                      name="sessionTimeoutMinutes"
-                      value={securitySettings.sessionTimeoutMinutes}
-                      onChange={handleSecurityInputChange}
-                      min="5"
-                      className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-                      required
-                    />
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Session Timeout</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="number" 
+                        name="sessionTimeoutValue"
+                        value={securitySettings.sessionTimeoutValue}
+                        onChange={handleSecurityInputChange}
+                        min="1"
+                        className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                        required
+                      />
+                      <select
+                        name="sessionTimeoutUnit"
+                        value={securitySettings.sessionTimeoutUnit}
+                        onChange={handleSecurityInputChange}
+                        className="px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all outline-none"
+                      >
+                        <option value="minutes">Minutes</option>
+                        <option value="days">Days</option>
+                        <option value="months">Months</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Max Failed Logins</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Global API Rate Limit</label>
                     <input 
                       type="number" 
                       name="maxFailedLoginAttempts"
@@ -678,6 +688,7 @@ const AdminSettings = () => {
                       className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
                       required
                     />
+                    <p className="text-[10px] text-muted-foreground mt-1">Max API requests per 15 minutes per IP address.</p>
                   </div>
                 </div>
 

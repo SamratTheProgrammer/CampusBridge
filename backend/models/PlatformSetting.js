@@ -10,8 +10,7 @@ const platformSettingSchema = new mongoose.Schema(
     authSettings: {
       allowSignups: { type: Boolean, default: true },
       requireEmailVerification: { type: Boolean, default: true },
-      enableGoogleAuth: { type: Boolean, default: true },
-      enableMagicLinks: { type: Boolean, default: false }
+      enableGoogleAuth: { type: Boolean, default: true }
     },
     emailSettings: {
       enableEmailNotifications: { type: Boolean, default: true },
@@ -23,7 +22,8 @@ const platformSettingSchema = new mongoose.Schema(
     securitySettings: {
       requireTwoFactorAuth: { type: Boolean, default: false },
       enforceStrongPasswords: { type: Boolean, default: true },
-      sessionTimeoutMinutes: { type: Number, default: 60 },
+      sessionTimeoutValue: { type: Number, default: 60 },
+      sessionTimeoutUnit: { type: String, enum: ['minutes', 'days', 'months'], default: 'minutes' },
       maxFailedLoginAttempts: { type: Number, default: 5 },
       allowedIPRanges: { type: String, default: '' }
     },

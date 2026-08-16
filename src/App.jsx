@@ -19,7 +19,7 @@ import EventPopup from './components/EventPopup'
 import IndependenceDayConfetti from './components/IndependenceDayConfetti'
 import HoliSplashAnimation from './components/HoliSplashAnimation'
 import DiwaliFireworks from './components/DiwaliFireworks'
-
+import SessionManager from './components/SessionManager'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -239,6 +239,7 @@ function App() {
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
         <Router>
+          <SessionManager />
           <ScrollToHash />
           <ErrorBoundary>
             <AnimatedRoutes />

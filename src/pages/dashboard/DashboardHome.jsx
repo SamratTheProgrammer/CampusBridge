@@ -493,7 +493,8 @@ const DashboardHome = () => {
             <img
               src={user?.imageUrl || getAvatarFallback(user?.fullName)}
               alt="Profile"
-              className="w-12 h-12 rounded-full object-cover shrink-0"
+              className="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => navigate('/dashboard/profile')}
             />
             <div className={`flex-1 rounded-xl overflow-hidden ${selectedGradient || 'bg-background border border-border/50'}`}>
               <textarea 

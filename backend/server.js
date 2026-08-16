@@ -9,6 +9,11 @@ import webhookRoutes from './routes/webhookRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import postRoutes from './routes/postRoutes.js';
 import connectionRoutes from './routes/connectionRoutes.js';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
+import xss from 'xss-clean';
+import hpp from 'hpp';
+import rateLimit from 'express-rate-limit';
 import notificationRoutes, { createNotificationHelper } from './routes/notificationRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
@@ -115,6 +120,41 @@ app.use((req, res, next) => {
   next();
 });
 
+// Set security HTTP headers
+app.use(helmet());
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS
+app.use(xss());
+
+// Prevent parameter pollution
+app.use(hpp());
+
+// Global Rate Limiting (dynamic based on DB setting, or default to 100/15min, and auth routes to maxFailedLoginAttempts)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: async (req, res) => {
+    try {
+      const PlatformSetting = (await import('./models/PlatformSetting.js')).default;
+      const setting = await PlatformSetting.findOne();
+      // Apply the user-defined max failed logins limit globally as requested, or a fallback.
+      // The user requested: "API te rate limit lagabe 5 barer beshi hobe na"
+      const limit = setting?.securitySettings?.maxFailedLoginAttempts || 5;
+      return limit;
+    } catch (err) {
+      return 5; // fallback
+    }
+  },
+  message: { success: false, message: 'Too many requests from this IP, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to all /api routes
+app.use('/api', apiLimiter);
+
 // Mount webhook routes before express.json() so it can access the raw body
 app.use('/api/webhooks', webhookRoutes);
 
@@ -142,6 +182,27 @@ app.get('/health', (req, res) => {
 
 app.get('/', (req, res) => {
   res.status(200).json({ message: 'CampusBridge API is running!' });
+});
+
+app.get('/api/settings/public', async (req, res) => {
+  try {
+    const PlatformSetting = (await import('./models/PlatformSetting.js')).default;
+    const setting = await PlatformSetting.findOne();
+    res.status(200).json({ 
+      success: true, 
+      authSettings: setting?.authSettings || {
+        allowSignups: true,
+        requireEmailVerification: true,
+        enableGoogleAuth: true
+      },
+      securitySettings: {
+        sessionTimeoutValue: setting?.securitySettings?.sessionTimeoutValue || 60,
+        sessionTimeoutUnit: setting?.securitySettings?.sessionTimeoutUnit || 'minutes'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch public settings' });
+  }
 });
 
 // Socket.io Real-Time Live Chat & WebRTC Calling Connection
