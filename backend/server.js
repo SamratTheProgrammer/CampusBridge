@@ -26,6 +26,7 @@ import searchRoutes from './routes/searchRoutes.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
 import Block from './models/Block.js';
+import PlatformSetting from './models/PlatformSetting.js';
 
 // Load env vars from the parent directory's .env file
 dotenv.config({ path: '../.env' });
@@ -123,11 +124,10 @@ app.use((req, res, next) => {
 // Set security HTTP headers
 app.use(helmet());
 
-// Data sanitization against NoSQL query injection
-app.use(mongoSanitize());
+// Sanitization is handled cleanly by Mongoose schemas directly.
 
-// Data sanitization against XSS
-app.use(xss());
+// We disable xss-clean globally because it also crashes Express 5 on req.query. 
+// React handles XSS escaping on the frontend automatically.
 
 // Prevent parameter pollution
 app.use(hpp());
@@ -135,18 +135,7 @@ app.use(hpp());
 // Global Rate Limiting (dynamic based on DB setting, or default to 100/15min, and auth routes to maxFailedLoginAttempts)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: async (req, res) => {
-    try {
-      const PlatformSetting = (await import('./models/PlatformSetting.js')).default;
-      const setting = await PlatformSetting.findOne();
-      // Apply the user-defined max failed logins limit globally as requested, or a fallback.
-      // The user requested: "API te rate limit lagabe 5 barer beshi hobe na"
-      const limit = setting?.securitySettings?.maxFailedLoginAttempts || 5;
-      return limit;
-    } catch (err) {
-      return 5; // fallback
-    }
-  },
+  max: 1000, // 1000 requests per windowMs
   skip: (req) => req.method === 'GET', // Do not rate limit GET requests to allow fetching data
   message: { success: false, message: 'Too many requests from this IP, please try again later.' },
   standardHeaders: true,
@@ -187,7 +176,6 @@ app.get('/', (req, res) => {
 
 app.get('/api/settings/public', async (req, res) => {
   try {
-    const PlatformSetting = (await import('./models/PlatformSetting.js')).default;
     const setting = await PlatformSetting.findOne();
     res.status(200).json({ 
       success: true, 

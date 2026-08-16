@@ -28,7 +28,8 @@ const enrichCommentsList = async (comments) => {
             author: replyUser ? {
               name: replyUser.firstName + (replyUser.lastName ? ' ' + replyUser.lastName : ''),
               image: replyUser.imageUrl,
-            } : { name: 'Unknown User', image: null }
+              role: replyUser.role,
+            } : { name: 'Unknown User', image: null, role: 'student' }
           };
         })
       );
@@ -38,7 +39,8 @@ const enrichCommentsList = async (comments) => {
         author: commentUser ? {
           name: commentUser.firstName + (commentUser.lastName ? ' ' + commentUser.lastName : ''),
           image: commentUser.imageUrl,
-        } : { name: 'Unknown User', image: null },
+          role: commentUser.role,
+        } : { name: 'Unknown User', image: null, role: 'student' },
         replies: enrichedReplies
       };
     })
