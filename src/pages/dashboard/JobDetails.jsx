@@ -103,18 +103,23 @@ const JobDetails = () => {
       // EmailJS integration
       const templateParams = {
         to_email: user.primaryEmailAddress?.emailAddress, // Send confirmation to the applicant
+        user_email: user.primaryEmailAddress?.emailAddress, // alias
+        email: user.primaryEmailAddress?.emailAddress, // alias
+        reply_to: job.postedBy?.email, // alias
         to_name: user.fullName || user.firstName || 'Applicant',
-        recruiter_email: job.postedBy?.email, // Keep recruiter email just in case the template needs it
+        from_name: 'CampusBridge',
+        recruiter_email: job.postedBy?.email,
         recruiter_name: job.postedBy ? `${job.postedBy.firstName} ${job.postedBy.lastName || ''}`.trim() : 'Mentor',
         applicant_name: user.fullName || user.firstName,
-        applicant_email: user.primaryEmailAddress?.emailAddress || 'Student',
+        applicant_email: user.primaryEmailAddress?.emailAddress,
         job_title: job.title,
         job_company: job.company,
         job_location: job.location,
         job_type: job.type,
         job_salary: job.salary || 'Not specified',
         resume_link: finalResumeLink,
-        cover_letter: coverLetter || 'No cover letter provided.'
+        cover_letter: coverLetter || 'No cover letter provided.',
+        message: `You have successfully applied for the ${job.title} role at ${job.company}.`
       };
 
       try {
@@ -124,12 +129,13 @@ const JobDetails = () => {
           templateParams,
           'JAA5yhiRssyoyqKqW'
         );
+        toast.success('Application submitted and email sent!')
       } catch (emailErr) {
         console.error('Email failed to send:', emailErr);
-        // We don't throw here to not break the application success state
+        const errMsg = emailErr?.text || emailErr?.message || 'Check your EmailJS config/quota';
+        toast.error(`Applied, but email failed: ${errMsg}`);
       }
 
-      toast.success('Application submitted successfully!')
       setHasApplied(true)
       setIsApplyModalOpen(false)
     } catch (err) {

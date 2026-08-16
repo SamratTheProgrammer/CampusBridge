@@ -147,6 +147,7 @@ const apiLimiter = rateLimit({
       return 5; // fallback
     }
   },
+  skip: (req) => req.method === 'GET', // Do not rate limit GET requests to allow fetching data
   message: { success: false, message: 'Too many requests from this IP, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
