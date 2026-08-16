@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Send, Loader2, CornerDownRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import API_BASE from '../utils/api'
+import API_BASE from '../utils/api';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallback }) => {
   const [commentText, setCommentText] = useState('');
@@ -10,6 +11,22 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
   const [replyingCommentId, setReplyingCommentId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleUserClick = (userId, userRole) => {
+    if (!userId) return;
+    if (userId === currentUser?.id) {
+      navigate(location.pathname.includes('/mentor-dashboard') ? '/mentor-dashboard/profile' : '/dashboard/profile');
+      return;
+    }
+    const basePath = location.pathname.includes('/mentor-dashboard') ? '/mentor-dashboard' : '/dashboard';
+    if (userRole?.toLowerCase() === 'mentor' || userRole?.toLowerCase() === 'alumni') {
+      navigate(`${basePath}/mentor/${userId}`);
+    } else {
+      navigate(`${basePath}/student/${userId}`);
+    }
+  };
 
   const commentsArray = post.comments || [];
 
@@ -77,11 +94,17 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                 <img
                   src={comment.author?.image || getAvatarFallback(comment.author?.name)}
                   alt={comment.author?.name}
-                  className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5"
+                  className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => handleUserClick(comment.authorClerkId, comment.author?.role)}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="bg-background border border-border/50 rounded-2xl rounded-tl-none px-4 py-2.5 shadow-2xs">
-                    <h4 className="font-bold text-xs text-foreground">{comment.author?.name}</h4>
+                    <h4 
+                      className="font-bold text-xs text-foreground cursor-pointer hover:underline"
+                      onClick={() => handleUserClick(comment.authorClerkId, comment.author?.role)}
+                    >
+                      {comment.author?.name}
+                    </h4>
                     <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap break-words">{comment.content}</p>
                   </div>
 
@@ -114,11 +137,17 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                           <img
                             src={reply.author?.image || getAvatarFallback(reply.author?.name)}
                             alt={reply.author?.name}
-                            className="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5"
+                            className="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => handleUserClick(reply.authorClerkId, reply.author?.role)}
                           />
                           <div className="flex-1 min-w-0 bg-muted/30 border border-border/40 rounded-xl px-3 py-1.5">
                             <div className="flex items-center justify-between gap-2">
-                              <h5 className="font-bold text-[11px] text-foreground">{reply.author?.name}</h5>
+                              <h5 
+                                className="font-bold text-[11px] text-foreground cursor-pointer hover:underline"
+                                onClick={() => handleUserClick(reply.authorClerkId, reply.author?.role)}
+                              >
+                                {reply.author?.name}
+                              </h5>
                               <span className="text-[10px] text-muted-foreground/70">{formatTime ? formatTime(reply.createdAt) : ''}</span>
                             </div>
                             <p className="text-xs text-foreground/90 mt-0.5 break-words">{reply.content}</p>

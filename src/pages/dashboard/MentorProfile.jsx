@@ -520,9 +520,23 @@ const MentorProfile = () => {
                 <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex gap-3">
-                      <img src={postAuthorDP} alt={fullName} className="w-12 h-12 rounded-full object-cover" />
+                      <img 
+                        src={avatarUrl} 
+                        alt={fullName} 
+                        className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                        onClick={() => {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      />
                       <div>
-                        <h3 className="font-bold text-foreground text-sm">{fullName}</h3>
+                        <h3 
+                          className="font-bold text-foreground text-sm cursor-pointer hover:underline"
+                          onClick={() => {
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          {fullName}
+                        </h3>
                         <p className="text-[10px] text-muted-foreground mt-1">{formatTime(post.createdAt)}</p>
                       </div>
                     </div>
