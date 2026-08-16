@@ -52,7 +52,7 @@ const AdminActivityLogs = () => {
       {/* Logs Table */}
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="whitespace-nowrap w-full text-left border-collapse">
             <thead>
               <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 <th className="px-6 py-4">User</th>

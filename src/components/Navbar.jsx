@@ -192,10 +192,10 @@ const Navbar = () => {
                         </Link>
                         <button 
                           onClick={() => {
-                            setIsProfileOpen(false)
-                            signOut()
+                            sessionStorage.removeItem('campusbridge_user_role')
+                            signOut({ redirectUrl: '/login' })
                           }}
-                          className="px-4 py-2 text-sm text-left text-destructive hover:bg-muted transition-colors"
+                          className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors mt-1"
                         >
                           Sign Out
                         </button>
@@ -272,7 +272,8 @@ const Navbar = () => {
                       <button
                         onClick={() => {
                           setIsMobileMenuOpen(false)
-                          signOut()
+                          sessionStorage.removeItem('campusbridge_user_role')
+                          signOut({ redirectUrl: '/login' })
                         }}
                         className="w-full text-center py-2 text-sm font-medium text-destructive border border-destructive/20 rounded-md hover:bg-destructive/10 transition-colors"
                       >

@@ -56,7 +56,7 @@ const AdminLogin = () => {
       <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
 
-      <div className="max-w-md w-full space-y-8 bg-card border border-border/50 p-8 sm:p-10 rounded-3xl shadow-xl backdrop-blur-sm relative">
+      <div className="max-w-md w-full space-y-8 bg-card border border-border/50 p-8 sm:p-10 rounded-3xl shadow-xl backdrop-blur-sm relative max-h-[90vh] overflow-y-auto">
         <Link to="/" className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors mb-4">
           <ArrowLeft className="w-3.5 h-3.5" /> Back to home
         </Link>

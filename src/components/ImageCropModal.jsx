@@ -88,7 +88,7 @@ const ImageCropModal = ({ imageSrc, aspectRatio, onCropComplete, onCancel }) => 
 
         {/* Cropper Container */}
         <div className="bg-black/5 p-4 sm:p-6">
-          <div className="relative w-full h-[400px] md:h-[500px] rounded-xl overflow-hidden border border-border/50 bg-black/10 shadow-inner">
+          <div className="relative w-full h-[300px] sm:h-[400px] md:h-[500px] rounded-xl overflow-hidden border border-border/50 bg-black/10 shadow-inner">
             <Cropper
               ref={cropperRef}
               src={imageSrc}

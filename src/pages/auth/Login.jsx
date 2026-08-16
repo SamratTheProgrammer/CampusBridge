@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, GraduationCap, Building2, Loader2 } from 'lucide-react'
 import { useSignIn, useUser } from '@clerk/clerk-react'
+import API_BASE from '../../utils/api'
 
 const Login = () => {
   const location = useLocation()
@@ -15,6 +16,13 @@ const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  // Clear any stale role from sessionStorage on mount if they are not signed in
+  useEffect(() => {
+    if (isUserLoaded && !isSignedIn) {
+      sessionStorage.removeItem('campusbridge_user_role')
+    }
+  }, [isUserLoaded, isSignedIn])
 
   // Redirect logged in user automatically
   useEffect(() => {
@@ -62,8 +70,28 @@ const Login = () => {
         await setActive({ session: signInAttempt.createdSessionId })
         toast.success('Logged in successfully!')
         
+        // Fetch real role from backend if it's not present in clerk metadata
+        let finalRole = selectedRole
+        if (!signInAttempt.userData?.publicMetadata?.role && !signInAttempt.userData?.unsafeMetadata?.role) {
+           try {
+             const res = await fetch(`${API_BASE}/api/users/${signInAttempt.createdUserId}`)
+             if (res.ok) {
+               const data = await res.json()
+               if (data.role) {
+                 finalRole = data.role
+               }
+             }
+           } catch (err) {
+             console.error('Failed to fetch user role on login:', err)
+           }
+        }
+        
+        if (finalRole) {
+          sessionStorage.setItem('campusbridge_user_role', finalRole)
+        }
+        
         // Navigation will be automatically handled by the useEffect above once user is populated
-        if (selectedRole === 'mentor') {
+        if (finalRole === 'mentor') {
           navigate('/mentor-dashboard')
         } else {
           navigate('/dashboard')

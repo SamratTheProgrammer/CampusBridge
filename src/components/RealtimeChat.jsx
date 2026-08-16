@@ -614,7 +614,7 @@ const RealtimeChat = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto h-[calc(100vh-8.5rem)] flex bg-card border border-border/50 rounded-2xl shadow-lg overflow-hidden">
+    <div className="w-full sm:max-w-7xl sm:mx-auto h-[calc(100dvh-4rem)] sm:h-[calc(100dvh-8.5rem)] flex bg-card sm:border border-0 sm:border-border/50 rounded-none sm:rounded-2xl sm:shadow-lg overflow-hidden">
       
       {/* Left Contacts Sidebar */}
       <div className={`w-full sm:w-80 lg:w-96 border-r border-border/40 flex-col h-full bg-card shrink-0 ${activeContact && isMobileChatOpen ? 'hidden sm:flex' : 'flex'}`}>
@@ -1213,7 +1213,7 @@ const RealtimeChat = () => {
       {/* Delete Person Modal */}
       {personToDelete && (
         <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border/50 shadow-2xl rounded-2xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
+          <div className="bg-card border border-border/50 shadow-2xl rounded-2xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mb-4">
               <Trash2 className="w-6 h-6" />
             </div>

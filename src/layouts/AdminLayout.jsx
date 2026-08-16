@@ -37,6 +37,11 @@ const AdminLayout = () => {
   const location = useLocation()
   const { signOut } = useClerk()
 
+  // Auto-close mobile drawer on location change
+  React.useEffect(() => {
+    setIsMobileSidebarOpen(false)
+  }, [location.pathname])
+
   // Protect Admin Layout: Redirect to /admin/login if no adminToken exists
   React.useEffect(() => {
     const token = localStorage.getItem('adminToken')
@@ -123,14 +128,14 @@ const AdminLayout = () => {
       </div>
 
       {/* Mobile Sidebar drawer */}
-      <div className={`fixed inset-0 z-50 transition-all duration-300 md:hidden ${isMobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`fixed inset-0 z-[100] transition-all duration-300 md:hidden ${isMobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
         {/* Overlay */}
         <div 
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
         {/* Drawer container */}
-        <div className={`absolute top-0 bottom-0 left-0 w-64 bg-card border-r border-border/50 py-6 transition-transform duration-300 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sidebar-container`}>
+        <div className={`absolute top-0 bottom-0 left-0 w-64 bg-card border-r border-border/50 py-6 transition-transform duration-300 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sidebar-container shadow-2xl`}>
           <div className="px-6 flex items-center justify-between mb-8">
             <Link to="/admin" className="flex items-center">
               <img src={logoLight} alt="CampusBridge" className="h-16 w-auto block dark:hidden" />
@@ -173,7 +178,7 @@ const AdminLayout = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen transition-all duration-300`}>
+      <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">

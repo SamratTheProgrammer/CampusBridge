@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { NavLink, Link, useLocation } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import { useClerk, useUser } from '@clerk/clerk-react'
 import { socket } from '../../services/socket'
 import {
   LayoutDashboard,
   Users,
+  Compass,
+  UserCheck,
   BookOpen,
   Briefcase,
   Calendar,
@@ -21,7 +23,7 @@ import logoDark from '../../assets/CampusLogoDark.png'
 import logoIcon from '../../assets/CampusLogoHalf.png'
 import API_BASE from '../../utils/api'
 
-const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
+const Sidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
   const { signOut } = useClerk()
   const { user } = useUser()
   const [unreadMessages, setUnreadMessages] = useState(0)
@@ -55,8 +57,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'My Network', path: '/dashboard/network', icon: Users },
-    { name: 'Mentor Directory', path: '/dashboard/mentor', icon: Users },
-    { name: 'My Mentors', path: '/dashboard/my-mentors', icon: Users },
+    { name: 'Mentor Directory', path: '/dashboard/mentor', icon: Compass },
+    { name: 'My Mentors', path: '/dashboard/my-mentors', icon: UserCheck },
     { name: 'Sessions', path: '/dashboard/sessions', icon: BookOpen },
     { name: 'Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase },
     { name: 'Events', path: '/dashboard/events', icon: Calendar },
@@ -66,10 +68,16 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     { name: 'Settings', path: '/dashboard/settings', icon: Settings },
   ]
 
+  const handleItemClick = () => {
+    if (onClose) {
+      onClose()
+    }
+  }
+
   return (
     <div className={`border-r border-border/40 bg-card flex flex-col h-full w-full relative transition-all duration-300 sidebar-container`}>
       <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between'}`}>
-        <Link to="/" className="flex items-center gap-2 overflow-hidden">
+        <Link to="/" onClick={handleItemClick} className="flex items-center gap-2 overflow-hidden">
           {isCollapsed ? (
             <img src={logoIcon} alt="CampusBridge" className="w-10 h-10 object-contain shrink-0 mx-auto" />
           ) : (
@@ -97,12 +105,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
             key={item.name}
             to={item.path}
             end={item.exact}
+            onClick={handleItemClick}
             title={isCollapsed ? item.name : undefined}
             className={({ isActive }) => `
               flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm transition-all relative
               ${isCollapsed ? 'justify-center px-0' : 'px-3'}
               ${isActive
-                ? 'bg-primary/10 text-primary'
+                ? 'bg-primary/10 text-primary font-semibold'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
             `}
           >
@@ -124,7 +133,11 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
 
       <div className={`p-4 border-t border-border/40 ${isCollapsed ? 'flex justify-center' : ''}`}>
         <button
-          onClick={() => signOut({ redirectUrl: '/login' })}
+          onClick={() => {
+            handleItemClick()
+            sessionStorage.removeItem('campusbridge_user_role')
+            signOut({ redirectUrl: '/login' })
+          }}
           title={isCollapsed ? 'Logout' : undefined}
           className={`flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm text-destructive hover:bg-destructive/10 transition-all text-left
             ${isCollapsed ? 'justify-center px-0 w-full' : 'px-3 w-full'}

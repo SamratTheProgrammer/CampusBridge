@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe } from 'react-icons/fa'
 import toast from 'react-hot-toast'
@@ -19,6 +19,9 @@ const StudentProfile = () => {
   const [connectionStatus, setConnectionStatus] = useState('none')
   const [connectionId, setConnectionId] = useState(null)
   const [unfriendConfirm, setUnfriendConfirm] = useState(false)
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [connectMessage, setConnectMessage] = useState('')
 
   // Post states
   const [posts, setPosts] = useState([])
@@ -128,6 +131,40 @@ const StudentProfile = () => {
     }
   }
 
+  const handleConnect = async () => {
+    if (!user || !student) return;
+    setIsConnecting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/connections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterClerkId: user.id,
+          recipientClerkId: student.clerkId || student._id,
+          message: connectMessage
+        })
+      });
+      if (res.ok) {
+        setConnectionStatus('pending');
+        setIsConnectModalOpen(false);
+        toast.success('Connection request sent!');
+      } else {
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          toast.error(data.message || 'Failed to send request');
+        } catch (e) {
+          toast.error(`Server error: ${res.status}`);
+        }
+      }
+    } catch (err) {
+      console.error('Connection request failed:', err);
+      toast.error(`Network error: ${err.message}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
   const handleUnfriendConfirm = async () => {
     if (!connectionId) return;
     try {
@@ -197,6 +234,19 @@ const StudentProfile = () => {
     )
   }
 
+  const isOwner = user?.id === (student?.clerkId || student?._id);
+  const isConnected = connectionStatus === 'accepted';
+  const isMentorRole = user?.unsafeMetadata?.role === 'mentor';
+  
+  let isLocked = false;
+  if (!isOwner) {
+    if (student?.profileVisibility === 'hidden') {
+      isLocked = !isConnected;
+    } else if (student?.profileVisibility === 'restricted') {
+      isLocked = !isConnected && !isMentorRole;
+    }
+  }
+
   return (
     <>
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
@@ -213,66 +263,87 @@ const StudentProfile = () => {
           <img 
             src={student.coverPhoto || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"} 
             alt="Cover" 
-            className="w-full h-full object-cover cursor-pointer hover:brightness-90 transition-all"
-            onClick={() => setViewingImage(student.coverPhoto || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80")}
+            className={`w-full h-full object-cover transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+            onClick={isLocked ? undefined : () => setViewingImage(student.coverPhoto || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80")}
           />
         </div>
         
-        <div className="px-6 pb-6 relative">
-          <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-16 sm:-mt-20 mb-4">
+        <div className="px-4 sm:px-6 pb-6 relative">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end -mt-16 sm:-mt-20 mb-4">
             <img 
               src={student.imageUrl || student.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName || student.name}`} 
               alt={student.firstName || student.name} 
-              className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md cursor-pointer hover:brightness-90 transition-all"
-              onClick={() => setViewingImage(student.imageUrl || student.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName || student.name}`)}
+              className={`w-24 h-24 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+              onClick={isLocked ? undefined : () => setViewingImage(student.imageUrl || student.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName || student.name}`)}
             />
             <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name}</h1>
-                <p className="text-sm sm:text-base text-primary font-medium mt-1">{student.course}</p>
-                <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground mt-2">
-                  <MapPin className="w-3.5 h-3.5" /> {student.location || 'Location not specified'}
-                  &bull; <Calendar className="w-3.5 h-3.5" /> Joined recently
+                <h1 className="text-xl sm:text-3xl font-bold text-foreground">{student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name}</h1>
+                <p className="text-xs sm:text-base text-primary font-medium mt-0.5 sm:mt-1">{student.course}</p>
+                <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground mt-1.5 sm:mt-2">
+                  <MapPin className="w-3.5 h-3.5" /> <span>{student.location || 'Location not specified'}</span>
+                  &bull; <Calendar className="w-3.5 h-3.5" /> <span>Joined recently</span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button 
-                  onClick={() => navigate(`/mentor-dashboard/messages?userId=${student.clerkId || student._id}`)}
-                  className="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <MessageSquare className="w-4 h-4" /> Message
-                </button>
-                <button 
-                  onClick={() => {
-                    const studentName = student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name;
-                    window.dispatchEvent(new CustomEvent('initiate_call', {
-                      detail: { 
-                        targetPartner: { 
-                          clerkId: student.clerkId || student._id, 
-                          name: studentName, 
-                          image: student.imageUrl || student.image 
-                        }, 
-                        type: 'video' 
-                      }
-                    }))
-                  }}
-                  className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <Video className="w-4 h-4" /> Video Call
-                </button>
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                {connectionStatus === 'none' && !isOwner && (
+                  <button 
+                    onClick={() => setIsConnectModalOpen(true)}
+                    className="flex-1 sm:flex-none bg-primary/10 text-primary hover:bg-primary/20 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
+                  >
+                    <UserPlus className="w-4 h-4" /> Connect
+                  </button>
+                )}
+                {connectionStatus === 'pending' && !isOwner && (
+                  <button 
+                    disabled
+                    className="flex-1 sm:flex-none bg-amber-500/10 text-amber-500 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm cursor-not-allowed"
+                  >
+                    <Clock className="w-4 h-4" /> Pending
+                  </button>
+                )}
                 {connectionStatus === 'accepted' && (
                   <button 
                     onClick={handleUnfriend}
-                    className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                    className="flex-1 sm:flex-none bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
                   >
-                    <X className="w-4 h-4" /> Remove Student
+                    <X className="w-4 h-4" /> Remove
                   </button>
+                )}
+
+                {!isLocked && (
+                  <>
+                    <button 
+                      onClick={() => navigate(`/mentor-dashboard/messages?userId=${student.clerkId || student._id}`)}
+                      className="flex-1 sm:flex-none bg-background border border-border/50 text-foreground hover:bg-muted px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
+                    >
+                      <MessageSquare className="w-4 h-4" /> Message
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const studentName = student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name;
+                        window.dispatchEvent(new CustomEvent('initiate_call', {
+                          detail: { 
+                            targetPartner: { 
+                              clerkId: student.clerkId || student._id, 
+                              name: studentName, 
+                              image: student.imageUrl || student.image 
+                            }, 
+                            type: 'video' 
+                          }
+                        }))
+                      }}
+                      className="flex-1 sm:flex-none bg-green-500/10 text-green-500 hover:bg-green-500/20 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
+                    >
+                      <Video className="w-4 h-4" /> Video Call
+                    </button>
+                  </>
                 )}
               </div>
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-4 pt-4 border-t border-border/50 mt-6">
+          <div className="flex flex-wrap gap-3 sm:gap-4 pt-4 border-t border-border/50 mt-4 sm:mt-6">
             <div className="flex gap-3">
               {student.socialLinks?.linkedin && (
                 <a href={student.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-muted rounded-xl hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">
@@ -294,6 +365,18 @@ const StudentProfile = () => {
         </div>
       </div>
 
+      {isLocked ? (
+        <div className="bg-card border border-border/50 rounded-2xl p-12 shadow-sm flex flex-col items-center justify-center text-center mt-6">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+            <Lock className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-2">Profile is Locked</h2>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Connect with {student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name} to view their full profile, experience, and posts.
+          </p>
+        </div>
+      ) : (
+      <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Left Column - Details */}
@@ -531,7 +614,42 @@ const StudentProfile = () => {
           </div>
         )}
       </div>
-    </div>
+      </>
+      )}
+
+      {/* Connect Modal */}
+      {isConnectModalOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border/50 rounded-2xl w-full max-w-md p-6 shadow-xl relative">
+            <h2 className="text-xl font-bold text-foreground mb-2">Connect with {student.firstName || student.name}</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Add a personalized message to your connection request (optional).
+            </p>
+            <textarea
+              value={connectMessage}
+              onChange={(e) => setConnectMessage(e.target.value)}
+              placeholder="Hi, I'd like to connect with you!"
+              className="w-full h-32 bg-background border border-border/50 rounded-xl p-3 text-sm focus:outline-none focus:border-primary resize-none mb-6"
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setIsConnectModalOpen(false)}
+                className="px-5 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                disabled={isConnecting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     {/* Lightbox / Image Viewer */}
     <AnimatePresence>
@@ -566,8 +684,8 @@ const StudentProfile = () => {
       title="Remove Connection"
       message={`Are you sure you want to remove ${student?.name} from your connections?`}
       confirmText="Remove"
-      isDestructive={true}
     />
+    </div>
     </>
   )
 }

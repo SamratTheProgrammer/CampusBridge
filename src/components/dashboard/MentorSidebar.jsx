@@ -24,7 +24,7 @@ import logoDark from '../../assets/CampusLogoDark.png'
 import logoIcon from '../../assets/CampusLogoHalf.png'
 import API_BASE from '../../utils/api'
 
-const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
+const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
   const { signOut } = useClerk()
   const { user } = useUser()
   const navigate = useNavigate()
@@ -84,39 +84,27 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const isApproved = verificationStatus === 'Approved' || isVerified
   const isLocked = !isLoadingProfile && (profileCompleteness.percentage < 80 || !isApproved)
 
-  const handleLockedClick = (e, itemName) => {
-    if (isLocked) {
-      e.preventDefault()
-      e.stopPropagation()
-      
-      if (profileCompleteness.percentage < 80) {
-        toast.error(`🔒 ${itemName} is locked! Complete at least 80% of your profile in Settings to request verification.`, {
-          duration: 4000
-        })
-      } else {
-        toast.error(`⏳ ${itemName} is locked! Your profile is 100% complete and pending Admin Verification. Once Admin approves your profile, all features will unlock!`, {
-          duration: 5000
-        })
-      }
-      navigate('/mentor-dashboard/settings')
+  const handleItemClick = (e, item) => {
+    if (onClose) {
+      onClose()
     }
   }
 
   const navItems = [
-    { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true, locked: isLocked },
-    { name: 'My Students', path: '/mentor-dashboard/mentees', icon: Users, locked: isLocked },
-    { name: 'Student Requests', path: '/mentor-dashboard/requests', icon: BookOpen, locked: isLocked },
-    { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase, locked: isLocked },
-    { name: 'Events & Sessions', path: '/mentor-dashboard/sessions', icon: Calendar, locked: isLocked },
-    { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: unreadMessages > 0 ? unreadMessages : null, locked: isLocked },
-    { name: 'Analytics', path: '/mentor-dashboard/analytics', icon: BarChart, locked: isLocked },
-    { name: 'Settings', path: '/mentor-dashboard/settings', icon: Settings, locked: false },
+    { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true },
+    { name: 'My Students', path: '/mentor-dashboard/mentees', icon: Users },
+    { name: 'Student Requests', path: '/mentor-dashboard/requests', icon: BookOpen },
+    { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase },
+    { name: 'Events & Sessions', path: '/mentor-dashboard/sessions', icon: Calendar },
+    { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: unreadMessages > 0 ? unreadMessages : null },
+    { name: 'Analytics', path: '/mentor-dashboard/analytics', icon: BarChart },
+    { name: 'Settings', path: '/mentor-dashboard/settings', icon: Settings },
   ]
 
   return (
     <div className={`border-r border-border/40 bg-card flex flex-col h-full w-full relative transition-all duration-300 sidebar-container`}>
       <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between'}`}>
-        <Link to="/" className="flex items-center gap-2 overflow-hidden">
+        <Link to="/" onClick={() => onClose && onClose()} className="flex items-center gap-2 overflow-hidden">
           {isCollapsed ? (
             <img src={logoIcon} alt="CampusBridge" className="w-10 h-10 object-contain shrink-0 mx-auto" />
           ) : (
@@ -142,32 +130,31 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
         {navItems.map((item) => (
           <NavLink
             key={item.name}
-            to={item.locked ? '#' : item.path}
+            to={item.path}
             end={item.exact}
-            onClick={(e) => item.locked ? handleLockedClick(e, item.name) : null}
-            title={isCollapsed ? (item.locked ? `${item.name} (Locked)` : item.name) : undefined}
+            onClick={(e) => handleItemClick(e, item)}
+            title={isCollapsed ? item.name : undefined}
             className={({ isActive }) => `
               flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm transition-all relative
               ${isCollapsed ? 'justify-center px-0' : 'px-3'}
-              ${item.locked ? 'opacity-60 cursor-not-allowed hover:bg-rose-500/5' : isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
+              ${isActive
+                ? 'bg-primary/10 text-primary font-semibold'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
             `}
           >
-            <item.icon className="w-5 h-5 shrink-0" />
-            {!isCollapsed && <span className="flex-1 truncate">{item.name}</span>}
-
-            {/* Lock Badge */}
-            {item.locked && (
-              <span className="text-amber-500 bg-amber-500/10 p-1 rounded-md shrink-0">
-                <Lock className="w-3.5 h-3.5" />
+            <item.icon className={`w-5 h-5 shrink-0`} />
+            {!isCollapsed && (
+              <span className="flex-1 truncate flex items-center justify-between">
+                {item.name}
               </span>
             )}
 
-            {!isCollapsed && !item.locked && item.badge && (
+            {!isCollapsed && item.badge && (
               <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
                 {item.badge}
               </span>
             )}
-            {isCollapsed && !item.locked && item.badge && (
+            {isCollapsed && item.badge && (
               <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
             )}
           </NavLink>
@@ -194,7 +181,11 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
       <div className={`p-4 border-t border-border/40 ${isCollapsed ? 'flex justify-center' : ''}`}>
         <button
-          onClick={() => signOut({ redirectUrl: '/login' })}
+          onClick={() => {
+            if (onClose) onClose()
+            sessionStorage.removeItem('campusbridge_user_role')
+            signOut({ redirectUrl: '/login' })
+          }}
           title={isCollapsed ? 'Logout' : undefined}
           className={`flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm text-destructive hover:bg-destructive/10 transition-all text-left
             ${isCollapsed ? 'justify-center px-0 w-full' : 'px-3 w-full'}

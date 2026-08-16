@@ -306,13 +306,13 @@ const MyProfile = () => {
           </button>
         </div>
         
-        <div className="px-6 pb-6 relative">
-          <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-16 sm:-mt-20 mb-4">
+        <div className="px-4 sm:px-6 pb-6 relative">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end -mt-14 sm:-mt-20 mb-4">
             <div className="relative group">
               <img 
                 src={profilePhotoUrl} 
                 alt="Profile" 
-                className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md cursor-pointer"
+                className="w-24 h-24 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md cursor-pointer"
                 onClick={() => setViewingImage(profilePhotoUrl)}
               />
               <input type="file" ref={profilePicInputRef} onChange={handleProfilePicSelect} accept="image/*" className="hidden" />
@@ -325,9 +325,9 @@ const MyProfile = () => {
             </div>
             <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{user?.fullName}</h1>
-                <p className="text-sm sm:text-base text-muted-foreground mt-0">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                <h1 className="text-xl sm:text-3xl font-bold text-foreground">{user?.fullName}</h1>
+                <p className="text-xs sm:text-base text-muted-foreground mt-0">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
+                <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground mt-1.5 sm:mt-2">
                   <MapPin className="w-3.5 h-3.5" /> 
                   <span>{dbUser?.location || user?.unsafeMetadata?.location || 'Add location in Settings'}</span>
                   {(dbUser?.address || user?.unsafeMetadata?.address) && (

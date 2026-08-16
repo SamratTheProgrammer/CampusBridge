@@ -405,7 +405,7 @@ const CommunityDetailModal = ({
       {/* Confirm Leave Modal */}
       {showLeaveConfirm && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-          <div className="bg-card border border-border/50 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+          <div className="bg-card border border-border/50 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-foreground">Leave Community?</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Are you sure you want to leave <strong className="text-foreground">{community.name}</strong>? You will miss out on discussion updates and new learning resources.

@@ -486,9 +486,9 @@ const AdminSettings = () => {
             <div className="space-y-8">
               
               {/* Global Theme Override */}
-              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 sm:p-6">
+                <div className="flex flex-col md:flex-row items-start md:justify-between gap-4 mb-4">
+                  <div className="flex-1">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-1 flex items-center gap-2">
                       <Sparkles className="w-4 h-4" /> Global Theme Override (Admin Only)
                     </h3>
@@ -586,7 +586,7 @@ const AdminSettings = () => {
                     <button
                       type="button"
                       onClick={() => handleAuthToggle(setting.key)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${authSettings[setting.key] ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${authSettings[setting.key] ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${authSettings[setting.key] ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>

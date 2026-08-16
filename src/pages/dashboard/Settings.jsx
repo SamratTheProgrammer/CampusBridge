@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown } from 'lucide-react'
+import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2 } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
@@ -469,26 +469,26 @@ const Settings = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">Profile Settings</h1>
         
-        <div className="bg-card border border-border/50 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
           <div className="flex-1 w-full">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-bold text-foreground">Profile Completion</h3>
-              <span className="text-primary font-bold">{completionPercentage}%</span>
+              <h3 className="font-bold text-sm sm:text-base text-foreground">Profile Completion</h3>
+              <span className="text-primary font-bold text-sm sm:text-base">{completionPercentage}%</span>
             </div>
-            <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+            <div className="w-full bg-muted rounded-full h-2.5 sm:h-3 overflow-hidden">
               <div 
-                className="bg-primary h-3 rounded-full transition-all duration-500 ease-out"
+                className="bg-primary h-2.5 sm:h-3 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${completionPercentage}%` }}
               ></div>
             </div>
-            <p className="text-xs text-muted-foreground mt-3">
+            <p className="text-xs text-muted-foreground mt-2 sm:mt-3">
               Complete your profile to stand out to recruiters and mentor mentors.
             </p>
           </div>
           <button 
             onClick={handleSaveChanges}
             disabled={isSaving}
-            className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm shrink-0 flex items-center justify-center gap-2 disabled:opacity-70"
+            className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors shadow-sm shrink-0 flex items-center justify-center gap-2 disabled:opacity-70"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
             Save All Changes
@@ -497,54 +497,54 @@ const Settings = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex flex-col md:flex-row gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start">
         
         {/* Left Sidebar (Tabs) */}
-        <div className="w-full md:w-64 bg-card border border-border/50 rounded-2xl p-2 sm:p-4 shadow-sm shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none md:sticky md:top-24">
+        <div className="w-full md:w-64 bg-card border border-border/50 rounded-2xl p-1.5 sm:p-3 shadow-sm shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none md:sticky md:top-24 min-w-0">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2.5 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl font-medium text-xs sm:text-sm transition-all text-left whitespace-nowrap shrink-0
+              className={`flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all text-left whitespace-nowrap shrink-0
                 ${activeTab === tab.id 
-                  ? 'bg-primary/10 text-primary' 
+                  ? 'bg-primary/10 text-primary font-semibold' 
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
             >
-              <tab.icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+              <tab.icon className="w-4 h-4 shrink-0" />
               <span>{tab.label}</span>
               {/* Green checkmark if completed */}
               {tab.id === 'basic' && isBasicComplete && (
-                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto hidden md:block" />
               )}
               {tab.id === 'experience' && isExperienceComplete && (
-                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto hidden md:block" />
               )}
               {tab.id === 'education' && isEducationComplete && (
-                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto hidden md:block" />
               )}
               {tab.id === 'skills' && isSkillsComplete && (
-                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto hidden md:block" />
               )}
               {tab.id === 'resume' && isResumeComplete && (
-                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto hidden md:block" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto hidden md:block" />
               )}
             </button>
           ))}
         </div>
 
         {/* Right Content Area (Forms) */}
-        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-6 sm:p-8 shadow-sm md:h-[calc(100vh-240px)] min-h-[500px] md:overflow-y-auto">
+        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm h-[calc(100vh-260px)] min-h-[350px] overflow-y-auto">
           
           {/* --- BASIC INFO --- */}
           {activeTab === 'basic' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <h2 className="text-xl font-bold text-foreground border-b border-border/40 pb-4">Basic Information</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-foreground border-b border-border/40 pb-4">Basic Information</h2>
               
-              <div className="flex items-center gap-6 mb-6">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6">
                 <img 
                   src={user?.imageUrl || "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
                   alt="Profile" 
-                  className="w-20 h-20 rounded-full object-cover border border-border/50"
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border border-border/50"
                 />
                 <input 
                   type="file" 
@@ -561,7 +561,7 @@ const Settings = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">First Name</label>
                   <input 
@@ -625,8 +625,8 @@ const Settings = () => {
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm font-medium text-foreground">Phone Number</label>
-                  <div className="flex flex-col sm:flex-row gap-2 relative">
-                    <div className="relative w-full sm:w-[140px] shrink-0">
+                  <div className="flex flex-row items-center gap-2 relative w-full">
+                    <div className="relative w-[110px] sm:w-[140px] shrink-0">
                       <button 
                         onClick={() => setShowCountryDropdown(!showCountryDropdown)}
                         onBlur={() => setTimeout(() => setShowCountryDropdown(false), 200)}
@@ -640,7 +640,7 @@ const Settings = () => {
                       </button>
                       
                       {showCountryDropdown && (
-                        <div className="absolute z-[100] w-[300px] mt-1 bg-background border border-border/50 rounded-lg shadow-xl max-h-60 overflow-y-auto left-0">
+                        <div className="absolute z-[100] w-[280px] sm:w-[300px] max-w-[calc(100vw-3rem)] mt-1 bg-background border border-border/50 rounded-lg shadow-xl max-h-60 overflow-y-auto left-0">
                           {COUNTRIES.map(c => (
                             <div 
                               key={c.name}
@@ -679,7 +679,7 @@ const Settings = () => {
                   </div>
                   <button 
                     onClick={() => handleChatNotifsToggle(!chatNotifs)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${chatNotifs ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${chatNotifs ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${chatNotifs ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
@@ -1255,6 +1255,17 @@ const Settings = () => {
                       {skills.map((skill, i) => (
                         <span key={i} className="bg-muted border border-border/50 px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 text-foreground group">
                           {skill}
+                          <button 
+                            onClick={() => {
+                              setNewSkill(skill);
+                              setSkills(skills.filter((_, idx) => idx !== i));
+                              setShowSkillDropdown(false);
+                            }} 
+                            className="text-muted-foreground hover:text-blue-500 group-hover:opacity-100 opacity-50 transition-all ml-1"
+                            title="Edit Skill"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
                           <button onClick={() => setSkills(skills.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive group-hover:opacity-100 opacity-50 transition-all">&times;</button>
                         </span>
                       ))}
@@ -1397,7 +1408,7 @@ const Settings = () => {
                       className="bg-background border border-border/50 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
                     >
                       <option value="public">Public (Everyone)</option>
-                      <option value="restricted">Recruiters & Mentors Only</option>
+                      <option value="restricted">Mentors Only</option>
                       <option value="hidden">Hidden</option>
                     </select>
                   </div>
@@ -1406,7 +1417,7 @@ const Settings = () => {
                 {/* Active Sessions */}
                 <div className="flex gap-4 p-4 bg-muted/30 border border-border/40 rounded-xl">
                   <Laptop className="w-5 h-5 text-primary shrink-0" />
-                  <div className="w-full">
+                  <div className="w-full min-w-0">
                     <h4 className="font-semibold text-sm text-foreground">Active Devices</h4>
                     <p className="text-xs text-muted-foreground mt-1 mb-4">Devices that are currently logged into your account.</p>
                     <div className="space-y-3">
@@ -1416,15 +1427,15 @@ const Settings = () => {
                             {session.latestActivity?.isMobile ? <Smartphone className="w-4 h-4 text-muted-foreground shrink-0" /> : <Laptop className="w-4 h-4 text-muted-foreground shrink-0" />}
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground flex items-center flex-wrap gap-1.5 sm:gap-2">
-                                <span className="truncate">{session.id === currentSession?.id 
+                                <span className="truncate min-w-0">{session.id === currentSession?.id 
                                   ? `${currentDeviceInfo.browser} on ${currentDeviceInfo.os}`
                                   : `${session.latestActivity?.browserName || 'Unknown Browser'} on ${session.latestActivity?.deviceType || 'Unknown Device'}`
                                 }</span>
                                 {session.id === currentSession?.id && <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0">This Device</span>}
                               </p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <MapPin className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{session.id === currentSession?.id 
+                                <span className="truncate min-w-0">{session.id === currentSession?.id 
                                   ? `${currentDeviceInfo.city}, ${currentDeviceInfo.country} • ${currentDeviceInfo.ip}`
                                   : `${session.latestActivity?.city ? `${session.latestActivity.city}, ` : ''}${session.latestActivity?.country || 'Unknown Location'} • ${session.latestActivity?.ipAddress || 'IP Hidden'}`
                                 }</span>

@@ -53,13 +53,17 @@ const DashboardLayout = () => {
         navigate('/login', { replace: true })
       } else if (user) {
         const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
-        if (role === 'mentor' || role === 'alumni') {
+        if (role === 'mentor') {
           const subPath = location.pathname.replace(/^\/dashboard\/?/, '/');
           navigate(`/mentor-dashboard${subPath === '/' ? '' : subPath}`, { replace: true })
         }
       }
     }
   }, [isLoaded, isSignedIn, user, navigate])
+
+  useEffect(() => {
+    setIsMobileSidebarOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -187,25 +191,25 @@ const DashboardLayout = () => {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar for Desktop */}
-      <div className={`hidden md:block fixed inset-y-0 left-0 z-40 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
+      <div className={`hidden md:block fixed inset-y-0 left-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} z-40`}>
         <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
       </div>
 
       {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        />
-      )}
+      <div 
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm md:hidden transition-opacity duration-300 z-[90] ${isMobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setIsMobileSidebarOpen(false)}
+      />
 
-      {/* Mobile Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 bg-background shadow-2xl`}>
-        <Sidebar isCollapsed={false} setIsCollapsed={() => { }} />
+      {/* Mobile Sidebar Drawer */}
+      <div 
+        className={`fixed inset-y-0 left-0 z-[100] transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 bg-card shadow-2xl`}
+      >
+        <Sidebar isCollapsed={false} setIsCollapsed={() => { }} onClose={() => setIsMobileSidebarOpen(false)} />
       </div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen transition-all duration-300`}>
+      <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
@@ -349,7 +353,7 @@ const DashboardLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-8">
+        <main className={`flex-1 ${location.pathname.includes('/messages') ? 'p-0 sm:p-6 md:p-8' : 'p-3 sm:p-6 md:p-8'} min-w-0`}>
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>
               <StudentProfileGuard>

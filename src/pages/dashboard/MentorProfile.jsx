@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -230,6 +230,19 @@ const MentorProfile = () => {
   const avatarUrl = mentor.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor.firstName}`
   const coverUrl = mentor.coverPhoto || "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
 
+  const isOwner = user?.id === (mentor.clerkId || mentor._id);
+  const isConnected = connectionStatus === 'accepted';
+  const isMentorRole = user?.unsafeMetadata?.role === 'mentor';
+  
+  let isLocked = false;
+  if (!isOwner) {
+    if (mentor.profileVisibility === 'hidden') {
+      isLocked = !isConnected;
+    } else if (mentor.profileVisibility === 'restricted') {
+      isLocked = !isConnected && !isMentorRole;
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto pb-8">
       {/* Cover & Header Section */}
@@ -238,49 +251,47 @@ const MentorProfile = () => {
           <img
             src={coverUrl}
             alt="Cover"
-            className="w-full h-full object-cover cursor-pointer hover:brightness-90 transition-all"
-            onClick={() => setViewingImage(coverUrl)}
+            className={`w-full h-full object-cover transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+            onClick={isLocked ? undefined : () => setViewingImage(coverUrl)}
           />
         </div>
-        <div className="px-6 sm:px-10 pb-8 relative">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 -mt-16 sm:-mt-20 mb-6">
-            <div className="flex items-end gap-5">
+        <div className="px-4 sm:px-10 pb-6 sm:pb-8 relative">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 -mt-16 sm:-mt-20 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-5">
               <div className="relative">
                 <img
                   src={avatarUrl}
                   alt={fullName}
-                  className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-card relative z-10 bg-card cursor-pointer hover:brightness-90 transition-all"
-                  onClick={() => setViewingImage(avatarUrl)}
+                  className={`w-24 h-24 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-card relative z-10 bg-card transition-all shadow-md ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+                  onClick={isLocked ? undefined : () => setViewingImage(avatarUrl)}
                 />
               </div>
-              <div className="mb-2 sm:mb-4 relative z-10 pt-16 sm:pt-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{fullName}</h1>
-                  {mentor.role === 'mentor' && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+              <div className="mb-1 sm:mb-4 relative z-10">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h1 className="text-xl sm:text-3xl font-bold text-foreground">{fullName}</h1>
+                  {mentor.role === 'mentor' && <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 shrink-0" />}
                 </div>
-                <p className="text-sm font-medium text-foreground mb-1">{mentor.headline || 'Mentor'}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5" /> {mentor.location || 'Location not specified'} 
+                <p className="text-xs sm:text-sm font-medium text-foreground mb-1">{mentor.headline || 'Mentor'}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" /> <span>{mentor.location || 'Location not specified'}</span>
                   {mentor.address && (
                     <>
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground"></span> {mentor.address}
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground hidden sm:inline-block"></span> <span>{mentor.address}</span>
                     </>
                   )}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-               {/* Add any specific badges here if needed */}
-            </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(`/dashboard/mentor/${id}/book`)}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
-            >
-              <Calendar className="w-4 h-4" /> Book Session
-            </button>
+            <div className="flex flex-wrap gap-2 sm:gap-3 items-center pt-2 sm:pt-0">
+              {!isLocked && (
+                <button
+                  onClick={() => navigate(`/dashboard/mentor/${id}/book`)}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 sm:px-6 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
+                >
+                  <Calendar className="w-4 h-4" /> Book Session
+                </button>
+              )}
             
             {connectionStatus === 'none' && (
               <button 
@@ -313,39 +324,56 @@ const MentorProfile = () => {
               </div>
             )}
 
-            <button 
-              onClick={() => navigate(`/dashboard/messages?userId=${mentor.clerkId || mentor._id}`)}
-              className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
-            </button>
+            {!isLocked && (
+              <>
+                <button 
+                  onClick={() => navigate(`/dashboard/messages?userId=${mentor.clerkId || mentor._id}`)}
+                  className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
+                </button>
 
-            <button 
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('initiate_call', {
-                  detail: { 
-                    targetPartner: { 
-                      clerkId: mentor.clerkId || mentor._id, 
-                      name: fullName, 
-                      image: avatarUrl 
-                    }, 
-                    type: 'video' 
-                  }
-                }))
-              }}
-              className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <Video className="w-4 h-4" /> Video Call
-            </button>
+                <button 
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('initiate_call', {
+                      detail: { 
+                        targetPartner: { 
+                          clerkId: mentor.clerkId || mentor._id, 
+                          name: fullName, 
+                          image: avatarUrl 
+                        }, 
+                        type: 'video' 
+                      }
+                    }))
+                  }}
+                  className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <Video className="w-4 h-4" /> Video Call
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {isLocked ? (
+        <div className="bg-card border border-border/50 rounded-2xl p-12 shadow-sm flex flex-col items-center justify-center text-center mt-6">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+            <Lock className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-2">Profile is Locked</h2>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Connect with {fullName} to view their full profile, experience, and posts.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Left Column (Main Content) */}
-        <div className="lg:col-span-2 space-y-6">
+            {/* Left Column (Main Content) */}
+            <div className="lg:col-span-2 space-y-6">
           {/* About Section */}
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-bold text-foreground mb-4">About</h2>
@@ -581,6 +609,8 @@ const MentorProfile = () => {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Connect Modal */}
       {isConnectModalOpen && (

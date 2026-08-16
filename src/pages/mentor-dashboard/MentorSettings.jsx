@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { 
   Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2, AtSign, Check, 
   AlertCircle, Laptop, Smartphone, MapPin, Trash2, Plus, Briefcase, GraduationCap, 
-  FileText, ExternalLink, Sparkles, X, UploadCloud, Award
+  FileText, ExternalLink, Sparkles, X, UploadCloud, Award, Edit2
 } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -58,12 +58,22 @@ const MentorSettings = () => {
   const [newEduGrade, setNewEduGrade] = useState('')
 
   const [newSkillInput, setNewSkillInput] = useState('')
+  const [editExpIndex, setEditExpIndex] = useState(null)
+  const [editEduIndex, setEditEduIndex] = useState(null)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [usernameValue, setUsernameValue] = useState('')
   const [usernameError, setUsernameError] = useState('')
+
+  const [chatNotifs, setChatNotifs] = useState(localStorage.getItem('campusbridge_chat_notifs') !== 'false')
+  
+  const handleChatNotifsToggle = (val) => {
+    setChatNotifs(val)
+    localStorage.setItem('campusbridge_chat_notifs', val.toString())
+    toast.success(val ? 'Chat notifications enabled' : 'Chat notifications disabled')
+  }
   
   const fileInputRef = useRef(null)
   const resumeInputRef = useRef(null)
@@ -190,13 +200,21 @@ const MentorSettings = () => {
       duration: newExpDuration || 'Present',
       description: newExpDesc
     }
-    setExperienceList([...experienceList, item])
+    if (editExpIndex !== null) {
+      const updated = [...experienceList]
+      updated[editExpIndex] = item
+      setExperienceList(updated)
+      setEditExpIndex(null)
+      toast.success('Work Experience updated!')
+    } else {
+      setExperienceList([...experienceList, item])
+      toast.success('Work Experience added!')
+    }
     setNewExpTitle('')
     setNewExpCompany('')
     setNewExpDuration('')
     setNewExpDesc('')
     setShowAddExp(false)
-    toast.success('Work Experience added!')
   }
 
   const handleRemoveExperience = (index) => {
@@ -217,13 +235,21 @@ const MentorSettings = () => {
       duration: newEduDuration || 'Completed',
       grade: newEduGrade
     }
-    setEducationList([...educationList, item])
+    if (editEduIndex !== null) {
+      const updated = [...educationList]
+      updated[editEduIndex] = item
+      setEducationList(updated)
+      setEditEduIndex(null)
+      toast.success('Education credential updated!')
+    } else {
+      setEducationList([...educationList, item])
+      toast.success('Education credential added!')
+    }
     setNewEduDegree('')
     setNewEduInst('')
     setNewEduDuration('')
     setNewEduGrade('')
     setShowAddEdu(false)
-    toast.success('Education credential added!')
   }
 
   const handleRemoveEducation = (index) => {
@@ -363,32 +389,32 @@ const MentorSettings = () => {
         />
       )}
 
-      <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+      <div className="flex flex-col md:flex-row gap-4 sm:gap-6 md:gap-8">
         
         {/* Sidebar Nav */}
-        <div className="w-full md:w-64 shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none bg-card border border-border/50 rounded-2xl p-2 sm:p-3 shadow-sm md:bg-transparent md:border-0 md:p-0 md:shadow-none">
+        <div className="w-full md:w-64 shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none bg-card border border-border/50 rounded-2xl p-1.5 sm:p-3 shadow-sm md:bg-transparent md:border-0 md:p-0 md:shadow-none min-w-0">
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'profile' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'profile' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
           >
             <User className="w-4 h-4 shrink-0" /> Account Profile
           </button>
           <button 
             onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'notifications' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'notifications' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
           >
             <Bell className="w-4 h-4 shrink-0" /> Notifications
           </button>
           <button 
             onClick={() => setActiveTab('privacy')}
-            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'privacy' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'privacy' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
           >
             <Lock className="w-4 h-4 shrink-0" /> Privacy & Security
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 bg-card border border-border/50 rounded-2xl p-4 sm:p-8 shadow-sm">
+        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm h-[calc(100vh-260px)] min-h-[350px] overflow-y-auto">
           
           {activeTab === 'profile' && (
             <div className="space-y-8 animate-in fade-in duration-300">
@@ -527,6 +553,19 @@ const MentorSettings = () => {
                   </div>
                 </div>
 
+                <div className="mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">Chat Pop-up Notifications & Sounds</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Receive sound alerts and pop-up notifications for new messages.</p>
+                  </div>
+                  <button 
+                    onClick={() => handleChatNotifsToggle(!chatNotifs)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${chatNotifs ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${chatNotifs ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
                 {/* 1. WORK EXPERIENCE SECTION (+20%) */}
                 <div className="pt-6 border-t border-border/40 space-y-4">
                   <div className="flex items-center justify-between">
@@ -557,14 +596,31 @@ const MentorSettings = () => {
                             <p className="text-muted-foreground font-semibold">{exp.company}</p>
                             {exp.description && <p className="text-muted-foreground text-[11px] leading-relaxed pt-1">{exp.description}</p>}
                           </div>
-                          <button 
-                            type="button"
-                            onClick={() => handleRemoveExperience(idx)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
-                            title="Remove Experience"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex flex-col gap-2 shrink-0">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setNewExpTitle(exp.title);
+                                setNewExpCompany(exp.company);
+                                setNewExpDuration(exp.duration);
+                                setNewExpDesc(exp.description);
+                                setEditExpIndex(idx);
+                                setShowAddExp(true);
+                              }}
+                              className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
+                              title="Edit Experience"
+                            >
+                              <span className="text-xs font-semibold">Edit</span>
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleRemoveExperience(idx)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                              title="Remove Experience"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -613,7 +669,14 @@ const MentorSettings = () => {
                       <div className="flex justify-end gap-2 pt-1">
                         <button 
                           type="button" 
-                          onClick={() => setShowAddExp(false)} 
+                          onClick={() => {
+                            setShowAddExp(false)
+                            setEditExpIndex(null)
+                            setNewExpTitle('')
+                            setNewExpCompany('')
+                            setNewExpDuration('')
+                            setNewExpDesc('')
+                          }} 
                           className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold"
                         >
                           Cancel
@@ -623,7 +686,7 @@ const MentorSettings = () => {
                           onClick={handleAddExperienceItem} 
                           className="px-4 py-1.5 text-xs bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90"
                         >
-                          Save Item
+                          {editExpIndex !== null ? 'Update Item' : 'Save Item'}
                         </button>
                       </div>
                     </div>
@@ -660,14 +723,31 @@ const MentorSettings = () => {
                             <p className="text-muted-foreground font-semibold">{edu.institution}</p>
                             {edu.grade && <p className="text-muted-foreground text-[11px]">Grade / Score: {edu.grade}</p>}
                           </div>
-                          <button 
-                            type="button"
-                            onClick={() => handleRemoveEducation(idx)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
-                            title="Remove Education"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex flex-col gap-2 shrink-0">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setNewEduDegree(edu.degree);
+                                setNewEduInst(edu.institution);
+                                setNewEduDuration(edu.duration);
+                                setNewEduGrade(edu.grade || '');
+                                setEditEduIndex(idx);
+                                setShowAddEdu(true);
+                              }}
+                              className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
+                              title="Edit Education"
+                            >
+                              <span className="text-xs font-semibold">Edit</span>
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleRemoveEducation(idx)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                              title="Remove Education"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -716,7 +796,14 @@ const MentorSettings = () => {
                       <div className="flex justify-end gap-2 pt-1">
                         <button 
                           type="button" 
-                          onClick={() => setShowAddEdu(false)} 
+                          onClick={() => {
+                            setShowAddEdu(false)
+                            setEditEduIndex(null)
+                            setNewEduDegree('')
+                            setNewEduInst('')
+                            setNewEduDuration('')
+                            setNewEduGrade('')
+                          }} 
                           className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold"
                         >
                           Cancel
@@ -726,7 +813,7 @@ const MentorSettings = () => {
                           onClick={handleAddEducationItem} 
                           className="px-4 py-1.5 text-xs bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90"
                         >
-                          Save Item
+                          {editEduIndex !== null ? 'Update Item' : 'Save Item'}
                         </button>
                       </div>
                     </div>
@@ -763,6 +850,17 @@ const MentorSettings = () => {
                     {skillsList.map((skill, idx) => (
                       <span key={idx} className="bg-primary/10 border border-primary/20 text-primary text-xs font-semibold px-3 py-1 rounded-xl flex items-center gap-1.5">
                         {skill}
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setNewSkillInput(skill);
+                            handleRemoveSkill(skill);
+                          }} 
+                          className="hover:text-blue-500 ml-1 transition-colors cursor-pointer"
+                          title="Edit Skill"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
                         <button 
                           type="button" 
                           onClick={() => handleRemoveSkill(skill)} 
@@ -876,12 +974,12 @@ const MentorSettings = () => {
                           body: JSON.stringify({ profileVisibility: e.target.value })
                         }).then(() => toast.success('Visibility updated'));
                       }}
-                      className="bg-background border border-border/50 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
-                    >
-                      <option value="public">Public (Everyone)</option>
-                      <option value="restricted">Verified Students Only</option>
-                      <option value="hidden">Hidden</option>
-                    </select>
+                        className="bg-background border border-border/50 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                      >
+                        <option value="public">Public (Everyone)</option>
+                        <option value="restricted">Verified Students Only</option>
+                        <option value="hidden">Hidden</option>
+                      </select>
                   </div>
                 </div>
 
@@ -903,7 +1001,7 @@ const MentorSettings = () => {
                 {/* Active Sessions */}
                 <div className="flex gap-4 p-4 bg-muted/30 border border-border/40 rounded-xl">
                   <Laptop className="w-5 h-5 text-primary shrink-0" />
-                  <div className="w-full">
+                  <div className="w-full min-w-0">
                     <h4 className="font-semibold text-sm text-foreground">Active Devices</h4>
                     <p className="text-xs text-muted-foreground mt-1 mb-4">Devices that are currently logged into your account.</p>
                     <div className="space-y-3">
@@ -913,15 +1011,15 @@ const MentorSettings = () => {
                             {session.latestActivity?.isMobile ? <Smartphone className="w-4 h-4 text-muted-foreground shrink-0" /> : <Laptop className="w-4 h-4 text-muted-foreground shrink-0" />}
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground flex items-center flex-wrap gap-1.5 sm:gap-2">
-                                <span className="truncate">{session.id === currentSession?.id 
+                                <span className="truncate min-w-0">{session.id === currentSession?.id 
                                   ? `${currentDeviceInfo.browser} on ${currentDeviceInfo.os}`
                                   : `${session.latestActivity?.browserName || 'Unknown Browser'} on ${session.latestActivity?.deviceType || 'Unknown Device'}`
                                 }</span>
                                 {session.id === currentSession?.id && <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0">This Device</span>}
                               </p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <MapPin className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{session.id === currentSession?.id 
+                                <span className="truncate min-w-0">{session.id === currentSession?.id 
                                   ? `${currentDeviceInfo.city}, ${currentDeviceInfo.country} • ${currentDeviceInfo.ip}`
                                   : `${session.latestActivity?.city ? `${session.latestActivity.city}, ` : ''}${session.latestActivity?.country || 'Unknown Location'} • ${session.latestActivity?.ipAddress || 'IP Hidden'}`
                                 }</span>

@@ -363,11 +363,11 @@ const MySessions = () => {
       </div>
 
       {/* Tabs */}
-      <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden mb-8">
-        <div className="flex overflow-x-auto hide-scrollbar border-b border-border/40">
+      <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden mb-6 sm:mb-8">
+        <div className="flex overflow-x-auto scrollbar-none border-b border-border/40">
           <button 
             onClick={() => setActiveTab('available')}
-            className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors relative
+            className={`px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors relative shrink-0
               ${activeTab === 'available' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Available Sessions ({filteredAvailableSessions.length})
@@ -377,7 +377,7 @@ const MySessions = () => {
           </button>
           <button 
             onClick={() => setActiveTab('upcoming')}
-            className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors relative
+            className={`px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors relative shrink-0
               ${activeTab === 'upcoming' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             My Upcoming Sessions ({filteredUpcoming.length})
@@ -387,7 +387,7 @@ const MySessions = () => {
           </button>
           <button 
             onClick={() => setActiveTab('pending')}
-            className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors relative
+            className={`px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors relative shrink-0
               ${activeTab === 'pending' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Pending Requests
@@ -397,7 +397,7 @@ const MySessions = () => {
           </button>
           <button 
             onClick={() => setActiveTab('completed')}
-            className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors relative
+            className={`px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors relative shrink-0
               ${activeTab === 'completed' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             History / Completed

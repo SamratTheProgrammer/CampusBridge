@@ -356,11 +356,11 @@ const MentorSessions = () => {
       </div>
 
       {/* Tabs & Search */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4 items-center">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 items-stretch sm:items-center">
         <div className="flex space-x-1 bg-muted p-1 rounded-xl w-full sm:w-fit overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('events')}
-            className={`whitespace-nowrap flex-1 sm:flex-none px-5 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`whitespace-nowrap flex-1 sm:flex-none px-3.5 sm:px-5 py-2 text-xs font-bold rounded-lg transition-all shrink-0 ${
               activeTab === 'events' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -368,7 +368,7 @@ const MentorSessions = () => {
           </button>
           <button
             onClick={() => setActiveTab('sessions')}
-            className={`whitespace-nowrap flex-1 sm:flex-none px-5 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`whitespace-nowrap flex-1 sm:flex-none px-3.5 sm:px-5 py-2 text-xs font-bold rounded-lg transition-all shrink-0 ${
               activeTab === 'sessions' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -376,7 +376,7 @@ const MentorSessions = () => {
           </button>
           <button
             onClick={() => setActiveTab('one-on-one')}
-            className={`whitespace-nowrap flex-1 sm:flex-none px-5 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`whitespace-nowrap flex-1 sm:flex-none px-3.5 sm:px-5 py-2 text-xs font-bold rounded-lg transition-all shrink-0 ${
               activeTab === 'one-on-one' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -384,11 +384,11 @@ const MentorSessions = () => {
           </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-          <div className="flex bg-muted p-1 rounded-lg">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+          <div className="flex bg-muted p-1 rounded-lg self-start sm:self-auto">
             <button
               onClick={() => setTimeFilter('upcoming')}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+              className={`px-3.5 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
                 timeFilter === 'upcoming' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -396,7 +396,7 @@ const MentorSessions = () => {
             </button>
             <button
               onClick={() => setTimeFilter('completed')}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+              className={`px-3.5 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
                 timeFilter === 'completed' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -411,7 +411,7 @@ const MentorSessions = () => {
               placeholder="Search sessions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-background border border-border/50 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
             />
           </div>
         </div>

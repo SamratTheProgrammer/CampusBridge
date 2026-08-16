@@ -161,31 +161,31 @@ const MyNetwork = () => {
     <div className="max-w-6xl mx-auto space-y-8 pb-10">
       
       {/* Header Banner */}
-      <div className="bg-card border border-border/50 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div className="bg-card border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
         <div>
           <div className="flex items-center gap-2">
-            <Users className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Network</h1>
+            <Users className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">My Network</h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Manage your connections, pending invitations, and discover new peers across colleges.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 border border-primary/20 px-4 py-2 rounded-2xl text-center">
-            <span className="text-xl font-bold text-primary block leading-tight">
+        <div className="flex items-center gap-2 sm:gap-3 self-stretch sm:self-auto">
+          <div className="flex-1 sm:flex-none bg-primary/10 border border-primary/20 px-3 sm:px-4 py-2 rounded-xl sm:rounded-2xl text-center">
+            <span className="text-lg sm:text-xl font-bold text-primary block leading-tight">
               {acceptedConnections.length}
             </span>
-            <span className="text-[11px] text-muted-foreground font-medium">Connections</span>
+            <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium">Connections</span>
           </div>
 
           {incomingRequests.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-2xl text-center animate-pulse">
-              <span className="text-xl font-bold text-amber-500 block leading-tight">
+            <div className="flex-1 sm:flex-none bg-amber-500/10 border border-amber-500/20 px-3 sm:px-4 py-2 rounded-xl sm:rounded-2xl text-center animate-pulse">
+              <span className="text-lg sm:text-xl font-bold text-amber-500 block leading-tight">
                 {incomingRequests.length}
               </span>
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+              <span className="text-[10px] sm:text-[11px] text-amber-600 dark:text-amber-400 font-medium">
                 Pending Requests
               </span>
             </div>
@@ -194,11 +194,11 @@ const MyNetwork = () => {
       </div>
 
       {/* Tabs Navigation & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 border-b border-border/40 pb-4">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none py-1">
           <button
             onClick={() => setActiveTab('connections')}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex items-center gap-2 ${
+            className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 sm:gap-2 ${
               activeTab === 'connections'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -209,7 +209,7 @@ const MyNetwork = () => {
 
           <button
             onClick={() => setActiveTab('pending')}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex items-center gap-2 relative ${
+            className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 sm:gap-2 relative ${
               activeTab === 'pending'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -223,7 +223,7 @@ const MyNetwork = () => {
 
           <button
             onClick={() => setActiveTab('discover')}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex items-center gap-2 ${
+            className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 sm:gap-2 ${
               activeTab === 'discover'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'

@@ -39,6 +39,7 @@ const VideoCallModal = ({ currentUser }) => {
   const [callStatusText, setCallStatusText] = useState('Calling user...');
   const [callType, setCallType] = useState('video'); // 'video' | 'audio'
   const [partner, setPartner] = useState(null); // { clerkId, name, image }
+  const [onlineUsers, setOnlineUsers] = useState([]); // track online users
   
   // Call Controls State
   const [isMuted, setIsMuted] = useState(false);
@@ -118,13 +119,19 @@ const VideoCallModal = ({ currentUser }) => {
       const register = () => {
         if (socket.connected) {
           socket.emit('register_user', currentUser.id);
+          socket.emit('get_online_users');
         }
       };
       register();
       socket.on('connect', register);
+      
+      const handleOnlineUsers = (users) => setOnlineUsers(users);
+      socket.on('online_users_update', handleOnlineUsers);
+      
       const interval = setInterval(register, 3000);
       return () => {
         socket.off('connect', register);
+        socket.off('online_users_update', handleOnlineUsers);
         clearInterval(interval);
       };
     }
@@ -145,11 +152,11 @@ const VideoCallModal = ({ currentUser }) => {
     }
   }, [callState, callType]);
 
-  // 60-Second Auto-Decline / No Answer Timeout Timer
+  // 30-Second Auto-Decline / No Answer Timeout Timer
   useEffect(() => {
     if (callState === 'calling' || callState === 'incoming') {
       callTimeoutRef.current = setTimeout(() => {
-        console.log('Call timed out automatically after 60 seconds');
+        console.log('Call timed out automatically after 30 seconds');
         const targetId = partner?.clerkId || targetPartnerClerkIdRef.current;
         if (targetId) {
           socket.emit('end_call', { 
@@ -164,7 +171,7 @@ const VideoCallModal = ({ currentUser }) => {
         );
 
         cleanupCall('missed');
-      }, 60000); // 60,000 ms = 1 minute
+      }, 30000); // 30,000 ms = 30 seconds
     } else {
       if (callTimeoutRef.current) {
         clearTimeout(callTimeoutRef.current);
@@ -534,6 +541,14 @@ const VideoCallModal = ({ currentUser }) => {
       return;
     }
 
+    if (!onlineUsers.includes(targetClerkId)) {
+      toast(`${targetPartner.name || 'User'} is offline, but we'll try to reach them.`, { 
+        id: 'call_status_toast',
+        icon: '⚠️'
+      });
+      // Do not abort, proceed to calling UI
+    }
+
     const normalizedPartner = {
       ...targetPartner,
       clerkId: targetClerkId,
@@ -546,7 +561,7 @@ const VideoCallModal = ({ currentUser }) => {
       targetPartnerClerkIdRef.current = targetClerkId;
       setPartner(normalizedPartner);
       setCallType(type);
-      setCallStatusText('Calling user...');
+      setCallStatusText(!onlineUsers.includes(targetClerkId) ? 'Offline Calling...' : 'Calling user...');
       setIsVideoOff(type === 'audio');
       setIsMuted(false);
       setCallState('calling');
@@ -716,7 +731,6 @@ const VideoCallModal = ({ currentUser }) => {
     cleanupCall('rejected');
   };
 
-  // End Call
   const endCall = () => {
     toast.dismiss();
     if (partner?.clerkId) {
@@ -726,7 +740,8 @@ const VideoCallModal = ({ currentUser }) => {
       });
     }
     ringtoneService.playCallEndSound();
-    cleanupCall('completed');
+    const finalStatus = callState === 'calling' ? 'missed' : 'completed';
+    cleanupCall(finalStatus);
   };
 
   // Toggle Mute Microphone
@@ -940,7 +955,7 @@ const VideoCallModal = ({ currentUser }) => {
     };
     window.addEventListener('initiate_call', handleTriggerCall);
     return () => window.removeEventListener('initiate_call', handleTriggerCall);
-  }, [currentUser]);
+  }, [currentUser, onlineUsers, callState]);
 
   if (callState === 'idle') return null;
 
@@ -954,7 +969,7 @@ const VideoCallModal = ({ currentUser }) => {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="relative bg-zinc-950 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-lg w-full text-center space-y-6 overflow-hidden"
+            className="relative bg-zinc-950 sm:border border-white/15 rounded-none sm:rounded-3xl p-6 sm:p-8 sm:shadow-2xl max-w-lg w-full h-full sm:h-auto text-center space-y-6 overflow-hidden flex flex-col justify-center"
           >
             <div className="relative z-10 space-y-6">
               {/* Caller Avatar with Pulse Rings */}
@@ -1049,8 +1064,8 @@ const VideoCallModal = ({ currentUser }) => {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className={`relative bg-black rounded-3xl overflow-hidden shadow-2xl flex flex-col transition-all ${
-              isFullscreen ? 'w-screen h-screen rounded-none' : 'w-full max-w-4xl h-[82vh]'
+            className={`relative bg-black rounded-none sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col transition-all ${
+              isFullscreen ? 'w-screen h-screen rounded-none' : 'w-full h-full sm:max-w-4xl sm:h-[82vh]'
             }`}
           >
             {/* Top Bar with Live Timer & Partner Name */}

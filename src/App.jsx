@@ -118,7 +118,7 @@ function AnimatedRoutes() {
         <Route path="/u/:id" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1 bg-background pt-20 pb-10"><StudentProfile /></main><Footer /></div></PageTransition>} />
 
         {/* Authenticated Dashboard Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['student', 'user']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['student', 'user', 'alumni']} />}>
           <Route path="/dashboard" element={<PageTransition><DashboardLayout /></PageTransition>}>
             <Route index element={<DashboardHome />} />
             <Route path="profile" element={<MyProfile />} />
@@ -142,7 +142,7 @@ function AnimatedRoutes() {
         </Route>
 
         {/* Authenticated Mentor Dashboard Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['mentor', 'alumni']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['mentor']} />}>
           <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
             <Route index element={<MentorHome />} />
             <Route path="profile" element={<MyProfile />} />

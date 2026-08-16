@@ -121,18 +121,18 @@ const MyMentees = () => {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
         {filteredMentees.map((mentee) => (
           <div key={mentee.id} className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col">
 
-            <div className="p-5 flex-1 text-center relative">
-              <div className="absolute top-4 right-4">
+            <div className="p-4 sm:p-5 flex-1 text-center relative">
+              <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
                 {mentee.status === 'Active' ? (
-                  <span className="bg-blue-500/10 text-blue-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+                  <span className="bg-blue-500/10 text-blue-500 text-[10px] font-bold px-2 py-0.5 sm:py-1 rounded-full uppercase tracking-wider">
                     {mentee.status}
                   </span>
                 ) : (
-                  <span className="bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                  <span className="bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-0.5 sm:py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" /> {mentee.status}
                   </span>
                 )}
@@ -140,23 +140,23 @@ const MyMentees = () => {
               <img
                 src={mentee.image}
                 alt={mentee.name}
-                className="w-20 h-20 rounded-full object-cover mx-auto mb-4 border-2 border-primary/20"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto mb-3 sm:mb-4 border-2 border-primary/20"
               />
-              <h3 className="font-bold text-foreground text-lg">{mentee.name}</h3>
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{mentee.course}</p>
-              <p className="text-[10px] font-medium text-foreground/70 uppercase tracking-widest mt-1">{mentee.university}</p>
+              <h3 className="font-bold text-foreground text-base sm:text-lg truncate">{mentee.name}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{mentee.course}</p>
+              <p className="text-[10px] font-medium text-foreground/70 uppercase tracking-widest mt-1 truncate">{mentee.university}</p>
 
-              <div className="flex flex-wrap gap-1.5 justify-center mt-4">
+              <div className="flex flex-wrap gap-1.5 justify-center mt-3 sm:mt-4">
                 {mentee.skills.map((skill, index) => (
-                  <span key={index} className="bg-muted text-muted-foreground text-[10px] px-2 py-1 rounded-md">
+                  <span key={index} className="bg-muted text-muted-foreground text-[10px] px-2 py-0.5 rounded-md">
                     {skill}
                   </span>
                 ))}
               </div>
             </div>
 
-            <div className="px-5 pb-5">
-              <div className="mb-4">
+            <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+              <div className="mb-3 sm:mb-4">
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-muted-foreground font-medium">Mentorship Progress</span>
                   <span className="text-primary font-bold">{mentee.progress}%</span>
@@ -169,19 +169,19 @@ const MyMentees = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button 
                   onClick={() => navigate(`/mentor-dashboard/student/${mentee.fullProfile?.id || mentee.fullProfile?.clerkId}`)}
-                  className="flex items-center justify-center gap-2 bg-background border border-border/50 hover:bg-muted text-foreground py-2 rounded-lg text-xs font-medium transition-colors"
+                  className="flex items-center justify-center gap-1.5 bg-background border border-border/50 hover:bg-muted text-foreground py-2 rounded-lg text-xs font-medium transition-colors"
                 >
-                  <User className="w-4 h-4" /> Profile
+                  <User className="w-3.5 h-3.5" /> Profile
                 </button>
-                <button className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-xs font-medium transition-colors shadow-sm shadow-primary/20">
-                  <MessageSquare className="w-4 h-4" /> Message
+                <button className="flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-xs font-medium transition-colors shadow-sm shadow-primary/20">
+                  <MessageSquare className="w-3.5 h-3.5" /> Message
                 </button>
               </div>
               <button 
                 onClick={() => handleUnfriend(mentee.id, mentee.name)}
-                className="w-full mt-2 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 py-2 rounded-lg text-xs font-medium transition-colors"
+                className="w-full mt-2 flex items-center justify-center gap-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-colors"
               >
-                <X className="w-4 h-4" /> Remove Student
+                <X className="w-3.5 h-3.5" /> Remove Student
               </button>
             </div>
           </div>

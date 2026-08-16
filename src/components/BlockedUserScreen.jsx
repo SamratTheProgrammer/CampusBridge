@@ -38,7 +38,7 @@ const BlockedUserScreen = ({ blockReason }) => {
       {/* Background Subtle Gradient Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-md w-full bg-card border border-border/60 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center relative z-10 animate-in fade-in zoom-in duration-300">
+      <div className="max-w-md w-full bg-card border border-border/60 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center relative z-10 animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
         
         {/* Warning Icon Badge */}
         <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border-2 border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto shadow-inner">
