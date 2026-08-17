@@ -338,10 +338,16 @@ const DashboardLayout = () => {
                   <img 
                     src={user.imageUrl || "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
                     alt="Profile" 
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => navigate('/dashboard/profile')}
                   />
                   <div className="hidden lg:block text-sm">
-                    <p className="font-semibold text-foreground leading-none mb-1">{user.fullName || 'User'}</p>
+                    <p 
+                      className="font-semibold text-foreground leading-none mb-1 cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => navigate('/dashboard/profile')}
+                    >
+                      {user.fullName || 'User'}
+                    </p>
                     <p className="text-xs text-muted-foreground leading-none">{user.publicMetadata?.role === 'alumni' ? 'Alumni' : 'Student'}</p>
                   </div>
                 </>

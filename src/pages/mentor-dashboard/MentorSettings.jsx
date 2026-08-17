@@ -294,7 +294,7 @@ const MentorSettings = () => {
     if (!user) return
     setIsSaving(true)
     try {
-      await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
+      const res = await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -312,16 +312,25 @@ const MentorSettings = () => {
         })
       });
 
-      await user.update({
-        firstName,
-        lastName,
-        unsafeMetadata: {
-          ...user.unsafeMetadata,
-          headline,
-          address,
-          phone
-        }
-      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to save to MongoDB');
+      }
+
+      try {
+        await user.update({
+          firstName: firstName || user.firstName,
+          lastName: lastName || user.lastName,
+          unsafeMetadata: {
+            ...user.unsafeMetadata,
+            headline,
+            address,
+            phone
+          }
+        });
+      } catch (clerkErr) {
+        console.warn('Clerk update failed, proceeding with DB update:', clerkErr);
+      }
 
       const checkRes = await fetch(`${API_BASE}/api/users/${user.id}`);
       if (checkRes.ok) {
@@ -348,7 +357,7 @@ const MentorSettings = () => {
         socket.emit('update_sidebar');
       }
     } catch (err) {
-      toast.error('Failed to save changes')
+      toast.error(err.message || 'Failed to save changes')
       console.error(err)
     } finally {
       setIsSaving(false)

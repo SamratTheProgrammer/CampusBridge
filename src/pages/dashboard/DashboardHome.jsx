@@ -438,12 +438,24 @@ const DashboardHome = () => {
               <img 
                 src={isLoaded && user ? (user.imageUrl || getAvatarFallback(user.fullName)) : getAvatarFallback('U')} 
                 alt="Profile" 
-                className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card"
+                className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => {
+                  const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                  navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
+                }}
               />
             </div>
             {isLoaded && user ? (
               <>
-                <h3 className="font-bold text-foreground">{user.fullName || 'User'}</h3>
+                <h3 
+                  className="font-bold text-foreground cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => {
+                    const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                    navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
+                  }}
+                >
+                  {user.fullName || 'User'}
+                </h3>
                 <p className="text-xs text-muted-foreground mb-4">
                   {user.unsafeMetadata?.headline || (user.publicMetadata?.role === 'alumni' ? 'Alumni' : 'Student')}
                 </p>
@@ -494,7 +506,10 @@ const DashboardHome = () => {
               src={user?.imageUrl || getAvatarFallback(user?.fullName)}
               alt="Profile"
               className="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => navigate('/dashboard/profile')}
+              onClick={() => {
+                const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
+              }}
             />
             <div className={`flex-1 rounded-xl overflow-hidden ${selectedGradient || 'bg-background border border-border/50'}`}>
               <textarea 
@@ -608,7 +623,8 @@ const DashboardHome = () => {
                           className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
                           onClick={() => {
                             if (post.authorClerkId === user?.id) {
-                              navigate('/dashboard/profile');
+                              const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                              navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
                             } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
                               navigate(`/dashboard/mentor/${post.authorClerkId}`);
                             } else {
@@ -618,10 +634,11 @@ const DashboardHome = () => {
                         />
                         <div>
                           <h3 
-                            className="font-bold text-foreground text-sm cursor-pointer hover:underline"
+                            className="font-bold text-foreground text-sm cursor-pointer hover:text-primary transition-colors"
                             onClick={() => {
                               if (post.authorClerkId === user?.id) {
-                                navigate('/dashboard/profile');
+                                const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                                navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
                               } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
                                 navigate(`/dashboard/mentor/${post.authorClerkId}`);
                               } else {

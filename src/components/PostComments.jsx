@@ -100,7 +100,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                 <div className="flex-1 min-w-0">
                   <div className="bg-background border border-border/50 rounded-2xl rounded-tl-none px-4 py-2.5 shadow-2xs">
                     <h4 
-                      className="font-bold text-xs text-foreground cursor-pointer hover:underline"
+                      className="font-bold text-xs text-foreground cursor-pointer hover:text-primary transition-colors"
                       onClick={() => handleUserClick(comment.authorClerkId, comment.author?.role)}
                     >
                       {comment.author?.name}
@@ -143,7 +143,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                           <div className="flex-1 min-w-0 bg-muted/30 border border-border/40 rounded-xl px-3 py-1.5">
                             <div className="flex items-center justify-between gap-2">
                               <h5 
-                                className="font-bold text-[11px] text-foreground cursor-pointer hover:underline"
+                                className="font-bold text-[11px] text-foreground cursor-pointer hover:text-primary transition-colors"
                                 onClick={() => handleUserClick(reply.authorClerkId, reply.author?.role)}
                               >
                                 {reply.author?.name}

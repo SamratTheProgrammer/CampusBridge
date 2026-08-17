@@ -297,7 +297,7 @@ const Settings = () => {
           body: JSON.stringify({ username: usernameValue })
         });
         if (!usernameRes.ok) {
-          const data = await usernameRes.json();
+          const data = await usernameRes.json().catch(() => ({}));
           if (data.message?.includes('taken')) {
             setUsernameError('This username is already taken');
             toast.error('Username is already taken');
@@ -308,24 +308,28 @@ const Settings = () => {
       }
 
       // Save to Clerk (fallback/auth layer)
-      await user.update({
-        firstName,
-        lastName,
-        username: usernameValue || undefined,
-        unsafeMetadata: {
-          ...user.unsafeMetadata,
-          headline,
-          location,
-          address,
-          phone,
-          aboutMe,
-          socialLinks,
-          resumeUrl,
-          experience,
-          education,
-          skills
-        }
-      })
+      try {
+        await user.update({
+          firstName: firstName || user.firstName,
+          lastName: lastName || user.lastName,
+          ...(user.username ? { username: usernameValue || undefined } : {}),
+          unsafeMetadata: {
+            ...user.unsafeMetadata,
+            headline,
+            location,
+            address,
+            phone,
+            aboutMe,
+            socialLinks,
+            resumeUrl,
+            experience,
+            education,
+            skills
+          }
+        });
+      } catch (clerkErr) {
+        console.warn('Clerk update failed, proceeding with DB update:', clerkErr);
+      }
 
       // Save to MongoDB (primary database layer)
       const res = await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
@@ -350,12 +354,13 @@ const Settings = () => {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to save to MongoDB');
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to save to MongoDB');
       }
 
       toast.success('Profile updated successfully!')
     } catch (err) {
-      toast.error('Failed to save changes')
+      toast.error(err.message || 'Failed to save changes')
       console.error(err)
     } finally {
       setIsSaving(false)

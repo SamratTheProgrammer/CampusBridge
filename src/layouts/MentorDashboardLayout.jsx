@@ -343,10 +343,16 @@ const MentorDashboardLayout = () => {
                   <img 
                     src={user.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
                     alt="Profile" 
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => navigate('/mentor-dashboard/profile')}
                   />
                   <div className="hidden lg:block text-sm">
-                    <p className="font-semibold text-foreground leading-none mb-1">{user.fullName || 'Mentor'}</p>
+                    <p 
+                      className="font-semibold text-foreground leading-none mb-1 cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => navigate('/mentor-dashboard/profile')}
+                    >
+                      {user.fullName || 'Mentor'}
+                    </p>
                     <p className="text-xs text-muted-foreground leading-none">Mentor</p>
                   </div>
                 </>
