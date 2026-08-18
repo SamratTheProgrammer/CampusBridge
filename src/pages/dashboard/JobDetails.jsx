@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Bookmark, Share2, Loader2, MapPin, Briefcase, Calendar, Bell, BellRing } from 'lucide-react'
+import { ArrowLeft, Bookmark, Share2, Loader2, MapPin, Briefcase, Calendar, Bell, BellRing, IndianRupee } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { useUser } from '@clerk/clerk-react'
@@ -231,11 +231,11 @@ const JobDetails = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-8">
       {/* Top Nav */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <Link to="/dashboard/jobs" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Jobs
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={handleSave}
             disabled={isSaving}
@@ -292,32 +292,34 @@ const JobDetails = () => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-8 pb-8 border-b border-border/40">
-          <p className="text-xs text-muted-foreground">
-            Posted on {format(new Date(job.createdAt), 'd MMM yyyy')}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 pb-8 border-b border-border/40">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted-foreground">
+              Posted on {format(new Date(job.createdAt), 'd MMM yyyy')}
+            </p>
             {job.deadline && (
-              <span className="ml-2 font-medium text-foreground inline-flex items-center gap-2">
-                • Last Date: {format(new Date(job.deadline), 'd MMM yyyy')}
+              <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-foreground">
+                <span className="text-xs">Last Date: {format(new Date(job.deadline), 'd MMM yyyy')}</span>
                 
                 <a 
                   href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent('Apply for ' + job.title)}&dates=${format(new Date(job.deadline), 'yyyyMMdd')}/${format(new Date(job.deadline), 'yyyyMMdd')}&details=${encodeURIComponent(`Last date to apply for ${job.title} at ${job.company}.\n\nApply here: ${window.location.href}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ml-1"
+                  className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-full text-[10px] sm:text-xs uppercase font-bold tracking-wider"
                   title="Add Deadline to Google Calendar"
                 >
-                  <Calendar className="w-3 h-3" /> Add to Calendar
+                  <Calendar className="w-3.5 h-3.5" /> Add to Calendar
                 </a>
-              </span>
+              </div>
             )}
-          </p>
+          </div>
           {(() => {
             const isDeadlinePassed = job.deadline ? new Date() > new Date(job.deadline) : false;
             return (
               <button 
                 disabled={hasApplied || isDeadlinePassed}
                 onClick={() => setIsApplyModalOpen(true)}
-                className={`px-8 py-2.5 rounded-xl font-medium transition-colors shadow-sm ${
+                className={`w-full sm:w-auto px-8 py-3 sm:py-2.5 rounded-xl font-medium transition-colors shadow-sm ${
                   hasApplied 
                     ? 'bg-muted text-muted-foreground cursor-not-allowed'
                     : isDeadlinePassed
@@ -343,8 +345,8 @@ const JobDetails = () => {
           {job.salary && (
             <section>
               <h2 className="text-lg font-bold text-foreground mb-3">Salary / Stipend</h2>
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <Briefcase className="w-4 h-4" /> {job.salary}
+              <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 bg-muted/30 px-3 py-2 rounded-lg w-fit border border-border/40">
+                <IndianRupee className="w-4 h-4 text-primary" /> {job.salary}
               </p>
             </section>
           )}

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Send, Loader2, CornerDownRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Send, Loader2, CornerDownRight, Heart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../utils/api';
 import { useNavigate, useLocation } from 'react-router-dom';
+import confetti from 'canvas-confetti';
 
 const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallback }) => {
   const [commentText, setCommentText] = useState('');
@@ -30,6 +31,32 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
 
   const commentsArray = post.comments || [];
 
+  const findMentionedUser = (nameStr, currentComment, currentReplies) => {
+    const cleanName = nameStr.replace('@', '');
+    if (currentComment.author?.name === cleanName) {
+      return { id: currentComment.authorClerkId, role: currentComment.author?.role };
+    }
+    const foundReply = currentReplies.find(r => r.author?.name === cleanName);
+    if (foundReply) {
+      return { id: foundReply.authorClerkId, role: foundReply.author?.role };
+    }
+    return null;
+  };
+
+  // Fire confetti if the author opens comments and someone congratulated them
+  useEffect(() => {
+    if (currentUser?.id === post.authorClerkId) {
+      const hasCongo = commentsArray.some(c => /congrat|congo|🎉|🎊/i.test(c.content));
+      if (hasCongo) {
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      }
+    }
+  }, []); // Run once when comments section opens
+
   const handleComment = async (e) => {
     if (e) e.preventDefault();
     if (!commentText.trim() || !currentUser) return;
@@ -41,6 +68,13 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
         body: JSON.stringify({ authorClerkId: currentUser.id, content: commentText })
       });
       if (res.ok) {
+        if (/congrat|congo|🎉|🎊/i.test(commentText)) {
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }
         setCommentText('');
         if (onRefresh) onRefresh();
       } else {
@@ -79,6 +113,38 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
     }
   };
 
+  const handleLikeComment = async (commentId) => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${post._id}/comment/${commentId}/like`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: currentUser.id })
+      });
+      if (res.ok && onRefresh) {
+        onRefresh();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleLikeReply = async (commentId, replyId) => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${post._id}/comment/${commentId}/reply/${replyId}/like`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: currentUser.id })
+      });
+      if (res.ok && onRefresh) {
+        onRefresh();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-5 space-y-4">
       {/* Existing Comments List */}
@@ -108,24 +174,36 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                     <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap break-words">{comment.content}</p>
                   </div>
 
-                  {/* Comment Meta (Time & Reply Button) */}
+                  {/* Comment Meta (Time & Actions) */}
                   <div className="flex items-center gap-3 mt-1 ml-2 text-[11px] text-muted-foreground font-medium">
                     <span>{formatTime ? formatTime(comment.createdAt) : 'Recently'}</span>
+                    
                     {currentUser && (
-                      <button
-                        onClick={() => {
-                          if (isReplyingThis) {
-                            setReplyingCommentId(null);
-                            setReplyText('');
-                          } else {
-                            setReplyingCommentId(comment._id);
-                            setReplyText('');
-                          }
-                        }}
-                        className="font-bold hover:underline hover:text-primary transition-colors cursor-pointer"
-                      >
-                        Reply
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleLikeComment(comment._id)}
+                          className={`font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                            comment.likes?.includes(currentUser.id) ? 'text-red-500' : 'hover:text-primary'
+                          }`}
+                        >
+                          <Heart className={`w-3 h-3 ${comment.likes?.includes(currentUser.id) ? 'fill-current' : ''}`} />
+                          {comment.likes?.length > 0 && <span>{comment.likes.length}</span>}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (isReplyingThis) {
+                              setReplyingCommentId(null);
+                              setReplyText('');
+                            } else {
+                              setReplyingCommentId(comment._id);
+                              setReplyText(`@${comment.author?.name} `);
+                            }
+                          }}
+                          className="font-bold hover:underline hover:text-primary transition-colors cursor-pointer"
+                        >
+                          Reply
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -133,7 +211,8 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                   {replies.length > 0 && (
                     <div className="mt-2.5 ml-2 pl-3 border-l-2 border-primary/20 space-y-2.5">
                       {replies.map((reply) => (
-                        <div key={reply._id} className="flex gap-2.5 items-start">
+                        <div key={reply._id} className="mb-2">
+                          <div className="flex gap-2.5 items-start">
                           <img
                             src={reply.author?.image || getAvatarFallback(reply.author?.name)}
                             alt={reply.author?.name}
@@ -150,8 +229,51 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                               </h5>
                               <span className="text-[10px] text-muted-foreground/70">{formatTime ? formatTime(reply.createdAt) : ''}</span>
                             </div>
-                            <p className="text-xs text-foreground/90 mt-0.5 break-words">{reply.content}</p>
+                            <p className="text-xs text-foreground/90 mt-0.5 break-words">
+                              {reply.content.startsWith('@') ? (
+                                <>
+                                  <span 
+                                    className="text-primary font-medium cursor-pointer hover:underline"
+                                    onClick={() => {
+                                      const mentionedName = reply.content.split(' ')[0];
+                                      const mentionedUser = findMentionedUser(mentionedName, comment, replies);
+                                      if (mentionedUser) {
+                                        handleUserClick(mentionedUser.id, mentionedUser.role);
+                                      }
+                                    }}
+                                  >
+                                    {reply.content.split(' ')[0]}
+                                  </span>
+                                  {' '}{reply.content.substring(reply.content.indexOf(' ') + 1)}
+                                </>
+                              ) : reply.content}
+                            </p>
                           </div>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 ml-9 text-[10px] text-muted-foreground font-medium">
+                          {currentUser && (
+                            <>
+                              <button
+                                onClick={() => handleLikeReply(comment._id, reply._id)}
+                                className={`transition-colors cursor-pointer flex items-center gap-1 ${
+                                  reply.likes?.includes(currentUser.id) ? 'text-red-500' : 'hover:text-primary'
+                                }`}
+                              >
+                                <Heart className={`w-2.5 h-2.5 ${reply.likes?.includes(currentUser.id) ? 'fill-current' : ''}`} />
+                                {reply.likes?.length > 0 && <span>{reply.likes.length}</span>}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setReplyingCommentId(comment._id);
+                                  setReplyText(`@${reply.author?.name} `);
+                                }}
+                                className="hover:underline hover:text-primary transition-colors cursor-pointer"
+                              >
+                                Reply
+                              </button>
+                            </>
+                          )}
+                        </div>
                         </div>
                       ))}
                     </div>
@@ -197,7 +319,22 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
 
       {/* Main Comment Input Form */}
       {currentUser && (
-        <div className="flex gap-3 pt-2">
+        <div className="flex flex-col gap-2 pt-2 border-t border-border/40 mt-2">
+          {/* Quick Replies for Job/Event posts */}
+          {(post.jobDetails?.title || post.eventDetails?.title) && (
+            <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+              {["Congratulations! 🎉", "So happy for you! 🎊", "Well deserved! 👏", "Amazing news! 🚀"].map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCommentText(suggestion)}
+                  className="whitespace-nowrap px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-full text-xs font-medium transition-colors border border-primary/20"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-3">
           <img
             src={currentUser.imageUrl || getAvatarFallback(currentUser.fullName)}
             alt="You"
@@ -224,6 +361,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
             >
               {isCommenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
+          </div>
           </div>
         </div>
       )}

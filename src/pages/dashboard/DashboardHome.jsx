@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -29,10 +29,26 @@ import {
   MapPin
 } from 'lucide-react'
 import API_BASE from '../../utils/api'
+import defaultPP from '../../assets/default_pp.png'
+
+const indianCities = [
+  "Agra", "Ahmedabad", "Ajmer", "Aligarh", "Allahabad", "Amritsar", "Aurangabad",
+  "Bangalore", "Bareilly", "Bhopal", "Bhubaneswar", "Chandigarh", "Chennai",
+  "Coimbatore", "Cuttack", "Dehradun", "Delhi", "Delhi NCR", "Dhanbad", "Faridabad",
+  "Ghaziabad", "Gurgaon", "Guwahati", "Gwalior", "Hubli", "Hyderabad", "Indore",
+  "Jabalpur", "Jaipur", "Jalandhar", "Jammu", "Jamshedpur", "Jodhpur", "Kanpur",
+  "Kochi", "Kolkata", "Kota", "Kozhikode", "Lucknow", "Ludhiana", "Madurai",
+  "Mangalore", "Meerut", "Moradabad", "Mumbai", "Mysore", "Nagpur", "Nashik",
+  "Noida", "Patna", "Pondicherry", "Pune", "Raipur", "Rajkot", "Ranchi", "Roorkee",
+  "Rourkela", "Salem", "Siliguri", "Srinagar", "Surat", "Thiruvananthapuram",
+  "Tiruchirappalli", "Udaipur", "Vadodara", "Varanasi", "Vijayawada", "Visakhapatnam",
+  "Warangal"
+];
 
 const DashboardHome = () => {
   const { user, isLoaded } = useUser()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
@@ -55,14 +71,38 @@ const DashboardHome = () => {
 
   // Event Post State
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  const [registeredEvents, setRegisteredEvents] = useState([])
   const [newEventDetails, setNewEventDetails] = useState({
     title: '',
     type: 'Study Group',
     format: 'online',
     date: '',
     time: '',
-    location: ''
+    location: '',
+    source: 'manual', // 'campusbridge' | 'manual'
+    campusBridgeEventId: '',
+    imageUrl: ''
   })
+  const [isSharedEventPreFilled, setIsSharedEventPreFilled] = useState(false)
+
+  // Job Post State
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false)
+  const [acceptedJobs, setAcceptedJobs] = useState([])
+  const [newJobDetails, setNewJobDetails] = useState({ 
+    title: '', 
+    company: '', 
+    location: '', 
+    role: 'Full-time',
+    source: 'manual', // 'campusbridge' | 'manual'
+    locationType: 'india', // 'india' | 'outside'
+    city: '',
+    country: '',
+    campusBridgeJobId: '',
+    companyLogo: ''
+  })
+  const [companySuggestions, setCompanySuggestions] = useState([])
+  const [isFetchingCompanies, setIsFetchingCompanies] = useState(false)
+  const [mediaType, setMediaType] = useState('image') // 'image' or 'video'
 
   // Comment State
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
@@ -98,11 +138,13 @@ const DashboardHome = () => {
 
   const fetchMentorsAndConnections = async () => {
     try {
-      const [mentorsRes, connsRes, userRes, jobsRes] = await Promise.all([
+      const [mentorsRes, connsRes, userRes, jobsRes, studentAppsRes, regEventsRes] = await Promise.all([
         user ? fetch(`${API_BASE}/api/users/mentors/suggested?userId=${user.id}`) : fetch(`${API_BASE}/api/users/mentors/suggested`),
         user ? fetch(`${API_BASE}/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
         user ? fetch(`${API_BASE}/api/users/${user.id}`) : Promise.resolve({ ok: false }),
-        fetch(`${API_BASE}/api/jobs`)
+        fetch(`${API_BASE}/api/jobs`),
+        user ? fetch(`${API_BASE}/api/jobs/student/applications/${user.id}`) : Promise.resolve({ ok: false }),
+        user ? fetch(`${API_BASE}/api/events/registered/${user.id}`) : Promise.resolve({ ok: false })
       ])
       
       if (mentorsRes.ok) {
@@ -133,12 +175,22 @@ const DashboardHome = () => {
 
       if (jobsRes.ok) {
         const jobsData = await jobsRes.json()
-        // Take top 4 most recently posted active jobs
         const sortedJobs = (Array.isArray(jobsData) ? jobsData : [])
           .filter(j => j.active !== false)
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 4)
-        setRecentJobs(sortedJobs)
+        setRecentJobs(sortedJobs.slice(0, 4))
+      }
+
+      if (studentAppsRes.ok) {
+        const appsData = await studentAppsRes.json()
+        const acceptedApps = Array.isArray(appsData) ? appsData.filter(app => app.status === 'accepted' && app.job) : []
+        const acceptedJobsList = acceptedApps.map(app => app.job)
+        setAcceptedJobs(acceptedJobsList)
+      }
+
+      if (regEventsRes.ok) {
+        const eventsData = await regEventsRes.json()
+        setRegisteredEvents(Array.isArray(eventsData) ? eventsData : [])
       }
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -151,12 +203,43 @@ const DashboardHome = () => {
     fetchMentorsAndConnections()
   }, [user])
 
-  const handleImageSelect = (e) => {
+  // Handle incoming event share requests
+  useEffect(() => {
+    if (location.state?.shareEvent && registeredEvents.length > 0) {
+      const ev = location.state.shareEvent;
+      setNewEventDetails({
+        ...newEventDetails,
+        source: 'campusbridge',
+        campusBridgeEventId: ev._id,
+        title: ev.title,
+        type: ev.type || 'Other',
+        format: ev.format || 'online',
+        date: ev.date ? new Date(ev.date).toISOString().split('T')[0] : '',
+        time: ev.time || '',
+        location: ev.location || '',
+        imageUrl: ev.posterUrl || ev.imageUrl || ''
+      });
+      setIsEventModalOpen(true);
+      setIsSharedEventPreFilled(true);
+      // Clean up the state so it doesn't reopen on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, registeredEvents]);
+
+  const handleMediaSelect = (e) => {
     const file = e.target.files?.[0]
     if (file) {
+      const isVideo = file.type.startsWith('video/')
+      setMediaType(isVideo ? 'video' : 'image')
+      
       const reader = new FileReader()
       reader.onload = () => {
-        setCropModalData({ src: reader.result })
+        if (isVideo) {
+          setNewPostImage(file)
+          setImagePreview(reader.result)
+        } else {
+          setCropModalData({ src: reader.result })
+        }
       }
       reader.readAsDataURL(file)
       e.target.value = '' // reset input
@@ -204,7 +287,7 @@ const DashboardHome = () => {
   }
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() && !newPostImage) {
+    if (!newPostContent.trim() && !newPostImage && !newEventDetails.title && !newJobDetails.title) {
       toast.error('Post cannot be empty')
       return
     }
@@ -233,6 +316,23 @@ const DashboardHome = () => {
         }
       }
 
+      let finalLocation = newJobDetails.location
+      if (newJobDetails.locationType === 'india' && newJobDetails.city) {
+        finalLocation = `${newJobDetails.city}, India`
+      } else if (newJobDetails.locationType === 'outside' && newJobDetails.country) {
+        finalLocation = newJobDetails.country
+      }
+
+      const jobPayload = newJobDetails.title ? {
+        title: newJobDetails.title,
+        company: newJobDetails.company,
+        location: finalLocation,
+        role: newJobDetails.role,
+        source: newJobDetails.source,
+        campusBridgeJobId: newJobDetails.campusBridgeJobId,
+        companyLogo: newJobDetails.companyLogo
+      } : undefined
+
       // Create the post
       const res = await fetch(`${API_BASE}/api/posts`, {
         method: 'POST',
@@ -242,7 +342,9 @@ const DashboardHome = () => {
           content: newPostContent,
           imageUrl: imageUrl,
           bgGradient: selectedGradient,
-          eventDetails: newEventDetails.title ? newEventDetails : undefined
+          eventDetails: newEventDetails.title ? newEventDetails : undefined,
+          jobDetails: jobPayload,
+          mediaType: mediaType
         })
       })
 
@@ -254,6 +356,11 @@ const DashboardHome = () => {
         setSelectedGradient('')
         setShowGradients(false)
         setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' })
+        setNewJobDetails({ 
+          title: '', company: '', location: '', role: 'Full-time', 
+          source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: '' 
+        })
+        setMediaType('image')
         fetchPosts() // refresh feed
       } else {
         toast.error('Failed to create post')
@@ -377,7 +484,7 @@ const DashboardHome = () => {
   }
 
   const getAvatarFallback = (name) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random&color=fff&bold=true`
+    return defaultPP
   }
 
 
@@ -427,16 +534,20 @@ const DashboardHome = () => {
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
           <div className="h-20 bg-muted relative">
-            <img
-              src={isLoaded && user?.unsafeMetadata?.coverPhoto ? user.unsafeMetadata.coverPhoto : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"}
-              alt="Cover"
-              className="w-full h-full object-cover"
-            />
+            {isLoaded && user?.unsafeMetadata?.coverPhoto ? (
+              <img
+                src={user.unsafeMetadata.coverPhoto}
+                alt="Cover"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600"></div>
+            )}
           </div>
           <div className="px-4 pb-4 relative text-center">
             <div className="flex justify-center -mt-8 mb-3">
               <img 
-                src={isLoaded && user ? (user.imageUrl || getAvatarFallback(user.fullName)) : getAvatarFallback('U')} 
+                src={isLoaded && user ? (user.hasImage ? user.imageUrl : getAvatarFallback(user.fullName)) : getAvatarFallback('U')} 
                 alt="Profile" 
                 className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => {
@@ -503,7 +614,7 @@ const DashboardHome = () => {
         <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex gap-4 mb-4">
             <img
-              src={user?.imageUrl || getAvatarFallback(user?.fullName)}
+              src={user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)}
               alt="Profile"
               className="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => {
@@ -562,8 +673,8 @@ const DashboardHome = () => {
               <input 
                 type="file" 
                 ref={fileInputRef} 
-                onChange={handleImageSelect} 
-                accept="image/*" 
+                onChange={handleMediaSelect} 
+                accept="image/*,video/*" 
                 className="hidden" 
               />
               <button onClick={() => { fileInputRef.current?.click(); setSelectedGradient(''); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-blue-500 font-medium text-sm">
@@ -575,13 +686,13 @@ const DashboardHome = () => {
               <button onClick={() => setIsEventModalOpen(true)} className={`flex items-center gap-2 p-2 rounded-lg transition-colors font-medium text-sm ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600' : 'hover:bg-muted text-orange-500'}`}>
                 <CalendarIcon className="w-5 h-5" /> <span className="hidden sm:inline">{newEventDetails.title ? 'Event Attached' : 'Event'}</span>
               </button>
-              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-purple-500 font-medium text-sm">
-                <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">Job</span>
+              <button onClick={() => setIsJobModalOpen(true)} className={`flex items-center gap-2 p-2 rounded-lg transition-colors font-medium text-sm ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}>
+                <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
               </button>
             </div>
             <button 
               onClick={handleCreatePost}
-              disabled={isPosting || (!newPostContent.trim() && !newPostImage && !newEventDetails.title)}
+              disabled={isPosting || (!newPostContent.trim() && !newPostImage && !newEventDetails.title && !newJobDetails.title)}
               className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
             >
               {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -604,7 +715,7 @@ const DashboardHome = () => {
               const safeLikes = post.likes || []
               const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
               const commentsArray = post.comments || []
-              const postAuthorDP = (post.authorClerkId === user?.id && user?.imageUrl) ? user.imageUrl : (post.author?.image || getAvatarFallback(post.author?.name))
+              const postAuthorDP = (post.authorClerkId === user?.id) ? (user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)) : (post.author?.image || getAvatarFallback(post.author?.name))
               const showComments = activeCommentPostId === post._id
 
               return (
@@ -714,41 +825,140 @@ const DashboardHome = () => {
                           const role = user?.publicMetadata?.role || 'student';
                           navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
                         }}
-                        className="mb-4 bg-muted/50 hover:bg-muted border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm cursor-pointer transition-colors relative"
+                        className="mb-4 bg-muted/30 hover:bg-muted/60 border border-border/50 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200 group"
                       >
-                        <div className="w-full sm:w-16 h-16 rounded-xl bg-orange-500/10 text-orange-600 flex flex-col items-center justify-center shrink-0">
-                          <CalendarIcon className="w-6 h-6 mb-1" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                              {post.eventDetails.type || 'Event'}
-                            </span>
-                            {post.eventDetails.date && new Date(post.eventDetails.date) < new Date(new Date().setHours(0,0,0,0)) && (
-                              <span className="text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
-                                Expired
+                        {/* FB-Style Top Image Banner */}
+                        {(post.imageUrl || post.eventDetails.imageUrl) ? (
+                          <div 
+                            className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (typeof setViewingImage === 'function') {
+                                setViewingImage(post.imageUrl || post.eventDetails.imageUrl);
+                              } else {
+                                window.open(post.imageUrl || post.eventDetails.imageUrl, '_blank');
+                              }
+                            }}
+                          >
+                            <img 
+                              src={post.imageUrl || post.eventDetails.imageUrl} 
+                              alt={post.eventDetails.title} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            />
+                            <div className="absolute top-3 left-3 flex gap-2">
+                              <span className="bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
+                                {post.eventDetails.type || 'Event'}
                               </span>
-                            )}
+                              {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                <span className="bg-red-600/90 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
+                                  Expired
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.eventDetails.title}</h4>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground mt-2">
-                            <span className="flex items-center gap-1"><CalendarIcon className="w-3.5 h-3.5" /> {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString() : 'TBD'}</span>
-                            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {post.eventDetails.time || 'TBD'}</span>
-                            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {post.eventDetails.location || 'TBD'}</span>
+                        ) : (
+                          <div className="w-full h-28 sm:h-36 bg-gradient-to-r from-orange-500/20 via-pink-500/10 to-primary/20 flex items-center justify-between px-6 border-b border-border/40 relative overflow-hidden">
+                            <div className="flex items-center gap-3 z-10">
+                              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                                <CalendarIcon className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                  {post.eventDetails.type || 'Event'}
+                                </span>
+                                {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                  <span className="ml-2 text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
+                                    Expired
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <CalendarIcon className="w-24 h-24 text-foreground/5 absolute -right-4 -bottom-4 pointer-events-none" />
                           </div>
+                        )}
+
+                        {/* Event Info Details Bar */}
+                        <div className="p-4 sm:p-5 flex items-start gap-4">
+                          {post.eventDetails.date && (
+                            <div className="w-12 sm:w-14 h-12 sm:h-14 rounded-xl bg-primary/10 border border-primary/20 flex flex-col items-center justify-center shrink-0 text-center shadow-xs">
+                              <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase leading-tight">
+                                {new Date(post.eventDetails.date).toLocaleDateString('en-US', { month: 'short' })}
+                              </span>
+                              <span className="text-base sm:text-lg font-black text-foreground leading-none mt-0.5">
+                                {new Date(post.eventDetails.date).getDate()}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-base sm:text-lg font-bold text-foreground mb-1 leading-snug group-hover:text-primary transition-colors">
+                              {post.eventDetails.title}
+                            </h4>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium text-muted-foreground mt-1.5">
+                              <span className="flex items-center gap-1.5">
+                                <CalendarIcon className="w-3.5 h-3.5 text-primary" /> 
+                                {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-primary" /> 
+                                {post.eventDetails.time || 'TBD'}
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-primary" /> 
+                                {post.eventDetails.location || 'TBD'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {post.jobDetails && post.jobDetails.title && (
+                      <div className="mb-4 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-purple-500/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-md relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-70 text-2xl sm:text-3xl pointer-events-none">✨🎉</div>
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white text-purple-600 flex flex-col items-center justify-center shrink-0 shadow-sm z-10 overflow-hidden p-2 border border-border/50">
+                          {post.jobDetails.companyLogo ? (
+                            <img src={post.jobDetails.companyLogo} alt={post.jobDetails.company} className="w-full h-full object-contain" />
+                          ) : (
+                            <Briefcase className="w-6 h-6" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 z-10">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-[10px] uppercase font-bold tracking-wider bg-purple-500/20 text-purple-700 px-2 py-0.5 rounded-full">
+                              I Got The Job! 🚀
+                            </span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider bg-background/50 backdrop-blur-sm text-foreground px-2 py-0.5 rounded-full border border-border/50">
+                              {post.jobDetails.role || 'Full-time'}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.jobDetails.title}</h4>
+                          <p className="text-sm font-medium text-foreground/80">{post.jobDetails.company}</p>
+                          {post.jobDetails.location && (
+                            <p className="text-xs text-foreground/60 mt-1 flex items-center gap-1">
+                              📍 {post.jobDetails.location}
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {post.imageUrl && !post.bgGradient && (
-                    <div className="w-full max-h-[500px] bg-muted overflow-hidden flex items-center justify-center">
-                      <img 
-                        src={post.imageUrl} 
-                        alt="Post content" 
-                        className="w-full h-full object-contain cursor-pointer" 
-                        onClick={() => setViewingImage(post.imageUrl)}
-                      />
+                  {post.imageUrl && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                    <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative">
+                      {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                        <video 
+                          src={post.imageUrl} 
+                          controls
+                          className="w-full max-h-[500px] object-contain"
+                        />
+                      ) : (
+                        <img 
+                          src={post.imageUrl} 
+                          alt="Post content" 
+                          className="w-full h-full object-contain cursor-pointer" 
+                          onClick={() => setViewingImage(post.imageUrl)}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -1015,106 +1225,330 @@ const DashboardHome = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl"
+              className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto flex flex-col"
             >
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-foreground">Attach an Event</h2>
-                  <p className="text-sm text-muted-foreground">Share an upcoming study session or meetup.</p>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {newEventDetails.date && new Date(newEventDetails.date).getTime() < new Date().setHours(0,0,0,0)
+                      ? '📝 Share Your Experience'
+                      : '📅 Attach an Event'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {newEventDetails.date && new Date(newEventDetails.date).getTime() < new Date().setHours(0,0,0,0)
+                      ? 'Share your experience from a past event.'
+                      : 'Share an upcoming event or your thoughts.'}
+                  </p>
                 </div>
-                <button onClick={() => setIsEventModalOpen(false)} className="text-muted-foreground hover:bg-muted p-2 rounded-lg">
+                <button onClick={() => {
+                  setIsEventModalOpen(false)
+                  setIsSharedEventPreFilled(false)
+                }} className="text-muted-foreground hover:bg-muted p-2 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Event Title</label>
-                  <input 
-                    type="text" 
-                    value={newEventDetails.title}
-                    onChange={(e) => setNewEventDetails({...newEventDetails, title: e.target.value})}
-                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                    placeholder="e.g. Weekend Hackathon Prep" 
-                  />
-                </div>
+              <div className="space-y-5">
                 
-                <div className="flex gap-6 pt-1 pb-2">
-                  <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer font-medium">
-                    <input type="radio" name="eventFormat" value="online" checked={newEventDetails.format === 'online'} onChange={() => setNewEventDetails({...newEventDetails, format: 'online'})} className="accent-primary w-4 h-4" />
-                    Online
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer font-medium">
-                    <input type="radio" name="eventFormat" value="offline" checked={newEventDetails.format === 'offline'} onChange={() => setNewEventDetails({...newEventDetails, format: 'offline'})} className="accent-primary w-4 h-4" />
-                    Offline
-                  </label>
+                {/* Caption Field - Moved to Top */}
+                <div>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Caption</label>
+                  <textarea
+                    value={newPostContent}
+                    onChange={(e) => setNewPostContent(e.target.value)}
+                    placeholder={newEventDetails.date && new Date(newEventDetails.date).getTime() < new Date().setHours(0,0,0,0)
+                      ? "Share your experience, what you learned..."
+                      : "Say something about this event..."}
+                    className="w-full px-3 py-3 bg-background border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none h-24"
+                  ></textarea>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Event Type</label>
-                    <select 
-                      value={newEventDetails.type}
-                      onChange={(e) => setNewEventDetails({...newEventDetails, type: e.target.value})}
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option>Study Group</option>
-                      <option>Meetup</option>
-                      <option>Hackathon</option>
-                      <option>Other</option>
-                    </select>
+                {/* Source Selection */}
+                {!isSharedEventPreFilled && (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-semibold text-foreground">Are you posting a CampusBridge Event?</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button 
+                        onClick={() => setNewEventDetails({ ...newEventDetails, source: 'campusbridge' })}
+                        className={`py-2 px-3 text-sm font-medium rounded-xl border ${newEventDetails.source === 'campusbridge' ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border/50 text-foreground hover:bg-muted'}`}
+                      >
+                        Yes, Registered Event
+                      </button>
+                      <button 
+                        onClick={() => setNewEventDetails({ ...newEventDetails, source: 'manual' })}
+                        className={`py-2 px-3 text-sm font-medium rounded-xl border ${newEventDetails.source === 'manual' ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border/50 text-foreground hover:bg-muted'}`}
+                      >
+                        No, External / Manual
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">{newEventDetails.format === 'online' ? 'Platform / Link' : 'Location'}</label>
-                    <input 
-                      type="text" 
-                      value={newEventDetails.location}
-                      onChange={(e) => setNewEventDetails({...newEventDetails, location: e.target.value})}
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                      placeholder={newEventDetails.format === 'online' ? 'e.g. Google Meet' : 'e.g. Library Room 3'} 
-                    />
-                  </div>
-                </div>
+                )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
-                    <input 
-                      type="date" 
-                      value={newEventDetails.date}
-                      onChange={(e) => setNewEventDetails({...newEventDetails, date: e.target.value})}
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                    />
+                {newEventDetails.source === 'campusbridge' ? (
+                  <div className="space-y-4">
+                    {!isSharedEventPreFilled && (
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">Select a registered event</label>
+                        {registeredEvents.length > 0 ? (() => {
+                          const now = new Date();
+                          now.setHours(0, 0, 0, 0);
+                          const upcomingEvts = registeredEvents.filter(ev => !ev.date || new Date(ev.date).getTime() >= now.getTime());
+                          const pastEvts = registeredEvents.filter(ev => ev.date && new Date(ev.date).getTime() < now.getTime());
+
+                          const handleSelectEvent = (ev) => {
+                            setNewEventDetails({
+                              ...newEventDetails,
+                              title: ev.title,
+                              type: ev.type || 'Other',
+                              format: ev.format || 'online',
+                              date: ev.date ? new Date(ev.date).toISOString().split('T')[0] : '',
+                              time: ev.time || '',
+                              location: ev.location || '',
+                              campusBridgeEventId: ev._id || ev.eventId,
+                              imageUrl: ev.posterUrl || ev.imageUrl || ''
+                            })
+                          }
+
+                          const EventCard = ({ ev, isPast }) => {
+                            const isSelected = newEventDetails.campusBridgeEventId === (ev._id || ev.eventId);
+                            return (
+                              <button
+                                type="button"
+                                key={ev._id || ev.eventId}
+                                onClick={() => handleSelectEvent(ev)}
+                                className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-sm'
+                                    : 'border-border/50 bg-background hover:bg-muted/60 hover:border-border'
+                                }`}
+                              >
+                                {(ev.posterUrl || ev.imageUrl) ? (
+                                  <img
+                                    src={ev.posterUrl || ev.imageUrl}
+                                    alt={ev.title}
+                                    className="w-14 h-14 rounded-lg object-cover shrink-0 border border-border/30"
+                                  />
+                                ) : (
+                                  <div className={`w-14 h-14 rounded-lg flex flex-col items-center justify-center shrink-0 ${
+                                    isPast ? 'bg-amber-500/10 text-amber-600' : 'bg-primary/10 text-primary'
+                                  }`}>
+                                    <CalendarIcon className="w-5 h-5" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                    <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full ${
+                                      isPast ? 'bg-amber-500/10 text-amber-600' : 'bg-primary/10 text-primary'
+                                    }`}>
+                                      {ev.type || 'Event'}
+                                    </span>
+                                    {isPast && (
+                                      <span className="text-[9px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded-full">
+                                        Past
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h5 className="text-sm font-semibold text-foreground truncate">{ev.title}</h5>
+                                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                    <CalendarIcon className="w-3 h-3" />
+                                    {ev.date ? new Date(ev.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD'}
+                                    {ev.time && <> · <Clock className="w-3 h-3" /> {ev.time}</>}
+                                  </p>
+                                </div>
+                                {isSelected && (
+                                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                  </div>
+                                )}
+                              </button>
+                            )
+                          }
+
+                          return (
+                            <div className="max-h-60 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                              {upcomingEvts.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <CalendarIcon className="w-3.5 h-3.5" /> Upcoming Events ({upcomingEvts.length})
+                                  </p>
+                                  <div className="space-y-2">
+                                    {upcomingEvts.map(ev => <EventCard key={ev._id || ev.eventId} ev={ev} isPast={false} />)}
+                                  </div>
+                                </div>
+                              )}
+                              {pastEvts.length > 0 && (
+                                <div className={upcomingEvts.length > 0 ? 'pt-2 border-t border-border/30' : ''}>
+                                  <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5" /> Past Events — Share Experience ({pastEvts.length})
+                                  </p>
+                                  <div className="space-y-2">
+                                    {pastEvts.map(ev => <EventCard key={ev._id || ev.eventId} ev={ev} isPast={true} />)}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })() : (
+                          <div className="p-3 text-sm text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                            You haven't registered for any CampusBridge events yet.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Event Preview inside Modal */}
+                    {newEventDetails.campusBridgeEventId && (
+                      <div className="bg-muted/50 border border-border/50 rounded-xl flex flex-col overflow-hidden shadow-sm pointer-events-none mt-2">
+                        {(newEventDetails.imageUrl) && (
+                          <div className="w-full h-24 sm:h-32 bg-muted relative">
+                            <img src={newEventDetails.imageUrl} alt={newEventDetails.title} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="p-4 flex flex-col sm:flex-row gap-4 items-start">
+                          {!(newEventDetails.imageUrl) && (
+                            <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-600 flex flex-col items-center justify-center shrink-0">
+                              <CalendarIcon className="w-5 h-5 mb-0.5" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                {newEventDetails.type || 'Event'}
+                              </span>
+                              {newEventDetails.date && new Date(newEventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                <span className="text-[10px] uppercase font-bold tracking-wider bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                                  Past Event
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-base font-bold text-foreground mb-1 truncate">{newEventDetails.title}</h4>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground mt-1.5">
+                              <span className="flex items-center gap-1"><CalendarIcon className="w-3.5 h-3.5" /> {newEventDetails.date ? new Date(newEventDetails.date).toLocaleDateString() : 'TBD'}</span>
+                              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {newEventDetails.time || 'TBD'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                    <input 
-                      type="text" 
-                      value={newEventDetails.time}
-                      onChange={(e) => setNewEventDetails({...newEventDetails, time: e.target.value})}
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                      placeholder="e.g. 5:00 PM" 
-                    />
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Event Title</label>
+                      <input 
+                        type="text" 
+                        value={newEventDetails.title}
+                        onChange={(e) => setNewEventDetails({...newEventDetails, title: e.target.value})}
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                        placeholder="e.g. Weekend Hackathon Prep" 
+                      />
+                    </div>
+                    
+                    <div className="flex gap-6 pt-1 pb-2">
+                      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer font-medium">
+                        <input type="radio" name="eventFormat" value="online" checked={newEventDetails.format === 'online'} onChange={() => setNewEventDetails({...newEventDetails, format: 'online'})} className="accent-primary w-4 h-4" />
+                        Online
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer font-medium">
+                        <input type="radio" name="eventFormat" value="offline" checked={newEventDetails.format === 'offline'} onChange={() => setNewEventDetails({...newEventDetails, format: 'offline'})} className="accent-primary w-4 h-4" />
+                        Offline
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Event Type</label>
+                        <select 
+                          value={newEventDetails.type}
+                          onChange={(e) => setNewEventDetails({...newEventDetails, type: e.target.value})}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option>Study Group</option>
+                          <option>Meetup</option>
+                          <option>Hackathon</option>
+                          <option>Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">{newEventDetails.format === 'online' ? 'Platform / Link' : 'Location'}</label>
+                        <input 
+                          type="text" 
+                          value={newEventDetails.location}
+                          onChange={(e) => setNewEventDetails({...newEventDetails, location: e.target.value})}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                          placeholder={newEventDetails.format === 'online' ? 'e.g. Google Meet' : 'e.g. Library Room 3'} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
+                        <input 
+                          type="date" 
+                          value={newEventDetails.date}
+                          onChange={(e) => setNewEventDetails({...newEventDetails, date: e.target.value})}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
+                        <input 
+                          type="text" 
+                          value={newEventDetails.time}
+                          onChange={(e) => setNewEventDetails({...newEventDetails, time: e.target.value})}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                          placeholder="e.g. 5:00 PM" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Event Poster (Optional)</label>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setNewPostImage(e.target.files[0])
+                          }
+                        }}
+                        className="w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                      />
+                      {newPostImage && <p className="text-xs text-primary mt-1 font-medium">Poster selected: {newPostImage.name}</p>}
+                    </div>
+                  </>
+                )}
+
+
 
                 <div className="flex gap-3 pt-4">
                   {newEventDetails.title && (
                     <button 
                       onClick={() => {
-                        setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' });
+                        setNewPostImage(null);
+                        setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '', source: 'manual', campusBridgeEventId: '', imageUrl: '' });
                         setIsEventModalOpen(false);
+                        setIsSharedEventPreFilled(false);
                       }}
                       className="flex-1 bg-destructive/10 hover:bg-destructive/20 text-destructive py-2.5 rounded-xl font-medium transition-colors"
                     >
-                      Remove Event
+                      Cancel
                     </button>
                   )}
                   <button 
-                    onClick={() => setIsEventModalOpen(false)}
-                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium transition-colors shadow-sm"
+                    onClick={() => {
+                      setIsEventModalOpen(false)
+                      setIsSharedEventPreFilled(false)
+                      handleCreatePost()
+                    }}
+                    disabled={isPosting || !newEventDetails.title}
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    Done
+                    {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {newEventDetails.date && new Date(newEventDetails.date).getTime() < new Date().setHours(0,0,0,0)
+                      ? 'Share Experience'
+                      : 'Post Event'}
                   </button>
                 </div>
               </div>
@@ -1123,6 +1557,279 @@ const DashboardHome = () => {
         )}
       </AnimatePresence>
 
+      {/* Job Attachment Modal */}
+      <AnimatePresence>
+        {isJobModalOpen && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Share a Job Update 🎉</h2>
+                  <p className="text-sm text-muted-foreground">Got a new role? Share it with the network.</p>
+                </div>
+                <button onClick={() => setIsJobModalOpen(false)} className="text-muted-foreground hover:bg-muted p-2 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-5">
+                
+                {/* Source Selection */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-foreground">Got this job from CampusBridge?</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button 
+                      onClick={() => setNewJobDetails({ ...newJobDetails, source: 'campusbridge' })}
+                      className={`py-2 px-3 text-sm font-medium rounded-xl border ${newJobDetails.source === 'campusbridge' ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border/50 text-foreground hover:bg-muted'}`}
+                    >
+                      Yes, from CampusBridge
+                    </button>
+                    <button 
+                      onClick={() => setNewJobDetails({ ...newJobDetails, source: 'manual' })}
+                      className={`py-2 px-3 text-sm font-medium rounded-xl border ${newJobDetails.source === 'manual' ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border/50 text-foreground hover:bg-muted'}`}
+                    >
+                      No, External / Manual
+                    </button>
+                  </div>
+                </div>
+
+                {newJobDetails.source === 'campusbridge' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Select a job you were accepted for</label>
+                    {acceptedJobs.length > 0 ? (
+                      <select 
+                        className="w-full px-3 py-2.5 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        onChange={(e) => {
+                          const job = acceptedJobs.find(j => j._id === e.target.value)
+                          if (job) {
+                            setNewJobDetails({
+                              ...newJobDetails,
+                              title: job.title,
+                              company: job.company,
+                              campusBridgeJobId: job._id,
+                              companyLogo: job.companyLogo || ''
+                            })
+                          }
+                        }}
+                        value={newJobDetails.campusBridgeJobId}
+                      >
+                        <option value="">-- Select a Job --</option>
+                        {acceptedJobs.map(job => (
+                          <option key={job._id} value={job._id}>{job.title} at {job.company}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="p-3 text-sm text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                        You don't have any accepted job applications on CampusBridge yet.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Job Title</label>
+                      <input 
+                        type="text" 
+                        value={newJobDetails.title}
+                        onChange={(e) => setNewJobDetails({...newJobDetails, title: e.target.value})}
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                        placeholder="e.g. Software Engineer Intern" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Company Name</label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          value={newJobDetails.company}
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            setNewJobDetails({...newJobDetails, company: val, companyLogo: ''});
+                            if (val.length > 2) {
+                              setIsFetchingCompanies(true);
+                              try {
+                                const res = await fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(val)}`);
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  setCompanySuggestions(data);
+                                }
+                              } catch (err) {
+                                console.error(err);
+                              } finally {
+                                setIsFetchingCompanies(false);
+                              }
+                            } else {
+                              setCompanySuggestions([]);
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                          placeholder="e.g. Google" 
+                        />
+                        {companySuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-background border border-border/50 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {companySuggestions.map((company, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  setNewJobDetails({
+                                    ...newJobDetails,
+                                    company: company.name,
+                                    companyLogo: `https://www.google.com/s2/favicons?sz=128&domain=${company.domain}`
+                                  });
+                                  setCompanySuggestions([]);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors text-sm"
+                              >
+                                {company.logo || company.domain ? (
+                                  <img 
+                                    src={`https://www.google.com/s2/favicons?sz=128&domain=${company.domain}`} 
+                                    alt={company.name} 
+                                    className="w-6 h-6 object-contain rounded bg-white" 
+                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=32&background=7c3aed&color=fff&bold=true` }}
+                                  />
+                                ) : (
+                                  <div className="w-6 h-6 bg-muted rounded flex items-center justify-center">
+                                    <Briefcase className="w-3 h-3 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <span className="font-medium text-foreground">{company.name}</span>
+                                <span className="text-xs text-muted-foreground ml-auto">{company.domain}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="col-span-2 sm:col-span-1 space-y-3">
+                    <label className="block text-sm font-semibold text-foreground">Location Type</label>
+                    <div className="flex bg-muted/50 p-1 rounded-xl">
+                      <button 
+                        onClick={() => setNewJobDetails({...newJobDetails, locationType: 'india', country: '', city: ''})}
+                        className={`flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors ${newJobDetails.locationType === 'india' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                      >
+                        In India
+                      </button>
+                      <button 
+                        onClick={() => setNewJobDetails({...newJobDetails, locationType: 'outside', country: '', city: ''})}
+                        className={`flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors ${newJobDetails.locationType === 'outside' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                      >
+                        Outside India
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="col-span-2 sm:col-span-1">
+                    {newJobDetails.locationType === 'india' ? (
+                      <div className="mt-7 sm:mt-0">
+                        <label className="block text-sm font-medium text-foreground mb-1.5">City</label>
+                        <select 
+                          value={indianCities.includes(newJobDetails.city) ? newJobDetails.city : (newJobDetails.city ? 'Other' : '')}
+                          onChange={(e) => setNewJobDetails({...newJobDetails, city: e.target.value === 'Other' ? 'Other' : e.target.value})}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">-- Select City --</option>
+                          {indianCities.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="Other">Other...</option>
+                        </select>
+                        {(!indianCities.includes(newJobDetails.city) && newJobDetails.city !== '') && (
+                          <input 
+                            type="text"
+                            value={newJobDetails.city === 'Other' ? '' : newJobDetails.city}
+                            onChange={(e) => setNewJobDetails({...newJobDetails, city: e.target.value})}
+                            placeholder="Type your city name"
+                            className="mt-2 w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                            autoFocus
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-7 sm:mt-0">
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Country</label>
+                        <select 
+                          value={newJobDetails.country}
+                          onChange={(e) => setNewJobDetails({...newJobDetails, country: e.target.value})}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">-- Select Country --</option>
+                          {['USA', 'UK', 'Canada', 'Australia', 'Germany', 'France', 'Singapore', 'UAE', 'Other'].map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Role Type</label>
+                    <select 
+                      value={newJobDetails.role}
+                      onChange={(e) => setNewJobDetails({...newJobDetails, role: e.target.value})}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option>Full-time</option>
+                      <option>Part-time</option>
+                      <option>Internship</option>
+                      <option>Contract</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Caption Field */}
+                <div className="pt-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">Caption (Optional)</label>
+                  <textarea
+                    value={newPostContent}
+                    onChange={(e) => setNewPostContent(e.target.value)}
+                    placeholder="Share some thoughts about this job update..."
+                    className="w-full px-3 py-3 bg-background border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none h-24"
+                  ></textarea>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  {newJobDetails.title && (
+                    <button 
+                      onClick={() => {
+                        setNewJobDetails({ 
+                          title: '', company: '', location: '', role: 'Full-time', 
+                          source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: '', companyLogo: ''
+                        });
+                        setCompanySuggestions([]);
+                        setIsJobModalOpen(false);
+                      }}
+                      className="flex-1 bg-destructive/10 hover:bg-destructive/20 text-destructive py-2.5 rounded-xl font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => {
+                      setIsJobModalOpen(false);
+                      setCompanySuggestions([]);
+                      handleCreatePost();
+                    }}
+                    disabled={isPosting || !newJobDetails.title || !newJobDetails.company}
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Post Job
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

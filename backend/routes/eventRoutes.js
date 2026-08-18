@@ -126,7 +126,11 @@ router.post('/', async (req, res) => {
           date,
           time,
           location: mode === 'Online' ? 'Online' : location,
-          type
+          type,
+          format: mode === 'Online' ? 'online' : 'offline',
+          source: 'campusbridge',
+          campusBridgeEventId: newEvent._id.toString(),
+          imageUrl: imageUrl || ''
         }
       });
       await newPost.save();
@@ -291,17 +295,22 @@ router.get('/registered/:clerkId', async (req, res) => {
     const registeredEvents = applications
       .filter(app => app.event) // filter out any null events
       .map(app => ({
-        _id: app._id,
+        _id: app.event._id, // Use the event ID as _id so selectors work
+        applicationId: app._id,
         eventId: app.event._id,
         title: app.event.title,
         description: app.event.description,
         category: app.event.category,
         type: app.event.type || 'Masterclass',
         mode: app.event.mode || 'Online',
+        format: app.event.mode === 'Offline' ? 'offline' : 'online',
         date: app.event.date,
         time: app.event.time,
         location: app.event.location,
         link: app.event.link,
+        imageUrl: app.event.imageUrl || '',
+        posterUrl: app.event.posterUrl || app.event.imageUrl || '',
+        active: app.event.active,
         organizer: app.event.organizer,
         attendees: app.event.attendees,
         registrationStatus: app.status,

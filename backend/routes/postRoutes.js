@@ -163,10 +163,10 @@ router.get('/user/:clerkId', async (req, res) => {
 // Create a new post
 router.post('/', async (req, res) => {
   try {
-    const { authorClerkId, content, imageUrl, bgGradient, eventDetails } = req.body;
+    const { authorClerkId, content, imageUrl, bgGradient, eventDetails, jobDetails, mediaType } = req.body;
 
-    if (!authorClerkId || (!content && !imageUrl && !eventDetails)) {
-      return res.status(400).json({ message: 'Author and content/event are required' });
+    if (!authorClerkId || (!content && !imageUrl && !eventDetails && !jobDetails)) {
+      return res.status(400).json({ message: 'Author and content/event/job are required' });
     }
 
     const post = new Post({
@@ -174,7 +174,9 @@ router.post('/', async (req, res) => {
       content: content || '',
       imageUrl,
       bgGradient,
-      eventDetails
+      eventDetails,
+      jobDetails,
+      mediaType
     });
 
     await post.save();
@@ -271,6 +273,33 @@ router.post('/:id/comment', async (req, res) => {
     });
 
     res.status(201).json(post.comments);
+
+    // After response, check for mentions
+    try {
+      if (content.startsWith('@')) {
+        const mentionedName = content.split(' ')[0].substring(1);
+        const mentionedUser = await User.findOne({ 
+          $or: [
+            { firstName: new RegExp(`^${mentionedName}$`, 'i') },
+            { username: new RegExp(`^${mentionedName}$`, 'i') }
+          ]
+        });
+        
+        if (mentionedUser && mentionedUser.clerkId !== authorClerkId) {
+          await createNotificationHelper({
+            recipientClerkId: mentionedUser.clerkId,
+            senderClerkId: authorClerkId,
+            type: 'post_comment',
+            title: 'You were mentioned',
+            message: `${commenterName} mentioned you in a comment.`,
+            link: '/dashboard'
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Error sending mention notification:', e);
+    }
+
   } catch (error) {
     console.error('Error adding comment:', error);
     res.status(500).json({ message: 'Server error' });
@@ -309,8 +338,127 @@ router.post('/:id/comment/:commentId/reply', async (req, res) => {
     });
 
     res.status(201).json(comment.replies);
+
+    // Check for mentions
+    try {
+      if (content.startsWith('@')) {
+        const mentionedName = content.split(' ')[0].substring(1);
+        const mentionedUser = await User.findOne({ 
+          $or: [
+            { firstName: new RegExp(`^${mentionedName}$`, 'i') },
+            { username: new RegExp(`^${mentionedName}$`, 'i') }
+          ]
+        });
+        
+        if (mentionedUser && mentionedUser.clerkId !== authorClerkId) {
+          // Trigger notification to tagged user
+          await createNotificationHelper({
+            recipientClerkId: mentionedUser.clerkId,
+            senderClerkId: authorClerkId,
+            type: 'post_comment',
+            title: 'You were mentioned',
+            message: `${replierName} mentioned you in a reply.`,
+            link: '/dashboard'
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Error sending mention notification:', e);
+    }
+
   } catch (error) {
     console.error('Error adding reply:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle Like on a Comment
+router.put('/:id/comment/:commentId/like', async (req, res) => {
+  try {
+    const { clerkId } = req.body;
+    if (!clerkId) return res.status(400).json({ message: 'clerkId is required' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+
+    const likeIndex = comment.likes.indexOf(clerkId);
+    if (likeIndex === -1) {
+      comment.likes.push(clerkId);
+      // Trigger notification
+      if (comment.authorClerkId !== clerkId) {
+        const liker = await User.findOne({ clerkId });
+        const likerName = liker ? `${liker.firstName} ${liker.lastName || ''}`.trim() : 'Someone';
+        await createNotificationHelper({
+          recipientClerkId: comment.authorClerkId,
+          senderClerkId: clerkId,
+          type: 'post_like',
+          title: 'New Comment Like',
+          message: `${likerName} liked your comment.`,
+          link: '/dashboard'
+        });
+      }
+    } else {
+      comment.likes.splice(likeIndex, 1);
+    }
+
+    await post.save();
+    res.status(200).json(comment.likes);
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle Like on a Reply
+router.put('/:id/comment/:commentId/reply/:replyId/like', async (req, res) => {
+  try {
+    const { clerkId } = req.body;
+    if (!clerkId) return res.status(400).json({ message: 'clerkId is required' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+
+    const reply = comment.replies.id(req.params.replyId);
+    if (!reply) return res.status(404).json({ message: 'Reply not found' });
+
+    const likeIndex = reply.likes.indexOf(clerkId);
+    if (likeIndex === -1) {
+      reply.likes.push(clerkId);
+      // Trigger notification
+      if (reply.authorClerkId !== clerkId) {
+        const liker = await User.findOne({ clerkId });
+        const likerName = liker ? `${liker.firstName} ${liker.lastName || ''}`.trim() : 'Someone';
+        await createNotificationHelper({
+          recipientClerkId: reply.authorClerkId,
+          senderClerkId: clerkId,
+          type: 'post_like',
+          title: 'New Reply Like',
+          message: `${likerName} liked your reply.`,
+          link: '/dashboard'
+        });
+      }
+    } else {
+      reply.likes.splice(likeIndex, 1);
+    }
+
+    await post.save();
+    res.status(200).json(reply.likes);
+  } catch (error) {
+    console.error('Error toggling reply like:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

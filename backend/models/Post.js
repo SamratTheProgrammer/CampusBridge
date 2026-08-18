@@ -3,12 +3,14 @@ import mongoose from 'mongoose';
 const replySchema = new mongoose.Schema({
   authorClerkId: { type: String, required: true },
   content: { type: String, required: true },
+  likes: [{ type: String }],
   createdAt: { type: Date, default: Date.now }
 });
 
 const commentSchema = new mongoose.Schema({
   authorClerkId: { type: String, required: true },
   content: { type: String, required: true },
+  likes: [{ type: String }],
   createdAt: { type: Date, default: Date.now },
   replies: [replySchema]
 });
@@ -37,7 +39,24 @@ const postSchema = new mongoose.Schema({
     date: Date,
     time: String,
     location: String,
-    type: { type: String }
+    type: { type: String },
+    format: String, // 'online' or 'offline'
+    source: String, // 'manual' or 'campusbridge'
+    campusBridgeEventId: String,
+    imageUrl: String
+  },
+  jobDetails: {
+    title: String,
+    company: String,
+    location: String,
+    role: String,
+    source: String, // 'manual' or 'campusbridge'
+    campusBridgeJobId: String,
+    companyLogo: String
+  },
+  mediaType: {
+    type: String, // 'image' or 'video'
+    default: 'image'
   },
   createdAt: {
     type: Date,

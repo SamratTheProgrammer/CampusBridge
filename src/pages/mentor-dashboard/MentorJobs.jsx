@@ -8,137 +8,46 @@ import ConfirmModal from '../../components/modals/ConfirmModal'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
 import API_BASE from '../../utils/api'
 
-// ─── Comprehensive Company List with Logos ──────────────────────────────────
-const COMPANIES = [
-  { name: 'Google', logo: 'https://www.google.com/s2/favicons?sz=128&domain=google.com', domain: 'google.com' },
-  { name: 'Microsoft', logo: 'https://www.google.com/s2/favicons?sz=128&domain=microsoft.com', domain: 'microsoft.com' },
-  { name: 'Amazon', logo: 'https://www.google.com/s2/favicons?sz=128&domain=amazon.com', domain: 'amazon.com' },
-  { name: 'Apple', logo: 'https://www.google.com/s2/favicons?sz=128&domain=apple.com', domain: 'apple.com' },
-  { name: 'Meta', logo: 'https://www.google.com/s2/favicons?sz=128&domain=meta.com', domain: 'meta.com' },
-  { name: 'Netflix', logo: 'https://www.google.com/s2/favicons?sz=128&domain=netflix.com', domain: 'netflix.com' },
-  { name: 'Tesla', logo: 'https://www.google.com/s2/favicons?sz=128&domain=tesla.com', domain: 'tesla.com' },
-  { name: 'NVIDIA', logo: 'https://www.google.com/s2/favicons?sz=128&domain=nvidia.com', domain: 'nvidia.com' },
-  { name: 'Adobe', logo: 'https://www.google.com/s2/favicons?sz=128&domain=adobe.com', domain: 'adobe.com' },
-  { name: 'Salesforce', logo: 'https://www.google.com/s2/favicons?sz=128&domain=salesforce.com', domain: 'salesforce.com' },
-  { name: 'Oracle', logo: 'https://www.google.com/s2/favicons?sz=128&domain=oracle.com', domain: 'oracle.com' },
-  { name: 'IBM', logo: 'https://www.google.com/s2/favicons?sz=128&domain=ibm.com', domain: 'ibm.com' },
-  { name: 'Intel', logo: 'https://www.google.com/s2/favicons?sz=128&domain=intel.com', domain: 'intel.com' },
-  { name: 'AMD', logo: 'https://www.google.com/s2/favicons?sz=128&domain=amd.com', domain: 'amd.com' },
-  { name: 'Cisco', logo: 'https://www.google.com/s2/favicons?sz=128&domain=cisco.com', domain: 'cisco.com' },
-  { name: 'SAP', logo: 'https://www.google.com/s2/favicons?sz=128&domain=sap.com', domain: 'sap.com' },
-  { name: 'Uber', logo: 'https://www.google.com/s2/favicons?sz=128&domain=uber.com', domain: 'uber.com' },
-  { name: 'Airbnb', logo: 'https://www.google.com/s2/favicons?sz=128&domain=airbnb.com', domain: 'airbnb.com' },
-  { name: 'Spotify', logo: 'https://www.google.com/s2/favicons?sz=128&domain=spotify.com', domain: 'spotify.com' },
-  { name: 'Twitter / X', logo: 'https://www.google.com/s2/favicons?sz=128&domain=x.com', domain: 'x.com' },
-  { name: 'LinkedIn', logo: 'https://www.google.com/s2/favicons?sz=128&domain=linkedin.com', domain: 'linkedin.com' },
-  { name: 'Slack', logo: 'https://www.google.com/s2/favicons?sz=128&domain=slack.com', domain: 'slack.com' },
-  { name: 'Zoom', logo: 'https://www.google.com/s2/favicons?sz=128&domain=zoom.us', domain: 'zoom.us' },
-  { name: 'Stripe', logo: 'https://www.google.com/s2/favicons?sz=128&domain=stripe.com', domain: 'stripe.com' },
-  { name: 'Shopify', logo: 'https://www.google.com/s2/favicons?sz=128&domain=shopify.com', domain: 'shopify.com' },
-  { name: 'PayPal', logo: 'https://www.google.com/s2/favicons?sz=128&domain=paypal.com', domain: 'paypal.com' },
-  { name: 'Square (Block)', logo: 'https://www.google.com/s2/favicons?sz=128&domain=block.xyz', domain: 'block.xyz' },
-  { name: 'Atlassian', logo: 'https://www.google.com/s2/favicons?sz=128&domain=atlassian.com', domain: 'atlassian.com' },
-  { name: 'GitHub', logo: 'https://www.google.com/s2/favicons?sz=128&domain=github.com', domain: 'github.com' },
-  { name: 'GitLab', logo: 'https://www.google.com/s2/favicons?sz=128&domain=gitlab.com', domain: 'gitlab.com' },
-  { name: 'Docker', logo: 'https://www.google.com/s2/favicons?sz=128&domain=docker.com', domain: 'docker.com' },
-  { name: 'Cloudflare', logo: 'https://www.google.com/s2/favicons?sz=128&domain=cloudflare.com', domain: 'cloudflare.com' },
-  { name: 'Vercel', logo: 'https://www.google.com/s2/favicons?sz=128&domain=vercel.com', domain: 'vercel.com' },
-  { name: 'MongoDB', logo: 'https://www.google.com/s2/favicons?sz=128&domain=mongodb.com', domain: 'mongodb.com' },
-  { name: 'Snowflake', logo: 'https://www.google.com/s2/favicons?sz=128&domain=snowflake.com', domain: 'snowflake.com' },
-  { name: 'Databricks', logo: 'https://www.google.com/s2/favicons?sz=128&domain=databricks.com', domain: 'databricks.com' },
-  { name: 'Twilio', logo: 'https://www.google.com/s2/favicons?sz=128&domain=twilio.com', domain: 'twilio.com' },
-  { name: 'HubSpot', logo: 'https://www.google.com/s2/favicons?sz=128&domain=hubspot.com', domain: 'hubspot.com' },
-  { name: 'Notion', logo: 'https://www.google.com/s2/favicons?sz=128&domain=notion.so', domain: 'notion.so' },
-  { name: 'Figma', logo: 'https://www.google.com/s2/favicons?sz=128&domain=figma.com', domain: 'figma.com' },
-  { name: 'Canva', logo: 'https://www.google.com/s2/favicons?sz=128&domain=canva.com', domain: 'canva.com' },
-  { name: 'Dropbox', logo: 'https://www.google.com/s2/favicons?sz=128&domain=dropbox.com', domain: 'dropbox.com' },
-  { name: 'Reddit', logo: 'https://www.google.com/s2/favicons?sz=128&domain=reddit.com', domain: 'reddit.com' },
-  { name: 'Pinterest', logo: 'https://www.google.com/s2/favicons?sz=128&domain=pinterest.com', domain: 'pinterest.com' },
-  { name: 'Snapchat', logo: 'https://www.google.com/s2/favicons?sz=128&domain=snapchat.com', domain: 'snapchat.com' },
-  { name: 'TikTok (ByteDance)', logo: 'https://www.google.com/s2/favicons?sz=128&domain=tiktok.com', domain: 'tiktok.com' },
-  { name: 'Samsung', logo: 'https://www.google.com/s2/favicons?sz=128&domain=samsung.com', domain: 'samsung.com' },
-  { name: 'Sony', logo: 'https://www.google.com/s2/favicons?sz=128&domain=sony.com', domain: 'sony.com' },
-  { name: 'Dell', logo: 'https://www.google.com/s2/favicons?sz=128&domain=dell.com', domain: 'dell.com' },
-  { name: 'HP', logo: 'https://www.google.com/s2/favicons?sz=128&domain=hp.com', domain: 'hp.com' },
-  { name: 'Lenovo', logo: 'https://www.google.com/s2/favicons?sz=128&domain=lenovo.com', domain: 'lenovo.com' },
-  { name: 'Qualcomm', logo: 'https://www.google.com/s2/favicons?sz=128&domain=qualcomm.com', domain: 'qualcomm.com' },
-  { name: 'VMware', logo: 'https://www.google.com/s2/favicons?sz=128&domain=vmware.com', domain: 'vmware.com' },
-  { name: 'ServiceNow', logo: 'https://www.google.com/s2/favicons?sz=128&domain=servicenow.com', domain: 'servicenow.com' },
-  { name: 'Palantir', logo: 'https://www.google.com/s2/favicons?sz=128&domain=palantir.com', domain: 'palantir.com' },
-  { name: 'Coinbase', logo: 'https://www.google.com/s2/favicons?sz=128&domain=coinbase.com', domain: 'coinbase.com' },
-  { name: 'Robinhood', logo: 'https://www.google.com/s2/favicons?sz=128&domain=robinhood.com', domain: 'robinhood.com' },
-  // ─── Indian Tech Companies ───
-  { name: 'Flipkart', logo: 'https://www.google.com/s2/favicons?sz=128&domain=flipkart.com', domain: 'flipkart.com' },
-  { name: 'Infosys', logo: 'https://www.google.com/s2/favicons?sz=128&domain=infosys.com', domain: 'infosys.com' },
-  { name: 'TCS', logo: 'https://www.google.com/s2/favicons?sz=128&domain=tcs.com', domain: 'tcs.com' },
-  { name: 'Wipro', logo: 'https://www.google.com/s2/favicons?sz=128&domain=wipro.com', domain: 'wipro.com' },
-  { name: 'HCL Technologies', logo: 'https://www.google.com/s2/favicons?sz=128&domain=hcltech.com', domain: 'hcltech.com' },
-  { name: 'Tech Mahindra', logo: 'https://www.google.com/s2/favicons?sz=128&domain=techmahindra.com', domain: 'techmahindra.com' },
-  { name: 'Zoho', logo: 'https://www.google.com/s2/favicons?sz=128&domain=zoho.com', domain: 'zoho.com' },
-  { name: 'Freshworks', logo: 'https://www.google.com/s2/favicons?sz=128&domain=freshworks.com', domain: 'freshworks.com' },
-  { name: 'Razorpay', logo: 'https://www.google.com/s2/favicons?sz=128&domain=razorpay.com', domain: 'razorpay.com' },
-  { name: 'PhonePe', logo: 'https://www.google.com/s2/favicons?sz=128&domain=phonepe.com', domain: 'phonepe.com' },
-  { name: 'Paytm', logo: 'https://www.google.com/s2/favicons?sz=128&domain=paytm.com', domain: 'paytm.com' },
-  { name: 'CRED', logo: 'https://www.google.com/s2/favicons?sz=128&domain=cred.club', domain: 'cred.club' },
-  { name: 'Swiggy', logo: 'https://www.google.com/s2/favicons?sz=128&domain=swiggy.com', domain: 'swiggy.com' },
-  { name: 'Zomato', logo: 'https://www.google.com/s2/favicons?sz=128&domain=zomato.com', domain: 'zomato.com' },
-  { name: 'Ola', logo: 'https://www.google.com/s2/favicons?sz=128&domain=olacabs.com', domain: 'olacabs.com' },
-  { name: 'Myntra', logo: 'https://www.google.com/s2/favicons?sz=128&domain=myntra.com', domain: 'myntra.com' },
-  { name: 'Dream11', logo: 'https://www.google.com/s2/favicons?sz=128&domain=dream11.com', domain: 'dream11.com' },
-  { name: 'Meesho', logo: 'https://www.google.com/s2/favicons?sz=128&domain=meesho.com', domain: 'meesho.com' },
-  { name: 'Groww', logo: 'https://www.google.com/s2/favicons?sz=128&domain=groww.in', domain: 'groww.in' },
-  { name: 'Zerodha', logo: 'https://www.google.com/s2/favicons?sz=128&domain=zerodha.com', domain: 'zerodha.com' },
-  { name: 'Byju\'s', logo: 'https://www.google.com/s2/favicons?sz=128&domain=byjus.com', domain: 'byjus.com' },
-  { name: 'Unacademy', logo: 'https://www.google.com/s2/favicons?sz=128&domain=unacademy.com', domain: 'unacademy.com' },
-  // ─── Consulting & Finance ───
-  { name: 'Deloitte', logo: 'https://www.google.com/s2/favicons?sz=128&domain=deloitte.com', domain: 'deloitte.com' },
-  { name: 'McKinsey & Company', logo: 'https://www.google.com/s2/favicons?sz=128&domain=mckinsey.com', domain: 'mckinsey.com' },
-  { name: 'Goldman Sachs', logo: 'https://www.google.com/s2/favicons?sz=128&domain=goldmansachs.com', domain: 'goldmansachs.com' },
-  { name: 'JP Morgan Chase', logo: 'https://www.google.com/s2/favicons?sz=128&domain=jpmorganchase.com', domain: 'jpmorganchase.com' },
-  { name: 'Morgan Stanley', logo: 'https://www.google.com/s2/favicons?sz=128&domain=morganstanley.com', domain: 'morganstanley.com' },
-  { name: 'Accenture', logo: 'https://www.google.com/s2/favicons?sz=128&domain=accenture.com', domain: 'accenture.com' },
-  { name: 'EY (Ernst & Young)', logo: 'https://www.google.com/s2/favicons?sz=128&domain=ey.com', domain: 'ey.com' },
-  { name: 'PwC', logo: 'https://www.google.com/s2/favicons?sz=128&domain=pwc.com', domain: 'pwc.com' },
-  { name: 'KPMG', logo: 'https://www.google.com/s2/favicons?sz=128&domain=kpmg.com', domain: 'kpmg.com' },
-  // ─── More Global Companies ───
-  { name: 'Lyft', logo: 'https://www.google.com/s2/favicons?sz=128&domain=lyft.com', domain: 'lyft.com' },
-  { name: 'DoorDash', logo: 'https://www.google.com/s2/favicons?sz=128&domain=doordash.com', domain: 'doordash.com' },
-  { name: 'Instacart', logo: 'https://www.google.com/s2/favicons?sz=128&domain=instacart.com', domain: 'instacart.com' },
-  { name: 'Elastic', logo: 'https://www.google.com/s2/favicons?sz=128&domain=elastic.co', domain: 'elastic.co' },
-  { name: 'HashiCorp', logo: 'https://www.google.com/s2/favicons?sz=128&domain=hashicorp.com', domain: 'hashicorp.com' },
-  { name: 'Datadog', logo: 'https://www.google.com/s2/favicons?sz=128&domain=datadoghq.com', domain: 'datadoghq.com' },
-  { name: 'Splunk', logo: 'https://www.google.com/s2/favicons?sz=128&domain=splunk.com', domain: 'splunk.com' },
-  { name: 'Palo Alto Networks', logo: 'https://www.google.com/s2/favicons?sz=128&domain=paloaltonetworks.com', domain: 'paloaltonetworks.com' },
-  { name: 'CrowdStrike', logo: 'https://www.google.com/s2/favicons?sz=128&domain=crowdstrike.com', domain: 'crowdstrike.com' },
-  { name: 'Okta', logo: 'https://www.google.com/s2/favicons?sz=128&domain=okta.com', domain: 'okta.com' },
-  { name: 'Workday', logo: 'https://www.google.com/s2/favicons?sz=128&domain=workday.com', domain: 'workday.com' },
-  { name: 'Intuit', logo: 'https://www.google.com/s2/favicons?sz=128&domain=intuit.com', domain: 'intuit.com' },
-  { name: 'Autodesk', logo: 'https://www.google.com/s2/favicons?sz=128&domain=autodesk.com', domain: 'autodesk.com' },
-  { name: 'Epic Games', logo: 'https://www.google.com/s2/favicons?sz=128&domain=epicgames.com', domain: 'epicgames.com' },
-  { name: 'Roblox', logo: 'https://www.google.com/s2/favicons?sz=128&domain=roblox.com', domain: 'roblox.com' },
-  { name: 'Unity', logo: 'https://www.google.com/s2/favicons?sz=128&domain=unity.com', domain: 'unity.com' },
-  { name: 'Riot Games', logo: 'https://www.google.com/s2/favicons?sz=128&domain=riotgames.com', domain: 'riotgames.com' },
-  { name: 'Valve', logo: 'https://www.google.com/s2/favicons?sz=128&domain=valvesoftware.com', domain: 'valvesoftware.com' },
-  { name: 'Electronic Arts', logo: 'https://www.google.com/s2/favicons?sz=128&domain=ea.com', domain: 'ea.com' },
-  { name: 'SpaceX', logo: 'https://www.google.com/s2/favicons?sz=128&domain=spacex.com', domain: 'spacex.com' },
-  { name: 'Boeing', logo: 'https://www.google.com/s2/favicons?sz=128&domain=boeing.com', domain: 'boeing.com' },
-  { name: 'Siemens', logo: 'https://www.google.com/s2/favicons?sz=128&domain=siemens.com', domain: 'siemens.com' },
-  { name: 'Bosch', logo: 'https://www.google.com/s2/favicons?sz=128&domain=bosch.com', domain: 'bosch.com' },
-  { name: 'Philips', logo: 'https://www.google.com/s2/favicons?sz=128&domain=philips.com', domain: 'philips.com' },
-]
-
 // ─── Searchable Company Selector Component ──────────────────────────────────
 const CompanySelector = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [isFetching, setIsFetching] = useState(false)
   const dropdownRef = useRef(null)
   const inputRef = useRef(null)
+  const [selectedCompanyObj, setSelectedCompanyObj] = useState(null)
 
-  const selectedCompany = COMPANIES.find(c => c.name === value)
+  // When value changes from outside, try to show it
+  useEffect(() => {
+    if (value && (!selectedCompanyObj || selectedCompanyObj.name !== value)) {
+      setSelectedCompanyObj({ name: value, logo: '' })
+    }
+  }, [value])
 
-  const filtered = COMPANIES.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  )
+  // Fetch from Clearbit API
+  useEffect(() => {
+    if (search.length > 2) {
+      const fetchCompanies = async () => {
+        setIsFetching(true)
+        try {
+          const res = await fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(search)}`)
+          if (res.ok) {
+            const data = await res.json()
+            setSuggestions(data)
+          }
+        } catch (err) {
+          console.error(err)
+        } finally {
+          setIsFetching(false)
+        }
+      }
+      const timeoutId = setTimeout(fetchCompanies, 300)
+      return () => clearTimeout(timeoutId)
+    } else {
+      setSuggestions([])
+    }
+  }, [search])
 
   useEffect(() => {
     const handler = (e) => {
@@ -151,7 +60,9 @@ const CompanySelector = ({ value, onChange }) => {
   }, [])
 
   const handleSelect = (company) => {
-    onChange(company.name, company.logo)
+    const logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${company.domain}`
+    setSelectedCompanyObj({ name: company.name, logo: logoUrl })
+    onChange(company.name, logoUrl)
     setSearch('')
     setIsOpen(false)
   }
@@ -166,15 +77,15 @@ const CompanySelector = ({ value, onChange }) => {
         onClick={() => { setIsOpen(!isOpen); setTimeout(() => inputRef.current?.focus(), 50) }}
         className="w-full flex items-center gap-2.5 px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary text-left transition-all"
       >
-        {selectedCompany ? (
+        {selectedCompanyObj ? (
           <>
             <img 
-              src={selectedCompany.logo} 
-              alt={selectedCompany.name} 
-              className="w-5 h-5 rounded object-contain shrink-0"
+              src={selectedCompanyObj.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedCompanyObj.name)}&size=32&background=7c3aed&color=fff&bold=true`} 
+              alt={selectedCompanyObj.name} 
+              className="w-5 h-5 rounded object-contain shrink-0 bg-white"
               onError={(e) => { e.target.style.display = 'none' }}
             />
-            <span className="flex-1 text-foreground truncate">{selectedCompany.name}</span>
+            <span className="flex-1 text-foreground truncate">{selectedCompanyObj.name}</span>
           </>
         ) : (
           <span className="flex-1 text-muted-foreground">Select a company...</span>
@@ -195,7 +106,7 @@ const CompanySelector = ({ value, onChange }) => {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Search companies..."
+                placeholder="Search companies globally..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 bg-muted/50 border border-border/30 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
@@ -210,40 +121,58 @@ const CompanySelector = ({ value, onChange }) => {
 
           {/* Company list */}
           <div className="max-h-52 overflow-y-auto overscroll-contain">
-            {filtered.length > 0 ? filtered.map((company) => (
-              <button
-                type="button"
-                key={company.domain}
-                onClick={() => handleSelect(company)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-primary/10 transition-colors ${
-                  value === company.name ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'
-                }`}
-              >
-                <img 
-                  src={company.logo} 
-                  alt={company.name} 
-                  className="w-6 h-6 rounded object-contain shrink-0 bg-white p-0.5" 
-                  onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=32&background=7c3aed&color=fff&bold=true` }}
-                />
-                <span className="truncate">{company.name}</span>
-              </button>
-            )) : (
+            {isFetching ? (
+              <div className="px-3 py-6 flex items-center justify-center text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" /> Searching...
+              </div>
+            ) : suggestions.length > 0 ? suggestions.map((company) => {
+              const logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${company.domain}`
+              return (
+                <button
+                  type="button"
+                  key={company.domain}
+                  onClick={() => handleSelect(company)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-primary/10 transition-colors ${
+                    value === company.name ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'
+                  }`}
+                >
+                  <img 
+                    src={logoUrl} 
+                    alt={company.name} 
+                    className="w-6 h-6 rounded object-contain shrink-0 bg-white p-0.5" 
+                    onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=32&background=7c3aed&color=fff&bold=true` }}
+                  />
+                  <span className="truncate flex-1">{company.name}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{company.domain}</span>
+                </button>
+              )
+            }) : search.length > 2 ? (
               <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                No company found. Type to use a custom name.
+                No company found. You can add it below.
+              </div>
+            ) : (
+              <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                Type at least 3 characters to search globally...
               </div>
             )}
             
             {/* Custom / typed company option */}
-            {search && !COMPANIES.find(c => c.name.toLowerCase() === search.toLowerCase()) && (
+            {search.length > 0 && !suggestions.find(c => c.name.toLowerCase() === search.toLowerCase()) && (
               <button
                 type="button"
-                onClick={() => { onChange(search, `https://ui-avatars.com/api/?name=${encodeURIComponent(search)}&size=64&background=7c3aed&color=fff&bold=true`); setSearch(''); setIsOpen(false) }}
+                onClick={() => { 
+                  const fallbackLogo = `https://ui-avatars.com/api/?name=${encodeURIComponent(search)}&size=64&background=7c3aed&color=fff&bold=true`;
+                  setSelectedCompanyObj({ name: search, logo: fallbackLogo });
+                  onChange(search, fallbackLogo); 
+                  setSearch(''); 
+                  setIsOpen(false);
+                }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-primary/10 transition-colors border-t border-border/30 text-primary font-medium"
               >
                 <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center shrink-0">
                   <Plus className="w-3.5 h-3.5 text-primary" />
                 </div>
-                <span>Use "{search}" as company</span>
+                <span>Use "{search}" as custom company</span>
               </button>
             )}
           </div>

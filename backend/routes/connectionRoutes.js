@@ -189,30 +189,118 @@ router.get('/suggestions/:clerkId', async (req, res) => {
       clerkId: { $nin: Array.from(excludedClerkIds) },
       role: 'student',
       profileVisibility: { $ne: 'hidden' }
-    }).limit(10);
+    }).limit(15);
+
     const mentors = await User.find({ 
       clerkId: { $nin: Array.from(excludedClerkIds) },
       role: { $in: ['mentor', 'alumni'] },
       profileVisibility: { $ne: 'hidden' }
-    }).limit(5);
+    }).limit(10);
 
     const formatUser = (u, defaultRole) => ({
       clerkId: u.clerkId || u._id,
       name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
       role: u.role || defaultRole,
       headline: u.headline || u.bio || `${u.role || defaultRole} at CampusBridge`,
-      image: u.imageUrl || u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.firstName || u.name}`,
-      institution: u.education?.[0]?.institution || u.company || 'CampusBridge'
+      image: u.imageUrl || u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.firstName || u.name || 'User'}`,
+      institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
+      skills: u.skills || u.expertise || []
     });
 
     const suggestions = [
-      ...users.map(u => formatUser(u, 'Student')),
-      ...mentors.map(m => formatUser(m, 'Mentor'))
+      ...users.map(u => formatUser(u, 'student')),
+      ...mentors.map(m => formatUser(m, 'mentor'))
     ];
 
     res.status(200).json(suggestions);
   } catch (error) {
     console.error('Error fetching suggestions:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Discover & Search all people with connection status (LinkedIn/Insta style)
+router.get('/discover/:clerkId', async (req, res) => {
+  try {
+    const { clerkId } = req.params;
+    const { q, role, limit = 60 } = req.query;
+
+    // Get all existing connections involving this user
+    const existingConnections = await Connection.find({
+      $or: [{ requesterClerkId: clerkId }, { recipientClerkId: clerkId }]
+    });
+
+    const connMap = new Map();
+    existingConnections.forEach(c => {
+      const otherId = c.requesterClerkId === clerkId ? c.recipientClerkId : c.requesterClerkId;
+      connMap.set(otherId, {
+        status: c.status,
+        isRequester: c.requesterClerkId === clerkId,
+        connectionId: c._id
+      });
+    });
+
+    const query = {
+      clerkId: { $ne: clerkId },
+      profileVisibility: { $ne: 'hidden' }
+    };
+
+    if (q && q.trim()) {
+      const regex = new RegExp(q.trim(), 'i');
+      query.$or = [
+        { firstName: regex },
+        { lastName: regex },
+        { username: regex },
+        { headline: regex },
+        { bio: regex },
+        { company: regex },
+        { 'education.institution': regex },
+        { skills: { $in: [regex] } },
+        { expertise: { $in: [regex] } }
+      ];
+    }
+
+    if (role && role !== 'all') {
+      if (role === 'mentor') {
+        query.role = { $in: ['mentor', 'alumni'] };
+      } else if (role === 'student') {
+        query.role = 'student';
+      }
+    }
+
+    const users = await User.find(query)
+      .limit(parseInt(limit, 10))
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const results = users.map(u => {
+      const uId = u.clerkId || u._id.toString();
+      const connInfo = connMap.get(uId);
+      let connectionStatus = 'none';
+      if (connInfo) {
+        if (connInfo.status === 'accepted') {
+          connectionStatus = 'accepted';
+        } else if (connInfo.status === 'pending') {
+          connectionStatus = connInfo.isRequester ? 'pending' : 'received';
+        }
+      }
+
+      return {
+        clerkId: uId,
+        name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
+        role: u.role || 'student',
+        headline: u.headline || u.bio || `${u.role || 'Student'} at CampusBridge`,
+        image: u.imageUrl || u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.firstName || u.name || 'User'}`,
+        institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
+        skills: u.skills || u.expertise || [],
+        connectionStatus,
+        connectionId: connInfo?.connectionId || null
+      };
+    });
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error in discover people:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

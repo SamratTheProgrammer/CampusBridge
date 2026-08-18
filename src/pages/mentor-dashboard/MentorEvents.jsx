@@ -329,7 +329,7 @@ const MentorEvents = () => {
       {/* Create Event Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <h2 className="text-2xl font-bold text-foreground mb-1">Create New Event</h2>
             <p className="text-sm text-muted-foreground mb-6">Schedule a session with mentees.</p>
             
@@ -421,7 +421,7 @@ const MentorEvents = () => {
       {/* Edit Event Modal */}
       {isEditModalOpen && selectedEvent && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <h2 className="text-2xl font-bold text-foreground mb-6">Edit Event</h2>
             
             <form onSubmit={handleEditEvent} className="space-y-4">

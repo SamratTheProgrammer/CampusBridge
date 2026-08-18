@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import API_BASE from '../../utils/api'
 import { useNavigate } from 'react-router-dom'
+import defaultPP from '../../assets/default_pp.png'
 
 const MyProfile = () => {
   const navigate = useNavigate()
@@ -35,6 +36,26 @@ const MyProfile = () => {
   // Image crop states
   const [cropModalData, setCropModalData] = useState(null) // { src, type: 'dp' | 'cover' }
   const [viewingImage, setViewingImage] = useState(null) // URL of image to view fullscreen
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [showCoverMenu, setShowCoverMenu] = useState(false)
+
+  const coverMenuRef = useRef(null)
+  const profileMenuRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (coverMenuRef.current && !coverMenuRef.current.contains(event.target)) {
+        setShowCoverMenu(false)
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -167,6 +188,46 @@ const MyProfile = () => {
     }
   }
 
+  const handleRemoveCover = async () => {
+    try {
+      toast.loading('Removing cover photo...', { id: 'cover-remove' })
+      await user.update({
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          coverPhoto: null
+        }
+      })
+      await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coverPhoto: '' })
+      })
+      toast.success('Cover photo removed!', { id: 'cover-remove' })
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to remove cover photo', { id: 'cover-remove' })
+    }
+  }
+
+  const handleRemoveProfilePic = async () => {
+    try {
+      toast.loading('Removing profile picture...', { id: 'pic-remove' })
+      await user.setProfileImage({ file: null })
+      await user.reload()
+      
+      await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: user.imageUrl })
+      })
+      
+      toast.success('Profile picture removed!', { id: 'pic-remove' })
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to remove picture', { id: 'pic-remove' })
+    }
+  }
+
   // Same post actions as Dashboard
   const handleLike = async (postId) => {
     if (!user) return;
@@ -251,8 +312,7 @@ const MyProfile = () => {
   }
 
   const getAvatarFallback = (name) => {
-    if (!name) return `https://ui-avatars.com/api/?name=U&background=random`
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+    return defaultPP
   }
 
   const formatTime = (dateString) => {
@@ -282,8 +342,8 @@ const MyProfile = () => {
 
   if (!isLoaded) return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
 
-  const coverPhotoUrl = user?.unsafeMetadata?.coverPhoto || "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-  const profilePhotoUrl = user?.imageUrl || getAvatarFallback(user?.fullName)
+  const coverPhotoUrl = user?.unsafeMetadata?.coverPhoto
+  const profilePhotoUrl = user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-8">
@@ -291,26 +351,46 @@ const MyProfile = () => {
       {/* Header Profile Card */}
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
         <div className="h-48 bg-muted relative group">
-          <img 
-            src={coverPhotoUrl} 
-            alt="Cover" 
-            className="w-full h-full object-cover cursor-pointer"
-            onClick={() => setViewingImage(coverPhotoUrl)}
-          />
-          <input type="file" ref={coverPhotoInputRef} onChange={handleCoverPhotoSelect} accept="image/*" className="hidden" />
-          <button 
-            onClick={() => coverPhotoInputRef.current?.click()}
-            disabled={isUploadingCover}
-            className="absolute top-4 right-4 bg-background/50 backdrop-blur border border-border/50 text-foreground px-3 py-2 flex items-center gap-2 rounded-xl hover:bg-background/80 transition-colors"
-          >
-            {isUploadingCover ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />}
-            <span className="text-sm font-medium">Edit Cover</span>
-          </button>
+          {coverPhotoUrl ? (
+            <img 
+              src={coverPhotoUrl} 
+              alt="Cover" 
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => setViewingImage(coverPhotoUrl)}
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600"></div>
+          )}
+          <div className="absolute top-4 right-4 z-20 flex flex-col items-end" ref={coverMenuRef}>
+            <input type="file" ref={coverPhotoInputRef} onChange={handleCoverPhotoSelect} accept="image/*" className="hidden" />
+            <button 
+              onClick={() => {
+                if (!user?.unsafeMetadata?.coverPhoto) {
+                  coverPhotoInputRef.current?.click();
+                } else {
+                  setShowCoverMenu(!showCoverMenu);
+                }
+              }}
+              disabled={isUploadingCover}
+              className="bg-background/50 backdrop-blur border border-border/50 text-foreground px-3 py-2 flex items-center gap-2 rounded-xl hover:bg-background/80 transition-colors shadow-sm"
+            >
+              {isUploadingCover ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />}
+              <span className="text-sm font-medium">Edit Cover</span>
+            </button>
+            {showCoverMenu && (
+              <div className="mt-2 bg-card border border-border/50 rounded-xl shadow-lg overflow-hidden w-40 flex flex-col">
+                <button className="w-full text-left px-4 py-2 hover:bg-muted text-sm font-medium transition-colors" onClick={() => { coverPhotoInputRef.current?.click(); setShowCoverMenu(false); }}>Upload New</button>
+                {user?.unsafeMetadata?.coverPhoto && (
+                  <button className="w-full text-left px-4 py-2 hover:bg-muted text-sm text-destructive font-medium transition-colors border-t border-border/50" onClick={() => { handleRemoveCover(); setShowCoverMenu(false); }}>Remove Photo</button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="px-4 sm:px-6 pb-6 relative">
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end mb-4">
-            <div className="relative group -mt-14 sm:-mt-20 shrink-0">
+            <div className="relative group -mt-14 sm:-mt-20 shrink-0" ref={profileMenuRef}>
               <img 
                 src={profilePhotoUrl} 
                 alt="Profile" 
@@ -319,11 +399,25 @@ const MyProfile = () => {
               />
               <input type="file" ref={profilePicInputRef} onChange={handleProfilePicSelect} accept="image/*" className="hidden" />
               <button 
-                onClick={() => profilePicInputRef.current?.click()}
-                className="absolute inset-0 z-20 m-auto w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => {
+                  if (!user?.hasImage) {
+                    profilePicInputRef.current?.click();
+                  } else {
+                    setShowProfileMenu(!showProfileMenu);
+                  }
+                }}
+                className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 z-20 p-1.5 hover:scale-110 transition-transform drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] bg-transparent"
               >
-                <Edit3 className="w-5 h-5" />
+                <Edit3 className="w-5 h-5 sm:w-6 sm:h-6 text-white fill-white stroke-[2.5]" />
               </button>
+              {showProfileMenu && (
+                <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 bg-card border border-border/50 rounded-xl shadow-lg overflow-hidden w-40 flex flex-col z-30">
+                  <button className="w-full text-left px-4 py-2 hover:bg-muted text-sm font-medium transition-colors" onClick={() => { profilePicInputRef.current?.click(); setShowProfileMenu(false); }}>Upload Photo</button>
+                  {user?.hasImage && (
+                    <button className="w-full text-left px-4 py-2 hover:bg-muted text-sm text-destructive font-medium transition-colors border-t border-border/50" onClick={() => { handleRemoveProfilePic(); setShowProfileMenu(false); }}>Remove Photo</button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 sm:pt-0">
               <div>
@@ -368,10 +462,10 @@ const MyProfile = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         
         {/* Left Column - Details */}
-        <div className="md:col-span-1 space-y-6">
+        <div className="md:col-span-1 space-y-6 sticky top-20 self-start max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-none pr-1">
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-foreground mb-4">About Me</h3>
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
@@ -568,28 +662,119 @@ const MyProfile = () => {
                               const role = user?.publicMetadata?.role || 'student';
                               navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
                             }}
-                            className="mb-4 bg-muted/50 hover:bg-muted border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm cursor-pointer transition-colors relative"
+                            className="mb-4 bg-muted/30 hover:bg-muted/60 border border-border/50 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200 group"
                           >
-                            <div className="w-full sm:w-16 h-16 rounded-xl bg-orange-500/10 text-orange-600 flex flex-col items-center justify-center shrink-0">
-                              <Calendar className="w-6 h-6 mb-1" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                                  {post.eventDetails.type || 'Event'}
-                                </span>
-                                {post.eventDetails.date && new Date(post.eventDetails.date) < new Date(new Date().setHours(0,0,0,0)) && (
-                                  <span className="text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
-                                    Expired
+                            {/* FB-Style Top Image Banner */}
+                            {(post.imageUrl || post.eventDetails.imageUrl) ? (
+                              <div 
+                                className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (typeof setViewingImage === 'function') {
+                                    setViewingImage(post.imageUrl || post.eventDetails.imageUrl);
+                                  } else {
+                                    window.open(post.imageUrl || post.eventDetails.imageUrl, '_blank');
+                                  }
+                                }}
+                              >
+                                <img 
+                                  src={post.imageUrl || post.eventDetails.imageUrl} 
+                                  alt={post.eventDetails.title} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                />
+                                <div className="absolute top-3 left-3 flex gap-2">
+                                  <span className="bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
+                                    {post.eventDetails.type || 'Event'}
                                   </span>
-                                )}
+                                  {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                    <span className="bg-red-600/90 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
+                                      Expired
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.eventDetails.title}</h4>
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground mt-2">
-                                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString() : 'TBD'}</span>
-                                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {post.eventDetails.time || 'TBD'}</span>
-                                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {post.eventDetails.location || 'TBD'}</span>
+                            ) : (
+                              <div className="w-full h-28 sm:h-36 bg-gradient-to-r from-orange-500/20 via-pink-500/10 to-primary/20 flex items-center justify-between px-6 border-b border-border/40 relative overflow-hidden">
+                                <div className="flex items-center gap-3 z-10">
+                                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                                    <Calendar className="w-6 h-6" />
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                      {post.eventDetails.type || 'Event'}
+                                    </span>
+                                    {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                      <span className="ml-2 text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
+                                        Expired
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <Calendar className="w-24 h-24 text-foreground/5 absolute -right-4 -bottom-4 pointer-events-none" />
                               </div>
+                            )}
+
+                            {/* Event Info Details Bar */}
+                            <div className="p-4 sm:p-5 flex items-start gap-4">
+                              {post.eventDetails.date && (
+                                <div className="w-12 sm:w-14 h-12 sm:h-14 rounded-xl bg-primary/10 border border-primary/20 flex flex-col items-center justify-center shrink-0 text-center shadow-xs">
+                                  <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase leading-tight">
+                                    {new Date(post.eventDetails.date).toLocaleDateString('en-US', { month: 'short' })}
+                                  </span>
+                                  <span className="text-base sm:text-lg font-black text-foreground leading-none mt-0.5">
+                                    {new Date(post.eventDetails.date).getDate()}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-base sm:text-lg font-bold text-foreground mb-1 leading-snug group-hover:text-primary transition-colors">
+                                  {post.eventDetails.title}
+                                </h4>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium text-muted-foreground mt-1.5">
+                                  <span className="flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5 text-primary" /> 
+                                    {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-primary" /> 
+                                    {post.eventDetails.time || 'TBD'}
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <MapPin className="w-3.5 h-3.5 text-primary" /> 
+                                    {post.eventDetails.location || 'TBD'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {post.jobDetails && post.jobDetails.title && (
+                          <div className="mb-4 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-purple-500/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-md relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-70 text-2xl sm:text-3xl pointer-events-none">✨🎉</div>
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white text-purple-600 flex flex-col items-center justify-center shrink-0 shadow-sm z-10 overflow-hidden p-2 border border-border/50">
+                              {post.jobDetails.companyLogo ? (
+                                <img src={post.jobDetails.companyLogo} alt={post.jobDetails.company} className="w-full h-full object-contain" />
+                              ) : (
+                                <Briefcase className="w-6 h-6" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0 z-10">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span className="text-[10px] uppercase font-bold tracking-wider bg-purple-500/20 text-purple-700 px-2 py-0.5 rounded-full">
+                                  I Got The Job! 🚀
+                                </span>
+                                <span className="text-[10px] uppercase font-bold tracking-wider bg-background/50 backdrop-blur-sm text-foreground px-2 py-0.5 rounded-full border border-border/50">
+                                  {post.jobDetails.role || 'Full-time'}
+                                </span>
+                              </div>
+                              <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.jobDetails.title}</h4>
+                              <p className="text-sm font-medium text-foreground/80">{post.jobDetails.company}</p>
+                              {post.jobDetails.location && (
+                                <p className="text-xs text-foreground/60 mt-1 flex items-center gap-1">
+                                  📍 {post.jobDetails.location}
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -699,7 +884,7 @@ const MyProfile = () => {
         {cropModalData && (
           <ImageCropModal 
             imageSrc={cropModalData.src}
-            aspectRatio={cropModalData.type === 'dp' ? 1 : 21/9}
+            aspectRatio={cropModalData.type === 'dp' ? 1 : NaN}
             onCropComplete={handleCropComplete}
             onCancel={() => setCropModalData(null)}
           />

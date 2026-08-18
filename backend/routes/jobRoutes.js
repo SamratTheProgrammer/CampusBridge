@@ -197,7 +197,7 @@ router.get('/:id/applications', async (req, res) => {
   try {
     // Ideally we should verify if the requester is the poster of the job
     const applications = await JobApplication.find({ job: req.params.id })
-      .populate('applicant', 'name email imageUrl headline')
+      .populate('applicant', 'firstName lastName email imageUrl headline clerkId')
       .sort({ createdAt: -1 });
     res.json(applications);
   } catch (error) {
@@ -217,7 +217,7 @@ router.put('/applications/:appId/status', async (req, res) => {
       req.params.appId,
       { status },
       { new: true }
-    ).populate('applicant', 'name email imageUrl headline');
+    ).populate('applicant', 'firstName lastName email imageUrl headline clerkId');
 
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });

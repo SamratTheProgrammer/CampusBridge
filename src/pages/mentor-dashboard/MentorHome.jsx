@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -8,6 +8,7 @@ import ImageCropModal from '../../components/ImageCropModal'
 import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import MentorOnboardingBanner from '../../components/mentor/MentorOnboardingBanner'
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
+import defaultPP from '../../assets/default_pp.png'
 import { 
   Users, 
   FileText, 
@@ -28,13 +29,30 @@ import {
   Edit3,
   Trash2,
   Check,
-  BookOpen
+  BookOpen,
+  Clock,
+  MapPin
 } from 'lucide-react'
 import API_BASE from '../../utils/api'
+
+const indianCities = [
+  "Agra", "Ahmedabad", "Ajmer", "Aligarh", "Allahabad", "Amritsar", "Aurangabad",
+  "Bangalore", "Bareilly", "Bhopal", "Bhubaneswar", "Chandigarh", "Chennai",
+  "Coimbatore", "Cuttack", "Dehradun", "Delhi", "Delhi NCR", "Dhanbad", "Faridabad",
+  "Ghaziabad", "Gurgaon", "Guwahati", "Gwalior", "Hubli", "Hyderabad", "Indore",
+  "Jabalpur", "Jaipur", "Jalandhar", "Jammu", "Jamshedpur", "Jodhpur", "Kanpur",
+  "Kochi", "Kolkata", "Kota", "Kozhikode", "Lucknow", "Ludhiana", "Madurai",
+  "Mangalore", "Meerut", "Moradabad", "Mumbai", "Mysore", "Nagpur", "Nashik",
+  "Noida", "Patna", "Pondicherry", "Pune", "Raipur", "Rajkot", "Ranchi", "Roorkee",
+  "Rourkela", "Salem", "Siliguri", "Srinagar", "Surat", "Thiruvananthapuram",
+  "Tiruchirappalli", "Udaipur", "Vadodara", "Varanasi", "Vijayawada", "Visakhapatnam",
+  "Warangal"
+];
 
 const MentorHome = () => {
   const { user, isLoaded } = useUser()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
@@ -47,10 +65,20 @@ const MentorHome = () => {
   const [pendingRequestsList, setPendingRequestsList] = useState([])
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
 
-  const upcomingSessions = [
-    { id: 1, student: 'Rahul Verma', type: 'Resume Review', date: 'Tomorrow', time: '10:00 AM' },
-    { id: 2, student: 'Karan Singh', type: 'Mock Interview', date: 'Oct 24', time: '4:30 PM' },
-  ]
+  const [upcomingSessions, setUpcomingSessions] = useState([])
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false)
+  const [acceptedJobs, setAcceptedJobs] = useState([])
+  const [newJobDetails, setNewJobDetails] = useState({ 
+    title: '', company: '', location: '', role: 'Full-time',
+    source: 'manual',    locationType: 'india', // 'india' | 'outside'
+    city: '',
+    country: '',
+    campusBridgeJobId: '',
+    companyLogo: ''
+  })
+  const [companySuggestions, setCompanySuggestions] = useState([])
+  const [isFetchingCompanies, setIsFetchingCompanies] = useState(false)
+  const [mediaType, setMediaType] = useState('image') // 'image' or 'video'
 
   const recentApps = [
     { id: 1, title: 'Frontend Developer Intern', applicants: 12 },
@@ -86,10 +114,12 @@ const MentorHome = () => {
 
   const fetchMentorsAndConnections = async () => {
     try {
-      const [mentorsRes, connsRes, userRes] = await Promise.all([
+      const [mentorsRes, connsRes, userRes, jobsRes, studentAppsRes] = await Promise.all([
         fetch(`${API_BASE}/api/users/mentors/suggested`),
         user ? fetch(`${API_BASE}/api/connections/user/${user.id}`) : Promise.resolve({ ok: false }),
-        user ? fetch(`${API_BASE}/api/users/${user.id}`) : Promise.resolve({ ok: false })
+        user ? fetch(`${API_BASE}/api/users/${user.id}`) : Promise.resolve({ ok: false }),
+        fetch(`${API_BASE}/api/jobs`),
+        user ? fetch(`${API_BASE}/api/jobs/student/applications/${user.id}`) : Promise.resolve({ ok: false })
       ])
       
       if (mentorsRes.ok) {
@@ -122,6 +152,17 @@ const MentorHome = () => {
         setProfileCompleteness(comp)
         if (userData.verificationStatus) setVerificationStatus(userData.verificationStatus)
       }
+
+      if (jobsRes.ok) {
+        // Kept for backward compatibility if we use jobsRes for other feed things later
+      }
+
+      if (studentAppsRes.ok) {
+        const appsData = await studentAppsRes.json()
+        const acceptedApps = Array.isArray(appsData) ? appsData.filter(app => app.status === 'accepted' && app.job) : []
+        const acceptedJobsList = acceptedApps.map(app => app.job)
+        setAcceptedJobs(acceptedJobsList)
+      }
     } catch (err) {
       console.error('Error fetching data:', err)
     } finally {
@@ -144,18 +185,44 @@ const MentorHome = () => {
     }
   }
 
+  // Fetch Upcoming Sessions
+  const fetchSessions = async () => {
+    if (!user) return
+    try {
+      const res = await fetch(`${API_BASE}/api/sessions/user/${user.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        const now = new Date()
+        now.setHours(0, 0, 0, 0)
+        const upcoming = data.filter(s => s.status === 'accepted' && new Date(s.date) >= now)
+        setUpcomingSessions(upcoming.slice(0, 3)) // Show top 3
+      }
+    } catch (err) {
+      console.error('Failed to fetch sessions:', err)
+    }
+  }
+
   // Fetch initial data
   useEffect(() => {
     fetchPosts()
     fetchMentorsAndConnections()
+    fetchSessions()
   }, [user])
 
-  const handleImageSelect = (e) => {
+  const handleMediaSelect = (e) => {
     const file = e.target.files?.[0]
     if (file) {
+      const isVideo = file.type.startsWith('video/')
+      setMediaType(isVideo ? 'video' : 'image')
+      
       const reader = new FileReader()
       reader.onload = () => {
-        setCropModalData({ src: reader.result })
+        if (isVideo) {
+          setNewPostImage(file)
+          setImagePreview(reader.result)
+        } else {
+          setCropModalData({ src: reader.result })
+        }
       }
       reader.readAsDataURL(file)
       e.target.value = '' // reset input
@@ -169,7 +236,7 @@ const MentorHome = () => {
   }
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() && !newPostImage) {
+    if (!newPostContent.trim() && !newPostImage && !newJobDetails.title) {
       toast.error('Post cannot be empty')
       return
     }
@@ -198,6 +265,23 @@ const MentorHome = () => {
         }
       }
 
+      let finalLocation = newJobDetails.location
+      if (newJobDetails.locationType === 'india' && newJobDetails.city) {
+        finalLocation = `${newJobDetails.city}, India`
+      } else if (newJobDetails.locationType === 'outside' && newJobDetails.country) {
+        finalLocation = newJobDetails.country
+      }
+
+      const jobPayload = newJobDetails.title ? {
+        title: newJobDetails.title,
+        company: newJobDetails.company,
+        location: finalLocation,
+        role: newJobDetails.role,
+        source: newJobDetails.source,
+        campusBridgeJobId: newJobDetails.campusBridgeJobId,
+        companyLogo: newJobDetails.companyLogo
+      } : undefined
+
       // Create the post
       const res = await fetch(`${API_BASE}/api/posts`, {
         method: 'POST',
@@ -206,7 +290,9 @@ const MentorHome = () => {
           authorClerkId: user.id,
           content: newPostContent,
           imageUrl: imageUrl,
-          bgGradient: selectedGradient
+          bgGradient: selectedGradient,
+          jobDetails: jobPayload,
+          mediaType: mediaType
         })
       })
 
@@ -217,6 +303,11 @@ const MentorHome = () => {
         setImagePreview(null)
         setSelectedGradient('')
         setShowGradients(false)
+        setNewJobDetails({ 
+          title: '', company: '', location: '', role: 'Full-time',
+          source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: ''
+        })
+        setMediaType('image')
         fetchPosts() // refresh feed
       } else {
         toast.error('Failed to create post')
@@ -339,7 +430,7 @@ const MentorHome = () => {
   }
 
   const getAvatarFallback = (name) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random&color=fff&bold=true`
+    return defaultPP
   }
 
   const recentOpportunities = [
@@ -397,24 +488,37 @@ const MentorHome = () => {
       <div className="hidden md:block md:col-span-3 space-y-6 sticky top-24 self-start">
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
-          <div className="h-20 bg-muted relative">
-            <img
-              src={isLoaded && user?.unsafeMetadata?.coverPhoto ? user.unsafeMetadata.coverPhoto : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"}
-              alt="Cover"
-              className="w-full h-full object-cover"
-            />
+          <div 
+            className="h-20 bg-muted relative cursor-pointer group"
+            onClick={() => navigate('/mentor-dashboard/profile')}
+          >
+            {isLoaded && user?.unsafeMetadata?.coverPhoto ? (
+              <img
+                src={user.unsafeMetadata.coverPhoto}
+                alt="Cover"
+                className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 group-hover:opacity-90 transition-opacity"></div>
+            )}
           </div>
           <div className="px-4 pb-4 relative text-center">
             <div className="flex justify-center -mt-8 mb-3">
               <img 
-                src={isLoaded && user ? (user.imageUrl || getAvatarFallback(user.fullName)) : getAvatarFallback('U')} 
+                src={isLoaded && user ? (user.hasImage ? user.imageUrl : getAvatarFallback(user.fullName)) : getAvatarFallback('U')} 
                 alt="Profile" 
-                className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card"
+                className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => navigate('/mentor-dashboard/profile')}
               />
             </div>
             {isLoaded && user ? (
               <>
-                <h3 className="font-bold text-foreground">{user.fullName || 'User'}</h3>
+                <h3 
+                  className="font-bold text-foreground cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => navigate('/mentor-dashboard/profile')}
+                >
+                  {user.fullName || 'User'}
+                </h3>
                 <p className="text-xs text-muted-foreground mb-4">
                   {user.unsafeMetadata?.headline || (user.publicMetadata?.role === 'alumni' ? 'Alumni' : 'Mentor')}
                 </p>
@@ -465,7 +569,7 @@ const MentorHome = () => {
         <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex gap-4 mb-4">
             <img
-              src={user?.imageUrl || getAvatarFallback(user?.fullName)}
+              src={user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)}
               alt="Profile"
               className="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => navigate('/mentor-dashboard/profile')}
@@ -521,8 +625,8 @@ const MentorHome = () => {
               <input 
                 type="file" 
                 ref={fileInputRef} 
-                onChange={handleImageSelect} 
-                accept="image/*" 
+                onChange={handleMediaSelect} 
+                accept="image/*,video/*" 
                 className="hidden" 
               />
               <button onClick={() => { fileInputRef.current?.click(); setSelectedGradient(''); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-blue-500 font-medium text-sm">
@@ -531,16 +635,16 @@ const MentorHome = () => {
               <button onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-sm">
                 <Palette className="w-5 h-5" /> <span className="hidden sm:inline">Background</span>
               </button>
-              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-orange-500 font-medium text-sm">
+              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-orange-500 font-medium text-sm cursor-not-allowed opacity-50" title="Available in Events tab">
                 <CalendarIcon className="w-5 h-5" /> <span className="hidden sm:inline">Event</span>
               </button>
-              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-purple-500 font-medium text-sm">
-                <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">Job</span>
+              <button onClick={() => setIsJobModalOpen(true)} className={`flex items-center gap-2 p-2 rounded-lg transition-colors font-medium text-sm ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}>
+                <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
               </button>
             </div>
             <button 
               onClick={handleCreatePost}
-              disabled={isPosting || (!newPostContent.trim() && !newPostImage)}
+              disabled={isPosting || (!newPostContent.trim() && !newPostImage && !newJobDetails.title)}
               className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
             >
               {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -563,7 +667,7 @@ const MentorHome = () => {
               const safeLikes = post.likes || []
               const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
               const commentsArray = post.comments || []
-              const postAuthorDP = (post.authorClerkId === user?.id && user?.imageUrl) ? user.imageUrl : (post.author?.image || getAvatarFallback(post.author?.name))
+              const postAuthorDP = (post.authorClerkId === user?.id) ? (user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)) : (post.author?.image || getAvatarFallback(post.author?.name))
               const showComments = activeCommentPostId === post._id
 
               return (
@@ -664,16 +768,148 @@ const MentorHome = () => {
                         {post.content}
                       </p>
                     )}
+
+                    {post.eventDetails && post.eventDetails.title && (
+                      <div 
+                        onClick={() => {
+                          const role = user?.publicMetadata?.role || 'student';
+                          navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
+                        }}
+                        className="mb-4 bg-muted/30 hover:bg-muted/60 border border-border/50 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200 group"
+                      >
+                        {/* FB-Style Top Image Banner */}
+                        {(post.imageUrl || post.eventDetails.imageUrl) ? (
+                          <div 
+                            className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (typeof setViewingImage === 'function') {
+                                setViewingImage(post.imageUrl || post.eventDetails.imageUrl);
+                              } else {
+                                window.open(post.imageUrl || post.eventDetails.imageUrl, '_blank');
+                              }
+                            }}
+                          >
+                            <img 
+                              src={post.imageUrl || post.eventDetails.imageUrl} 
+                              alt={post.eventDetails.title} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            />
+                            <div className="absolute top-3 left-3 flex gap-2">
+                              <span className="bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
+                                {post.eventDetails.type || 'Event'}
+                              </span>
+                              {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                <span className="bg-red-600/90 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
+                                  Expired
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-28 sm:h-36 bg-gradient-to-r from-orange-500/20 via-pink-500/10 to-primary/20 flex items-center justify-between px-6 border-b border-border/40 relative overflow-hidden">
+                            <div className="flex items-center gap-3 z-10">
+                              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                                <CalendarIcon className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                  {post.eventDetails.type || 'Event'}
+                                </span>
+                                {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                  <span className="ml-2 text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
+                                    Expired
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <CalendarIcon className="w-24 h-24 text-foreground/5 absolute -right-4 -bottom-4 pointer-events-none" />
+                          </div>
+                        )}
+
+                        {/* Event Info Details Bar */}
+                        <div className="p-4 sm:p-5 flex items-start gap-4">
+                          {post.eventDetails.date && (
+                            <div className="w-12 sm:w-14 h-12 sm:h-14 rounded-xl bg-primary/10 border border-primary/20 flex flex-col items-center justify-center shrink-0 text-center shadow-xs">
+                              <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase leading-tight">
+                                {new Date(post.eventDetails.date).toLocaleDateString('en-US', { month: 'short' })}
+                              </span>
+                              <span className="text-base sm:text-lg font-black text-foreground leading-none mt-0.5">
+                                {new Date(post.eventDetails.date).getDate()}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-base sm:text-lg font-bold text-foreground mb-1 leading-snug group-hover:text-primary transition-colors">
+                              {post.eventDetails.title}
+                            </h4>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium text-muted-foreground mt-1.5">
+                              <span className="flex items-center gap-1.5">
+                                <CalendarIcon className="w-3.5 h-3.5 text-primary" /> 
+                                {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-primary" /> 
+                                {post.eventDetails.time || 'TBD'}
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-primary" /> 
+                                {post.eventDetails.location || 'TBD'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {post.jobDetails && post.jobDetails.title && (
+                      <div className="mb-4 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-purple-500/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-md relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-70 text-2xl sm:text-3xl pointer-events-none">✨🎉</div>
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white text-purple-600 flex flex-col items-center justify-center shrink-0 shadow-sm z-10 overflow-hidden p-2 border border-border/50">
+                          {post.jobDetails.companyLogo ? (
+                            <img src={post.jobDetails.companyLogo} alt={post.jobDetails.company} className="w-full h-full object-contain" />
+                          ) : (
+                            <Briefcase className="w-6 h-6" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 z-10">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-[10px] uppercase font-bold tracking-wider bg-purple-500/20 text-purple-700 px-2 py-0.5 rounded-full">
+                              I Got The Job! 🚀
+                            </span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider bg-background/50 backdrop-blur-sm text-foreground px-2 py-0.5 rounded-full border border-border/50">
+                              {post.jobDetails.role || 'Full-time'}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.jobDetails.title}</h4>
+                          <p className="text-sm font-medium text-foreground/80">{post.jobDetails.company}</p>
+                          {post.jobDetails.location && (
+                            <p className="text-xs text-foreground/60 mt-1 flex items-center gap-1">
+                              📍 {post.jobDetails.location}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                   </div>
 
-                  {post.imageUrl && !post.bgGradient && (
-                    <div className="w-full max-h-[500px] bg-muted overflow-hidden flex items-center justify-center">
-                      <img 
-                        src={post.imageUrl} 
-                        alt="Post content" 
-                        className="w-full h-full object-contain cursor-pointer" 
-                        onClick={() => setViewingImage(post.imageUrl)}
-                      />
+                  {post.imageUrl && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                    <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative">
+                      {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                        <video 
+                          src={post.imageUrl} 
+                          controls
+                          className="w-full max-h-[500px] object-contain"
+                        />
+                      ) : (
+                        <img 
+                          src={post.imageUrl} 
+                          alt="Post content" 
+                          className="w-full h-full object-contain cursor-pointer" 
+                          onClick={() => setViewingImage(post.imageUrl)}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -806,15 +1042,17 @@ const MentorHome = () => {
             <h3 className="font-bold text-foreground">Upcoming Sessions</h3>
           </div>
           <div className="space-y-4">
-            {upcomingSessions.map(session => (
-              <div key={session.id} className="group border-l-2 border-primary pl-3 py-1">
+            {upcomingSessions.length > 0 ? upcomingSessions.map(session => (
+              <div key={session._id} className="group border-l-2 border-primary pl-3 py-1 cursor-pointer" onClick={() => navigate('/mentor-dashboard/sessions')}>
                 <h4 className="font-semibold text-sm text-foreground">{session.type}</h4>
-                <p className="text-xs text-foreground/80 mt-0.5">with {session.student}</p>
+                <p className="text-xs text-foreground/80 mt-0.5">with {session.student?.firstName} {session.student?.lastName}</p>
                 <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                  <CalendarIcon className="w-3 h-3" /> {session.date} • {session.time}
+                  <CalendarIcon className="w-3 h-3" /> {new Date(session.date).toLocaleDateString()} • {session.time}
                 </p>
               </div>
-            ))}
+            )) : (
+              <p className="text-xs text-muted-foreground italic">No upcoming sessions.</p>
+            )}
           </div>
           <Link to="/mentor-dashboard/sessions" className="inline-block mt-4 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
             View Schedule →
@@ -958,6 +1196,280 @@ const MentorHome = () => {
             onCropComplete={handleCropComplete}
             onCancel={() => setCropModalData(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Job Attachment Modal */}
+      <AnimatePresence>
+        {isJobModalOpen && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Share a Job Update 🎉</h2>
+                  <p className="text-sm text-muted-foreground">Got a new role? Share it with the network.</p>
+                </div>
+                <button onClick={() => setIsJobModalOpen(false)} className="text-muted-foreground hover:bg-muted p-2 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-5">
+                
+                {/* Source Selection */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-foreground">Got this job from CampusBridge?</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button 
+                      onClick={() => setNewJobDetails({ ...newJobDetails, source: 'campusbridge' })}
+                      className={`py-2 px-3 text-sm font-medium rounded-xl border ${newJobDetails.source === 'campusbridge' ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border/50 text-foreground hover:bg-muted'}`}
+                    >
+                      Yes, from CampusBridge
+                    </button>
+                    <button 
+                      onClick={() => setNewJobDetails({ ...newJobDetails, source: 'manual' })}
+                      className={`py-2 px-3 text-sm font-medium rounded-xl border ${newJobDetails.source === 'manual' ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border/50 text-foreground hover:bg-muted'}`}
+                    >
+                      No, External / Manual
+                    </button>
+                  </div>
+                </div>
+
+                {newJobDetails.source === 'campusbridge' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Select a job you were accepted for</label>
+                    {acceptedJobs.length > 0 ? (
+                      <select 
+                        className="w-full px-3 py-2.5 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        onChange={(e) => {
+                          const job = acceptedJobs.find(j => j._id === e.target.value)
+                          if (job) {
+                            setNewJobDetails({
+                              ...newJobDetails,
+                              title: job.title,
+                              company: job.company,
+                              campusBridgeJobId: job._id,
+                              companyLogo: job.companyLogo || ''
+                            })
+                          }
+                        }}
+                        value={newJobDetails.campusBridgeJobId}
+                      >
+                        <option value="">-- Select a Job --</option>
+                        {acceptedJobs.map(job => (
+                          <option key={job._id} value={job._id}>{job.title} at {job.company}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="p-3 text-sm text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                        You don't have any accepted job applications on CampusBridge yet.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Job Title</label>
+                      <input 
+                        type="text" 
+                        value={newJobDetails.title}
+                        onChange={(e) => setNewJobDetails({...newJobDetails, title: e.target.value})}
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                        placeholder="e.g. Software Engineer Intern" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Company Name</label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          value={newJobDetails.company}
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            setNewJobDetails({...newJobDetails, company: val, companyLogo: ''});
+                            if (val.length > 2) {
+                              setIsFetchingCompanies(true);
+                              try {
+                                const res = await fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(val)}`);
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  setCompanySuggestions(data);
+                                }
+                              } catch (err) {
+                                console.error(err);
+                              } finally {
+                                setIsFetchingCompanies(false);
+                              }
+                            } else {
+                              setCompanySuggestions([]);
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                          placeholder="e.g. Google" 
+                        />
+                        {companySuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-background border border-border/50 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {companySuggestions.map((company, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  setNewJobDetails({
+                                    ...newJobDetails,
+                                    company: company.name,
+                                    companyLogo: `https://www.google.com/s2/favicons?sz=128&domain=${company.domain}`
+                                  });
+                                  setCompanySuggestions([]);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors text-sm"
+                              >
+                                {company.logo || company.domain ? (
+                                  <img 
+                                    src={`https://www.google.com/s2/favicons?sz=128&domain=${company.domain}`} 
+                                    alt={company.name} 
+                                    className="w-6 h-6 object-contain rounded bg-white" 
+                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=32&background=7c3aed&color=fff&bold=true` }}
+                                  />
+                                ) : (
+                                  <div className="w-6 h-6 bg-muted rounded flex items-center justify-center">
+                                    <Briefcase className="w-3 h-3 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <span className="font-medium text-foreground">{company.name}</span>
+                                <span className="text-xs text-muted-foreground ml-auto">{company.domain}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="col-span-2 sm:col-span-1 space-y-3">
+                    <label className="block text-sm font-semibold text-foreground">Location Type</label>
+                    <div className="flex bg-muted/50 p-1 rounded-xl">
+                      <button 
+                        onClick={() => setNewJobDetails({...newJobDetails, locationType: 'india', country: '', city: ''})}
+                        className={`flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors ${newJobDetails.locationType === 'india' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                      >
+                        In India
+                      </button>
+                      <button 
+                        onClick={() => setNewJobDetails({...newJobDetails, locationType: 'outside', country: '', city: ''})}
+                        className={`flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors ${newJobDetails.locationType === 'outside' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                      >
+                        Outside India
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="col-span-2 sm:col-span-1">
+                    {newJobDetails.locationType === 'india' ? (
+                      <div className="mt-7 sm:mt-0">
+                        <label className="block text-sm font-medium text-foreground mb-1.5">City</label>
+                        <select 
+                          value={indianCities.includes(newJobDetails.city) ? newJobDetails.city : (newJobDetails.city ? 'Other' : '')}
+                          onChange={(e) => setNewJobDetails({...newJobDetails, city: e.target.value === 'Other' ? 'Other' : e.target.value})}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">-- Select City --</option>
+                          {indianCities.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="Other">Other...</option>
+                        </select>
+                        {(!indianCities.includes(newJobDetails.city) && newJobDetails.city !== '') && (
+                          <input 
+                            type="text"
+                            value={newJobDetails.city === 'Other' ? '' : newJobDetails.city}
+                            onChange={(e) => setNewJobDetails({...newJobDetails, city: e.target.value})}
+                            placeholder="Type your city name"
+                            className="mt-2 w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                            autoFocus
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-7 sm:mt-0">
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Country</label>
+                        <select 
+                          value={newJobDetails.country}
+                          onChange={(e) => setNewJobDetails({...newJobDetails, country: e.target.value})}
+                          className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">-- Select Country --</option>
+                          {['USA', 'UK', 'Canada', 'Australia', 'Germany', 'France', 'Singapore', 'UAE', 'Other'].map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Role Type</label>
+                    <select 
+                      value={newJobDetails.role}
+                      onChange={(e) => setNewJobDetails({...newJobDetails, role: e.target.value})}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option>Full-time</option>
+                      <option>Part-time</option>
+                      <option>Internship</option>
+                      <option>Contract</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Caption Field */}
+                <div className="pt-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">Caption (Optional)</label>
+                  <textarea
+                    value={newPostContent}
+                    onChange={(e) => setNewPostContent(e.target.value)}
+                    placeholder="Share some thoughts about this job update..."
+                    className="w-full px-3 py-3 bg-background border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none h-24"
+                  ></textarea>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  {newJobDetails.title && (
+                    <button 
+                      onClick={() => {
+                        setNewJobDetails({ 
+                          title: '', company: '', location: '', role: 'Full-time',
+                          source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: '', companyLogo: ''
+                        });
+                        setCompanySuggestions([]);
+                        setIsJobModalOpen(false);
+                      }}
+                      className="flex-1 bg-destructive/10 hover:bg-destructive/20 text-destructive py-2.5 rounded-xl font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => {
+                      setIsJobModalOpen(false);
+                      setCompanySuggestions([]);
+                      handleCreatePost();
+                    }}
+                    disabled={isPosting || !newJobDetails.title || !newJobDetails.company}
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Post Job
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

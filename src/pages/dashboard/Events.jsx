@@ -1,14 +1,16 @@
 
 import React, { useState, useEffect } from 'react'
-import { Loader2, Calendar, Clock, MapPin, Users, X, CheckCircle2, Globe, Video } from 'lucide-react'
+import { Loader2, Calendar, Clock, MapPin, Users, X, CheckCircle2, Globe, Video, Share2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
+import { useNavigate } from 'react-router-dom'
 
 const Events = () => {
   const { user } = useUser()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('upcoming')
   const [events, setEvents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -217,16 +219,36 @@ const Events = () => {
                       <Users className="w-3.5 h-3.5 text-primary" /> {event.attendees?.length || 0} Registered
                     </p>
                     
-                    {registered && event.date && (
-                      <a 
-                        href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(event.title)}&dates=${format(new Date(event.date), 'yyyyMMdd')}/${format(new Date(event.date), 'yyyyMMdd')}&details=${encodeURIComponent(`CampusBridge Event: ${event.title}\nTime: ${event.time || 'TBD'}\nLink: ${event.link || ''}`)}&location=${encodeURIComponent(event.location || '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-2.5 py-1.5 rounded-lg w-fit"
-                      >
-                        <Calendar className="w-3.5 h-3.5" /> Add to Google Calendar
-                      </a>
-                    )}
+                    {registered && (() => {
+                      const isPastEvent = event.date && new Date(event.date).getTime() < new Date().setHours(0,0,0,0);
+                      return (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {event.date && !isPastEvent && (
+                          <a 
+                            href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(event.title)}&dates=${format(new Date(event.date), 'yyyyMMdd')}/${format(new Date(event.date), 'yyyyMMdd')}&details=${encodeURIComponent(`CampusBridge Event: ${event.title}\nTime: ${event.time || 'TBD'}\nLink: ${event.link || ''}`)}&location=${encodeURIComponent(event.location || '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-3 py-2 rounded-lg"
+                          >
+                            <Calendar className="w-3.5 h-3.5" /> Add to Calendar
+                          </a>
+                        )}
+                        <button
+                          onClick={() => {
+                            const role = user?.publicMetadata?.role || 'student';
+                            navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard' : '/dashboard', { state: { shareEvent: event } });
+                          }}
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold text-white transition-colors px-3 py-2 rounded-lg shadow-sm ${
+                            isPastEvent 
+                              ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600' 
+                              : 'bg-primary hover:bg-primary/90'
+                          }`}
+                        >
+                          <Share2 className="w-3.5 h-3.5" /> {isPastEvent ? 'Share Experience' : 'Share Thought'}
+                        </button>
+                      </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 {event.active && !registered && (
