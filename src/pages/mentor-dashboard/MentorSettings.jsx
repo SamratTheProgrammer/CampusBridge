@@ -27,6 +27,7 @@ const MentorSettings = () => {
   const [userDoc, setUserDoc] = useState(null)
   const [completeness, setCompleteness] = useState({ percentage: 0, missingFields: [] })
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const [hasInitialized, setHasInitialized] = useState(false)
   
   // Form State
   const [firstName, setFirstName] = useState('')
@@ -36,6 +37,8 @@ const MentorSettings = () => {
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
   const [yearsOfExperience, setYearsOfExperience] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
+  const [ageVisibility, setAgeVisibility] = useState('private')
   
   // Work Experience, Education, Skills, Resume State
   const [experienceList, setExperienceList] = useState([])
@@ -68,11 +71,18 @@ const MentorSettings = () => {
   const [usernameError, setUsernameError] = useState('')
 
   const [chatNotifs, setChatNotifs] = useState(localStorage.getItem('campusbridge_chat_notifs') !== 'false')
+  const [notificationSound, setNotificationSound] = useState(localStorage.getItem('campusbridge_notification_sound') !== 'false')
   
   const handleChatNotifsToggle = (val) => {
     setChatNotifs(val)
     localStorage.setItem('campusbridge_chat_notifs', val.toString())
     toast.success(val ? 'Chat notifications enabled' : 'Chat notifications disabled')
+  }
+
+  const handleNotificationSoundToggle = (val) => {
+    setNotificationSound(val)
+    localStorage.setItem('campusbridge_notification_sound', val.toString())
+    toast.success(val ? 'Notification sound enabled' : 'Notification sound disabled')
   }
   
   const fileInputRef = useRef(null)
@@ -100,23 +110,27 @@ const MentorSettings = () => {
         setEducationList(Array.isArray(data.education) ? data.education : []);
         setSkillsList(Array.isArray(data.skills) ? data.skills : []);
         setResumeUrl(data.resumeUrl || '');
+        setDateOfBirth(data.dateOfBirth || '');
+        if (data.ageVisibility) setAgeVisibility(data.ageVisibility);
         if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
         
         const comp = calculateProfileCompleteness(data);
         setCompleteness(comp);
+        setHasInitialized(true);
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
+      setHasInitialized(true);
     } finally {
       setIsLoadingProfile(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && !hasInitialized) {
       fetchProfile();
     }
-  }, [user])
+  }, [user, hasInitialized])
 
   const handleProfilePicSelect = (e) => {
     const file = e.target.files?.[0]
@@ -308,7 +322,9 @@ const MentorSettings = () => {
           experience: experienceList,
           education: educationList,
           skills: skillsList,
-          resumeUrl
+          resumeUrl,
+          dateOfBirth,
+          ageVisibility
         })
       });
 
@@ -562,6 +578,30 @@ const MentorSettings = () => {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Date of Birth</label>
+                    <input 
+                      type="date" 
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Age Visibility</label>
+                    <select 
+                      value={ageVisibility}
+                      onChange={(e) => setAgeVisibility(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="public">Public</option>
+                      <option value="private">Private (Hidden)</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-semibold text-foreground">Chat Pop-up Notifications & Sounds</h4>
@@ -572,6 +612,19 @@ const MentorSettings = () => {
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${chatNotifs ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${chatNotifs ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                <div className="mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">General Notification Sound</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Play sound for system notifications.</p>
+                  </div>
+                  <button 
+                    onClick={() => handleNotificationSoundToggle(!notificationSound)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationSound ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationSound ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
 

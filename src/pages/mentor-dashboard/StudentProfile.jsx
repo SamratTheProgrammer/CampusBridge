@@ -282,7 +282,13 @@ const StudentProfile = () => {
                 <p className="text-xs sm:text-base text-primary font-medium mt-0.5 sm:mt-1">{student.course}</p>
                 <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground mt-1.5 sm:mt-2">
                   <MapPin className="w-3.5 h-3.5" /> <span>{student.location || 'Location not specified'}</span>
-                  &bull; <Calendar className="w-3.5 h-3.5" /> <span>Joined recently</span>
+                  {student.dateOfBirth && student.ageVisibility === 'public' && (
+                    <>
+                      <span className="mx-1">&bull;</span>
+                      <span>{Math.floor((new Date() - new Date(student.dateOfBirth).getTime()) / 3.15576e+10)} years old</span>
+                    </>
+                  )}
+                  <span className="mx-1">&bull;</span> <Calendar className="w-3.5 h-3.5" /> <span>Joined recently</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -447,8 +453,8 @@ const StudentProfile = () => {
                     <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
                     <h4 className="font-semibold text-foreground text-sm">{edu.degree}</h4>
                     <p className="text-sm font-medium text-foreground/90">{edu.institution}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{edu.year}</p>
-                    {edu.score && <p className="text-xs text-muted-foreground mt-0.5">Score: {edu.score}</p>}
+                    <p className="text-xs text-muted-foreground mt-0.5">{edu.duration || edu.year}</p>
+                    {(edu.grade || edu.score) && <p className="text-xs text-muted-foreground mt-0.5">Grade: {edu.grade || edu.score}</p>}
                   </div>
                 ))}
               </div>

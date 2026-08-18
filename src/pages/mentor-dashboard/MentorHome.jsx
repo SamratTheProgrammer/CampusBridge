@@ -673,6 +673,7 @@ const MentorHome = () => {
               return (
                 <motion.div
                   key={post._id}
+                  id={`post-${post._id}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"

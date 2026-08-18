@@ -50,6 +50,14 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
   },
+  dateOfBirth: {
+    type: String,
+  },
+  ageVisibility: {
+    type: String,
+    enum: ['public', 'private'],
+    default: 'private',
+  },
   yearsOfExperience: {
     type: String,
   },

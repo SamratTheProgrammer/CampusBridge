@@ -135,7 +135,10 @@ const NotificationDropdown = () => {
       setUnreadCount(prev => prev + 1);
       
       try {
-        ringtoneService.playNotificationSound();
+        const soundEnabled = localStorage.getItem('campusbridge_notification_sound') !== 'false';
+        if (soundEnabled) {
+          ringtoneService.playNotificationSound();
+        }
       } catch(e){}
 
       toast.custom(

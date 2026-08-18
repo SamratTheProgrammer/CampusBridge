@@ -278,6 +278,12 @@ const MentorProfile = () => {
                       <span className="w-1 h-1 rounded-full bg-muted-foreground hidden sm:inline-block"></span> <span>{mentor.address}</span>
                     </>
                   )}
+                  {mentor.dateOfBirth && mentor.ageVisibility === 'public' && (
+                    <>
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground hidden sm:inline-block"></span>
+                      <span>{Math.floor((new Date() - new Date(mentor.dateOfBirth).getTime()) / 3.15576e+10)} years old</span>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -512,6 +518,7 @@ const MentorProfile = () => {
             return (
               <motion.div
                 key={post._id}
+                id={`post-${post._id}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"

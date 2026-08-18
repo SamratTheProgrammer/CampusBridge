@@ -432,6 +432,12 @@ const MyProfile = () => {
                       <span>{dbUser?.address || user?.unsafeMetadata?.address}</span>
                     </>
                   )}
+                  {dbUser?.dateOfBirth && (
+                    <>
+                      <span className="mx-1">&bull;</span>
+                      <span>{Math.floor((new Date() - new Date(dbUser.dateOfBirth).getTime()) / 3.15576e+10)} years old {dbUser.ageVisibility === 'private' ? '(Hidden)' : ''}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -541,8 +547,8 @@ const MyProfile = () => {
                     <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
                     <h4 className="font-semibold text-foreground text-sm">{edu.degree}</h4>
                     <p className="text-sm font-medium text-foreground/90">{edu.institution}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{edu.year}</p>
-                    {edu.score && <p className="text-xs text-muted-foreground mt-0.5">Score: {edu.score}</p>}
+                    <p className="text-xs text-muted-foreground mt-0.5">{edu.duration || edu.year}</p>
+                    {(edu.grade || edu.score) && <p className="text-xs text-muted-foreground mt-0.5">Grade: {edu.grade || edu.score}</p>}
                   </div>
                 ))}
               </div>
@@ -568,6 +574,7 @@ const MyProfile = () => {
               return (
                 <motion.div
                   key={post._id}
+                  id={`post-${post._id}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"

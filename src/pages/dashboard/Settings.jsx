@@ -137,6 +137,8 @@ const Settings = () => {
   const [showSocialForm, setShowSocialForm] = useState(false)
   const [newSocial, setNewSocial] = useState({ platform: 'LinkedIn', url: '' })
   const [resumeUrl, setResumeUrl] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
+  const [ageVisibility, setAgeVisibility] = useState('private')
   const [experience, setExperience] = useState([])
   const [education, setEducation] = useState([])
   const [skills, setSkills] = useState([])
@@ -147,6 +149,7 @@ const Settings = () => {
   const [showExpForm, setShowExpForm] = useState(false)
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 50 }, (_, i) => (currentYear - i).toString());
+  const futureYears = Array.from({ length: 56 }, (_, i) => (currentYear + 6 - i).toString());
   const [newExp, setNewExp] = useState({ 
     title: '', customTitle: '', type: 'Full-time', company: '', 
     startMonth: 'Jan', startYear: currentYear.toString(), 
@@ -163,6 +166,7 @@ const Settings = () => {
   
   const [showSkillDropdown, setShowSkillDropdown] = useState(false)
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
+  const [hasInitialized, setHasInitialized] = useState(false)
   
   const [isUploading, setIsUploading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -171,11 +175,18 @@ const Settings = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [profileVisibility, setProfileVisibility] = useState('public')
   const [chatNotifs, setChatNotifs] = useState(localStorage.getItem('campusbridge_chat_notifs') !== 'false')
+  const [notificationSound, setNotificationSound] = useState(localStorage.getItem('campusbridge_notification_sound') !== 'false')
   
   const handleChatNotifsToggle = (val) => {
     setChatNotifs(val)
     localStorage.setItem('campusbridge_chat_notifs', val.toString())
     toast.success(val ? 'Chat notifications enabled' : 'Chat notifications disabled')
+  }
+
+  const handleNotificationSoundToggle = (val) => {
+    setNotificationSound(val)
+    localStorage.setItem('campusbridge_notification_sound', val.toString())
+    toast.success(val ? 'Notification sound enabled' : 'Notification sound disabled')
   }
   
   const fileInputRef = useRef(null)
@@ -185,7 +196,7 @@ const Settings = () => {
   const [cropModalData, setCropModalData] = useState(null)
 
   useEffect(() => {
-    if (user) {
+    if (user && !hasInitialized) {
       // Set initial state from Clerk as a fallback
       setFirstName(user.firstName || '')
       setLastName(user.lastName || '')
@@ -219,15 +230,19 @@ const Settings = () => {
             setExperience(data.experience?.length ? data.experience : (user.unsafeMetadata?.experience || []));
             setEducation(data.education?.length ? data.education : (user.unsafeMetadata?.education || []));
             setSkills(data.skills?.length ? data.skills : (user.unsafeMetadata?.skills || []));
+            setDateOfBirth(data.dateOfBirth || '');
+            if (data.ageVisibility) setAgeVisibility(data.ageVisibility);
             if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
+            setHasInitialized(true);
           }
         } catch (error) {
           console.error("Failed to fetch mongo profile:", error);
+          setHasInitialized(true); // Proceed even if fetch fails to avoid getting stuck
         }
       };
       fetchMongoProfile();
     }
-  }, [user])
+  }, [user, hasInitialized])
 
   const handleProfilePicSelect = (e) => {
     const file = e.target.files?.[0]
@@ -349,6 +364,8 @@ const Settings = () => {
           education,
           skills,
           imageUrl: user.imageUrl,
+          dateOfBirth,
+          ageVisibility,
           profileVisibility
         })
       });
@@ -628,6 +645,17 @@ const Settings = () => {
                   <label className="text-sm font-medium text-foreground mb-1.5 block">Address</label>
                   <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Kolkata" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Date of Birth</label>
+                  <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Age Visibility</label>
+                  <select value={ageVisibility} onChange={(e) => setAgeVisibility(e.target.value)} className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all">
+                    <option value="public">Public</option>
+                    <option value="private">Private (Hidden)</option>
+                  </select>
+                </div>
                 <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm font-medium text-foreground">Phone Number</label>
                   <div className="flex flex-row items-center gap-2 relative w-full">
@@ -687,6 +715,18 @@ const Settings = () => {
                     className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${chatNotifs ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${chatNotifs ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <div className="sm:col-span-2 mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">General Notification Sound</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Play sound for system notifications.</p>
+                  </div>
+                  <button 
+                    onClick={() => handleNotificationSoundToggle(!notificationSound)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${notificationSound ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationSound ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
               <div className="space-y-4 sm:col-span-2 mt-4 pt-4 border-t border-border/40">
@@ -1066,7 +1106,7 @@ const Settings = () => {
                         {months.map(m => <option key={m} value={m}>{m}</option>)}
                       </select>
                       <select value={newEdu.startYear} onChange={e => setNewEdu({...newEdu, startYear: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                        {futureYears.map(y => <option key={y} value={y}>{y}</option>)}
                       </select>
                       
                       {!newEdu.isCurrent && (
@@ -1075,7 +1115,7 @@ const Settings = () => {
                             {months.map(m => <option key={m} value={m}>{m}</option>)}
                           </select>
                           <select value={newEdu.endYear} onChange={e => setNewEdu({...newEdu, endYear: e.target.value})} className="bg-background border border-border/50 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                            {futureYears.map(y => <option key={y} value={y}>{y}</option>)}
                           </select>
                         </>
                       )}
