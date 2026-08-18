@@ -124,16 +124,6 @@ A secure and user-friendly alumni networking platform that promotes mentorship, 
 
 ---
 
-## SDG Mapping
-
-- 🎯 **Goal 4: Quality Education** – Enhancing student learning and career readiness through continuous alumni mentorship and guidance.
-- 🎯 **Goal 8: Decent Work and Economic Growth** – Facilitating career opportunities by connecting students directly with industry professionals and job postings.
-- 🎯 **Goal 9: Industry, Innovation, and Infrastructure** – Building robust digital infrastructure for educational institutions to modernize their alumni networks.
-- 🎯 **Goal 10: Reduced Inequalities** – Democratizing access to professional networks and mentorship for students from all backgrounds.
-- 🎯 **Goal 17: Partnerships for the Goals** – Fostering strong, collaborative communities between current students, alumni, and educational institutions.
-
----
-
 ## Contributors
 
 - Samrat Saha - 25MCC20059
