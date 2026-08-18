@@ -184,7 +184,7 @@ const Navbar = () => {
                           <p className="text-xs text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</p>
                         </div>
                         <Link 
-                          to={(user.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role')) === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
+                          to={(sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
                           className="px-4 py-2 text-sm hover:bg-muted transition-colors font-medium text-primary"
                           onClick={() => setIsProfileOpen(false)}
                         >
@@ -262,8 +262,8 @@ const Navbar = () => {
                 <div className="pt-4 border-t border-border/40 flex flex-col gap-3">
                   {!isLoaded ? null : isSignedIn ? (
                     <>
-                      <Link
-                        to={(user.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role')) === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
+                      <Link 
+                        to={(sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
                         className="w-full text-center py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-colors"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >

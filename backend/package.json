@@ -16,6 +16,7 @@
     "@clerk/clerk-sdk-node": "^4.13.23",
     "cloudinary": "^2.10.0",
     "cors": "^2.8.6",
+    "date-fns": "^4.4.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-mongo-sanitize": "^2.2.0",
@@ -24,8 +25,11 @@
     "hpp": "^0.2.3",
     "mongoose": "^9.9.1",
     "multer": "^2.2.0",
+    "node-cron": "^4.6.0",
+    "resend": "^6.20.0",
     "socket.io": "^4.8.3",
     "svix": "^1.99.1",
+    "web-push": "^3.6.7",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {

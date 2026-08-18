@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { socket } from '../services/socket';
+import { ringtoneService } from '../utils/ringtone';
+import toast from 'react-hot-toast';
 import API_BASE from '../utils/api'
 
 const NotificationDropdown = () => {
@@ -12,14 +15,21 @@ const NotificationDropdown = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState('all'); // 'all' | 'unread'
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [isPushLoading, setIsPushLoading] = useState(false);
   const dropdownRef = useRef(null);
 
   const fetchNotifications = async () => {
-    if (!user) return;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const res = await fetch(`${API_BASE}/api/notifications/${user.id}`, { signal: controller.signal });
+      const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const isAdmin = !!adminToken;
+      const currentUserId = isAdmin ? 'admin' : user?.id;
+      if (!currentUserId) return;
+
+      const res = await fetch(`${API_BASE}/api/notifications/${currentUserId}`, { signal: controller.signal });
       if (res.ok) {
         const data = await res.json();
         setNotifications(data.notifications || []);
@@ -40,6 +50,150 @@ const NotificationDropdown = () => {
     const interval = setInterval(fetchNotifications, 30000); // poll every 30s
     return () => clearInterval(interval);
   }, [user]);
+
+  // Fetch initial push preferences
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`${API_BASE}/api/push/preferences/${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.pushEnabled !== undefined) setPushEnabled(data.pushEnabled);
+        })
+        .catch(err => console.error('Failed to fetch push pref:', err));
+    }
+  }, [user]);
+
+  const urlBase64ToUint8Array = (base64String) => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  const handleTogglePush = async () => {
+    if (!user?.id) return;
+    setIsPushLoading(true);
+    try {
+      const newPref = !pushEnabled;
+      
+      // Update DB preference
+      await fetch(`${API_BASE}/api/push/preferences`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user.id, pushEnabled: newPref })
+      });
+      
+      setPushEnabled(newPref);
+
+      if (newPref && 'serviceWorker' in navigator && 'PushManager' in window) {
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        
+        if (!subscription) {
+          const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+          });
+        }
+        
+        // Send to backend
+        await fetch(`${API_BASE}/api/push/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clerkId: user.id, subscription })
+        });
+        toast.success('Push notifications enabled!');
+      } else if (!newPref && 'serviceWorker' in navigator && 'PushManager' in window) {
+        toast.success('Push notifications disabled.');
+      }
+    } catch (err) {
+      console.error('Error toggling push notifications:', err);
+      toast.error('Failed to update push settings. Make sure your browser allows notifications.');
+      // Revert state if failed
+      setPushEnabled(prev => !prev);
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleNewNotification = (notification) => {
+      const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const isAdmin = !!adminToken;
+      const currentUserId = isAdmin ? 'admin' : user?.id;
+
+      if (notification.recipientClerkId !== currentUserId) return;
+
+      setNotifications(prev => [notification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      
+      try {
+        ringtoneService.playNotificationSound();
+      } catch(e){}
+
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-in slide-in-from-top-2 fade-in' : 'animate-out slide-out-to-top-2 fade-out'
+            } max-w-md w-full bg-card shadow-lg rounded-2xl pointer-events-auto flex ring-1 ring-black/5 border border-border/50`}
+          >
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                {notification.senderImage ? (
+                  <div className="flex-shrink-0 pt-0.5">
+                    <img
+                      className="h-10 w-10 rounded-full object-cover"
+                      src={notification.senderImage}
+                      alt={notification.senderName}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex-shrink-0 pt-0.5">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <Bell className="w-5 h-5" />
+                    </div>
+                  </div>
+                )}
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    {notification.title}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                    {notification.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-border/50">
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  setIsOpen(false);
+                  if (notification.link) navigate(notification.link);
+                }}
+                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-medium text-primary hover:text-primary/80 hover:bg-muted/50 focus:outline-none transition-colors"
+              >
+                View
+              </button>
+            </div>
+          </div>
+        ),
+        { duration: 4000, position: 'top-center' }
+      );
+    };
+
+    socket.on('new_notification', handleNewNotification);
+
+    return () => {
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [user, navigate]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -63,9 +217,12 @@ const NotificationDropdown = () => {
   };
 
   const handleMarkAllRead = async () => {
-    if (!user) return;
+    const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+    const isAdmin = !!adminToken;
+    const currentUserId = isAdmin ? 'admin' : user?.id;
+    if (!currentUserId) return;
     try {
-      await fetch(`${API_BASE}/api/notifications/read-all/${user.id}`, { method: 'PUT' });
+      await fetch(`${API_BASE}/api/notifications/read-all/${currentUserId}`, { method: 'PUT' });
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (err) {
@@ -90,9 +247,12 @@ const NotificationDropdown = () => {
   };
 
   const handleClearAll = async () => {
-    if (!user) return;
+    const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+    const isAdmin = !!adminToken;
+    const currentUserId = isAdmin ? 'admin' : user?.id;
+    if (!currentUserId) return;
     try {
-      await fetch(`${API_BASE}/api/notifications/clear-all/${user.id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/notifications/clear-all/${currentUserId}`, { method: 'DELETE' });
       setNotifications([]);
       setUnreadCount(0);
     } catch (err) {
@@ -169,8 +329,47 @@ const NotificationDropdown = () => {
             transition={{ duration: 0.15 }}
             className="fixed top-16 right-2 left-2 sm:absolute sm:top-auto sm:right-0 sm:left-auto sm:-right-4 mt-2 w-auto sm:w-[380px] bg-card border border-border/80 rounded-2xl shadow-2xl z-[100] overflow-hidden"
           >
-            {/* Header */}
-            <div className="p-4 border-b border-border/40 flex items-center justify-between bg-muted/20">
+            {isSettingsOpen ? (
+              // Settings View
+              <div className="flex flex-col h-full">
+                <div className="p-4 border-b border-border/40 flex items-center justify-between bg-muted/20">
+                  <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-primary" /> Settings
+                  </h3>
+                  <button 
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="p-1.5 text-xs text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-foreground">Push Notifications</h4>
+                      <p className="text-xs text-muted-foreground mt-1">Receive notifications on your device even when the app is closed.</p>
+                    </div>
+                    <button
+                      onClick={handleTogglePush}
+                      disabled={isPushLoading}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none transition-colors ${
+                        pushEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
+                      } ${isPushLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          pushEnabled ? 'translate-x-2' : '-translate-x-2'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Notifications View
+              <>
+                {/* Header */}
+                <div className="p-4 border-b border-border/40 flex items-center justify-between bg-muted/20">
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-foreground text-sm">Notifications</h3>
                 {unreadCount > 0 && (
@@ -180,6 +379,13 @@ const NotificationDropdown = () => {
                 )}
               </div>
               <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="p-1.5 text-xs text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+                  title="Notification Settings"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
                 {unreadCount > 0 && (
                   <button 
                     onClick={handleMarkAllRead}
@@ -274,6 +480,8 @@ const NotificationDropdown = () => {
                 </div>
               )}
             </div>
+          </>
+        )}
           </motion.div>
         )}
       </AnimatePresence>

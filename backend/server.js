@@ -6,6 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import userRoutes from './routes/userRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
+import pushRoutes from './routes/pushRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import postRoutes from './routes/postRoutes.js';
 import connectionRoutes from './routes/connectionRoutes.js';
@@ -27,6 +28,8 @@ import Message from './models/Message.js';
 import User from './models/User.js';
 import Block from './models/Block.js';
 import PlatformSetting from './models/PlatformSetting.js';
+import { startEventReminderJob } from './jobs/eventReminder.js';
+import { startJobReminderJob } from './jobs/jobReminder.js';
 
 // Load env vars from the parent directory's .env file
 dotenv.config({ path: '../.env' });
@@ -149,6 +152,7 @@ app.use('/api', apiLimiter);
 app.use('/api/webhooks', webhookRoutes);
 
 app.use(express.json());
+app.use('/api/push', pushRoutes);
 
 // Routes
 app.use('/api/users', userRoutes);
@@ -186,7 +190,7 @@ app.get('/api/settings/public', async (req, res) => {
       },
       securitySettings: {
         sessionTimeoutValue: setting?.securitySettings?.sessionTimeoutValue || 60,
-        sessionTimeoutUnit: setting?.securitySettings?.sessionTimeoutUnit || 'minutes'
+        sessionTimeoutUnit: setting?.securitySettings?.sessionTimeoutUnit || 'days'
       }
     });
   } catch (error) {
@@ -481,6 +485,9 @@ server.on('error', (err) => {
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB');
+    // Start background cron jobs
+    startEventReminderJob();
+    startJobReminderJob();
     if (!process.env.VERCEL) {
       server.listen(PORT, () => {
         console.log(`Server running with Socket.io & WebRTC Video/Audio calling on port ${PORT}`);

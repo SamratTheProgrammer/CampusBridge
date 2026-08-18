@@ -122,7 +122,8 @@ router.put('/:id', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const job = await Job.findById(req.params.id)
-      .populate('postedBy', 'firstName lastName email imageUrl role clerkId');
+      .populate('postedBy', 'firstName lastName email imageUrl role clerkId')
+      .populate('notifiedUsers', 'clerkId');
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
@@ -242,6 +243,36 @@ router.get('/student/applications/:clerkId', async (req, res) => {
       })
       .sort({ createdAt: -1 });
     res.json(applications);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle Job notification subscription
+router.put('/:id/notify', async (req, res) => {
+  try {
+    const { clerkId } = req.body;
+    const user = await User.findOne({ clerkId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const isSubscribed = job.notifiedUsers.includes(user._id);
+
+    if (isSubscribed) {
+      job.notifiedUsers = job.notifiedUsers.filter(id => id.toString() !== user._id.toString());
+    } else {
+      job.notifiedUsers.push(user._id);
+    }
+
+    await job.save();
+
+    res.json({ isNotified: !isSubscribed, message: !isSubscribed ? 'You will be notified 3 days before the deadline.' : 'Notification removed.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

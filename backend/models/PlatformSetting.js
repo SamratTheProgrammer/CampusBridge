@@ -23,7 +23,7 @@ const platformSettingSchema = new mongoose.Schema(
       requireTwoFactorAuth: { type: Boolean, default: false },
       enforceStrongPasswords: { type: Boolean, default: true },
       sessionTimeoutValue: { type: Number, default: 60 },
-      sessionTimeoutUnit: { type: String, enum: ['minutes', 'days', 'months'], default: 'minutes' },
+      sessionTimeoutUnit: { type: String, enum: ['days', 'months', 'never'], default: 'days' },
       maxFailedLoginAttempts: { type: Number, default: 5 },
       allowedIPRanges: { type: String, default: '' }
     },

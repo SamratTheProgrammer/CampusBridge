@@ -22,7 +22,8 @@ const SessionManager = () => {
             const { sessionTimeoutValue, sessionTimeoutUnit } = data.securitySettings;
             let ms = 60 * 60 * 1000; // default 60 minutes
             if (sessionTimeoutValue && sessionTimeoutUnit) {
-              if (sessionTimeoutUnit === 'minutes') ms = sessionTimeoutValue * 60 * 1000;
+              if (sessionTimeoutUnit === 'never') ms = null;
+              else if (sessionTimeoutUnit === 'minutes') ms = sessionTimeoutValue * 60 * 1000;
               else if (sessionTimeoutUnit === 'days') ms = sessionTimeoutValue * 24 * 60 * 60 * 1000;
               else if (sessionTimeoutUnit === 'months') ms = sessionTimeoutValue * 30 * 24 * 60 * 60 * 1000;
             }

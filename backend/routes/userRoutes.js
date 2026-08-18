@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Connection from '../models/Connection.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
+import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -96,6 +97,20 @@ router.post('/sync', async (req, res) => {
     });
 
     await user.save();
+    
+    // If the new user is a mentor or alumni, notify Admin
+    if (user.role === 'mentor' || user.role === 'alumni') {
+      await createNotificationHelper({
+        recipientClerkId: 'admin',
+        senderClerkId: clerkId,
+        type: 'system',
+        title: 'New Mentor Registration',
+        message: `${user.firstName} ${user.lastName} has registered as a ${user.role} and is pending verification.`,
+        link: '/admin/verification',
+        io: req.io
+      });
+    }
+
     res.status(201).json(user);
   } catch (error) {
     console.error('Error syncing user:', error);
@@ -276,6 +291,20 @@ router.put('/:clerkId/profile', async (req, res) => {
     }
 
     await targetUser.save();
+
+    // If role changed to mentor/alumni, notify admin
+    if (role !== undefined && (role === 'mentor' || role === 'alumni')) {
+      await createNotificationHelper({
+        recipientClerkId: 'admin',
+        senderClerkId: targetUser.clerkId,
+        type: 'system',
+        title: 'Mentor Role Requested',
+        message: `${targetUser.firstName} ${targetUser.lastName} has updated their role to ${role} and is pending verification.`,
+        link: '/admin/verification',
+        io: req.io
+      });
+    }
+
     res.status(200).json(targetUser);
   } catch (error) {
     console.error('Error updating user profile:', error);

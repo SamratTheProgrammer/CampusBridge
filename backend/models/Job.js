@@ -49,6 +49,16 @@ const jobSchema = new mongoose.Schema(
     },
     deadline: {
       type: Date,
+    },
+    notifiedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      }
+    ],
+    reminderSent: {
+      type: Boolean,
+      default: false,
     }
   },
   { timestamps: true }

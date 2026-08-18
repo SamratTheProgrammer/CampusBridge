@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Bookmark, Share2, Loader2, MapPin, Briefcase } from 'lucide-react'
+import { ArrowLeft, Bookmark, Share2, Loader2, MapPin, Briefcase, Calendar, Bell, BellRing } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { useUser } from '@clerk/clerk-react'
@@ -19,6 +19,8 @@ const JobDetails = () => {
   const [hasApplied, setHasApplied] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isNotified, setIsNotified] = useState(false)
+  const [isNotifying, setIsNotifying] = useState(false)
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
   const [resumeLink, setResumeLink] = useState('')
   const [resumeFile, setResumeFile] = useState(null)
@@ -35,6 +37,7 @@ const JobDetails = () => {
         setJob(data)
 
         if (user) {
+          setIsNotified(data.notifiedUsers?.some(u => u.clerkId === user.id) || false);
           const appRes = await fetch(`${API_BASE}/api/jobs/student/applications/${user.id}`)
           if (appRes.ok) {
             const apps = await appRes.json()
@@ -177,6 +180,29 @@ const JobDetails = () => {
     }
   }
 
+  const handleNotify = async () => {
+    if (!user) {
+      toast.error('Please login to get notifications')
+      return
+    }
+    setIsNotifying(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/${id}/notify`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user.id })
+      })
+      if (!res.ok) throw new Error('Failed to update notification preference')
+      const data = await res.json()
+      setIsNotified(data.isNotified)
+      toast.success(data.message)
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setIsNotifying(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -221,6 +247,23 @@ const JobDetails = () => {
           >
             <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-primary' : ''}`} /> {isSaved ? 'Saved' : 'Save'}
           </button>
+          
+          {job.deadline && (
+            <button 
+              onClick={handleNotify}
+              disabled={isNotifying}
+              className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors shadow-sm border ${
+                isNotified 
+                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20' 
+                  : 'bg-card text-muted-foreground hover:text-foreground border-border/50'
+              }`}
+              title="Get notified 3 days before deadline"
+            >
+              {isNotified ? <BellRing className="w-4 h-4 fill-amber-600" /> : <Bell className="w-4 h-4" />} 
+              {isNotified ? 'Notified' : 'Notify Me'}
+            </button>
+          )}
+
           <button onClick={handleShare} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground bg-card border border-border/50 px-3 py-1.5 rounded-lg transition-colors shadow-sm">
             <Share2 className="w-4 h-4" /> Share
           </button>
@@ -253,8 +296,18 @@ const JobDetails = () => {
           <p className="text-xs text-muted-foreground">
             Posted on {format(new Date(job.createdAt), 'd MMM yyyy')}
             {job.deadline && (
-              <span className="ml-2 font-medium text-foreground">
+              <span className="ml-2 font-medium text-foreground inline-flex items-center gap-2">
                 • Last Date: {format(new Date(job.deadline), 'd MMM yyyy')}
+                
+                <a 
+                  href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent('Apply for ' + job.title)}&dates=${format(new Date(job.deadline), 'yyyyMMdd')}/${format(new Date(job.deadline), 'yyyyMMdd')}&details=${encodeURIComponent(`Last date to apply for ${job.title} at ${job.company}.\n\nApply here: ${window.location.href}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ml-1"
+                  title="Add Deadline to Google Calendar"
+                >
+                  <Calendar className="w-3 h-3" /> Add to Calendar
+                </a>
               </span>
             )}
           </p>

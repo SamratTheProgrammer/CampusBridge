@@ -256,9 +256,9 @@ const MentorProfile = () => {
           />
         </div>
         <div className="px-4 sm:px-10 pb-6 sm:pb-8 relative">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 -mt-16 sm:-mt-20 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-5">
-              <div className="relative">
+              <div className="relative -mt-16 sm:-mt-20 shrink-0">
                 <img
                   src={avatarUrl}
                   alt={fullName}
@@ -283,11 +283,11 @@ const MentorProfile = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 sm:gap-3 items-center pt-2 sm:pt-0">
+            <div className="flex flex-wrap sm:justify-end gap-2 sm:gap-3 items-center w-full sm:w-auto pt-3 sm:pt-0 mt-2 sm:mt-0">
               {!isLocked && (
                 <button
                   onClick={() => navigate(`/dashboard/mentor/${id}/book`)}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 sm:px-6 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
                 >
                   <Calendar className="w-4 h-4" /> Book Session
                 </button>
@@ -296,7 +296,7 @@ const MentorProfile = () => {
             {connectionStatus === 'none' && (
               <button 
                 onClick={() => setIsConnectModalOpen(true)}
-                className="bg-background border border-border/50 text-foreground hover:bg-muted px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm hidden sm:flex">
+                className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm">
                 <UserPlus className="w-4 h-4" /> Connect
               </button>
             )}
@@ -304,7 +304,7 @@ const MentorProfile = () => {
             {connectionStatus === 'pending' && (
               <button 
                 disabled
-                className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm hidden sm:flex cursor-not-allowed">
+                className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-4 py-2 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm cursor-not-allowed">
                 <Clock className="w-4 h-4" /> Request Sent ⏳
               </button>
             )}
@@ -313,12 +313,12 @@ const MentorProfile = () => {
               <div className="flex gap-2">
                 <button 
                   disabled
-                  className="bg-green-500/10 text-green-500 border border-green-500/20 px-4 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm hidden sm:flex cursor-default">
+                  className="bg-green-500/10 text-green-500 border border-green-500/20 px-4 py-2 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm cursor-default">
                   <CheckCircle2 className="w-4 h-4" /> Connected
                 </button>
                 <button 
                   onClick={handleUnfriend}
-                  className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm hidden sm:flex">
+                  className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm">
                   Unfriend
                 </button>
               </div>
@@ -328,7 +328,7 @@ const MentorProfile = () => {
               <>
                 <button 
                   onClick={() => navigate(`/dashboard/messages?userId=${mentor.clerkId || mentor._id}`)}
-                  className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                  className="bg-background border border-border/50 text-foreground hover:bg-muted px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
                 >
                   <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
                 </button>
@@ -346,7 +346,7 @@ const MentorProfile = () => {
                       }
                     }))
                   }}
-                  className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                  className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
                 >
                   <Video className="w-4 h-4" /> Video Call
                 </button>

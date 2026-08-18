@@ -1,5 +1,6 @@
 import express from 'express';
 import SupportMessage from '../models/SupportMessage.js';
+import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -28,6 +29,16 @@ router.post('/contact', async (req, res) => {
       req.io.emit('new_support_message', newMessage);
       req.io.emit('update_sidebar');
     }
+
+    await createNotificationHelper({
+      recipientClerkId: 'admin',
+      senderClerkId: clerkId || '',
+      type: 'system',
+      title: 'New Support Message',
+      message: `You received a new message from ${name.trim()} regarding "${subject}".`,
+      link: '/admin/messages',
+      io: req.io
+    });
 
     return res.status(201).json({
       success: true,

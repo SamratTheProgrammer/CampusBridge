@@ -106,6 +106,14 @@ const userSchema = new mongoose.Schema({
   blockReason: {
     type: String,
     default: '',
+  },
+  pushSubscriptions: {
+    type: [Object],
+    default: []
+  },
+  pushEnabled: {
+    type: Boolean,
+    default: true
   }
 });
 

@@ -2,6 +2,13 @@ import express from 'express';
 import mongoose from 'mongoose';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
+import webpush from 'web-push';
+
+webpush.setVapidDetails(
+  'mailto:admin@campusbridge.com',
+  process.env.VAPID_PUBLIC_KEY || 'BMlhL-j5mjXka7n5XD9rXg7qXLPVB1xXvoFS2oCblFkbROvg77ugGmZoJC50KIElNv0oP-2YyyVRFXWrA3AeFeI',
+  process.env.VAPID_PRIVATE_KEY || 'FbUJpK3tIFLJaBzLgIGyCSwVt4Unsh-2u7Aw6MPCRxI'
+);
 
 const router = express.Router();
 
@@ -24,7 +31,7 @@ const resolveUserIdentifiers = async (identifier) => {
 };
 
 // Helper to create notification internally
-export const createNotificationHelper = async ({ recipientClerkId, senderClerkId, type, title, message, link }) => {
+export const createNotificationHelper = async ({ recipientClerkId, senderClerkId, type, title, message, link, io }) => {
   try {
     if (!recipientClerkId) return null;
 
@@ -58,6 +65,43 @@ export const createNotificationHelper = async ({ recipientClerkId, senderClerkId
     });
 
     await notification.save();
+
+    if (io) {
+      io.emit('new_notification', notification);
+    }
+
+    // Web Push Logic
+    if (recipientInfo.user && recipientInfo.user.pushEnabled && recipientInfo.user.pushSubscriptions && recipientInfo.user.pushSubscriptions.length > 0) {
+      const payload = JSON.stringify({
+        title: notification.title,
+        body: notification.message,
+        url: notification.link || '/',
+        icon: '/favicon.png'
+      });
+
+      const validSubscriptions = [];
+      let subsChanged = false;
+
+      for (const sub of recipientInfo.user.pushSubscriptions) {
+        try {
+          await webpush.sendNotification(sub, payload);
+          validSubscriptions.push(sub);
+        } catch (err) {
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            subsChanged = true;
+          } else {
+            validSubscriptions.push(sub);
+            console.error('Web push error:', err);
+          }
+        }
+      }
+
+      if (subsChanged) {
+        recipientInfo.user.pushSubscriptions = validSubscriptions;
+        await recipientInfo.user.save();
+      }
+    }
+
     return notification;
   } catch (error) {
     console.error('Error in createNotificationHelper:', error);

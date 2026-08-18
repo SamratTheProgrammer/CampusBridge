@@ -42,7 +42,7 @@ const AdminSettings = () => {
     requireTwoFactorAuth: false,
     enforceStrongPasswords: true,
     sessionTimeoutValue: 60,
-    sessionTimeoutUnit: 'minutes',
+    sessionTimeoutUnit: 'days',
     maxFailedLoginAttempts: 5,
     allowedIPRanges: ''
   })
@@ -489,18 +489,12 @@ const AdminSettings = () => {
                 <div className="flex flex-col md:flex-row items-start md:justify-between gap-4 mb-4">
                   <div className="flex-1">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-1 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" /> Global Theme Override (Admin Only)
+                      <Sparkles className="w-4 h-4" /> Global Theme Override
                     </h3>
                     <p className="text-xs text-muted-foreground">
                       Enable a festive event theme globally. Users will still retain control of their Light/Dark mode.
                     </p>
                   </div>
-                  {holidayName && suggestedTheme && (
-                    <div className="bg-amber-500/10 text-amber-600 border border-amber-500/20 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
-                      <PartyPopper className="w-4 h-4" />
-                      Suggested: {holidayName} Theme
-                    </div>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -662,8 +656,9 @@ const AdminSettings = () => {
                         value={securitySettings.sessionTimeoutValue}
                         onChange={handleSecurityInputChange}
                         min="1"
-                        className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-                        required
+                        disabled={securitySettings.sessionTimeoutUnit === 'never'}
+                        className={`w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all ${securitySettings.sessionTimeoutUnit === 'never' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        required={securitySettings.sessionTimeoutUnit !== 'never'}
                       />
                       <select
                         name="sessionTimeoutUnit"
@@ -671,9 +666,9 @@ const AdminSettings = () => {
                         onChange={handleSecurityInputChange}
                         className="px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all outline-none"
                       >
-                        <option value="minutes">Minutes</option>
-                        <option value="days">Days</option>
-                        <option value="months">Months</option>
+                        <option value="days" className="bg-card text-foreground">Days</option>
+                        <option value="months" className="bg-card text-foreground">Months</option>
+                        <option value="never" className="bg-card text-foreground">Never</option>
                       </select>
                     </div>
                   </div>

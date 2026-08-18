@@ -93,9 +93,16 @@ function ScrollToHash() {
 function AnimatedRoutes() {
   const location = useLocation()
 
+  const getRouteKey = (pathname) => {
+    if (pathname.startsWith('/dashboard')) return 'dashboard'
+    if (pathname.startsWith('/mentor-dashboard')) return 'mentor-dashboard'
+    if (pathname.startsWith('/admin')) return 'admin'
+    return pathname
+  }
+
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location} key={getRouteKey(location.pathname)}>
         {/* Public Routes with Navbar and Footer */}
         <Route path="/" element={
           <PageTransition>
@@ -235,6 +242,19 @@ function DiwaliWrapper() {
 }
 
 function App() {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(
+        (registration) => {
+          console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        },
+        (err) => {
+          console.log('ServiceWorker registration failed: ', err);
+        }
+      );
+    }
+  }, []);
+
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">

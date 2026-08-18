@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { 
   Shield, 
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { useClerk } from '@clerk/clerk-react'
 import ThemeToggle from '../components/ThemeToggle'
+import NotificationDropdown from '../components/NotificationDropdown'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
 import logoHalf from '../assets/CampusLogoHalf.png'
@@ -43,15 +44,15 @@ const AdminLayout = () => {
   }, [location.pathname])
 
   // Protect Admin Layout: Redirect to /admin/login if no adminToken exists
-  React.useEffect(() => {
-    const token = localStorage.getItem('adminToken')
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken')
     if (!token) {
       navigate('/admin/login', { replace: true })
     }
   }, [navigate])
 
-  // Get admin user from localStorage if available
-  const storedUser = localStorage.getItem('adminUser')
+  // Get admin user from storage
+  const storedUser = localStorage.getItem('adminUser') || sessionStorage.getItem('adminUser')
   const adminUser = storedUser ? JSON.parse(storedUser) : { name: 'Super Admin', role: 'super-admin', email: 'admin@campusbridge.com' }
 
   const adminMenu = [
@@ -68,6 +69,9 @@ const AdminLayout = () => {
   const handleLogout = () => {
     localStorage.removeItem('adminToken')
     localStorage.removeItem('adminUser')
+    sessionStorage.removeItem('adminToken')
+    sessionStorage.removeItem('adminUser')
+    toast.success('Admin logged out successfully')
     navigate('/admin/login')
   }
 
@@ -211,11 +215,7 @@ const AdminLayout = () => {
             {/* Light/Dark Toggle */}
             <ThemeToggle />
 
-            {/* Notifications */}
-            <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full border border-background"></span>
-            </button>
+            <NotificationDropdown />
 
             {/* Admin Profile */}
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">

@@ -1,4 +1,5 @@
 import express from 'express';
+import { Resend } from 'resend';
 import Event from '../models/Event.js';
 import User from '../models/User.js';
 import EventApplication from '../models/EventApplication.js';
@@ -216,6 +217,41 @@ router.post('/:id/apply', async (req, res) => {
     if (!event.attendees.includes(user._id)) {
       event.attendees.push(user._id);
       await event.save();
+    }
+
+    // Send Event Confirmation Email using EmailJS
+    try {
+      const eventDate = new Date(event.date).toLocaleDateString();
+      
+      const payload = {
+        service_id: process.env.EMAILJS_SERVICE_ID,
+        template_id: process.env.EMAILJS_TEMPLATE_ID,
+        user_id: process.env.EMAILJS_PUBLIC_KEY,
+        template_params: {
+          to_email: user.email,
+          to_name: user.firstName,
+          event_name: event.title,
+          event_date: eventDate,
+          event_time: event.time,
+          event_location: event.location || event.type,
+          event_link: event.link || ''
+        }
+      };
+
+      const emailjsRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!emailjsRes.ok) {
+        const errorText = await emailjsRes.text();
+        console.error('EmailJS Error:', errorText);
+      }
+    } catch (emailErr) {
+      console.error('Failed to send confirmation email via EmailJS:', emailErr);
     }
 
     res.status(201).json({ message: 'Registration successful', application });

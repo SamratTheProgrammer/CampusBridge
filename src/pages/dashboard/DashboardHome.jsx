@@ -440,7 +440,7 @@ const DashboardHome = () => {
                 alt="Profile" 
                 className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => {
-                  const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                  const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
                   navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
                 }}
               />
@@ -450,7 +450,7 @@ const DashboardHome = () => {
                 <h3 
                   className="font-bold text-foreground cursor-pointer hover:text-primary transition-colors"
                   onClick={() => {
-                    const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                    const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
                     navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
                   }}
                 >
@@ -507,7 +507,7 @@ const DashboardHome = () => {
               alt="Profile"
               className="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => {
-                const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
                 navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
               }}
             />
@@ -623,7 +623,7 @@ const DashboardHome = () => {
                           className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
                           onClick={() => {
                             if (post.authorClerkId === user?.id) {
-                              const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                              const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
                               navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
                             } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
                               navigate(`/dashboard/mentor/${post.authorClerkId}`);
@@ -637,7 +637,7 @@ const DashboardHome = () => {
                             className="font-bold text-foreground text-sm cursor-pointer hover:text-primary transition-colors"
                             onClick={() => {
                               if (post.authorClerkId === user?.id) {
-                                const role = user?.publicMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student';
+                                const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
                                 navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
                               } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
                                 navigate(`/dashboard/mentor/${post.authorClerkId}`);
@@ -714,7 +714,7 @@ const DashboardHome = () => {
                           const role = user?.publicMetadata?.role || 'student';
                           navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
                         }}
-                        className="mb-4 bg-muted/50 hover:bg-muted border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm cursor-pointer transition-colors"
+                        className="mb-4 bg-muted/50 hover:bg-muted border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm cursor-pointer transition-colors relative"
                       >
                         <div className="w-full sm:w-16 h-16 rounded-xl bg-orange-500/10 text-orange-600 flex flex-col items-center justify-center shrink-0">
                           <CalendarIcon className="w-6 h-6 mb-1" />
@@ -724,6 +724,11 @@ const DashboardHome = () => {
                             <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                               {post.eventDetails.type || 'Event'}
                             </span>
+                            {post.eventDetails.date && new Date(post.eventDetails.date) < new Date(new Date().setHours(0,0,0,0)) && (
+                              <span className="text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
+                                Expired
+                              </span>
+                            )}
                           </div>
                           <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.eventDetails.title}</h4>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground mt-2">

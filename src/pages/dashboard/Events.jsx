@@ -203,7 +203,7 @@ const Events = () => {
                       ) : (
                         <div className="flex items-center gap-2">
                           <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" /> 
-                          {event.link ? (
+                          {event.link && registered ? (
                             <a href={event.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-semibold transition-colors">
                               <Video className="w-3.5 h-3.5" /> Join Meeting
                             </a>
@@ -216,6 +216,17 @@ const Events = () => {
                     <p className="text-xs font-medium text-muted-foreground bg-muted inline-block px-2 py-1 rounded border border-border/50 flex items-center gap-1 w-fit">
                       <Users className="w-3.5 h-3.5 text-primary" /> {event.attendees?.length || 0} Registered
                     </p>
+                    
+                    {registered && event.date && (
+                      <a 
+                        href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(event.title)}&dates=${format(new Date(event.date), 'yyyyMMdd')}/${format(new Date(event.date), 'yyyyMMdd')}&details=${encodeURIComponent(`CampusBridge Event: ${event.title}\nTime: ${event.time || 'TBD'}\nLink: ${event.link || ''}`)}&location=${encodeURIComponent(event.location || '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-2.5 py-1.5 rounded-lg w-fit"
+                      >
+                        <Calendar className="w-3.5 h-3.5" /> Add to Google Calendar
+                      </a>
+                    )}
                   </div>
                 </div>
                 {event.active && !registered && (

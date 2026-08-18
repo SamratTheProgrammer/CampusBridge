@@ -51,6 +51,10 @@ const eventSchema = new mongoose.Schema(
     active: {
       type: Boolean,
       default: true,
+    },
+    reminderSent: {
+      type: Boolean,
+      default: false,
     }
   },
   { timestamps: true }

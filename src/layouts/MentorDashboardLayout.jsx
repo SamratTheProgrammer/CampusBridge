@@ -79,7 +79,7 @@ const MentorDashboardLayout = () => {
       if (!isSignedIn) {
         navigate('/login', { replace: true })
       } else if (user) {
-        const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
+        const role = sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || user.unsafeMetadata?.role
         if (role === 'student' || role === 'user' || role === 'alumni') {
           const subPath = location.pathname.replace(/^\/mentor-dashboard\/?/, '/');
           navigate(`/dashboard${subPath === '/' ? '' : subPath}`, { replace: true })

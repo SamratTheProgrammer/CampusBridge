@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen } from 'lucide-react'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -7,8 +7,10 @@ import PostComments from '../../components/PostComments'
 import { motion, AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import API_BASE from '../../utils/api'
+import { useNavigate } from 'react-router-dom'
 
 const MyProfile = () => {
+  const navigate = useNavigate()
   const { user, isLoaded } = useUser()
   const [dbUser, setDbUser] = useState(null)
   
@@ -307,8 +309,8 @@ const MyProfile = () => {
         </div>
         
         <div className="px-4 sm:px-6 pb-6 relative">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end -mt-14 sm:-mt-20 mb-4">
-            <div className="relative group">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end mb-4">
+            <div className="relative group -mt-14 sm:-mt-20 shrink-0">
               <img 
                 src={profilePhotoUrl} 
                 alt="Profile" 
@@ -323,7 +325,7 @@ const MyProfile = () => {
                 <Edit3 className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 sm:pt-0">
               <div>
                 <h1 className="text-xl sm:text-3xl font-bold text-foreground">{user?.fullName}</h1>
                 <p className="text-xs sm:text-base text-muted-foreground mt-0">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
@@ -558,6 +560,38 @@ const MyProfile = () => {
                           <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
                             {post.content}
                           </p>
+                        )}
+                        
+                        {post.eventDetails && post.eventDetails.title && (
+                          <div 
+                            onClick={() => {
+                              const role = user?.publicMetadata?.role || 'student';
+                              navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
+                            }}
+                            className="mb-4 bg-muted/50 hover:bg-muted border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm cursor-pointer transition-colors relative"
+                          >
+                            <div className="w-full sm:w-16 h-16 rounded-xl bg-orange-500/10 text-orange-600 flex flex-col items-center justify-center shrink-0">
+                              <Calendar className="w-6 h-6 mb-1" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                  {post.eventDetails.type || 'Event'}
+                                </span>
+                                {post.eventDetails.date && new Date(post.eventDetails.date) < new Date(new Date().setHours(0,0,0,0)) && (
+                                  <span className="text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
+                                    Expired
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.eventDetails.title}</h4>
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground mt-2">
+                                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString() : 'TBD'}</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {post.eventDetails.time || 'TBD'}</span>
+                                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {post.eventDetails.location || 'TBD'}</span>
+                              </div>
+                            </div>
+                          </div>
                         )}
 
                         {post.imageUrl && !post.bgGradient && (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe } from 'react-icons/fa'
+import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
@@ -239,13 +239,7 @@ const StudentProfile = () => {
   const isMentorRole = user?.unsafeMetadata?.role === 'mentor';
   
   let isLocked = false;
-  if (!isOwner) {
-    if (student?.profileVisibility === 'hidden') {
-      isLocked = !isConnected;
-    } else if (student?.profileVisibility === 'restricted') {
-      isLocked = !isConnected && !isMentorRole;
-    }
-  }
+  // User requested that profile (and social links) always be visible to everyone.
 
   return (
     <>
@@ -269,14 +263,16 @@ const StudentProfile = () => {
         </div>
         
         <div className="px-4 sm:px-6 pb-6 relative">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end -mt-16 sm:-mt-20 mb-4">
-            <img 
-              src={student.imageUrl || student.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName || student.name}`} 
-              alt={student.firstName || student.name} 
-              className={`w-24 h-24 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
-              onClick={isLocked ? undefined : () => setViewingImage(student.imageUrl || student.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName || student.name}`)}
-            />
-            <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end mb-4">
+            <div className="relative -mt-16 sm:-mt-20 shrink-0">
+              <img 
+                src={student.imageUrl || student.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName || student.name}`} 
+                alt={student.firstName || student.name} 
+                className={`w-24 h-24 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+                onClick={isLocked ? undefined : () => setViewingImage(student.imageUrl || student.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName || student.name}`)}
+              />
+            </div>
+            <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 sm:pt-0">
               <div>
                 <h1 className="text-xl sm:text-3xl font-bold text-foreground">{student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name}</h1>
                 <p className="text-xs sm:text-base text-primary font-medium mt-0.5 sm:mt-1">{student.course}</p>
@@ -343,24 +339,45 @@ const StudentProfile = () => {
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-3 sm:gap-4 pt-4 border-t border-border/50 mt-4 sm:mt-6">
-            <div className="flex gap-3">
-              {student.socialLinks?.linkedin && (
-                <a href={student.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-muted rounded-xl hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">
-                  <Linkedin className="w-5 h-5" />
-                </a>
-              )}
-              {student.socialLinks?.github && (
-                <a href={student.socialLinks.github} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-muted rounded-xl hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">
-                  <Github className="w-5 h-5" />
-                </a>
-              )}
-              {student.socialLinks?.portfolio && (
-                <a href={student.socialLinks.portfolio} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-muted rounded-xl hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">
-                  <Globe className="w-5 h-5" />
-                </a>
-              )}
-            </div>
+          <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40">
+            {Array.isArray(student.socialLinks) && student.socialLinks.length > 0 ? (
+              student.socialLinks.map((link, i) => {
+                let Icon = Globe;
+                let colorClass = 'text-foreground';
+                if (link.platform === 'LinkedIn') { Icon = Linkedin; colorClass = 'text-[#0A66C2]'; }
+                if (link.platform === 'GitHub') { Icon = Github; }
+                if (link.platform === 'Instagram') { Icon = FaInstagram; colorClass = 'text-[#E1306C]'; }
+                if (link.platform === 'Facebook') { Icon = FaFacebook; colorClass = 'text-[#1877F2]'; }
+                if (link.platform === 'Twitter') { Icon = FaTwitter; colorClass = 'text-[#1DA1F2]'; }
+
+                return (
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-muted/50 hover:bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-border/50 group">
+                    <Icon className={`w-4 h-4 ${colorClass} group-hover:scale-110 transition-transform`} /> 
+                    {link.platform}
+                  </a>
+                )
+              })
+            ) : student.socialLinks && !Array.isArray(student.socialLinks) ? (
+              <div className="flex gap-3">
+                {student.socialLinks.linkedin && (
+                  <a href={student.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-muted rounded-xl hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">
+                    <Linkedin className="w-5 h-5" />
+                  </a>
+                )}
+                {student.socialLinks.github && (
+                  <a href={student.socialLinks.github} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-muted rounded-xl hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">
+                    <Github className="w-5 h-5" />
+                  </a>
+                )}
+                {student.socialLinks.portfolio && (
+                  <a href={student.socialLinks.portfolio} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-muted rounded-xl hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">
+                    <Globe className="w-5 h-5" />
+                  </a>
+                )}
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">No social links added yet.</span>
+            )}
           </div>
         </div>
       </div>
@@ -555,6 +572,38 @@ const StudentProfile = () => {
                     <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
                       {post.content}
                     </p>
+                  )}
+                  
+                  {post.eventDetails && post.eventDetails.title && (
+                    <div 
+                      onClick={() => {
+                        const role = user?.publicMetadata?.role || 'student';
+                        navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
+                      }}
+                      className="mb-4 bg-muted/50 hover:bg-muted border border-border/50 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-sm cursor-pointer transition-colors relative"
+                    >
+                      <div className="w-full sm:w-16 h-16 rounded-xl bg-orange-500/10 text-orange-600 flex flex-col items-center justify-center shrink-0">
+                        <Calendar className="w-6 h-6 mb-1" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            {post.eventDetails.type || 'Event'}
+                          </span>
+                          {post.eventDetails.date && new Date(post.eventDetails.date) < new Date(new Date().setHours(0,0,0,0)) && (
+                            <span className="text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
+                              Expired
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.eventDetails.title}</h4>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground mt-2">
+                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString() : 'TBD'}</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {post.eventDetails.time || 'TBD'}</span>
+                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {post.eventDetails.location || 'TBD'}</span>
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   {post.imageUrl && !post.bgGradient && (

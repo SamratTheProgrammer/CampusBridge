@@ -612,6 +612,19 @@ const MentorSessions = () => {
                           <Video className="w-3.5 h-3.5" /> Start Call
                         </button>
                       )}
+                      
+                      {!checkIsPast(session.date, session.time) && session.status === 'accepted' && session.date && (
+                         <a 
+                           href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent('Session with ' + studentName)}&dates=${format(new Date(session.date), 'yyyyMMdd')}/${format(new Date(session.date), 'yyyyMMdd')}&details=${encodeURIComponent(`Session with ${studentName}\nTime: ${session.time}\nMode: ${session.mode || 'Online'}`)}&location=${encodeURIComponent(session.location || '')}`}
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           className="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm"
+                           title="Add to Google Calendar"
+                         >
+                           <Calendar className="w-3.5 h-3.5" /> Add to Calendar
+                         </a>
+                      )}
+
                       <span className="text-xs font-bold uppercase px-3 py-1.5 rounded-full bg-muted text-muted-foreground">
                         {session.status}
                       </span>
@@ -801,13 +814,17 @@ const MentorSessions = () => {
                 {registeredStudents.map((app) => (
                   <div key={app._id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border/40">
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={app.applicant?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.applicant?.name}`} 
-                        alt="Student" 
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
+                      <Link to={`/mentor-dashboard/student/${app.applicant?.clerkId || app.applicant?._id}`} className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setIsApplicationsModalOpen(false)}>
+                        <img 
+                          src={app.applicant?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.applicant?.name}`} 
+                          alt="Student" 
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      </Link>
                       <div>
-                        <h4 className="font-bold text-sm text-foreground">{app.applicant?.name || app.applicant?.firstName}</h4>
+                        <Link to={`/mentor-dashboard/student/${app.applicant?.clerkId || app.applicant?._id}`} className="hover:underline" onClick={() => setIsApplicationsModalOpen(false)}>
+                          <h4 className="font-bold text-sm text-foreground">{app.applicant?.name || app.applicant?.firstName}</h4>
+                        </Link>
                         <p className="text-xs text-muted-foreground">{app.applicant?.email}</p>
                       </div>
                     </div>

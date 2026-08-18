@@ -16,7 +16,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   const location = useLocation()
 
   // Admin session check via standalone admin login
-  const hasAdminToken = allowedRoles.includes('admin') && !!localStorage.getItem('adminToken')
+  const hasAdminToken = allowedRoles.includes('admin') && (!!localStorage.getItem('adminToken') || !!sessionStorage.getItem('adminToken'))
   if (hasAdminToken) {
     return <Outlet />
   }
@@ -67,9 +67,12 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
     const safetyTimeout = setTimeout(() => {
       if (isMounted && isRoleLoading) {
+        const fallbackRole = user?.publicMetadata?.role || user?.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student'
+        setUserRole(fallbackRole)
+        sessionStorage.setItem('campusbridge_user_role', fallbackRole)
         setIsRoleLoading(false)
       }
-    }, 1200)
+    }, 4000)
 
     checkUserRole()
 
@@ -105,12 +108,14 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
     if (!isAllowed) {
       // Redirect to authorized dashboard based on actual user role
-      if (userRole === 'mentor' || userRole === 'alumni') {
-        return <Navigate to="/mentor-dashboard" replace />
+      if (userRole === 'mentor') {
+        const subPath = location.pathname.replace(/^\/dashboard\/?/, '/');
+        return <Navigate to={`/mentor-dashboard${subPath === '/' ? '' : subPath}`} replace />
       } else if (userRole === 'admin') {
         return <Navigate to="/admin" replace />
       } else {
-        return <Navigate to="/dashboard" replace />
+        const subPath = location.pathname.replace(/^\/mentor-dashboard\/?/, '/');
+        return <Navigate to={`/dashboard${subPath === '/' ? '' : subPath}`} replace />
       }
     }
   }

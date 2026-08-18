@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, Clock, Video, XCircle, CheckCircle2, Globe, MapPin, Loader2, User, Plus, X, Briefcase, ChevronRight, ExternalLink } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
+import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 
@@ -317,6 +318,18 @@ const MySessions = () => {
               >
                 <XCircle className="w-3.5 h-3.5" />
               </button>
+            )}
+            
+            {!(isPast || item.status === 'completed' || item.status === 'declined' || item.status === 'cancelled') && item.date && (
+               <a 
+                 href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(sessionTitle)}&dates=${format(new Date(item.date), 'yyyyMMdd')}/${format(new Date(item.date), 'yyyyMMdd')}&details=${encodeURIComponent(`Session with ${mentorName}\nTime: ${sessionTime}\nMode: ${item.mode || 'Online'}`)}&location=${encodeURIComponent(venueLocation || '')}`}
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 className="p-2 rounded-xl hover:bg-primary/10 text-primary border border-primary/20 transition-colors"
+                 title="Add to Google Calendar"
+               >
+                 <Calendar className="w-3.5 h-3.5" />
+               </a>
             )}
           </div>
         </div>

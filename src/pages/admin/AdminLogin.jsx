@@ -11,6 +11,7 @@ const AdminLogin = () => {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [role, setRole] = useState('super-admin')
+  const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -37,8 +38,9 @@ const AdminLogin = () => {
         throw new Error(data.message || 'Invalid admin credentials')
       }
 
-      localStorage.setItem('adminToken', data.token)
-      localStorage.setItem('adminUser', JSON.stringify(data.user))
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('adminToken', data.token)
+      storage.setItem('adminUser', JSON.stringify(data.user))
 
       toast.success(data.message || `Successfully logged in as ${role.replace('-', ' ')}`)
       navigate('/admin')
@@ -143,6 +145,8 @@ const AdminLogin = () => {
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
               />
               <label htmlFor="remember-me" className="ml-2 text-muted-foreground cursor-pointer select-none">

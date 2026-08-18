@@ -2,6 +2,7 @@ import express from 'express';
 import { Webhook } from 'svix';
 import User from '../models/User.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
+import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -110,6 +111,17 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
         user = new User(userData);
         await user.save();
         console.log(`User created in DB: ${id}`);
+        
+        // Notify Admin
+        await createNotificationHelper({
+          recipientClerkId: 'admin',
+          senderClerkId: id,
+          type: 'system',
+          title: 'New User Registered',
+          message: `A new user ${userData.username} has joined the platform.`,
+          link: '/admin/users',
+          io: req.io
+        });
       }
     }
 

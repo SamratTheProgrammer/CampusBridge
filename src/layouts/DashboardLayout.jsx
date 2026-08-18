@@ -52,7 +52,7 @@ const DashboardLayout = () => {
       if (!isSignedIn) {
         navigate('/login', { replace: true })
       } else if (user) {
-        const role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
+        const role = sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || user.unsafeMetadata?.role
         if (role === 'mentor') {
           const subPath = location.pathname.replace(/^\/dashboard\/?/, '/');
           navigate(`/mentor-dashboard${subPath === '/' ? '' : subPath}`, { replace: true })
