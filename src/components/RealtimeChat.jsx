@@ -969,7 +969,9 @@ const RealtimeChat = () => {
 
                       <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                         <div
-                          className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm leading-relaxed whitespace-pre-wrap flex flex-col ${
+                          className={`${
+                            (!msg.text && msg.attachment?.type === 'image') ? 'p-1' : 'px-4 py-2.5'
+                          } rounded-2xl text-sm shadow-sm leading-relaxed whitespace-pre-wrap flex flex-col ${
                             isMe
                               ? 'bg-primary text-primary-foreground rounded-tr-sm'
                               : 'bg-card border border-border/50 text-foreground rounded-tl-sm'

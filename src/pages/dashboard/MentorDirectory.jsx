@@ -205,9 +205,9 @@ const MentorDirectory = () => {
         ) : filteredMentors.length > 0 ? (
           filteredMentors.map(mentor => (
             <div key={mentor._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 hover:shadow-md transition-shadow">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
-                <img src={mentor.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor.firstName}`} alt={mentor.firstName} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover shrink-0 bg-muted" />
-                <div className="min-w-0">
+              <div className="flex flex-row items-center gap-4 sm:gap-5 min-w-0">
+                <img src={mentor.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor.firstName}`} alt={mentor.firstName} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 bg-muted border border-border/50" />
+                <div className="min-w-0 flex-1">
                   <h3 className="text-base sm:text-lg font-bold text-foreground truncate">{mentor.firstName} {mentor.lastName}</h3>
                   <p className="text-xs sm:text-sm font-medium text-foreground truncate">{mentor.headline || 'Mentor'}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 truncate">
@@ -222,34 +222,34 @@ const MentorDirectory = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
+              <div className="flex flex-row sm:flex-nowrap gap-1.5 sm:gap-3 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/40 w-full sm:w-auto mt-2 sm:mt-0">
                 {connections[mentor.clerkId] === 'pending' ? (
-                  <button disabled className="flex-1 sm:flex-none text-amber-500 font-medium text-xs sm:text-sm border border-amber-500/20 bg-amber-500/10 px-4 sm:px-6 py-2.5 rounded-xl text-center shrink-0 flex items-center justify-center gap-2 cursor-not-allowed">
-                    <Clock className="w-4 h-4" /> Request Sent ⏳
+                  <button disabled className="flex-1 sm:flex-none text-amber-500 font-medium text-[10px] sm:text-sm border border-amber-500/20 bg-amber-500/10 px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl text-center shrink-0 flex items-center justify-center gap-1 sm:gap-2 cursor-not-allowed">
+                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Requested
                   </button>
                 ) : connections[mentor.clerkId] === 'accepted' ? (
-                  <button disabled className="flex-1 sm:flex-none text-green-500 font-medium text-xs sm:text-sm border border-green-500/20 bg-green-500/10 px-4 sm:px-6 py-2.5 rounded-xl text-center shrink-0 flex items-center justify-center gap-2 cursor-default">
-                    <CheckCircle2 className="w-4 h-4" /> Connected
+                  <button disabled className="flex-1 sm:flex-none text-green-500 font-medium text-[10px] sm:text-sm border border-green-500/20 bg-green-500/10 px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl text-center shrink-0 flex items-center justify-center gap-1 sm:gap-2 cursor-default">
+                    <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Connected
                   </button>
                 ) : (
                   <button 
                     onClick={() => handleConnect(mentor.clerkId)}
                     disabled={isConnecting === mentor.clerkId}
-                    className="flex-1 sm:flex-none text-primary-foreground font-medium text-xs sm:text-sm bg-primary hover:bg-primary/90 px-4 sm:px-6 py-2.5 rounded-xl transition-all text-center shrink-0 flex items-center justify-center gap-2 shadow-sm shadow-primary/20"
+                    className="flex-1 sm:flex-none text-primary-foreground font-medium text-[10px] sm:text-sm bg-primary hover:bg-primary/90 px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl transition-all text-center shrink-0 flex items-center justify-center gap-1 sm:gap-2 shadow-sm shadow-primary/20"
                   >
-                    {isConnecting === mentor.clerkId ? <Loader2 className="w-4 h-4 animate-spin" /> : <><UserPlus className="w-4 h-4" /> Connect</>}
+                    {isConnecting === mentor.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Connect</>}
                   </button>
                 )}
                 
                 <Link
                   to={`/dashboard/mentor/${mentor.clerkId}/book`}
-                  className="flex-1 sm:flex-none text-primary border border-primary hover:bg-primary/10 font-medium text-xs sm:text-sm bg-background px-4 sm:px-6 py-2.5 rounded-xl transition-all text-center shrink-0"
+                  className="flex-1 sm:flex-none text-primary border border-primary hover:bg-primary/10 font-medium text-[10px] sm:text-sm bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl transition-all text-center shrink-0 flex items-center justify-center"
                 >
                   Book Session
                 </Link>
                 <Link
                   to={`/dashboard/mentor/${mentor.clerkId}`}
-                  className="flex-1 sm:flex-none text-foreground font-medium text-xs sm:text-sm border border-border/50 hover:bg-muted bg-background px-4 sm:px-6 py-2.5 rounded-xl transition-all text-center shrink-0"
+                  className="flex-1 sm:flex-none text-foreground font-medium text-[10px] sm:text-sm border border-border/50 hover:bg-muted bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl transition-all text-center shrink-0 flex items-center justify-center"
                 >
                   View Profile
                 </Link>

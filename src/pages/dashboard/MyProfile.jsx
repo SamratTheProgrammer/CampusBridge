@@ -471,7 +471,7 @@ const MyProfile = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         
         {/* Left Column - Details */}
-        <div className="md:col-span-1 space-y-6 sticky top-20 self-start max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-none pr-1">
+        <div className="md:col-span-1 space-y-6 md:sticky md:top-20 md:self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto scrollbar-none md:pr-1">
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-foreground mb-4">About Me</h3>
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Filter, MessageSquare, User, CheckCircle2, Loader2, X } from 'lucide-react'
+import { Search, Filter, MessageSquare, User, CheckCircle2, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -14,6 +14,8 @@ const MyMentees = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [unfriendConfirm, setUnfriendConfirm] = useState({ isOpen: false, connectionId: null, targetName: '' })
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   useEffect(() => {
     if (!user) return;
@@ -80,6 +82,13 @@ const MyMentees = () => {
     return matchesSearch && matchesStatus
   })
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
+
+  const totalPages = Math.ceil(filteredMentees.length / itemsPerPage);
+  const currentMentees = filteredMentees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
 
@@ -121,8 +130,9 @@ const MyMentees = () => {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        {filteredMentees.map((mentee) => (
+        {currentMentees.map((mentee) => (
           <div key={mentee.id} className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col">
 
             <div className="p-4 sm:p-5 flex-1 text-center relative">
@@ -193,6 +203,56 @@ const MyMentees = () => {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {filteredMentees.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-6">
+          <button 
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 border border-border/50 rounded-lg hover:bg-muted text-muted-foreground transition-colors disabled:opacity-50 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+            if (
+              page === 1 || 
+              page === totalPages || 
+              (page >= currentPage - 1 && page <= currentPage + 1)
+            ) {
+              return (
+                <button 
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 rounded-lg text-sm font-medium flex items-center justify-center transition-colors ${
+                    currentPage === page 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'hover:bg-muted text-foreground'
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            } else if (
+              page === currentPage - 2 || 
+              page === currentPage + 2
+            ) {
+              return <span key={page} className="text-muted-foreground">...</span>
+            }
+            return null;
+          })}
+
+          <button 
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 border border-border/50 rounded-lg hover:bg-muted text-muted-foreground transition-colors disabled:opacity-50 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      </>
       )}
 
       <ConfirmModal

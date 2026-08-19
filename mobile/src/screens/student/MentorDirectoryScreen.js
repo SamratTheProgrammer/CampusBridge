@@ -29,7 +29,14 @@ export default function MentorDirectoryScreen() {
       const res = await apiClient.get('/api/users/mentors/all', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setMentors(res.data?.mentors || res.data || []);
+      const rawMentors = res.data?.mentors || res.data || [];
+      const mappedMentors = rawMentors.map(m => ({
+        ...m,
+        name: m.firstName ? `${m.firstName} ${m.lastName || ''}`.trim() : m.name,
+        currentPosition: m.headline || m.currentPosition,
+        profileImage: m.imageUrl || m.profileImage,
+      }));
+      setMentors(mappedMentors);
     } catch (e) {
       console.error('Mentors fetch error:', e?.message);
     } finally {
