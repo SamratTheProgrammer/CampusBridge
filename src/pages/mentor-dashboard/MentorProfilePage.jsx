@@ -19,13 +19,13 @@ const MentorProfilePage = () => {
         </div>
         
         <div className="px-6 pb-6 relative">
-          <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-16 sm:-mt-20 mb-4">
+          <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-start -mt-16 sm:-mt-20 mb-4">
             <img 
               src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" 
               alt="Profile" 
               className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md"
             />
-            <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-1 sm:mt-2">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Rohit Sharma</h1>
                 <p className="text-sm sm:text-base text-muted-foreground mt-1">Senior Software Engineer at Amazon</p>

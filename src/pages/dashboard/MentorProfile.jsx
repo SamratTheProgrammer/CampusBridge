@@ -256,7 +256,7 @@ const MentorProfile = () => {
         </div>
         <div className="px-4 sm:px-10 pb-6 sm:pb-8 relative">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-5">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-5 flex-1 min-w-0">
               <div className="relative -mt-16 sm:-mt-20 shrink-0">
                 <img
                   src={avatarUrl}
@@ -265,9 +265,9 @@ const MentorProfile = () => {
                   onClick={isLocked ? undefined : () => setViewingImage(avatarUrl)}
                 />
               </div>
-              <div className="mb-1 sm:mb-4 relative z-10">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h1 className="text-xl sm:text-3xl font-bold text-foreground">{fullName}</h1>
+              <div className="mt-1 sm:mt-2 relative z-10 flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground whitespace-nowrap">{fullName}</h1>
                   {mentor.role === 'mentor' && <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 shrink-0" />}
                 </div>
                 <p className="text-xs sm:text-sm font-medium text-foreground mb-1">{mentor.headline || 'Mentor'}</p>

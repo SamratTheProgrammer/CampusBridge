@@ -12,40 +12,46 @@ import { socket } from '../services/socket'
 import { ringtoneService } from '../utils/ringtone'
 import toast from 'react-hot-toast'
 import StudentProfileGuard from '../components/dashboard/StudentProfileGuard'
+import API_BASE from '../utils/api'
 
-const MOCK_MENTOR = [
-  { id: 1, name: 'Arjun Mehta', role: 'Software Engineer', company: 'Google' },
-  { id: 2, name: 'Sneha Roy', role: 'Data Scientist', company: 'Microsoft' },
-  { id: 3, name: 'Rohit Sharma', role: 'Product Manager', company: 'Amazon' },
-  { id: 4, name: 'Priya Singh', role: 'UX Designer', company: 'Adobe' },
-  { id: 5, name: 'Karan Verma', role: 'Cloud Engineer', company: 'AWS' }
-]
 
-const MOCK_JOBS = [
-  { id: 1, title: 'Frontend Developer', company: 'Microsoft' },
-  { id: 2, title: 'Software Engineering Intern', company: 'Google' },
-  { id: 3, title: 'Data Analyst Intern', company: 'Flipkart' },
-  { id: 4, title: 'Backend Engineer', company: 'Amazon' },
-  { id: 5, title: 'Product Designer', company: 'Adobe' },
-  { id: 6, title: 'DevOps Intern', company: 'Atlassian' }
-]
-
-const MOCK_EVENTS = [
-  { id: 1, title: 'Mentor Mentorship Meet', type: 'Virtual Event' },
-  { id: 2, title: 'AI/ML Career Path', type: 'Virtual Event' },
-  { id: 3, title: 'Web Development Workshop', type: 'Seminar Hall, Block A' }
-]
 
 const DashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [mentorsList, setMentorsList] = useState([])
+  const [jobsList, setJobsList] = useState([])
+  const [eventsList, setEventsList] = useState([])
+  
   const navigate = useNavigate()
   const location = useLocation()
   const searchRef = useRef(null)
   
   const { user, isLoaded, isSignedIn } = useUser()
+
+  useEffect(() => {
+    const fetchGlobalData = async () => {
+      try {
+        const [mentorsRes, jobsRes, eventsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/users/mentors/all`),
+          fetch(`${API_BASE}/api/jobs`),
+          fetch(`${API_BASE}/api/events`)
+        ]);
+        
+        if (mentorsRes.ok) setMentorsList(await mentorsRes.json());
+        if (jobsRes.ok) setJobsList(await jobsRes.json());
+        if (eventsRes.ok) setEventsList(await eventsRes.json());
+      } catch (error) {
+        console.error('Error fetching global search data:', error);
+      }
+    };
+    
+    if (user) {
+      fetchGlobalData();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -170,21 +176,35 @@ const DashboardLayout = () => {
     )
   }
 
-  const filteredMentor = MOCK_MENTOR.filter(mentor =>
-    mentor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mentor.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mentor.company.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredMentor = mentorsList.filter(mentor => {
+    const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim().toLowerCase();
+    return fullName.includes(searchQuery.toLowerCase()) ||
+           (mentor.headline || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (mentor.skills || []).some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+  }).map(m => ({
+    id: m.clerkId,
+    name: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
+    role: m.headline || 'Mentor',
+    company: m.location || ''
+  }))
 
-  const filteredJobs = MOCK_JOBS.filter(job =>
-    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.company.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredJobs = jobsList.filter(job =>
+    (job.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (job.company || '').toLowerCase().includes(searchQuery.toLowerCase())
+  ).map(j => ({
+    id: j._id,
+    title: j.title,
+    company: j.company
+  }))
 
-  const filteredEvents = MOCK_EVENTS.filter(event =>
-    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.type.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredEvents = eventsList.filter(event =>
+    (event.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (event.type || '').toLowerCase().includes(searchQuery.toLowerCase())
+  ).map(e => ({
+    id: e._id,
+    title: e.title,
+    type: e.type
+  }))
 
   const hasResults = filteredMentor.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
 

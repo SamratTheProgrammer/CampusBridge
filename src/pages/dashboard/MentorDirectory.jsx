@@ -15,6 +15,8 @@ const MentorDirectory = () => {
   const [locationFilter, setLocationFilter] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isConnecting, setIsConnecting] = useState(null) // store ID of mentor being connected
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,7 +89,8 @@ const MentorDirectory = () => {
   }
 
   const filteredMentors = mentors.filter(mentor => {
-    const matchesSearch = (mentor.firstName + ' ' + mentor.lastName).toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim().toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || 
                           (mentor.headline || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (mentor.skills || []).some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
     
@@ -98,6 +101,16 @@ const MentorDirectory = () => {
 
     return matchesSearch && matchesDomain && matchesLocation
   })
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredMentors.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedMentors = filteredMentors.slice(startIndex, startIndex + itemsPerPage)
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, domainFilter, locationFilter])
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8 pb-8">
@@ -133,7 +146,7 @@ const MentorDirectory = () => {
                     <Link to={`/dashboard/mentor/${mentor.clerkId}`} className="flex items-center gap-3 flex-1 min-w-0">
                       <img src={mentor.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor.firstName}`} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 bg-muted" />
                       <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-sm text-foreground leading-tight truncate">{mentor.firstName} {mentor.lastName}</span>
+                        <span className="font-semibold text-sm text-foreground leading-tight truncate">{mentor.firstName} {mentor.lastName || ''}</span>
                         <span className="text-xs text-muted-foreground mt-0.5 truncate">{mentor.headline || 'Mentor'}</span>
                       </div>
                     </Link>
@@ -202,13 +215,13 @@ const MentorDirectory = () => {
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
-        ) : filteredMentors.length > 0 ? (
-          filteredMentors.map(mentor => (
+        ) : paginatedMentors.length > 0 ? (
+          paginatedMentors.map(mentor => (
             <div key={mentor._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 hover:shadow-md transition-shadow">
               <div className="flex flex-row items-center gap-4 sm:gap-5 min-w-0">
                 <img src={mentor.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor.firstName}`} alt={mentor.firstName} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 bg-muted border border-border/50" />
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-base sm:text-lg font-bold text-foreground truncate">{mentor.firstName} {mentor.lastName}</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-foreground truncate">{mentor.firstName} {mentor.lastName || ''}</h3>
                   <p className="text-xs sm:text-sm font-medium text-foreground truncate">{mentor.headline || 'Mentor'}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 truncate">
                     <MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{mentor.location || 'Location not specified'}</span>
@@ -264,19 +277,63 @@ const MentorDirectory = () => {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-center gap-2 pt-4">
-        <button className="p-2 border border-border/50 rounded-lg hover:bg-muted text-muted-foreground transition-colors disabled:opacity-50" disabled>
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <button className="w-8 h-8 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center">1</button>
-        <button className="w-8 h-8 rounded-lg hover:bg-muted text-foreground text-sm font-medium flex items-center justify-center transition-colors">2</button>
-        <button className="w-8 h-8 rounded-lg hover:bg-muted text-foreground text-sm font-medium flex items-center justify-center transition-colors">3</button>
-        <span className="text-muted-foreground">...</span>
-        <button className="w-8 h-8 rounded-lg hover:bg-muted text-foreground text-sm font-medium flex items-center justify-center transition-colors">20</button>
-        <button className="p-2 border border-border/50 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <button 
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="p-2 border border-border/50 rounded-lg hover:bg-muted text-muted-foreground transition-colors disabled:opacity-50"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            // Logic to show a window of pages around currentPage
+            let pageNum = i + 1;
+            if (totalPages > 5) {
+              if (currentPage > 3 && currentPage < totalPages - 2) {
+                pageNum = currentPage - 2 + i;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              }
+            }
+            
+            return (
+              <button 
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                className={`w-8 h-8 rounded-lg text-sm font-medium flex items-center justify-center transition-colors ${
+                  currentPage === pageNum 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'hover:bg-muted text-foreground'
+                }`}
+              >
+                {pageNum}
+              </button>
+            )
+          })}
+
+          {totalPages > 5 && currentPage < totalPages - 2 && (
+            <>
+              <span className="text-muted-foreground">...</span>
+              <button 
+                onClick={() => setCurrentPage(totalPages)}
+                className="w-8 h-8 rounded-lg hover:bg-muted text-foreground text-sm font-medium flex items-center justify-center transition-colors"
+              >
+                {totalPages}
+              </button>
+            </>
+          )}
+
+          <button 
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="p-2 border border-border/50 rounded-lg hover:bg-muted text-muted-foreground transition-colors disabled:opacity-50"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
