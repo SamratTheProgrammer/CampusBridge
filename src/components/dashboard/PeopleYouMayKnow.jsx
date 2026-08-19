@@ -21,6 +21,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
+import defaultPP from '../../assets/default_pp.png';
 
 const PeopleYouMayKnow = () => {
   const { user } = useUser();
@@ -217,7 +218,7 @@ const PeopleYouMayKnow = () => {
               {/* Profile Image with role ring */}
               <Link to={profileLink} className="relative block">
                 <img
-                  src={item.image}
+                  src={item.image || defaultPP}
                   alt={item.name}
                   className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover shadow-sm transition-transform duration-300 group-hover:scale-105 ${
                     isMentor ? 'ring-2 ring-purple-500/40' : 'ring-2 ring-primary/30'
@@ -416,7 +417,7 @@ const PeopleYouMayKnow = () => {
                               className="shrink-0 relative"
                             >
                               <img
-                                src={item.image}
+                                src={item.image || defaultPP}
                                 alt={item.name}
                                 className={`w-12 h-12 rounded-full object-cover shadow-xs transition-transform group-hover:scale-105 ${
                                   isMentor ? 'ring-2 ring-purple-500/40' : 'ring-2 ring-primary/30'

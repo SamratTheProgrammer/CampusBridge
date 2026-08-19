@@ -202,7 +202,7 @@ router.get('/suggestions/:clerkId', async (req, res) => {
       name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
       role: u.role || defaultRole,
       headline: u.headline || u.bio || `${u.role || defaultRole} at CampusBridge`,
-      image: u.imageUrl || u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.firstName || u.name || 'User'}`,
+      image: u.imageUrl || u.image || null,
       institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
       skills: u.skills || u.expertise || []
     });
@@ -290,7 +290,7 @@ router.get('/discover/:clerkId', async (req, res) => {
         name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
         role: u.role || 'student',
         headline: u.headline || u.bio || `${u.role || 'Student'} at CampusBridge`,
-        image: u.imageUrl || u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.firstName || u.name || 'User'}`,
+        image: u.imageUrl || u.image || null,
         institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
         skills: u.skills || u.expertise || [],
         connectionStatus,

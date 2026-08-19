@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, Maximize2, Minimize2, PhoneIncoming, Volume2, VolumeX, MonitorUp, Sparkles } from 'lucide-react';
+import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, Maximize2, Minimize2, PhoneIncoming, Volume2, VolumeX, MonitorUp, Sparkles, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { socket } from '../services/socket';
 import toast from 'react-hot-toast';
@@ -48,6 +48,7 @@ const VideoCallModal = ({ currentUser }) => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Live Timer State
   const [callDuration, setCallDuration] = useState(0); // in seconds
@@ -1128,7 +1129,7 @@ const VideoCallModal = ({ currentUser }) => {
 
               {/* PIP Local Camera Preview (Bottom Right Inset Box) */}
               {callType === 'video' && (
-                <div className="absolute bottom-6 right-6 w-36 h-48 sm:w-48 sm:h-60 bg-zinc-900 border-2 border-white/20 rounded-2xl overflow-hidden shadow-2xl z-20">
+                <div className="absolute bottom-4 right-4 w-24 h-32 sm:bottom-6 sm:right-6 sm:w-48 sm:h-60 bg-zinc-900 border-2 border-white/20 rounded-2xl overflow-hidden shadow-2xl z-20">
                   <video
                     ref={setLocalVideoRef}
                     autoPlay
@@ -1218,11 +1219,11 @@ const VideoCallModal = ({ currentUser }) => {
                 {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
               </button>
 
-              {/* Screen Share */}
+              {/* Screen Share - Desktop */}
               {callType === 'video' && (
                 <button
                   onClick={toggleScreenShare}
-                  className={`p-3.5 rounded-full transition-all ${
+                  className={`hidden sm:flex p-3.5 rounded-full transition-all ${
                     isScreenSharing ? 'bg-primary text-primary-foreground' : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
                   title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
@@ -1234,24 +1235,68 @@ const VideoCallModal = ({ currentUser }) => {
               {/* End Call */}
               <button
                 onClick={endCall}
-                className="px-6 py-3.5 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-2 transition-all shadow-lg hover:scale-105"
+                className="p-3.5 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-all shadow-lg hover:scale-105"
                 title="End Call"
               >
-                <PhoneOff className="w-5 h-5" /> End Call
+                <PhoneOff className="w-5 h-5" />
               </button>
 
-              {/* Swap Call */}
+              {/* Mobile More Options Button */}
+              <div className="relative sm:hidden">
+                <button
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className="p-3.5 text-white/70 hover:text-white transition-colors rounded-full bg-white/10"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+
+                {/* Mobile Menu Dropdown */}
+                {isMobileMenuOpen && (
+                  <div className="absolute bottom-full right-0 mb-3 bg-zinc-900 border border-white/10 rounded-xl p-2 flex flex-col gap-2 shadow-xl z-50">
+
+                    {callType === 'video' && (
+                      <button
+                        onClick={() => { toggleScreenShare(); setIsMobileMenuOpen(false); }}
+                        className={`p-3 rounded-xl flex justify-center transition-all ${
+                          isScreenSharing ? 'bg-primary text-primary-foreground' : 'bg-white/5 text-white'
+                        }`}
+                        title="Toggle Screen Share"
+                      >
+                        <MonitorUp className="w-5 h-5" />
+                      </button>
+                    )}
+                    {hasHeldCall && (
+                      <button
+                        onClick={() => { swapCall(); setIsMobileMenuOpen(false); }}
+                        className="p-3 rounded-xl bg-blue-600 text-white flex justify-center"
+                        title="Swap Call"
+                      >
+                        <PhoneIncoming className="w-5 h-5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setIsMinimized(true); setIsMobileMenuOpen(false); }}
+                      className="p-3 rounded-xl bg-white/5 text-white flex justify-center"
+                      title="Minimize Call"
+                    >
+                      <Minimize2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Swap Call - Desktop */}
               {hasHeldCall && (
                 <button
                   onClick={swapCall}
-                  className="px-4 py-3.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-2 transition-all shadow-lg"
+                  className="hidden sm:flex px-4 py-3.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-2 transition-all shadow-lg"
                   title="Swap Call"
                 >
                   <PhoneIncoming className="w-4 h-4" /> Swap
                 </button>
               )}
 
-              {/* Fullscreen */}
+              {/* Fullscreen - Desktop */}
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
                 className="p-3.5 text-white/70 hover:text-white transition-colors ml-auto hidden sm:block"
@@ -1260,13 +1305,13 @@ const VideoCallModal = ({ currentUser }) => {
                 {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
               </button>
 
-              {/* Minimize to Background UI */}
+              {/* Minimize to Background UI - Desktop */}
               <button
                 onClick={() => {
                   setIsFullscreen(false);
                   setIsMinimized(true);
                 }}
-                className="p-3.5 text-white/70 hover:text-white transition-colors"
+                className="hidden sm:block p-3.5 text-white/70 hover:text-white transition-colors"
                 title="Minimize Call"
               >
                 <Minimize2 className="w-5 h-5" />
@@ -1294,8 +1339,10 @@ const VideoCallModal = ({ currentUser }) => {
                   className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/50"
                 />
                 <div className="flex-1 truncate">
-                  <h4 className="text-white font-bold text-sm truncate">{partner?.name}</h4>
-                  <p className="text-xs text-primary font-medium">{formatTimer(callDuration)}</p>
+                  <h4 className="text-white font-bold text-sm truncate">{partner?.name || 'Connecting...'}</h4>
+                  <p className={`text-xs text-primary font-medium ${callState === 'calling' ? 'animate-pulse' : ''}`}>
+                    {callState === 'calling' ? callStatusText : formatTimer(callDuration)}
+                  </p>
                 </div>
               </div>
               

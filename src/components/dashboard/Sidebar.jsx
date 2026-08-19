@@ -58,7 +58,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'My Network', path: '/dashboard/network', icon: Users },
     { name: 'Mentor Directory', path: '/dashboard/mentor', icon: Compass },
-    { name: 'My Mentors', path: '/dashboard/my-mentors', icon: UserCheck },
     { name: 'Sessions', path: '/dashboard/sessions', icon: BookOpen },
     { name: 'Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase },
     { name: 'Events', path: '/dashboard/events', icon: Calendar },

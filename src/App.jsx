@@ -35,7 +35,6 @@ import MentorDirectory from './pages/dashboard/MentorDirectory'
 import MentorProfile from './pages/dashboard/MentorProfile'
 import BookSession from './pages/dashboard/BookSession'
 import BookingSuccess from './pages/dashboard/BookingSuccess'
-import MyMentors from './pages/dashboard/MyMentors'
 import MentorshipRequests from './pages/dashboard/MentorshipRequests'
 import JobDetails from './pages/dashboard/JobDetails'
 import Events from './pages/dashboard/Events'
@@ -134,7 +133,6 @@ function AnimatedRoutes() {
             <Route path="student/:id" element={<StudentProfile />} />
             <Route path="mentor/:id/book" element={<BookSession />} />
             <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
-            <Route path="my-mentors" element={<MyMentors />} />
             <Route path="mentorship" element={<MentorshipRequests />} />
             <Route path="sessions" element={<MySessions />} />
             <Route path="jobs" element={<Jobs />} />
