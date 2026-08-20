@@ -18,7 +18,7 @@ const messageSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['text', 'call_log', 'image', 'video', 'document', 'file'],
+    enum: ['text', 'call_log', 'image', 'video', 'document', 'file', 'share'],
     default: 'text',
   },
   text: {
@@ -35,6 +35,14 @@ const messageSchema = new mongoose.Schema({
     messageId: String,
     text: String,
     senderName: String
+  },
+  share: {
+    type: { type: String, enum: ['post', 'job', 'event'] },
+    itemId: { type: mongoose.Schema.Types.ObjectId, refPath: 'share.typeModel' },
+    typeModel: { type: String, enum: ['Post', 'Job', 'Event'] },
+    title: String,
+    description: String,
+    imageUrl: String
   },
   callInfo: {
     callType: { type: String, enum: ['video', 'audio'] },

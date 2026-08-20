@@ -62,6 +62,7 @@ const AdminLayout = () => {
     { name: 'Mentorship', path: '/admin/mentorship', icon: HelpingHand },
     { name: 'Jobs & Internships', path: '/admin/jobs', icon: Briefcase },
     { name: 'Events', path: '/admin/events', icon: Calendar },
+    { name: 'Posts Moderation', path: '/admin/posts', icon: MessageSquare },
     { name: 'Support Messages', path: '/admin/messages', icon: Mail },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ]

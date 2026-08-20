@@ -27,10 +27,12 @@ import {
   Edit3,
   Trash2,
   Clock,
-  MapPin
+  MapPin,
+  AlertCircle
 } from 'lucide-react'
 import API_BASE from '../../utils/api'
 import defaultPP from '../../assets/default_pp.png'
+import ShareModal from '../../components/modals/ShareModal'
 
 const indianCities = [
   "Agra", "Ahmedabad", "Ajmer", "Aligarh", "Allahabad", "Amritsar", "Aurangabad",
@@ -108,7 +110,11 @@ const DashboardHome = () => {
   // Comment State
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
   const [commentText, setCommentText] = useState('')
-  const [isCommenting, setIsCommenting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Share Modal State
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [shareConfig, setShareConfig] = useState(null)
 
   const [activeDropdownId, setActiveDropdownId] = useState(null)
   const [editingPostId, setEditingPostId] = useState(null)
@@ -480,8 +486,12 @@ const DashboardHome = () => {
   }
 
   const handleShare = (postId) => {
-    navigator.clipboard.writeText(`${window.location.origin}/dashboard?post=${postId}`)
-    toast.success('Link copied to clipboard!')
+    setShareConfig({
+      shareUrl: `${window.location.origin}/dashboard?post=${postId}`,
+      shareType: 'post',
+      itemId: postId
+    });
+    setIsShareModalOpen(true);
   }
 
   const getAvatarFallback = (name) => {
@@ -723,14 +733,51 @@ const DashboardHome = () => {
               const postAuthorDP = (post.authorClerkId === user?.id) ? (user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)) : (post.author?.image || getAvatarFallback(post.author?.name))
               const showComments = activeCommentPostId === post._id
 
+              if (post.moderationStatus === 'paused') {
+                return (
+                  <motion.div
+                    key={post._id}
+                    id={`post-${post._id}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-card border border-rose-500/30 bg-rose-500/5 rounded-2xl overflow-hidden shadow-sm p-5 mb-6 relative"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="bg-rose-500/20 p-2.5 rounded-full text-rose-500 shrink-0">
+                        <AlertCircle className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-rose-600 text-base">This post has been blocked</h3>
+                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                          Your post was flagged by our moderation team and has been temporarily hidden.
+                          <br />
+                          <span className="font-medium text-foreground mt-1 block">Reason: {post.moderationRemark || 'Violation of community guidelines.'}</span>
+                        </p>
+                        <button onClick={() => navigate('/#contact')} className="mt-4 text-xs bg-background border border-border/50 hover:bg-muted text-foreground px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-2 font-semibold shadow-sm">
+                          Contact Support <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <button onClick={() => confirmDeletePost(post._id)} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer absolute top-4 right-4" title="Delete Post">
+                         <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )
+              }
+
               return (
                 <motion.div
                   key={post._id}
                   id={`post-${post._id}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+                  className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm relative"
                 >
+                  {post.moderationStatus === 'paused' && (
+                    <div className="bg-amber-500/10 text-amber-500 text-xs font-bold py-1.5 px-4 text-center border-b border-amber-500/20">
+                      Paused by Admin: {post.moderationRemark || 'Under review'}
+                    </div>
+                  )}
                   <div className="p-4 sm:p-5">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex gap-3">
@@ -1835,6 +1882,14 @@ const DashboardHome = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        shareUrl={shareConfig?.shareUrl} 
+        shareType={shareConfig?.shareType} 
+        itemId={shareConfig?.itemId} 
+      />
     </div>
   )
 }

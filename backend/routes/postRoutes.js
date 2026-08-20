@@ -50,7 +50,23 @@ const enrichCommentsList = async (comments) => {
 // Get all posts with author details
 router.get('/', async (req, res) => {
   try {
-    const posts = await Post.find().sort({ createdAt: -1 });
+    const { userId, admin_override } = req.query;
+    
+    let query = { moderationStatus: { $ne: 'deleted' } };
+    if (admin_override === 'true') {
+      // Admin sees everything except deleted (handled above)
+    } else if (userId) {
+      query = {
+        $and: [
+          { moderationStatus: { $ne: 'deleted' } },
+          { $or: [ { moderationStatus: { $ne: 'paused' } }, { authorClerkId: userId } ] }
+        ]
+      };
+    } else {
+      query.moderationStatus = { $ne: 'paused' };
+    }
+
+    const posts = await Post.find(query).sort({ createdAt: -1 });
     
     // We manually fetch user details since authorClerkId is a string reference
     const enrichedPosts = await Promise.all(
@@ -115,7 +131,15 @@ router.get('/user/:clerkId', async (req, res) => {
       targetClerkId = user.clerkId;
     }
 
-    const posts = await Post.find({ authorClerkId: targetClerkId }).sort({ createdAt: -1 });
+    const requestingUserId = req.query.requestingUserId;
+    let postQuery = { authorClerkId: targetClerkId, moderationStatus: { $ne: 'deleted' } };
+    
+    // If someone is viewing another user's profile, hide paused posts
+    if (requestingUserId !== targetClerkId) {
+      postQuery.moderationStatus = { $nin: ['paused', 'deleted'] };
+    }
+
+    const posts = await Post.find(postQuery).sort({ createdAt: -1 });
     
     const enrichedPosts = await Promise.all(
       posts.map(async (post) => {
@@ -240,6 +264,53 @@ router.put('/:id/like', async (req, res) => {
     res.status(200).json(post.likes);
   } catch (error) {
     console.error('Error toggling like:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get a single post by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const user = await User.findOne({ clerkId: post.authorClerkId });
+    const enrichedComments = await enrichCommentsList(post.comments);
+
+    const enrichedLikes = await Promise.all(
+      post.likes.map(async (likeItem) => {
+        const likeClerkId = getLikeClerkId(likeItem);
+        if (!likeClerkId) return { clerkId: 'unknown', name: 'Unknown User', image: null };
+        const likeUser = await User.findOne({ clerkId: likeClerkId });
+        return likeUser ? {
+          clerkId: likeClerkId,
+          name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
+          image: likeUser.imageUrl,
+          role: likeUser.headline || likeUser.role
+        } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
+      })
+    );
+
+    const enrichedPost = {
+      ...post.toObject(),
+      author: user ? {
+        name: user.firstName + (user.lastName ? ' ' + user.lastName : ''),
+        image: user.imageUrl,
+        role: user.headline || user.role || 'Member'
+      } : {
+        name: 'Unknown User',
+        role: 'Member',
+        image: null
+      },
+      comments: enrichedComments,
+      likes: enrichedLikes
+    };
+
+    res.status(200).json(enrichedPost);
+  } catch (error) {
+    console.error('Error fetching single post:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

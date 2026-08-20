@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Edit3, Calendar, Video, MapPin, Loader2, Globe, Clock, X } from 'lucide-react'
+import { Plus, Trash2, Edit3, Calendar, Video, MapPin, Loader2, Globe, Clock, X, Pause, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import ConfirmModal from '../../components/modals/ConfirmModal'
+import RemarkModal from '../../components/modals/RemarkModal'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
 
@@ -14,9 +14,8 @@ const AdminEvents = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
   
-  // Confirm Modal state
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  // Remark Modal state
+  const [remarkModal, setRemarkModal] = useState({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
 
   // Form fields state
   const [title, setTitle] = useState('')
@@ -34,7 +33,7 @@ const AdminEvents = () => {
   const fetchEvents = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE}/api/events?category=event`)
+      const res = await fetch(`${API_BASE}/api/events?category=event&admin_override=true`)
       if (res.ok) {
         const data = await res.json()
         setEvents(data)
@@ -161,26 +160,64 @@ const AdminEvents = () => {
   }
 
   const confirmDelete = (id, name) => {
-    setDeleteTarget({ id, name })
-    setIsConfirmOpen(true)
+    setRemarkModal({
+      isOpen: true,
+      action: 'delete',
+      target: { id, name },
+      title: 'Delete Event',
+      placeholder: 'Enter reason for deletion...',
+      buttonText: 'Delete'
+    })
   }
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/events/${deleteTarget.id}`, { method: 'DELETE' })
-      if (res.ok) {
-        toast.success('Event cancelled & deleted successfully.')
-        setEvents(events.filter(e => e._id !== deleteTarget.id))
-      } else {
-        toast.error('Failed to delete event')
+  const handleStatusChange = (id, nextStatus) => {
+    setRemarkModal({
+      isOpen: true,
+      action: nextStatus,
+      target: { id },
+      title: `Confirm Action: ${nextStatus}`,
+      placeholder: `Enter remark for ${nextStatus}...`,
+      buttonText: 'Confirm'
+    })
+  }
+
+  const handleRemarkSubmit = async (remark) => {
+    const { action, target } = remarkModal
+    
+    if (action === 'delete') {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/moderate/event/${target.id}?remark=${encodeURIComponent(remark)}`, { method: 'DELETE' })
+        if (res.ok) {
+          toast.success('Event cancelled & deleted successfully.')
+          setEvents(events.filter(e => e._id !== target.id))
+        } else {
+          toast.error('Failed to delete event')
+        }
+      } catch (err) {
+        toast.error('Error deleting event')
       }
-    } catch (err) {
-      toast.error('Error deleting event')
-    } finally {
-      setIsConfirmOpen(false)
-      setDeleteTarget(null)
+    } else {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/moderate/event/${target.id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: action, remark })
+        })
+
+        const data = await res.json()
+        if (res.ok && data.success) {
+          setEvents(prev => prev.map(e => e._id === target.id ? { ...e, moderationStatus: action } : e))
+          toast.success(`Event status changed to ${action}`)
+        } else {
+          toast.error(data.message || 'Failed to update event status')
+        }
+      } catch (err) {
+        console.error('Error updating status:', err)
+        toast.error('Failed to communicate with server')
+      }
     }
+    
+    setRemarkModal({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
   }
 
   return (
@@ -264,6 +301,23 @@ const AdminEvents = () => {
                       {event.attendees?.length || 0} Registered
                     </td>
                     <td className="px-6 py-4 text-right space-x-1">
+                      {event.moderationStatus !== 'paused' ? (
+                        <button 
+                          onClick={() => handleStatusChange(event._id, 'paused')}
+                          className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                          title="Pause Event"
+                        >
+                          <Pause className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleStatusChange(event._id, 'approved')}
+                          className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                          title="Approve Event"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleOpenEditModal(event)}
                         className="p-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors inline-flex items-center justify-center"
@@ -478,12 +532,13 @@ const AdminEvents = () => {
         </div>
       )}
 
-      <ConfirmModal
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={handleDelete}
-        title="Cancel Event"
-        message={`Are you sure you want to cancel event "${deleteTarget?.name}"?`}
+      <RemarkModal
+        isOpen={remarkModal.isOpen}
+        onClose={() => setRemarkModal({ ...remarkModal, isOpen: false })}
+        onSubmit={handleRemarkSubmit}
+        title={remarkModal.title}
+        placeholder={remarkModal.placeholder}
+        actionLabel={remarkModal.buttonText}
       />
     </div>
   )

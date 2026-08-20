@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -64,7 +64,7 @@ const MentorProfile = () => {
     if (!id) return;
     const fetchPosts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/posts/user/${id}`);
+        const res = await fetch(`${API_BASE}/api/posts/user/${id}?requestingUserId=${user?.id}`);
         if (res.ok) {
           const data = await res.json();
           setPosts(data);
@@ -72,7 +72,7 @@ const MentorProfile = () => {
       } catch (err) {
         console.error('Error fetching posts:', err);
       } finally {
-        setIsLoadingPosts(false);
+        setIsLoadingPosts(false)
       }
     };
     fetchPosts();
@@ -117,7 +117,7 @@ const MentorProfile = () => {
       if (res.ok) {
         setCommentText('')
         // Refresh posts
-        const postsRes = await fetch(`${API_BASE}/api/posts/user/${id}`);
+        const postsRes = await fetch(`${API_BASE}/api/posts/user/${id}?requestingUserId=${user?.id}`);
         if (postsRes.ok) setPosts(await postsRes.json());
       }
     } catch (err) {
@@ -183,6 +183,32 @@ const MentorProfile = () => {
     } catch (err) {
       console.error('Connection request failed:', err);
       toast.error(`Network error: ${err.message}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
+  const handleCancelRequest = async () => {
+    if (!user || !mentor) return;
+    setIsConnecting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/connections/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterClerkId: user.id,
+          recipientClerkId: mentor.clerkId
+        })
+      });
+      if (res.ok) {
+        setConnectionStatus('none');
+        toast.success('Connection request cancelled');
+      } else {
+        toast.error('Failed to cancel request');
+      }
+    } catch (err) {
+      console.error('Error cancelling:', err);
+      toast.error('Network error');
     } finally {
       setIsConnecting(false);
     }
@@ -315,9 +341,10 @@ const MentorProfile = () => {
             
             {connectionStatus === 'pending' && (
               <button 
-                disabled
-                className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-4 py-2 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm cursor-not-allowed">
-                <Clock className="w-4 h-4" /> Request Sent ⏳
+                onClick={handleCancelRequest}
+                disabled={isConnecting}
+                className="bg-amber-500/10 text-amber-500 hover:text-rose-500 hover:bg-rose-500/10 border border-amber-500/20 hover:border-rose-500/30 px-4 py-2 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm transition-colors group">
+                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span className="group-hover:hidden flex items-center gap-2"><Clock className="w-4 h-4" /> Request Sent</span><span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> Unsend</span></>}
               </button>
             )}
             
@@ -520,7 +547,35 @@ const MentorProfile = () => {
             const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
             const commentsArray = post.comments || []
             const showComments = activeCommentPostId === post._id
-            const postAuthorDP = avatarUrl
+            
+            if (post.moderationStatus === 'paused') {
+              return (
+                <motion.div
+                  key={post._id}
+                  id={`post-${post._id}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-card border border-rose-500/30 bg-rose-500/5 rounded-2xl overflow-hidden shadow-sm p-5 mb-6 relative"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="bg-rose-500/20 p-2.5 rounded-full text-rose-500 shrink-0">
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-rose-600 text-base">This post has been blocked</h3>
+                      <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                        Your post was flagged by our moderation team and has been temporarily hidden.
+                        <br />
+                        <span className="font-medium text-foreground mt-1 block">Reason: {post.moderationRemark || 'Violation of community guidelines.'}</span>
+                      </p>
+                      <button onClick={() => navigate('/#contact')} className="mt-4 text-xs bg-background border border-border/50 hover:bg-muted text-foreground px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-2 font-semibold shadow-sm">
+                        Contact Support <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            }
 
             return (
               <motion.div
@@ -748,7 +803,7 @@ const MentorProfile = () => {
                           post={post}
                           currentUser={user}
                           onRefresh={async () => {
-                            const postsRes = await fetch(`${API_BASE}/api/posts/user/${id}`);
+                            const postsRes = await fetch(`${API_BASE}/api/posts/user/${id}?requestingUserId=${user?.id}`);
                             if (postsRes.ok) setPosts(await postsRes.json());
                           }}
                           formatTime={formatTime}

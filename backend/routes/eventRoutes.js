@@ -11,6 +11,10 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const filter = { active: true };
+    if (req.query.admin_override !== 'true') {
+      filter.moderationStatus = { $nin: ['paused', 'deleted'] };
+    }
+    
     if (req.query.category && req.query.category !== 'all') {
       filter.category = req.query.category;
     }
@@ -82,7 +86,7 @@ router.get('/mentor/:clerkId', async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    const events = await Event.find({ organizer: user._id })
+    const events = await Event.find({ organizer: user._id, moderationStatus: { $ne: 'deleted' } })
       .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company')
       .sort({ createdAt: -1 });
     res.json(events);
@@ -320,6 +324,20 @@ router.get('/registered/:clerkId', async (req, res) => {
 
     res.json(registeredEvents);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get a single event by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    res.status(200).json(event);
+  } catch (error) {
+    console.error('Error fetching event:', error);
     res.status(500).json({ error: error.message });
   }
 });

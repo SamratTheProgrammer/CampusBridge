@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff } from 'lucide-react';
+import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
@@ -1016,6 +1016,28 @@ const RealtimeChat = () => {
                                       <Eye className="w-4 h-4 shrink-0 opacity-70" />
                                     </div>
                                   )}
+                                </div>
+                              )}
+
+                              {/* Share Rendering */}
+                              {msg.type === 'share' && msg.share && (
+                                <div 
+                                  onClick={() => navigate(`?${msg.share.type}=${msg.share.itemId}`)}
+                                  className={`mb-2 p-3 rounded-xl border cursor-pointer hover:opacity-90 transition-opacity flex flex-col gap-2 ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20' : 'bg-muted/50 border-border/50'}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg shrink-0 ${isMe ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/20 text-primary'}`}>
+                                      <Share2 className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-bold truncate">Shared {msg.share.type.charAt(0).toUpperCase() + msg.share.type.slice(1)}</p>
+                                      {msg.share.title && <p className="text-xs font-semibold mt-1 truncate">{msg.share.title}</p>}
+                                      {msg.share.description && <p className="text-xs opacity-80 mt-0.5 truncate">{msg.share.description}</p>}
+                                    </div>
+                                    {msg.share.imageUrl && (
+                                      <img src={msg.share.imageUrl} alt="preview" className="w-12 h-12 object-cover rounded-md shrink-0 border border-border/50" />
+                                    )}
+                                  </div>
                                 </div>
                               )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight } from 'lucide-react'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -79,7 +79,7 @@ const MyProfile = () => {
 
   const fetchUserPosts = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/posts/user/${user.id}`)
+      const res = await fetch(`${API_BASE}/api/posts/user/${user.id}?requestingUserId=${user.id}`)
       if (res.ok) {
         const data = await res.json()
         setPosts(data)
@@ -577,6 +577,35 @@ const MyProfile = () => {
               const commentsArray = post.comments || []
               const postAuthorDP = profilePhotoUrl
               const showComments = activeCommentPostId === post._id
+
+              if (post.moderationStatus === 'paused') {
+                return (
+                  <motion.div
+                    key={post._id}
+                    id={`post-${post._id}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-card border border-rose-500/30 bg-rose-500/5 rounded-2xl overflow-hidden shadow-sm p-5 mb-6 relative"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="bg-rose-500/20 p-2.5 rounded-full text-rose-500 shrink-0">
+                        <AlertCircle className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-rose-600 text-base">This post has been blocked</h3>
+                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                          Your post was flagged by our moderation team and has been temporarily hidden.
+                          <br />
+                          <span className="font-medium text-foreground mt-1 block">Reason: {post.moderationRemark || 'Violation of community guidelines.'}</span>
+                        </p>
+                        <button onClick={() => navigate('/#contact')} className="mt-4 text-xs bg-background border border-border/50 hover:bg-muted text-foreground px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-2 font-semibold shadow-sm">
+                          Contact Support <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              }
 
               return (
                 <motion.div

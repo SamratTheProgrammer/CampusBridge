@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building } from 'lucide-react'
+import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause } from 'lucide-react'
 import toast from 'react-hot-toast'
-import ConfirmModal from '../../components/modals/ConfirmModal'
+import RemarkModal from '../../components/modals/RemarkModal'
 import API_BASE from '../../utils/api'
 
 const AdminJobs = () => {
@@ -11,8 +11,7 @@ const AdminJobs = () => {
   const [statusFilter, setStatusFilter] = useState('All')
   
   // Modal states
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [remarkModal, setRemarkModal] = useState({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -68,51 +67,77 @@ const AdminJobs = () => {
 
   // Confirm delete handler
   const confirmDelete = (id, title) => {
-    setDeleteTarget({ id, title })
-    setIsConfirmOpen(true)
+    setRemarkModal({
+      isOpen: true,
+      action: 'delete',
+      target: { id, title },
+      title: 'Delete Job',
+      placeholder: 'Enter reason for deletion...',
+      buttonText: 'Delete'
+    })
   }
 
-  // Execute delete API
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/jobs/${deleteTarget.id}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        setJobs(prev => prev.filter(j => j.id !== deleteTarget.id))
-        toast.success(`Job "${deleteTarget.title}" deleted successfully.`)
-      } else {
-        toast.error(data.message || 'Failed to delete job')
-      }
-    } catch (err) {
-      console.error('Error deleting job:', err)
-      toast.error('Failed to communicate with server')
-    } finally {
-      setIsConfirmOpen(false)
-      setDeleteTarget(null)
-    }
+  const handleStatusChange = (id, nextStatus) => {
+    setRemarkModal({
+      isOpen: true,
+      action: nextStatus,
+      target: { id },
+      title: `Confirm Action: ${nextStatus}`,
+      placeholder: `Enter remark for ${nextStatus}...`,
+      buttonText: 'Confirm'
+    })
   }
 
-  // Handle status update API
-  const handleStatusChange = async (id, nextStatus) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/jobs/${id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus })
-      })
-
-      const data = await res.json()
-      if (res.ok && data.success) {
-        setJobs(prev => prev.map(j => j.id === id ? { ...j, status: nextStatus } : j))
-        toast.success(`Job status changed to ${nextStatus}`)
-      } else {
-        toast.error(data.message || 'Failed to update job status')
+  const handleRemarkSubmit = async (remark) => {
+    const { action, target } = remarkModal
+    
+    if (action === 'delete') {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/moderate/job/${target.id}?remark=${encodeURIComponent(remark)}`, { method: 'DELETE' })
+        const data = await res.json()
+        if (res.ok && data.success) {
+          setJobs(prev => prev.filter(j => (j.id || j._id) !== target.id))
+          toast.success(`Job "${target.title}" deleted successfully.`)
+        } else {
+          toast.error(data.message || 'Failed to delete job')
+        }
+      } catch (err) {
+        console.error('Error deleting job:', err)
+        toast.error('Failed to communicate with server')
       }
-    } catch (err) {
-      console.error('Error updating status:', err)
-      toast.error('Failed to communicate with server')
+    } else {
+      try {
+        const isModeration = action === 'paused' || action === 'approved';
+        const endpoint = isModeration 
+          ? `${API_BASE}/api/admin/moderate/job/${target.id}/status`
+          : `${API_BASE}/api/admin/jobs/${target.id}/status`;
+        
+        const payload = { status: action, remark };
+
+        const res = await fetch(endpoint, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await res.json()
+        if (res.ok && data.success) {
+          if (isModeration) {
+            setJobs(prev => prev.map(j => (j.id || j._id) === target.id ? { ...j, moderationStatus: action } : j))
+          } else {
+            setJobs(prev => prev.map(j => (j.id || j._id) === target.id ? { ...j, status: action } : j))
+          }
+          toast.success(`Job status changed to ${action}`)
+        } else {
+          toast.error(data.message || 'Failed to update job status')
+        }
+      } catch (err) {
+        console.error('Error updating status:', err)
+        toast.error('Failed to communicate with server')
+      }
     }
+    
+    setRemarkModal({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
   }
 
   // Submit new job form
@@ -251,28 +276,47 @@ const AdminJobs = () => {
                       <td className="px-6 py-4 text-foreground font-semibold">{job.applications}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          job.status === 'Approved' 
+                          job.moderationStatus === 'paused'
+                            ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                            : job.status === 'Approved' 
                             ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
                             : job.status === 'Pending' 
                             ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
                             : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
                         }`}>
-                          {job.status}
+                          {job.moderationStatus === 'paused' ? 'Paused' : job.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right space-x-1">
-                        {job.status !== 'Approved' && (
+                        {job.moderationStatus !== 'paused' ? (
                           <button 
-                            onClick={() => handleStatusChange(job.id, 'Approved')}
+                            onClick={() => handleStatusChange(job.id || job._id, 'paused')}
+                            className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                            title="Pause Job"
+                          >
+                            <Pause className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleStatusChange(job.id || job._id, 'approved')}
+                            className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                            title="Approve Job"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {job.status !== 'Approved' && job.moderationStatus !== 'paused' && (
+                          <button 
+                            onClick={() => handleStatusChange(job.id || job._id, 'Approved')}
                             className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Approve Post"
                           >
                             <CheckCircle2 className="w-4 h-4" />
                           </button>
                         )}
-                        {job.status === 'Approved' && (
+                        {job.status === 'Approved' && job.moderationStatus !== 'paused' && (
                           <button 
-                            onClick={() => handleStatusChange(job.id, 'Pending')}
+                            onClick={() => handleStatusChange(job.id || job._id, 'Pending')}
                             className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Set Pending"
                           >
@@ -280,7 +324,7 @@ const AdminJobs = () => {
                           </button>
                         )}
                         <button 
-                          onClick={() => confirmDelete(job.id, job.title)}
+                          onClick={() => confirmDelete(job.id || job._id, job.title)}
                           className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                           title="Delete Job"
                         >
@@ -451,12 +495,13 @@ const AdminJobs = () => {
       )}
 
       {/* Delete Confirmation Modal */}
-      <ConfirmModal
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={handleDelete}
-        title="Delete Job Post"
-        message={`Are you sure you want to remove job post "${deleteTarget?.title}"?`}
+      <RemarkModal
+        isOpen={remarkModal.isOpen}
+        onClose={() => setRemarkModal({ ...remarkModal, isOpen: false })}
+        onSubmit={handleRemarkSubmit}
+        title={remarkModal.title}
+        placeholder={remarkModal.placeholder}
+        actionLabel={remarkModal.buttonText}
       />
     </div>
   )

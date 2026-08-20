@@ -3,6 +3,9 @@ import Message from '../models/Message.js';
 import User from '../models/User.js';
 import Connection from '../models/Connection.js';
 import Block from '../models/Block.js';
+import Post from '../models/Post.js';
+import Job from '../models/Job.js';
+import Event from '../models/Event.js';
 import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
@@ -384,6 +387,102 @@ router.delete('/:messageId', async (req, res) => {
     res.status(200).json({ success: true, message: 'Message deleted' });
   } catch (error) {
     console.error('Error deleting message:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Share an item (post, job, event) via chat
+router.post('/share', async (req, res) => {
+  try {
+    const { senderClerkId, recipientIds, shareType, itemId } = req.body;
+
+    if (!senderClerkId || !recipientIds || !recipientIds.length || !shareType || !itemId) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    const typeModelMap = {
+      'post': 'Post',
+      'job': 'Job',
+      'event': 'Event'
+    };
+
+    const typeModel = typeModelMap[shareType];
+    if (!typeModel) {
+      return res.status(400).json({ success: false, message: 'Invalid share type' });
+    }
+
+    let title = '';
+    let description = '';
+    let imageUrl = '';
+
+    try {
+      if (shareType === 'post') {
+        const post = await Post.findById(itemId);
+        if (post) {
+          title = 'Post';
+          description = post.content ? (post.content.substring(0, 100) + (post.content.length > 100 ? '...' : '')) : '';
+          if (post.images && post.images.length > 0) imageUrl = post.images[0];
+        }
+      } else if (shareType === 'job') {
+        const job = await Job.findById(itemId);
+        if (job) {
+          title = job.title;
+          description = `${job.company} • ${job.location}`;
+          imageUrl = job.companyLogo;
+        }
+      } else if (shareType === 'event') {
+        const event = await Event.findById(itemId);
+        if (event) {
+          title = event.name;
+          description = `${new Date(event.date).toLocaleDateString()} • ${event.type}`;
+          imageUrl = event.image;
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching share item details:', err);
+    }
+
+    const savedMessages = [];
+
+    for (const recipientId of recipientIds) {
+      // Check block status
+      const blockExists = await Block.findOne({
+        $or: [
+          { blockerId: senderClerkId, blockedId: recipientId },
+          { blockerId: recipientId, blockedId: senderClerkId }
+        ]
+      });
+
+      if (blockExists) continue; // Skip blocked users
+
+      const conversationId = Message.getConversationId(senderClerkId, recipientId);
+
+      const newMessage = new Message({
+        conversationId,
+        senderClerkId,
+        recipientClerkId: recipientId,
+        type: 'share',
+        share: {
+          type: shareType,
+          itemId,
+          typeModel,
+          title,
+          description,
+          imageUrl
+        }
+      });
+
+      await newMessage.save();
+      savedMessages.push(newMessage);
+
+      if (req.io) {
+        req.io.to(conversationId).emit('new_message', newMessage);
+      }
+    }
+
+    res.status(200).json({ success: true, messages: savedMessages });
+  } catch (error) {
+    console.error('Error sharing item via message:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

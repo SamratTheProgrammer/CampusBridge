@@ -1,16 +1,31 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, MapPin, Briefcase, Filter, Loader2, Calendar } from 'lucide-react'
+import { Search, MapPin, Briefcase, Filter, Loader2, Calendar, Share2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import API_BASE from '../../utils/api'
+import ShareModal from '../../components/modals/ShareModal'
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [jobType, setJobType] = useState('All')
   const [jobs, setJobs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [shareConfig, setShareConfig] = useState(null)
+
+  const handleShare = (e, jobId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShareConfig({
+      shareUrl: `${window.location.origin}/dashboard/jobs/${jobId}`,
+      shareType: 'job',
+      itemId: jobId
+    });
+    setIsShareModalOpen(true);
+  }
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -91,9 +106,14 @@ const Jobs = () => {
             <Link
               to={`/dashboard/jobs/${job._id}`}
               key={job._id}
-              className="bg-card border border-border/50 rounded-2xl p-6 hover:border-primary/50 transition-all hover:shadow-md group flex flex-col h-full"
+              className="bg-card border border-border/50 rounded-2xl p-6 hover:border-primary/50 transition-all hover:shadow-md group flex flex-col h-full relative overflow-hidden"
             >
-              <div className="flex items-start justify-between mb-4">
+              {job.moderationStatus === 'paused' && (
+                <div className="absolute top-0 left-0 w-full bg-amber-500/10 text-amber-500 text-xs font-bold py-1.5 px-4 text-center border-b border-amber-500/20">
+                  Paused by Admin: {job.moderationRemark || 'Under review'}
+                </div>
+              )}
+              <div className={`flex items-start justify-between mb-4 ${job.moderationStatus === 'paused' ? 'mt-4' : ''}`}>
                 <div className="w-12 h-12 rounded-xl border border-border/50 bg-white flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
                   <img 
                     src={getCompanyLogo(job.company, job.companyLogo)} 
@@ -139,7 +159,16 @@ const Jobs = () => {
                 <span className="text-xs text-muted-foreground">
                   Posted {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
                 </span>
-                <span className="text-sm font-semibold text-primary">View Details →</span>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={(e) => handleShare(e, job._id)}
+                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                    title="Share Job"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                  <span className="text-sm font-semibold text-primary">View Details →</span>
+                </div>
               </div>
             </Link>
           ))}
@@ -157,6 +186,13 @@ const Jobs = () => {
           </button>
         </div>
       )}
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        shareUrl={shareConfig?.shareUrl} 
+        shareType={shareConfig?.shareType} 
+        itemId={shareConfig?.itemId} 
+      />
     </div>
   )
 }

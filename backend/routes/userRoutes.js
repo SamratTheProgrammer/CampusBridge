@@ -143,6 +143,7 @@ router.get('/mentors/all', async (req, res) => {
   try {
     const mentors = await User.find({ 
       role: { $in: ['mentor', 'alumni'] },
+      verificationStatus: 'Approved',
       profileVisibility: { $ne: 'hidden' }
     });
     res.status(200).json(mentors);
@@ -172,6 +173,7 @@ router.get('/mentors/suggested', async (req, res) => {
     const mentors = await User.find({ 
       clerkId: { $nin: excludedClerkIds },
       role: { $in: ['mentor', 'alumni'] },
+      verificationStatus: 'Approved',
       profileVisibility: { $ne: 'hidden' }
     }).limit(5);
     res.status(200).json(mentors);

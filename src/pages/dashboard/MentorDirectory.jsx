@@ -222,8 +222,12 @@ const MentorDirectory = () => {
                         </Link>
                         <div className="pl-2 shrink-0">
                           {connections[mentor.clerkId] === 'pending' ? (
-                            <button disabled className="text-xs font-medium text-amber-500 border border-amber-500/20 bg-amber-500/10 px-3 py-1 rounded-full cursor-not-allowed">
-                               Request Sent ⏳
+                            <button 
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCancelRequest(mentor.clerkId); }}
+                              disabled={isConnecting === mentor.clerkId}
+                              className="text-xs font-medium text-amber-500 hover:text-rose-500 border border-amber-500/20 hover:border-rose-500/30 hover:bg-rose-500/10 bg-amber-500/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1 group"
+                            >
+                              {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : <><span className="group-hover:hidden">Request Sent ⏳</span><span className="hidden group-hover:inline">Unsend ✖</span></>}
                             </button>
                           ) : connections[mentor.clerkId] === 'accepted' ? (
                             <button disabled className="text-xs font-medium text-green-500 border border-green-500/20 bg-green-500/10 px-3 py-1 rounded-full cursor-default">
@@ -285,8 +289,12 @@ const MentorDirectory = () => {
                   </div>
                   <div className="flex flex-row sm:flex-nowrap gap-1.5 sm:gap-3 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/40 w-full sm:w-auto mt-2 sm:mt-0">
                     {connections[mentor.clerkId] === 'pending' ? (
-                      <button disabled className="flex-1 sm:flex-none text-amber-500 font-medium text-[10px] sm:text-sm border border-amber-500/20 bg-amber-500/10 px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1 sm:gap-2 cursor-not-allowed">
-                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Requested
+                      <button 
+                        onClick={(e) => { e.preventDefault(); handleCancelRequest(mentor.clerkId); }}
+                        disabled={isConnecting === mentor.clerkId}
+                        className="flex-1 sm:flex-none text-amber-500 hover:text-rose-500 font-bold text-[10px] sm:text-sm border border-amber-500/30 hover:border-rose-500/30 bg-amber-500/10 hover:bg-rose-500/10 px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors group shadow-sm shadow-amber-500/10"
+                      >
+                        {isConnecting === mentor.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><span className="group-hover:hidden flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Request Sent</span><span className="hidden group-hover:flex items-center gap-1.5"><X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Unsend</span></>}
                       </button>
                     ) : connections[mentor.clerkId] === 'accepted' ? (
                       <button disabled className="flex-1 sm:flex-none text-green-500 font-medium text-[10px] sm:text-sm border border-green-500/20 bg-green-500/10 px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1 sm:gap-2 cursor-default">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2 } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -71,7 +71,7 @@ const StudentProfile = () => {
     if (!student?.clerkId) return;
     const fetchPosts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}`);
+        const res = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}?requestingUserId=${user?.id}`);
         if (res.ok) {
           const data = await res.json();
           setPosts(data);
@@ -123,7 +123,7 @@ const StudentProfile = () => {
       })
       if (res.ok) {
         setCommentText('')
-        const postsRes = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}`);
+        const postsRes = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}?requestingUserId=${user?.id}`);
         if (postsRes.ok) setPosts(await postsRes.json());
       }
     } catch (err) {
@@ -162,6 +162,32 @@ const StudentProfile = () => {
     } catch (err) {
       console.error('Connection request failed:', err);
       toast.error(`Network error: ${err.message}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
+  const handleCancelRequest = async () => {
+    if (!user || !student) return;
+    setIsConnecting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/connections/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterClerkId: user.id,
+          recipientClerkId: student.clerkId || student._id
+        })
+      });
+      if (res.ok) {
+        setConnectionStatus('none');
+        toast.success('Connection request cancelled');
+      } else {
+        toast.error('Failed to cancel request');
+      }
+    } catch (err) {
+      console.error('Error cancelling:', err);
+      toast.error('Network error');
     } finally {
       setIsConnecting(false);
     }
@@ -309,10 +335,11 @@ const StudentProfile = () => {
                 )}
                 {connectionStatus === 'pending' && !isOwner && (
                   <button 
-                    disabled
-                    className="flex-1 sm:flex-none bg-amber-500/10 text-amber-500 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm cursor-not-allowed"
+                    onClick={handleCancelRequest}
+                    disabled={isConnecting}
+                    className="flex-1 sm:flex-none bg-amber-500/10 text-amber-500 hover:text-rose-500 hover:bg-rose-500/10 border border-amber-500/20 hover:border-rose-500/30 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm transition-colors group"
                   >
-                    <Clock className="w-4 h-4" /> Pending
+                    {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span className="group-hover:hidden flex items-center gap-1.5 sm:gap-2"><Clock className="w-4 h-4" /> Pending</span><span className="hidden group-hover:flex items-center gap-1.5 sm:gap-2"><X className="w-4 h-4" /> Unsend</span></>}
                   </button>
                 )}
                 {connectionStatus === 'accepted' && (
@@ -544,6 +571,37 @@ const StudentProfile = () => {
             const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
             const commentsArray = post.comments || []
             const showComments = activeCommentPostId === post._id
+            const postAuthorDP = avatarUrl
+
+            if (post.moderationStatus === 'paused') {
+              return (
+                <motion.div
+                  key={post._id}
+                  id={`post-${post._id}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-card border border-rose-500/30 bg-rose-500/5 rounded-2xl overflow-hidden shadow-sm p-5 mb-6 relative"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="bg-rose-500/20 p-2.5 rounded-full text-rose-500 shrink-0">
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-rose-600 text-base">This post has been blocked</h3>
+                      <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                        Your post was flagged by our moderation team and has been temporarily hidden.
+                        <br />
+                        <span className="font-medium text-foreground mt-1 block">Reason: {post.moderationRemark || 'Violation of community guidelines.'}</span>
+                      </p>
+                      <button onClick={() => navigate('/#contact')} className="mt-4 text-xs bg-background border border-border/50 hover:bg-muted text-foreground px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-2 font-semibold shadow-sm">
+                        Contact Support <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            }
+
             const studentName = student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name
             const studentDP = student.imageUrl || student.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName || student.name}`
 
@@ -773,7 +831,7 @@ const StudentProfile = () => {
                           currentUser={user}
                           onRefresh={async () => {
                             if (student?.clerkId) {
-                              const postsRes = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}`);
+                              const postsRes = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}?requestingUserId=${user?.id}`);
                               if (postsRes.ok) setPosts(await postsRes.json());
                             }
                           }}

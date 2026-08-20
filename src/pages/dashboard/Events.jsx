@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 import { useNavigate } from 'react-router-dom'
+import ShareModal from '../../components/modals/ShareModal'
 
 const Events = () => {
   const { user } = useUser()
@@ -14,6 +15,21 @@ const Events = () => {
   const [activeTab, setActiveTab] = useState('upcoming')
   const [events, setEvents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Share Modal State
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [shareConfig, setShareConfig] = useState(null)
+
+  const handleShareEvent = (e, eventId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShareConfig({
+      shareUrl: `${window.location.origin}/dashboard/events/${eventId}`,
+      shareType: 'event',
+      itemId: eventId
+    });
+    setIsShareModalOpen(true);
+  }
 
   // Registration State
   const [applicantRole, setApplicantRole] = useState('student')
@@ -165,7 +181,12 @@ const Events = () => {
             const registered = isRegistered(event)
             return (
               <div key={event._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                {event.moderationStatus === 'paused' && (
+                  <div className="absolute top-0 left-0 w-full bg-amber-500/10 text-amber-500 text-xs font-bold py-1.5 px-4 text-center border-b border-amber-500/20">
+                    Paused by Admin: {event.moderationRemark || 'Under review'}
+                  </div>
+                )}
+                <div className={`flex flex-col sm:flex-row sm:items-center gap-5 ${event.moderationStatus === 'paused' ? 'mt-6' : ''}`}>
                   <div className="w-full sm:w-32 h-32 sm:h-24 rounded-xl overflow-hidden shrink-0 bg-primary/10 flex items-center justify-center">
                     {event.imageUrl ? (
                       <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
@@ -195,7 +216,16 @@ const Events = () => {
                         </span>
                       )}
                     </div>
-                    <h3 className="text-lg font-bold text-foreground mb-1">{event.title}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-bold text-foreground">{event.title}</h3>
+                      <button 
+                        onClick={(e) => handleShareEvent(e, event._id)}
+                        className="text-muted-foreground hover:text-primary transition-colors p-1"
+                        title="Share Event"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                    </div>
                     <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-primary" /> {event.date ? format(new Date(event.date), 'MMM dd, yyyy') : 'TBD'} <Clock className="w-4 h-4 text-primary ml-2" /> {event.time}
                     </p>
@@ -365,6 +395,13 @@ const Events = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        shareUrl={shareConfig?.shareUrl} 
+        shareType={shareConfig?.shareType} 
+        itemId={shareConfig?.itemId} 
+      />
     </div>
   )
 }

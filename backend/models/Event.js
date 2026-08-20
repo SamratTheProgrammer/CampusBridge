@@ -55,6 +55,14 @@ const eventSchema = new mongoose.Schema(
     reminderSent: {
       type: Boolean,
       default: false,
+    },
+    moderationStatus: {
+      type: String,
+      enum: ['approved', 'paused', 'deleted'],
+      default: 'approved'
+    },
+    moderationRemark: {
+      type: String
     }
   },
   { timestamps: true }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Check, X, FileText, ExternalLink, ShieldCheck, Loader2, User, Building, Briefcase, GraduationCap, Clock, Award, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import RemarkModal from '../../components/modals/RemarkModal'
 import API_BASE from '../../utils/api'
 
 const AdminVerification = () => {
@@ -9,6 +10,9 @@ const AdminVerification = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedMentor, setSelectedMentor] = useState(null)
   const [updatingId, setUpdatingId] = useState(null)
+  
+  // Remark Modal state
+  const [remarkModal, setRemarkModal] = useState({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
 
   // Fetch verifications from backend API
   const fetchVerifications = async () => {
@@ -36,26 +40,41 @@ const AdminVerification = () => {
   }, [])
 
   // Handle Approve or Reject
-  const handleAction = async (id, newStatus, name) => {
+  const handleAction = (id, newStatus, name) => {
+    if (newStatus === 'Approved') {
+      submitStatus(id, name, newStatus, '');
+    } else {
+      setRemarkModal({
+        isOpen: true,
+        action: newStatus,
+        target: { id, name },
+        title: `Confirm Action: ${newStatus}`,
+        placeholder: `Enter remark for ${newStatus}...`,
+        buttonText: 'Confirm'
+      })
+    }
+  }
+
+  const submitStatus = async (id, name, action, remark = '') => {
     try {
       setUpdatingId(id)
       const res = await fetch(`${API_BASE}/api/admin/verifications/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: action, remark })
       })
 
       const data = await res.json()
 
       if (res.ok && data.success) {
-        setVerifications(prev => prev.map(v => v.id === id ? { ...v, status: newStatus, isVerified: newStatus === 'Approved' } : v))
+        setVerifications(prev => prev.map(v => v.id === id ? { ...v, status: action, isVerified: action === 'Approved' } : v))
         if (selectedMentor && selectedMentor.id === id) {
-          setSelectedMentor(prev => prev ? { ...prev, status: newStatus, isVerified: newStatus === 'Approved' } : null)
+          setSelectedMentor(prev => prev ? { ...prev, status: action, isVerified: action === 'Approved' } : null)
         }
-        if (newStatus === 'Approved') {
+        if (action === 'Approved') {
           toast.success(`${name} has been successfully verified!`)
         } else {
-          toast.error(`${name}'s verification was set to ${newStatus}.`)
+          toast.error(`${name}'s verification was set to ${action}.`)
         }
       } else {
         toast.error(data.message || 'Failed to update verification status')
@@ -65,7 +84,14 @@ const AdminVerification = () => {
       toast.error('Failed to communicate with server')
     } finally {
       setUpdatingId(null)
+      setRemarkModal({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
     }
+  }
+
+  const handleRemarkSubmit = async (remark) => {
+    const { action, target } = remarkModal
+    if (!target) return
+    await submitStatus(target.id, target.name, action, remark)
   }
 
   const counts = {
@@ -355,6 +381,15 @@ const AdminVerification = () => {
           </div>
         </div>
       )}
+
+      <RemarkModal
+        isOpen={remarkModal.isOpen}
+        onClose={() => setRemarkModal({ ...remarkModal, isOpen: false })}
+        onSubmit={handleRemarkSubmit}
+        title={remarkModal.title}
+        placeholder={remarkModal.placeholder}
+        actionLabel={remarkModal.buttonText}
+      />
     </div>
   )
 }

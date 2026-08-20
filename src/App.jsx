@@ -69,10 +69,12 @@ import AdminMentorship from './pages/admin/AdminMentorship'
 import AdminJobs from './pages/admin/AdminJobs'
 import AdminCompanies from './pages/admin/AdminCompanies'
 import AdminEvents from './pages/admin/AdminEvents'
+import AdminPosts from './pages/admin/AdminPosts'
 import AdminSupportMessages from './pages/admin/AdminSupportMessages'
 import AdminSettings from './pages/admin/AdminSettings'
 
 import ProtectedRoute from './components/ProtectedRoute'
+import SharedItemViewer from './components/SharedItemViewer'
 
 function ScrollToHash() {
   const { hash } = useLocation()
@@ -177,6 +179,7 @@ function AnimatedRoutes() {
             <Route path="jobs" element={<AdminJobs />} />
             <Route path="companies" element={<AdminCompanies />} />
             <Route path="events" element={<AdminEvents />} />
+            <Route path="posts" element={<AdminPosts />} />
             <Route path="messages" element={<AdminSupportMessages />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
@@ -266,6 +269,7 @@ function App() {
           <IndependenceDayWrapper />
           <HoliSplashWrapper />
           <DiwaliWrapper />
+          <SharedItemViewer />
           <Toaster position="bottom-right" />
         </Router>
       </ThemeProvider>

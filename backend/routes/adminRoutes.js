@@ -2,12 +2,14 @@ import express from 'express';
 import User from '../models/User.js';
 import Job from '../models/Job.js';
 import Event from '../models/Event.js';
+import Post from '../models/Post.js';
 import Message from '../models/Message.js';
 import Session from '../models/Session.js';
 import Company from '../models/Company.js';
 import PlatformSetting from '../models/PlatformSetting.js';
 import SupportMessage from '../models/SupportMessage.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
+import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -234,13 +236,13 @@ router.get('/stats', async (req, res) => {
 // Get Mentor Verifications (Real Dynamic MongoDB Data + Seeding)
 router.get('/verifications', async (req, res) => {
   try {
-    let mentors = await User.find({ role: { $in: ['mentor', 'alumni'] } }).sort({ createdAt: -1 });
+    let mentors = await User.find({ role: 'mentor', verificationStatus: { $in: ['Pending', 'Approved', 'Rejected'] } }).sort({ createdAt: -1 });
     
     // Seed initial mentors if database has none
     if (mentors.length === 0) {
       try {
         await User.insertMany(SAMPLE_MENTORS);
-        mentors = await User.find({ role: { $in: ['mentor', 'alumni'] } }).sort({ createdAt: -1 });
+        mentors = await User.find({ role: 'mentor' }).sort({ createdAt: -1 });
       } catch (seedErr) {
         console.error('Error seeding mentors:', seedErr);
       }
@@ -292,10 +294,10 @@ router.get('/mentors', async (req, res) => {
   }
 });
 
-// Update Mentor Verification Status
+// Admin Change Mentor Verification Status
 router.put('/verifications/:id/status', async (req, res) => {
   try {
-    const { status } = req.body; // 'Approved' | 'Rejected' | 'Pending'
+    const { status, remark } = req.body; // 'Approved' | 'Rejected' | 'Pending'
     if (!['Approved', 'Rejected', 'Pending'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid verification status' });
     }
@@ -315,6 +317,18 @@ router.put('/verifications/:id/status', async (req, res) => {
     user.verificationStatus = status;
     user.isVerified = isVerified;
     await user.save();
+
+    if (remark) {
+      await createNotificationHelper({
+        recipientClerkId: user.clerkId,
+        senderClerkId: 'admin',
+        type: 'system',
+        title: `Verification ${status}`,
+        message: `Your mentor verification was ${status.toLowerCase()}. Remark: ${remark}`,
+        link: '/dashboard/profile',
+        io: req.app.get('io') || req.io
+      });
+    }
 
     const formattedMentor = formatMentorVerification(user);
 
@@ -1005,6 +1019,109 @@ router.put('/settings/integrations', async (req, res) => {
   } catch (error) {
     console.error('Update Integration Setting Error:', error);
     return res.status(500).json({ success: false, message: 'Failed to update integration setting' });
+  }
+});
+
+// --- MODERATION ENDPOINTS ---
+
+const getModelForType = (type) => {
+  switch (type.toLowerCase()) {
+    case 'post': return Post;
+    case 'job': return Job;
+    case 'event': return Event;
+    default: return null;
+  }
+};
+
+// Pause/Approve Content
+router.put('/moderate/:type/:id/status', async (req, res) => {
+  try {
+    const { type, id } = req.params;
+    const { status, remark } = req.body;
+    
+    if (!['approved', 'paused'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const Model = getModelForType(type);
+    if (!Model) {
+      return res.status(400).json({ success: false, message: 'Invalid content type' });
+    }
+
+    const item = await Model.findById(id);
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Item not found' });
+    }
+
+    item.moderationStatus = status;
+    item.moderationRemark = remark || '';
+    await item.save();
+
+    if (remark) {
+      let recipientClerkId = null;
+      if (type === 'post') recipientClerkId = item.authorClerkId;
+      else if (type === 'job') recipientClerkId = item.postedBy;
+      else if (type === 'event') recipientClerkId = item.organizer;
+
+      if (recipientClerkId) {
+        await createNotificationHelper({
+          recipientClerkId,
+          senderClerkId: 'admin',
+          type: 'system',
+          title: `Your ${type} has been ${status}`,
+          message: `Admin remark: ${remark}`,
+          link: '/dashboard',
+          io: req.app.get('io') || req.io
+        });
+      }
+    }
+
+    return res.status(200).json({ success: true, message: `${type} status updated`, item });
+  } catch (error) {
+    console.error(`Moderation Status Error:`, error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Delete Content
+router.delete('/moderate/:type/:id', async (req, res) => {
+  try {
+    const { type, id } = req.params;
+    const { remark } = req.query;
+    
+    const Model = getModelForType(type);
+    if (!Model) {
+      return res.status(400).json({ success: false, message: 'Invalid content type' });
+    }
+
+    const item = await Model.findByIdAndDelete(id);
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Item not found' });
+    }
+
+    if (remark) {
+      let recipientClerkId = null;
+      if (type === 'post') recipientClerkId = item.authorClerkId;
+      else if (type === 'job') recipientClerkId = item.postedBy;
+      else if (type === 'event') recipientClerkId = item.organizer;
+
+      if (recipientClerkId) {
+        await createNotificationHelper({
+          recipientClerkId,
+          senderClerkId: 'admin',
+          type: 'system',
+          title: `Your ${type} has been deleted`,
+          message: `Admin remark: ${remark}`,
+          link: '/dashboard',
+          io: req.app.get('io') || req.io
+        });
+      }
+    }
+
+    return res.status(200).json({ success: true, message: `${type} deleted successfully` });
+  } catch (error) {
+    console.error(`Moderation Delete Error:`, error);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

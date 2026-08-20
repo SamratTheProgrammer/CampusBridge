@@ -8,7 +8,7 @@ const router = express.Router();
 // Get all active jobs (for student dashboard)
 router.get('/', async (req, res) => {
   try {
-    const jobs = await Job.find({ active: true })
+    const jobs = await Job.find({ active: true, moderationStatus: { $nin: ['paused', 'deleted'] } })
       .populate('postedBy', 'name email imageUrl role clerkId')
       .sort({ createdAt: -1 });
     res.json(jobs);
@@ -24,7 +24,7 @@ router.get('/mentor/:clerkId', async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    const jobs = await Job.find({ postedBy: user._id })
+    const jobs = await Job.find({ postedBy: user._id, moderationStatus: { $ne: 'deleted' } })
       .populate('postedBy', 'name email imageUrl role clerkId')
       .sort({ createdAt: -1 });
     res.json(jobs);

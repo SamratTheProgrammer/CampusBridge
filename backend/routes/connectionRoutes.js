@@ -82,6 +82,41 @@ router.post('/', async (req, res) => {
 });
 
 // Update connection status (accept/decline)
+router.delete('/:id', async (req, res) => {
+  try {
+    const connection = await Connection.findByIdAndDelete(req.params.id);
+    if (!connection) {
+      return res.status(404).json({ message: 'Connection not found' });
+    }
+    res.status(200).json({ success: true, message: 'Connection removed' });
+  } catch (error) {
+    console.error('Error deleting connection:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Cancel a connection by requester and recipient ID
+router.post('/cancel', async (req, res) => {
+  try {
+    const { requesterClerkId, recipientClerkId } = req.body;
+    if (!requesterClerkId || !recipientClerkId) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+    const connection = await Connection.findOneAndDelete({
+      requesterClerkId,
+      recipientClerkId,
+      status: 'pending'
+    });
+    if (!connection) {
+      return res.status(404).json({ message: 'Pending connection not found' });
+    }
+    res.status(200).json({ success: true, message: 'Connection request cancelled' });
+  } catch (error) {
+    console.error('Error cancelling connection:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.put('/:id', async (req, res) => {
   try {
     const { status } = req.body;

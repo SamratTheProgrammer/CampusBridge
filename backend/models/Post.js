@@ -61,6 +61,14 @@ const postSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  moderationStatus: {
+    type: String,
+    enum: ['approved', 'paused', 'deleted'],
+    default: 'approved'
+  },
+  moderationRemark: {
+    type: String
   }
 });
 
