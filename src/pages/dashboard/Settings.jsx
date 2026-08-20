@@ -139,6 +139,7 @@ const Settings = () => {
   const [resumeUrl, setResumeUrl] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [ageVisibility, setAgeVisibility] = useState('private')
+  const [gender, setGender] = useState('Prefer not to say')
   const [experience, setExperience] = useState([])
   const [education, setEducation] = useState([])
   const [skills, setSkills] = useState([])
@@ -232,6 +233,7 @@ const Settings = () => {
             setSkills(data.skills?.length ? data.skills : (user.unsafeMetadata?.skills || []));
             setDateOfBirth(data.dateOfBirth || '');
             if (data.ageVisibility) setAgeVisibility(data.ageVisibility);
+            if (data.gender) setGender(data.gender);
             if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
             setHasInitialized(true);
           }
@@ -366,6 +368,7 @@ const Settings = () => {
           imageUrl: user.imageUrl,
           dateOfBirth,
           ageVisibility,
+          gender,
           profileVisibility
         })
       });
@@ -654,6 +657,15 @@ const Settings = () => {
                   <select value={ageVisibility} onChange={(e) => setAgeVisibility(e.target.value)} className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all">
                     <option value="public">Public</option>
                     <option value="private">Private (Hidden)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Gender</label>
+                  <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all">
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
                   </select>
                 </div>
                 <div className="space-y-2 sm:col-span-2">

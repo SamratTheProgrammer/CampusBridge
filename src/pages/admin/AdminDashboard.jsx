@@ -57,6 +57,7 @@ const AdminDashboard = () => {
   const stats = [
     { title: 'Total Students', value: (data.stats.totalStudents || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: GraduationCap, color: 'text-blue-500 bg-blue-500/10' },
     { title: 'Total Mentors', value: (data.stats.totalMentors || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: UserCheck, color: 'text-emerald-500 bg-emerald-500/10' },
+    { title: 'Total Alumni', value: (data.stats.totalAlumni || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: Users, color: 'text-orange-500 bg-orange-500/10' },
     { title: 'Active Mentors', value: (data.stats.activeMentors || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: HelpingHand, color: 'text-purple-500 bg-purple-500/10' },
     { title: 'Job Posts', value: (data.stats.jobPosts || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: Briefcase, color: 'text-amber-500 bg-amber-500/10' },
     { title: 'Internship Posts', value: (data.stats.internshipPosts || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: Briefcase, color: 'text-indigo-500 bg-indigo-500/10' },

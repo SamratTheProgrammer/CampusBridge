@@ -9,6 +9,7 @@ import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import MentorOnboardingBanner from '../../components/mentor/MentorOnboardingBanner'
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
 import defaultPP from '../../assets/default_pp.png'
+import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { 
   Users, 
   FileText, 
@@ -616,7 +617,11 @@ const MentorHome = () => {
               >
                 <X className="w-4 h-4" />
               </button>
-              <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-contain" />
+              {mediaType === 'video' ? (
+                <AutoPlayVideo src={imagePreview} className="w-full max-h-[500px] object-contain" />
+              ) : (
+                <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-contain" />
+              )}
             </div>
           )}
 
@@ -898,9 +903,8 @@ const MentorHome = () => {
                   {post.imageUrl && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
                     <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative">
                       {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
-                        <video 
+                        <AutoPlayVideo 
                           src={post.imageUrl} 
-                          controls
                           className="w-full max-h-[500px] object-contain"
                         />
                       ) : (

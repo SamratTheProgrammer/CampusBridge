@@ -261,7 +261,8 @@ router.put('/:clerkId/profile', async (req, res) => {
       profileVisibility,
       role,
       dateOfBirth,
-      ageVisibility
+      ageVisibility,
+      gender
     } = req.body;
 
     if (firstName !== undefined) targetUser.firstName = firstName;
@@ -282,6 +283,7 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (profileVisibility !== undefined) targetUser.profileVisibility = profileVisibility;
     if (dateOfBirth !== undefined) targetUser.dateOfBirth = dateOfBirth;
     if (ageVisibility !== undefined) targetUser.ageVisibility = ageVisibility;
+    if (gender !== undefined) targetUser.gender = gender;
 
     // Manual role update
     if (role !== undefined && ['student', 'mentor', 'alumni', 'admin'].includes(role)) {

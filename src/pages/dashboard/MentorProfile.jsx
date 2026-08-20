@@ -10,6 +10,7 @@ import PostComments from '../../components/PostComments'
 import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import defaultPP from '../../assets/default_pp.png'
+import AutoPlayVideo from '../../components/AutoPlayVideo'
 
 const MentorProfile = () => {
   const navigate = useNavigate();
@@ -282,6 +283,12 @@ const MentorProfile = () => {
                     <>
                       <span className="w-1 h-1 rounded-full bg-muted-foreground hidden sm:inline-block"></span>
                       <span>{Math.floor((new Date() - new Date(mentor.dateOfBirth).getTime()) / 3.15576e+10)} years old</span>
+                    </>
+                  )}
+                  {mentor.gender && mentor.gender !== 'Prefer not to say' && (
+                    <>
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground hidden sm:inline-block"></span>
+                      <span>{mentor.gender}</span>
                     </>
                   )}
                 </p>
@@ -684,13 +691,20 @@ const MentorProfile = () => {
                   )}
 
                   {post.imageUrl && !post.bgGradient && (
-                    <div className="rounded-xl overflow-hidden border border-border/40 mb-4 bg-muted/30 flex items-center justify-center">
-                      <img 
-                        src={post.imageUrl} 
-                        alt="Post content" 
-                        className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
-                        onClick={() => setViewingImage(post.imageUrl)}
-                      />
+                    <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative rounded-xl mb-4 border border-border/40 bg-muted/30">
+                      {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                        <AutoPlayVideo 
+                          src={post.imageUrl} 
+                          className="w-full max-h-[500px] object-contain"
+                        />
+                      ) : (
+                        <img 
+                          src={post.imageUrl} 
+                          alt="Post content" 
+                          className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
+                          onClick={() => setViewingImage(post.imageUrl)}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

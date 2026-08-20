@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2 } from 'lucide-react'
+import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import toast from 'react-hot-toast'
@@ -286,6 +287,12 @@ const StudentProfile = () => {
                     <>
                       <span className="mx-1">&bull;</span>
                       <span>{Math.floor((new Date() - new Date(student.dateOfBirth).getTime()) / 3.15576e+10)} years old</span>
+                    </>
+                  )}
+                  {student.gender && student.gender !== 'Prefer not to say' && (
+                    <>
+                      <span className="mx-1">&bull;</span>
+                      <span>{student.gender}</span>
                     </>
                   )}
                   <span className="mx-1">&bull;</span> <Calendar className="w-3.5 h-3.5" /> <span>Joined recently</span>
@@ -708,13 +715,20 @@ const StudentProfile = () => {
                   )}
 
                   {post.imageUrl && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
-                    <div className="rounded-xl overflow-hidden border border-border/40 mb-4 bg-muted/30 flex items-center justify-center">
-                      <img 
-                        src={post.imageUrl} 
-                        alt="Post content" 
-                        className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
-                        onClick={() => setViewingImage(post.imageUrl)}
-                      />
+                    <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative rounded-xl mb-4 border border-border/40 bg-muted/30">
+                      {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                        <AutoPlayVideo 
+                          src={post.imageUrl} 
+                          className="w-full max-h-[500px] object-contain"
+                        />
+                      ) : (
+                        <img 
+                          src={post.imageUrl} 
+                          alt="Post content" 
+                          className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
+                          onClick={() => setViewingImage(post.imageUrl)}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

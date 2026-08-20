@@ -9,6 +9,7 @@ import ImageCropModal from '../../components/ImageCropModal'
 import API_BASE from '../../utils/api'
 import { useNavigate } from 'react-router-dom'
 import defaultPP from '../../assets/default_pp.png'
+import AutoPlayVideo from '../../components/AutoPlayVideo'
 
 const MyProfile = () => {
   const navigate = useNavigate()
@@ -438,6 +439,12 @@ const MyProfile = () => {
                       <span>{Math.floor((new Date() - new Date(dbUser.dateOfBirth).getTime()) / 3.15576e+10)} years old {dbUser.ageVisibility === 'private' ? '(Hidden)' : ''}</span>
                     </>
                   )}
+                  {dbUser?.gender && dbUser.gender !== 'Prefer not to say' && (
+                    <>
+                      <span className="mx-1">&bull;</span>
+                      <span>{dbUser.gender}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -787,13 +794,20 @@ const MyProfile = () => {
                         )}
 
                         {post.imageUrl && !post.bgGradient && (
-                          <div className="rounded-xl overflow-hidden border border-border/40 mb-4 bg-muted/30 flex items-center justify-center">
-                            <img 
-                              src={post.imageUrl} 
-                              alt="Post content" 
-                              className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
-                              onClick={() => setViewingImage(post.imageUrl)}
-                            />
+                          <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative rounded-xl mb-4 border border-border/40 bg-muted/30">
+                            {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                              <AutoPlayVideo 
+                                src={post.imageUrl} 
+                                className="w-full max-h-[500px] object-contain"
+                              />
+                            ) : (
+                              <img 
+                                src={post.imageUrl} 
+                                alt="Post content" 
+                                className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
+                                onClick={() => setViewingImage(post.imageUrl)}
+                              />
+                            )}
                           </div>
                         )}
                       </>

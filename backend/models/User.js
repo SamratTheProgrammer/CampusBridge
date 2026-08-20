@@ -58,6 +58,10 @@ const userSchema = new mongoose.Schema({
     enum: ['public', 'private'],
     default: 'private',
   },
+  gender: {
+    type: String,
+    enum: ['Male', 'Female', 'Other', 'Prefer not to say'],
+  },
   yearsOfExperience: {
     type: String,
   },

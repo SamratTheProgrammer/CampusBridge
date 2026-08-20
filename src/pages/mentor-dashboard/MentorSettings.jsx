@@ -39,6 +39,7 @@ const MentorSettings = () => {
   const [yearsOfExperience, setYearsOfExperience] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [ageVisibility, setAgeVisibility] = useState('private')
+  const [gender, setGender] = useState('Prefer not to say')
   
   // Work Experience, Education, Skills, Resume State
   const [experienceList, setExperienceList] = useState([])
@@ -112,6 +113,7 @@ const MentorSettings = () => {
         setResumeUrl(data.resumeUrl || '');
         setDateOfBirth(data.dateOfBirth || '');
         if (data.ageVisibility) setAgeVisibility(data.ageVisibility);
+        if (data.gender) setGender(data.gender);
         if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
         
         const comp = calculateProfileCompleteness(data);
@@ -324,7 +326,9 @@ const MentorSettings = () => {
           skills: skillsList,
           resumeUrl,
           dateOfBirth,
-          ageVisibility
+          ageVisibility,
+          gender,
+          profileVisibility
         })
       });
 
@@ -598,6 +602,19 @@ const MentorSettings = () => {
                     >
                       <option value="public">Public</option>
                       <option value="private">Private (Hidden)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Gender</label>
+                    <select 
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
                     </select>
                   </div>
                 </div>
