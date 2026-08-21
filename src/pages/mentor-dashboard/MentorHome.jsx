@@ -78,6 +78,9 @@ const MentorHome = () => {
     campusBridgeJobId: '',
     companyLogo: ''
   })
+  const [newEventDetails, setNewEventDetails] = useState({ 
+    title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' 
+  })
   const [companySuggestions, setCompanySuggestions] = useState([])
   const [isFetchingCompanies, setIsFetchingCompanies] = useState(false)
   const [mediaType, setMediaType] = useState('image') // 'image' or 'video'
@@ -312,6 +315,7 @@ const MentorHome = () => {
           title: '', company: '', location: '', role: 'Full-time',
           source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: ''
         })
+        setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' })
         fetchPosts() // refresh feed
       } else {
         toast.error('Failed to create post')
@@ -647,9 +651,7 @@ const MentorHome = () => {
               <button onClick={() => { setShowGradients(!showGradients); setNewPostMedia([]); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-sm">
                 <Palette className="w-5 h-5" /> <span className="hidden sm:inline">Background</span>
               </button>
-              <button className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-orange-500 font-medium text-sm cursor-not-allowed opacity-50" title="Available in Events tab">
-                <CalendarIcon className="w-5 h-5" /> <span className="hidden sm:inline">Event</span>
-              </button>
+
               <button onClick={() => setIsJobModalOpen(true)} className={`flex items-center gap-2 p-2 rounded-lg transition-colors font-medium text-sm ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}>
                 <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
               </button>
