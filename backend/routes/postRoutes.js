@@ -187,16 +187,17 @@ router.get('/user/:clerkId', async (req, res) => {
 // Create a new post
 router.post('/', async (req, res) => {
   try {
-    const { authorClerkId, content, imageUrl, bgGradient, eventDetails, jobDetails, mediaType } = req.body;
+    const { authorClerkId, content, imageUrl, mediaFiles, bgGradient, eventDetails, jobDetails, mediaType } = req.body;
 
-    if (!authorClerkId || (!content && !imageUrl && !eventDetails && !jobDetails)) {
-      return res.status(400).json({ message: 'Author and content/event/job are required' });
+    if (!authorClerkId || (!content && !imageUrl && (!mediaFiles || mediaFiles.length === 0) && !eventDetails && !jobDetails)) {
+      return res.status(400).json({ message: 'Author and content/event/job/media are required' });
     }
 
     const post = new Post({
       authorClerkId,
       content: content || '',
       imageUrl,
+      mediaFiles: mediaFiles || [],
       bgGradient,
       eventDetails,
       jobDetails,

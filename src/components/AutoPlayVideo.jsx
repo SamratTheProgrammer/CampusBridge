@@ -35,15 +35,17 @@ const AutoPlayVideo = ({ src, className, controls = true }) => {
   }, []);
 
   return (
-    <video
-      ref={videoRef}
-      src={src}
-      className={className}
-      controls={controls}
-      muted
-      loop
-      playsInline
-    />
+    <div className={`relative flex items-center justify-center overflow-hidden ${className || ''}`}>
+      <video
+        ref={videoRef}
+        src={src}
+        className={className?.includes('object-cover') ? "w-full h-full object-cover" : "w-full h-full object-contain"}
+        controls={controls}
+        autoPlay
+        loop
+        playsInline
+      />
+    </div>
   );
 };
 

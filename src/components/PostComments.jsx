@@ -1,19 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Loader2, CornerDownRight, Heart } from 'lucide-react';
+import { Send, Loader2, CornerDownRight, Heart, Smile } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../utils/api';
 import { useNavigate, useLocation } from 'react-router-dom';
 import confetti from 'canvas-confetti';
+import EmojiPicker from 'emoji-picker-react';
 
-const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallback }) => {
+const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallback, fullHeight = false, postCaptionNode, showCommentInput = true, beforeInputNode }) => {
   const [commentText, setCommentText] = useState('');
   const [isCommenting, setIsCommenting] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const [replyingCommentId, setReplyingCommentId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const emojiPickerRef = React.useRef(null);
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleUserClick = (userId, userRole) => {
     if (!userId) return;
@@ -76,6 +90,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
           });
         }
         setCommentText('');
+        setShowEmojiPicker(false);
         if (onRefresh) onRefresh();
       } else {
         toast.error('Failed to post comment');
@@ -146,9 +161,15 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
   };
 
   return (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className={`p-4 sm:p-5 ${fullHeight ? 'flex flex-col flex-1 overflow-hidden' : 'space-y-4'}`}>
+      {postCaptionNode && (
+        <div className="mb-2 shrink-0">
+          {postCaptionNode}
+        </div>
+      )}
+      
       {/* Existing Comments List */}
-      <div className="space-y-4 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
+      <div className={`space-y-4 overflow-y-auto pr-2 custom-scrollbar ${fullHeight ? 'flex-1' : 'max-h-[380px]'}`}>
         {commentsArray.map((comment) => {
           const replies = comment.replies || [];
           const isReplyingThis = replyingCommentId === comment._id;
@@ -317,8 +338,15 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
         )}
       </div>
 
+      {/* Content injected before the input (e.g. engagement buttons) */}
+      {beforeInputNode && (
+        <div className="shrink-0">
+          {beforeInputNode}
+        </div>
+      )}
+
       {/* Main Comment Input Form */}
-      {currentUser && (
+      {currentUser && showCommentInput && (
         <div className="flex flex-col gap-2 pt-2 border-t border-border/40 mt-2">
           {/* Quick Replies for Job/Event posts */}
           {(post.jobDetails?.title || post.eventDetails?.title) && (
@@ -334,7 +362,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
               ))}
             </div>
           )}
-          <div className="flex gap-3">
+          <div className="flex gap-3 relative" ref={emojiPickerRef}>
           <img
             src={currentUser.imageUrl || getAvatarFallback(currentUser.fullName)}
             alt="You"
@@ -345,7 +373,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               placeholder="Write a comment..."
-              className="w-full bg-background border border-border/50 rounded-xl pl-4 pr-12 py-2.5 text-sm focus:outline-none focus:border-primary resize-none min-h-[44px]"
+              className="w-full bg-background border border-border/50 rounded-xl pl-4 pr-20 py-2.5 text-sm focus:outline-none focus:border-primary resize-none min-h-[44px]"
               rows="1"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -354,13 +382,31 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                 }
               }}
             ></textarea>
-            <button
-              onClick={handleComment}
-              disabled={isCommenting || !commentText.trim()}
-              className="absolute right-2 top-2 p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
-            >
-              {isCommenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
+            <div className="absolute right-2 top-2 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Smile className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleComment}
+                disabled={isCommenting || !commentText.trim()}
+                className="p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
+              >
+                {isCommenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </button>
+            </div>
+            
+            {showEmojiPicker && (
+              <div className="absolute bottom-full right-0 mb-2 z-50">
+                <EmojiPicker 
+                  onEmojiClick={(emoji) => setCommentText(prev => prev + emoji.emoji)}
+                  theme="auto"
+                />
+              </div>
+            )}
           </div>
           </div>
         </div>

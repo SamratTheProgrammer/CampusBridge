@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Send, CheckCircle2, Search, Loader2 } from 'lucide-react';
+import { X, Copy, Send, CheckCircle2, Search, Loader2, Share2 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
@@ -40,6 +40,23 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType, itemId }) => {
     setIsCopied(true);
     toast.success('Link copied to clipboard!');
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Check out this ${shareType} on CampusBridge`,
+          url: shareUrl,
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Error sharing natively:', err);
+        }
+      }
+    } else {
+      toast.error('Native sharing is not supported on this device.');
+    }
   };
 
   const handleToggleContact = (clerkId) => {
@@ -123,6 +140,15 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType, itemId }) => {
                   {isCopied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
+
+              {!!navigator.share && (
+                <button 
+                  onClick={handleNativeShare}
+                  className="w-full py-3 bg-secondary text-secondary-foreground font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-secondary/80 transition-colors border border-border mt-2"
+                >
+                  <Share2 className="w-4 h-4" /> Share via Apps (WhatsApp, Facebook, etc.)
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">

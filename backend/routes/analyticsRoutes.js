@@ -59,13 +59,46 @@ router.get('/mentor/:clerkId', async (req, res) => {
     // 2. Profile Views (from User model)
     const profileViews = user.profileViews || 0;
 
-    // 3. Post Engagements (Total likes + comments on posts by this user)
-    const mentorPosts = await Post.find({ author: user._id });
+    // 3. Post Engagements & Top Posts
+    const mentorPosts = await Post.find({ authorClerkId: clerkId });
     let postEngagements = 0;
+    
+    // Sort posts by engagement (likes + comments length)
+    const sortedPosts = mentorPosts.map(post => {
+      const engagement = (post.likes?.length || 0) + (post.comments?.length || 0);
+      postEngagements += engagement;
+      return { ...post.toObject(), engagement };
+    }).sort((a, b) => b.engagement - a.engagement);
+
+    const topPosts = sortedPosts.slice(0, 3).map(p => ({
+      id: p._id,
+      content: p.content || (p.jobDetails ? `Shared Job: ${p.jobDetails.title}` : p.eventDetails ? `Shared Event: ${p.eventDetails.title}` : 'Media Post'),
+      engagement: p.engagement,
+      date: p.createdAt
+    }));
+
+    // Extract student feedback (recent comments on their posts)
+    let allComments = [];
     mentorPosts.forEach(post => {
-      postEngagements += post.likes.length;
-      postEngagements += post.comments.length;
+      if (post.comments && post.comments.length > 0) {
+        post.comments.forEach(c => {
+          // We only take comments not made by the mentor themselves as feedback
+          if (c.authorClerkId !== clerkId) {
+            allComments.push({
+              id: c._id,
+              text: c.content,
+              studentName: 'Student', // Ideally we'd populate this, but for now we'll just send it
+              date: c.createdAt,
+              authorClerkId: c.authorClerkId
+            });
+          }
+        });
+      }
     });
+    
+    // Sort by newest and take top 4
+    allComments.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const studentFeedback = allComments.slice(0, 4);
 
     // 4. Sessions Hosted (Total events/group sessions created by the user)
     const sessionsHosted = await Event.countDocuments({ organizer: user._id });
@@ -99,6 +132,8 @@ router.get('/mentor/:clerkId', async (req, res) => {
       postEngagements,
       sessionsHosted,
       performanceData,
+      topPosts,
+      studentFeedback,
       // Hardcode average rating for now since we don't have a Review model
       averageRating: 4.9, 
       totalReviews: 124 

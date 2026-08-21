@@ -33,6 +33,7 @@ import {
 import API_BASE from '../../utils/api'
 import defaultPP from '../../assets/default_pp.png'
 import ShareModal from '../../components/modals/ShareModal'
+import FeedMediaGrid from '../../components/FeedMediaGrid'
 
 const indianCities = [
   "Agra", "Ahmedabad", "Ajmer", "Aligarh", "Allahabad", "Amritsar", "Aurangabad",
@@ -65,8 +66,7 @@ const DashboardHome = () => {
   
   // Post Creation State
   const [newPostContent, setNewPostContent] = useState('')
-  const [newPostImage, setNewPostImage] = useState(null)
-  const [imagePreview, setImagePreview] = useState(null)
+  const [newPostMedia, setNewPostMedia] = useState([]) // Array of { file, type, previewUrl }
   const [selectedGradient, setSelectedGradient] = useState('')
   const [showGradients, setShowGradients] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
@@ -234,28 +234,30 @@ const DashboardHome = () => {
   }, [location.state, registeredEvents]);
 
   const handleMediaSelect = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const isVideo = file.type.startsWith('video/')
-      setMediaType(isVideo ? 'video' : 'image')
-      
-      const reader = new FileReader()
-      reader.onload = () => {
-        if (isVideo) {
-          setNewPostImage(file)
-          setImagePreview(reader.result)
-        } else {
-          setCropModalData({ src: reader.result })
-        }
-      }
-      reader.readAsDataURL(file)
-      e.target.value = '' // reset input
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    
+    if (newPostMedia.length + files.length > 10) {
+      toast.error('You can upload up to 10 media files max')
+      return
     }
+
+    const processedFiles = files.map(file => ({
+      file,
+      type: file.type.startsWith('video/') ? 'video' : 'image',
+      previewUrl: URL.createObjectURL(file)
+    }))
+
+    setNewPostMedia(prev => [...prev, ...processedFiles])
+    e.target.value = ''
   }
 
   const handleCropComplete = (croppedFile) => {
-    setNewPostImage(croppedFile)
-    setImagePreview(URL.createObjectURL(croppedFile))
+    setNewPostMedia(prev => [...prev, {
+      file: croppedFile,
+      type: 'image',
+      previewUrl: URL.createObjectURL(croppedFile)
+    }])
     setCropModalData(null)
   }
 
@@ -287,39 +289,68 @@ const DashboardHome = () => {
       }
     } catch (err) {
       console.error('Connection request failed:', err)
-      toast.error(`Network error: ${err.message}`)
+      toast.error('Failed to send connection request')
+    } finally {
+      setIsConnecting(null)
+    }
+  }
+
+  const handleCancelRequest = async (mentorId) => {
+    try {
+      setIsConnecting(mentorId) // Reuse isConnecting for loading state
+      const res = await fetch(`${API_BASE}/api/connections/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requesterClerkId: user.id, recipientClerkId: mentorId })
+      })
+
+      if (res.ok) {
+        setConnections(prev => {
+          const newConnections = { ...prev };
+          delete newConnections[mentorId];
+          return newConnections;
+        });
+        toast.success('Connection request cancelled')
+      } else {
+        const errorData = await res.json()
+        toast.error(errorData.message || 'Failed to cancel request')
+      }
+    } catch (err) {
+      console.error('Cancel request failed:', err)
+      toast.error('Failed to cancel request')
     } finally {
       setIsConnecting(null)
     }
   }
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() && !newPostImage && !newEventDetails.title && !newJobDetails.title) {
+    if (!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title) {
       toast.error('Post cannot be empty')
       return
     }
 
     setIsPosting(true)
     try {
-      let imageUrl = null
+      let uploadedMediaFiles = []
 
-      // If there's an image, upload it to Cloudinary first
-      if (newPostImage) {
-        const formData = new FormData()
-        formData.append('file', newPostImage)
-        
-        const uploadRes = await fetch(`${API_BASE}/api/upload/image`, {
-          method: 'POST',
-          body: formData
-        })
-        const uploadData = await uploadRes.json()
-        
-        if (uploadData.success) {
-          imageUrl = uploadData.url
-        } else {
-          toast.error('Failed to upload image')
-          setIsPosting(false)
-          return
+      if (newPostMedia.length > 0) {
+        for (const item of newPostMedia) {
+          const formData = new FormData()
+          formData.append('file', item.file)
+          
+          const uploadRes = await fetch(`${API_BASE}/api/upload/image`, {
+            method: 'POST',
+            body: formData
+          })
+          const uploadData = await uploadRes.json()
+          
+          if (uploadData.success) {
+            uploadedMediaFiles.push({ url: uploadData.url, mediaType: item.type })
+          } else {
+            toast.error('Failed to upload a media file')
+            setIsPosting(false)
+            return
+          }
         }
       }
 
@@ -347,19 +378,19 @@ const DashboardHome = () => {
         body: JSON.stringify({
           authorClerkId: user.id,
           content: newPostContent,
-          imageUrl: imageUrl,
+          imageUrl: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].url : null,
+          mediaFiles: uploadedMediaFiles,
           bgGradient: selectedGradient,
           eventDetails: newEventDetails.title ? newEventDetails : undefined,
           jobDetails: jobPayload,
-          mediaType: mediaType
+          mediaType: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].mediaType : null
         })
       })
 
       if (res.ok) {
         toast.success('Post created!')
         setNewPostContent('')
-        setNewPostImage(null)
-        setImagePreview(null)
+        setNewPostMedia([])
         setSelectedGradient('')
         setShowGradients(false)
         setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' })
@@ -648,7 +679,7 @@ const DashboardHome = () => {
             </div>
           </div>
           
-          {showGradients && !newPostImage && (
+          {showGradients && newPostMedia.length === 0 && (
             <div className="flex gap-2 mb-4 p-2 bg-muted/50 rounded-lg overflow-x-auto">
               <button 
                 onClick={() => setSelectedGradient('')} 
@@ -664,22 +695,25 @@ const DashboardHome = () => {
             </div>
           )}
 
-          {imagePreview && !selectedGradient && (
-            <div className="mb-4 relative rounded-xl overflow-hidden bg-muted border border-border/50">
-              <button 
-                onClick={() => {
-                  setNewPostImage(null)
-                  setImagePreview(null)
-                }}
-                className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors z-10"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              {mediaType === 'video' ? (
-                <AutoPlayVideo src={imagePreview} className="w-full max-h-[500px] object-contain" />
-              ) : (
-                <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-contain" />
-              )}
+          {newPostMedia.length > 0 && !selectedGradient && (
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {newPostMedia.map((media, index) => (
+                <div key={index} className="relative group">
+                  <button 
+                    onClick={() => {
+                      setNewPostMedia(prev => prev.filter((_, i) => i !== index))
+                    }}
+                    className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  {media.type === 'video' ? (
+                    <video src={media.previewUrl} className="w-full h-32 object-cover rounded-lg" />
+                  ) : (
+                    <img src={media.previewUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
+                  )}
+                </div>
+              ))}
             </div>
           )}
 
@@ -690,6 +724,7 @@ const DashboardHome = () => {
                 ref={fileInputRef} 
                 onChange={handleMediaSelect} 
                 accept="image/*,video/*" 
+                multiple
                 className="hidden" 
               />
               <button onClick={() => { fileInputRef.current?.click(); setSelectedGradient(''); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-blue-500 font-medium text-sm">
@@ -707,7 +742,7 @@ const DashboardHome = () => {
             </div>
             <button 
               onClick={handleCreatePost}
-              disabled={isPosting || (!newPostContent.trim() && !newPostImage && !newEventDetails.title && !newJobDetails.title)}
+              disabled={isPosting || (!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title)}
               className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
             >
               {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -996,22 +1031,14 @@ const DashboardHome = () => {
                     )}
                   </div>
 
-                  {post.imageUrl && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
-                    <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative">
-                      {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
-                        <AutoPlayVideo 
-                          src={post.imageUrl} 
-                          className="w-full max-h-[500px] object-contain"
-                        />
-                      ) : (
-                        <img 
-                          src={post.imageUrl} 
-                          alt="Post content" 
-                          className="w-full h-full object-contain cursor-pointer" 
-                          onClick={() => setViewingImage(post.imageUrl)}
-                        />
-                      )}
-                    </div>
+                  {((post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                    <FeedMediaGrid 
+                      mediaFiles={post.mediaFiles} 
+                      imageUrl={post.imageUrl} 
+                      mediaType={post.mediaType}
+                      onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
+                      onImageClick={(url) => setViewingImage(url)}
+                    />
                   )}
 
                   <div className="px-4 sm:px-5 py-3">
@@ -1098,8 +1125,16 @@ const DashboardHome = () => {
                       <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{mentor.headline || mentor.role}</p>
                       
                       {connections[mentor.clerkId] === 'pending' ? (
-                        <button disabled className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted px-3 py-1 rounded-full flex items-center gap-1 cursor-not-allowed">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Request Sent
+                        <button 
+                          onClick={() => handleCancelRequest(mentor.clerkId)}
+                          disabled={isConnecting === mentor.clerkId}
+                          className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted hover:bg-muted/80 px-3 py-1 rounded-full flex items-center gap-1 transition-colors group">
+                          {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : (
+                            <>
+                              <span className="group-hover:hidden flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
+                              <span className="hidden group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
+                            </>
+                          )}
                         </button>
                       ) : (
                         <button 
@@ -1562,12 +1597,13 @@ const DashboardHome = () => {
                         accept="image/*"
                         onChange={(e) => {
                           if (e.target.files && e.target.files[0]) {
-                            setNewPostImage(e.target.files[0])
+                            const file = e.target.files[0]
+                            setNewPostMedia([{ file, type: 'image', previewUrl: URL.createObjectURL(file) }])
                           }
                         }}
                         className="w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
                       />
-                      {newPostImage && <p className="text-xs text-primary mt-1 font-medium">Poster selected: {newPostImage.name}</p>}
+                      {newPostMedia.length > 0 && <p className="text-xs text-primary mt-1 font-medium">Poster selected: {newPostMedia[0].file.name}</p>}
                     </div>
                   </>
                 )}
@@ -1578,7 +1614,7 @@ const DashboardHome = () => {
                   {newEventDetails.title && (
                     <button 
                       onClick={() => {
-                        setNewPostImage(null);
+                        setNewPostMedia([]);
                         setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '', source: 'manual', campusBridgeEventId: '', imageUrl: '' });
                         setIsEventModalOpen(false);
                         setIsSharedEventPreFilled(false);

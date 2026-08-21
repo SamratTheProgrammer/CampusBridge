@@ -59,7 +59,9 @@ const MentorAnalytics = () => {
     sessionsHosted: 0,
     performanceData: PERFORMANCE_DATA,
     averageRating: 4.9,
-    totalReviews: 124
+    totalReviews: 124,
+    topPosts: [],
+    studentFeedback: []
   };
 
   const dynamicStats = [
@@ -189,6 +191,50 @@ const MentorAnalytics = () => {
           </div>
         </div>
 
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Top Posts */}
+        <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+          <h3 className="font-bold text-foreground mb-6">Top Performing Posts</h3>
+          <div className="space-y-4">
+            {dataToRender.topPosts.length > 0 ? (
+              dataToRender.topPosts.map(post => (
+                <div key={post.id} className="p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-muted/10 transition-colors">
+                  <p className="text-sm font-medium text-foreground line-clamp-2 mb-2">{post.content}</p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{new Date(post.date).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1 font-bold text-pink-500">
+                      <MousePointerClick className="w-3 h-3" /> {post.engagement} engagements
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">No posts yet</div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Feedback */}
+        <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+          <h3 className="font-bold text-foreground mb-6">Recent Student Feedback</h3>
+          <div className="space-y-4">
+            {dataToRender.studentFeedback.length > 0 ? (
+              dataToRender.studentFeedback.map(fb => (
+                <div key={fb.id} className="p-4 rounded-xl border border-border/50 bg-muted/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-bold text-foreground">{fb.studentName}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(fb.date).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-sm text-foreground/80 italic">"{fb.text}"</p>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">No feedback yet</div>
+            )}
+          </div>
+        </div>
       </div>
 
     </div>
