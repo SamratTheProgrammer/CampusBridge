@@ -8,6 +8,7 @@ import { useUser } from '@clerk/clerk-react';
 import AutoPlayVideo from './AutoPlayVideo';
 import PostComments from './PostComments';
 import ShareModal from './modals/ShareModal';
+import ImageViewerModal from './ImageViewerModal';
 
 const optimizeUrl = (url) => {
   if (url && url.includes('cloudinary.com') && url.includes('/upload/')) {
@@ -35,7 +36,7 @@ const SharedItemViewer = () => {
   const [editingPostId, setEditingPostId] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [viewingImage, setViewingImage] = useState(null);
+  const [viewerData, setViewerData] = useState(null);
   const [showCommentInput, setShowCommentInput] = useState(true);
   const [isMobileCommentsOpen, setIsMobileCommentsOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -363,7 +364,7 @@ const SharedItemViewer = () => {
                           src={optimizedSrc}
                           alt="Post media"
                           className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => setViewingImage(activeMedia.url)}
+                          onClick={() => setViewerData({ files: data.mediaFiles?.length ? data.mediaFiles : [activeMedia.url], index: currentMediaIndex })}
                         />
                       );
                     })()}
@@ -827,27 +828,14 @@ const SharedItemViewer = () => {
       {/* Click outside to close (background area) */}
       <div className="absolute inset-0 z-[-1]" onClick={closeModal}></div>
 
-      {/* Full Screen Image Viewer Modal */}
-      {viewingImage && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm cursor-zoom-out animate-in fade-in duration-200"
-          onClick={() => setViewingImage(null)}
-        >
-          <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setViewingImage(null)}
-              className="absolute top-4 right-4 z-50 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors backdrop-blur-md"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <img
-              src={viewingImage}
-              alt="Full screen preview"
-              className="w-full h-full object-contain cursor-default"
-            />
-          </div>
-        </div>
-      )}
+      {/* Fullscreen Image Viewer Modal */}
+      <ImageViewerModal 
+        isOpen={!!viewerData} 
+        mediaFiles={viewerData?.files} 
+        initialIndex={viewerData?.index || 0} 
+        onClose={() => setViewerData(null)} 
+      />
+
       {/* Share Modal */}
       <ShareModal
         isOpen={isShareModalOpen}

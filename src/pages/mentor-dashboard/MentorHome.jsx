@@ -11,6 +11,7 @@ import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
 import defaultPP from '../../assets/default_pp.png'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
+import ImageViewerModal from '../../components/ImageViewerModal'
 import { 
   Users, 
   FileText, 
@@ -112,7 +113,7 @@ const MentorHome = () => {
   
   // Image states
   const [cropModalData, setCropModalData] = useState(null)
-  const [viewingImage, setViewingImage] = useState(null)
+  const [viewerData, setViewerData] = useState(null)
 
   const fileInputRef = useRef(null)
 
@@ -798,8 +799,8 @@ const MentorHome = () => {
                             className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (typeof setViewingImage === 'function') {
-                                setViewingImage(post.imageUrl || post.eventDetails.imageUrl);
+                              if (typeof setViewerData === 'function') {
+                                setViewerData({ files: [post.imageUrl || post.eventDetails.imageUrl], index: 0 });
                               } else {
                                 window.open(post.imageUrl || post.eventDetails.imageUrl, '_blank');
                               }
@@ -915,7 +916,7 @@ const MentorHome = () => {
                       imageUrl={post.imageUrl} 
                       mediaType={post.mediaType}
                       onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
-                      onImageClick={(url) => setViewingImage(url)}
+                      onImageClick={(files, idx) => setViewerData({ files, index: idx })}
                     />
                   )}
 
@@ -1168,30 +1169,12 @@ const MentorHome = () => {
       </AnimatePresence>
 
       {/* Lightbox / Image Viewer */}
-      <AnimatePresence>
-        {viewingImage && (
-          <div 
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm cursor-zoom-out"
-            onClick={() => setViewingImage(null)}
-          >
-            <button 
-              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
-              onClick={() => setViewingImage(null)}
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <motion.img 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              src={viewingImage} 
-              alt="Full view" 
-              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        )}
-      </AnimatePresence>
+      <ImageViewerModal 
+        isOpen={!!viewerData} 
+        mediaFiles={viewerData?.files} 
+        initialIndex={viewerData?.index || 0} 
+        onClose={() => setViewerData(null)} 
+      />
 
       {/* Render Image Crop Modal if active */}
       <AnimatePresence>

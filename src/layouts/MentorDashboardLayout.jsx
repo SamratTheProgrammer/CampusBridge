@@ -84,7 +84,11 @@ const MentorDashboardLayout = () => {
           const subPath = location.pathname.replace(/^\/mentor-dashboard\/?/, '/');
           navigate(`/dashboard${subPath === '/' ? '' : subPath}`, { replace: true })
         } else if (!isLoadingProfile && role === 'mentor') {
-          if (isLocked && location.pathname === '/mentor-dashboard') {
+          const allowedPaths = ['/mentor-dashboard', '/mentor-dashboard/settings', '/mentor-dashboard/profile'];
+          if (isLocked && !allowedPaths.includes(location.pathname)) {
+            toast.error('Please complete at least 80% of your profile to access this feature.', { id: 'mentor-locked-guard' });
+            navigate('/mentor-dashboard', { replace: true });
+          } else if (isLocked && location.pathname === '/mentor-dashboard') {
             toast.error(
               profileCompleteness.percentage < 80
                 ? '🔔 Reminder: Complete at least 80% of your profile in Settings.'

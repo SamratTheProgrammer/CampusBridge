@@ -11,6 +11,8 @@ import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import defaultPP from '../../assets/default_pp.png'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
+import FeedMediaGrid from '../../components/FeedMediaGrid'
+import ImageViewerModal from '../../components/ImageViewerModal'
 
 const MentorProfile = () => {
   const navigate = useNavigate();
@@ -24,7 +26,7 @@ const MentorProfile = () => {
   const [unfriendConfirm, setUnfriendConfirm] = useState(false)
   const [connectMessage, setConnectMessage] = useState('')
   const [isConnecting, setIsConnecting] = useState(false)
-  const [viewingImage, setViewingImage] = useState(null)
+  const [viewerData, setViewerData] = useState(null)
 
   // Post states
   const [posts, setPosts] = useState([])
@@ -276,7 +278,7 @@ const MentorProfile = () => {
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden mb-6 shadow-sm">
         <div className="h-48 sm:h-64 w-full bg-muted relative">
           {coverUrl ? (
-            <img src={coverUrl} alt="Cover" className={`w-full h-full object-cover transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`} onClick={isLocked ? undefined : () => setViewingImage(coverUrl)} />
+            <img src={coverUrl} alt="Cover" className={`w-full h-full object-cover transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`} onClick={isLocked ? undefined : () => setViewerData({ files: [coverUrl], index: 0 })} />
           ) : (
             <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600"></div>
           )}
@@ -289,7 +291,7 @@ const MentorProfile = () => {
                   src={avatarUrl}
                   alt={fullName}
                   className={`w-24 h-24 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-card relative z-10 bg-card transition-all shadow-md ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
-                  onClick={isLocked ? undefined : () => setViewingImage(avatarUrl)}
+                  onClick={isLocked ? undefined : () => setViewerData({ files: [avatarUrl], index: 0 })}
                 />
               </div>
               <div className="mt-1 sm:mt-2 relative z-10 flex-1 min-w-0">
@@ -636,8 +638,8 @@ const MentorProfile = () => {
                           className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (typeof setViewingImage === 'function') {
-                              setViewingImage(post.imageUrl || post.eventDetails.imageUrl);
+                            if (typeof setViewerData === 'function') {
+                              setViewerData({ files: [post.imageUrl || post.eventDetails.imageUrl], index: 0 });
                             } else {
                               window.open(post.imageUrl || post.eventDetails.imageUrl, '_blank');
                             }
@@ -745,22 +747,14 @@ const MentorProfile = () => {
                     </div>
                   )}
 
-                  {post.imageUrl && !post.bgGradient && (
-                    <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative rounded-xl mb-4 border border-border/40 bg-muted/30">
-                      {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
-                        <AutoPlayVideo 
-                          src={post.imageUrl} 
-                          className="w-full max-h-[500px] object-contain"
-                        />
-                      ) : (
-                        <img 
-                          src={post.imageUrl} 
-                          alt="Post content" 
-                          className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
-                          onClick={() => setViewingImage(post.imageUrl)}
-                        />
-                      )}
-                    </div>
+                  {((post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                    <FeedMediaGrid 
+                      mediaFiles={post.mediaFiles} 
+                      imageUrl={post.imageUrl} 
+                      mediaType={post.mediaType}
+                      onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
+                      onImageClick={(files, idx) => setViewerData({ files, index: idx })}
+                    />
                   )}
                 </div>
 
@@ -859,30 +853,12 @@ const MentorProfile = () => {
       )}
 
       {/* Lightbox / Image Viewer */}
-      <AnimatePresence>
-        {viewingImage && (
-          <div 
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm cursor-zoom-out"
-            onClick={() => setViewingImage(null)}
-          >
-            <button 
-              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
-              onClick={() => setViewingImage(null)}
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <motion.img 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              src={viewingImage} 
-              alt="Full view" 
-              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        )}
-      </AnimatePresence>
+      <ImageViewerModal 
+        isOpen={!!viewerData} 
+        mediaFiles={viewerData?.files} 
+        initialIndex={viewerData?.index || 0} 
+        onClose={() => setViewerData(null)} 
+      />
 
       <ConfirmModal
         isOpen={unfriendConfirm}

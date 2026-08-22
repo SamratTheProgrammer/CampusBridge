@@ -50,8 +50,9 @@ const StudentProfileGuard = ({ children }) => {
     checkProfile();
   }, [user, isLoaded, location.pathname]); // re-run check when navigating so completion updates
 
-  // Allow access to settings page regardless
-  if (location.pathname === '/dashboard/settings') {
+  // Allow access to feed, profile and settings regardless
+  const allowedPaths = ['/dashboard', '/dashboard/settings', '/dashboard/profile'];
+  if (allowedPaths.includes(location.pathname)) {
     return <>{children}</>;
   }
 

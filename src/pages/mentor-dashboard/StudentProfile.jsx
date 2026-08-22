@@ -10,6 +10,8 @@ import PostComments from '../../components/PostComments'
 import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import defaultPP from '../../assets/default_pp.png'
+import FeedMediaGrid from '../../components/FeedMediaGrid'
+import ImageViewerModal from '../../components/ImageViewerModal'
 
 const StudentProfile = () => {
   const navigate = useNavigate();
@@ -17,7 +19,7 @@ const StudentProfile = () => {
   const { user } = useUser();
   const [student, setStudent] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [viewingImage, setViewingImage] = useState(null)
+  const [viewerData, setViewerData] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('none')
   const [connectionId, setConnectionId] = useState(null)
   const [unfriendConfirm, setUnfriendConfirm] = useState(false)
@@ -286,7 +288,7 @@ const StudentProfile = () => {
               src={student.coverPhoto} 
               alt="Cover" 
               className={`w-full h-full object-cover transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
-              onClick={isLocked ? undefined : () => setViewingImage(student.coverPhoto)}
+              onClick={isLocked ? undefined : () => setViewerData({ files: [student.coverPhoto], index: 0 })}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600"></div>
@@ -300,7 +302,7 @@ const StudentProfile = () => {
                 src={student.imageUrl || student.image || getAvatarFallback()} 
                 alt={student.firstName || student.name} 
                 className={`w-24 h-24 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
-                onClick={isLocked ? undefined : () => setViewingImage(student.imageUrl || student.image || getAvatarFallback())}
+                onClick={isLocked ? undefined : () => setViewerData({ files: [student.imageUrl || student.image || getAvatarFallback()], index: 0 })}
               />
             </div>
             <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 sm:pt-0">
@@ -571,7 +573,6 @@ const StudentProfile = () => {
             const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
             const commentsArray = post.comments || []
             const showComments = activeCommentPostId === post._id
-            const postAuthorDP = avatarUrl
 
             if (post.moderationStatus === 'paused') {
               return (
@@ -663,8 +664,8 @@ const StudentProfile = () => {
                             className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (typeof setViewingImage === 'function') {
-                                setViewingImage(post.imageUrl || post.eventDetails.imageUrl);
+                              if (typeof setViewerData === 'function') {
+                                setViewerData({ files: [post.imageUrl || post.eventDetails.imageUrl], index: 0 });
                               } else {
                                 window.open(post.imageUrl || post.eventDetails.imageUrl, '_blank');
                               }
@@ -772,22 +773,14 @@ const StudentProfile = () => {
                     </div>
                   )}
 
-                  {post.imageUrl && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
-                    <div className="w-full max-h-[500px] bg-black overflow-hidden flex items-center justify-center relative rounded-xl mb-4 border border-border/40 bg-muted/30">
-                      {post.mediaType === 'video' || post.imageUrl.match(/\.(mp4|webm|ogg)$/i) ? (
-                        <AutoPlayVideo 
-                          src={post.imageUrl} 
-                          className="w-full max-h-[500px] object-contain"
-                        />
-                      ) : (
-                        <img 
-                          src={post.imageUrl} 
-                          alt="Post content" 
-                          className="w-full h-auto max-h-[500px] object-contain cursor-pointer" 
-                          onClick={() => setViewingImage(post.imageUrl)}
-                        />
-                      )}
-                    </div>
+                  {((post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                    <FeedMediaGrid 
+                      mediaFiles={post.mediaFiles} 
+                      imageUrl={post.imageUrl} 
+                      mediaType={post.mediaType}
+                      onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
+                      onImageClick={(files, idx) => setViewerData({ files, index: idx })}
+                    />
                   )}
                 </div>
 
@@ -888,30 +881,12 @@ const StudentProfile = () => {
       )}
 
     {/* Lightbox / Image Viewer */}
-    <AnimatePresence>
-      {viewingImage && (
-        <div 
-          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm cursor-zoom-out"
-          onClick={() => setViewingImage(null)}
-        >
-          <button 
-            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
-            onClick={() => setViewingImage(null)}
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <motion.img 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            src={viewingImage} 
-            alt="Full view" 
-            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
-    </AnimatePresence>
+    <ImageViewerModal 
+      isOpen={!!viewerData} 
+      mediaFiles={viewerData?.files} 
+      initialIndex={viewerData?.index || 0} 
+      onClose={() => setViewerData(null)} 
+    />
 
     <ConfirmModal
       isOpen={unfriendConfirm}

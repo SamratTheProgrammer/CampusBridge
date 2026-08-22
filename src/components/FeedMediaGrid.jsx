@@ -13,7 +13,7 @@ const FeedMediaGrid = ({ mediaFiles, imageUrl, mediaType, onImageClick, onContai
   if (files.length === 0) return null;
 
   // Render a single media item
-  const MediaItem = ({ file, isMain }) => {
+  const MediaItem = ({ file, idx, isMain }) => {
     const isVideo = file.mediaType === 'video' || (file.url && file.url.match(/\.(mp4|webm|ogg)$/i));
     return isVideo ? (
       <div 
@@ -30,9 +30,9 @@ const FeedMediaGrid = ({ mediaFiles, imageUrl, mediaType, onImageClick, onContai
         alt="Post content" 
         className={`w-full h-full cursor-pointer ${isMain ? 'object-contain bg-black' : 'object-cover'}`}
         onClick={(e) => {
-          if (isMain && onImageClick) {
+          if (onImageClick) {
             e.stopPropagation();
-            onImageClick(file.url);
+            onImageClick(files, idx);
           } else if (onContainerClick) {
             e.stopPropagation();
             onContainerClick();
@@ -45,7 +45,7 @@ const FeedMediaGrid = ({ mediaFiles, imageUrl, mediaType, onImageClick, onContai
   if (files.length === 1) {
     return (
       <div className="w-full h-[400px] sm:h-[500px] bg-black overflow-hidden flex items-center justify-center relative cursor-pointer">
-        <MediaItem file={files[0]} isMain={true} />
+        <MediaItem file={files[0]} idx={0} isMain={true} />
       </div>
     );
   }
@@ -55,7 +55,7 @@ const FeedMediaGrid = ({ mediaFiles, imageUrl, mediaType, onImageClick, onContai
       <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 gap-1 cursor-pointer" onClick={onContainerClick}>
         {files.slice(0, 2).map((file, idx) => (
           <div key={idx} className="relative w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900">
-             <MediaItem file={file} isMain={false} />
+             <MediaItem file={file} idx={idx} isMain={false} />
           </div>
         ))}
       </div>
@@ -66,11 +66,11 @@ const FeedMediaGrid = ({ mediaFiles, imageUrl, mediaType, onImageClick, onContai
     return (
       <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 gap-1 cursor-pointer" onClick={onContainerClick}>
         <div className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900">
-           <MediaItem file={files[0]} isMain={false} />
+           <MediaItem file={files[0]} idx={0} isMain={false} />
         </div>
         <div className="grid grid-rows-2 gap-1 h-full w-full">
-           <div className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900"><MediaItem file={files[1]} isMain={false} /></div>
-           <div className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900"><MediaItem file={files[2]} isMain={false} /></div>
+           <div className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900"><MediaItem file={files[1]} idx={1} isMain={false} /></div>
+           <div className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900"><MediaItem file={files[2]} idx={2} isMain={false} /></div>
         </div>
       </div>
     );
@@ -81,7 +81,7 @@ const FeedMediaGrid = ({ mediaFiles, imageUrl, mediaType, onImageClick, onContai
       <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 grid-rows-2 gap-1 cursor-pointer" onClick={onContainerClick}>
         {files.slice(0, 4).map((file, idx) => (
           <div key={idx} className="relative w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900">
-             <MediaItem file={file} isMain={false} />
+             <MediaItem file={file} idx={idx} isMain={false} />
              {idx === 3 && files.length > 4 && (
                <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-white text-3xl font-bold backdrop-blur-sm">
                  +{files.length - 4}
