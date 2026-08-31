@@ -119,6 +119,7 @@ router.get('/conversations/:clerkId', async (req, res) => {
           userRole: partnerUser.role || 'student',
           headline: partnerUser.headline || `${partnerUser.role || 'Member'} at CampusBridge`,
           image: partnerUser.imageUrl,
+          username: partnerUser.username,
           conversationId,
           lastMessage: displayLastMessage,
           lastMessageTime: lastMessage ? lastMessage.createdAt : null,

@@ -86,7 +86,8 @@ router.get('/', async (req, res) => {
               clerkId: likeClerkId,
               name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
               image: likeUser.imageUrl,
-              role: likeUser.headline || likeUser.role
+              role: likeUser.headline || likeUser.role,
+              username: likeUser.username
             } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
           })
         );
@@ -158,7 +159,8 @@ router.get('/user/:clerkId', async (req, res) => {
               clerkId: likeClerkId,
               name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
               image: likeUser.imageUrl,
-              role: likeUser.headline || likeUser.role
+              role: likeUser.headline || likeUser.role,
+              username: likeUser.username
             } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
           })
         );
@@ -218,6 +220,7 @@ router.post('/', async (req, res) => {
         name: postAuthor.firstName + (postAuthor.lastName ? ' ' + postAuthor.lastName : ''),
         role: postAuthor.headline || postAuthor.role,
         image: postAuthor.imageUrl,
+        username: postAuthor.username,
       } : { name: 'Unknown User', role: 'Member', image: null },
       comments: [],
       likes: []
@@ -293,7 +296,8 @@ router.get('/:id', async (req, res) => {
           clerkId: likeClerkId,
           name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
           image: likeUser.imageUrl,
-          role: likeUser.headline || likeUser.role
+          role: likeUser.headline || likeUser.role,
+          username: likeUser.username
         } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
       })
     );
@@ -303,7 +307,8 @@ router.get('/:id', async (req, res) => {
       author: user ? {
         name: user.firstName + (user.lastName ? ' ' + user.lastName : ''),
         image: user.imageUrl,
-        role: user.headline || user.role || 'Member'
+        role: user.headline || user.role || 'Member',
+        username: user.username
       } : {
         name: 'Unknown User',
         role: 'Member',

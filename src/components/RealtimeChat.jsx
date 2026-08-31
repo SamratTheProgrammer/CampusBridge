@@ -199,6 +199,7 @@ const RealtimeChat = () => {
             userRole: u.role || 'student',
             headline: u.headline || `${u.role || 'Member'} at CampusBridge`,
             image: u.imageUrl,
+            username: u.username,
             conversationId: getConvId(user.id, u.clerkId),
             lastMessage: 'Start a conversation',
             unread: 0

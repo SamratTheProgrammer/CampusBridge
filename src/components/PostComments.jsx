@@ -29,13 +29,13 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleUserClick = (userId, userRole) => {
+  const handleUserClick = (userId, userRole, username) => {
     if (!userId) return;
     if (userId === currentUser?.id) {
       navigate(location.pathname.includes('/mentor-dashboard') ? '/mentor-dashboard/profile' : '/dashboard/profile');
       return;
     }
-    navigate(`/profile/${userId}`);
+    navigate(`/profile/${username || userId}`);
   };
 
   const commentsArray = post.comments || [];
@@ -43,11 +43,11 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
   const findMentionedUser = (nameStr, currentComment, currentReplies) => {
     const cleanName = nameStr.replace('@', '');
     if (currentComment.author?.name === cleanName) {
-      return { id: currentComment.authorClerkId, role: currentComment.author?.role };
+      return { id: currentComment.authorClerkId, role: currentComment.author?.role, username: currentComment.author?.username };
     }
     const foundReply = currentReplies.find(r => r.author?.name === cleanName);
     if (foundReply) {
-      return { id: foundReply.authorClerkId, role: foundReply.author?.role };
+      return { id: foundReply.authorClerkId, role: foundReply.author?.role, username: foundReply.author?.username };
     }
     return null;
   };
@@ -177,13 +177,13 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                   src={comment.author?.image || getAvatarFallback(comment.author?.name)}
                   alt={comment.author?.name}
                   className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => handleUserClick(comment.authorClerkId, comment.author?.role)}
+                  onClick={() => handleUserClick(comment.authorClerkId, comment.author?.role, comment.author?.username)}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="bg-background border border-border/50 rounded-2xl rounded-tl-none px-4 py-2.5 shadow-2xs">
                     <h4 
                       className="font-bold text-xs text-foreground cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => handleUserClick(comment.authorClerkId, comment.author?.role)}
+                      onClick={() => handleUserClick(comment.authorClerkId, comment.author?.role, comment.author?.username)}
                     >
                       {comment.author?.name}
                     </h4>
@@ -233,13 +233,13 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                             src={reply.author?.image || getAvatarFallback(reply.author?.name)}
                             alt={reply.author?.name}
                             className="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5 cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => handleUserClick(reply.authorClerkId, reply.author?.role)}
+                            onClick={() => handleUserClick(reply.authorClerkId, reply.author?.role, reply.author?.username)}
                           />
                           <div className="flex-1 min-w-0 bg-muted/30 border border-border/40 rounded-xl px-3 py-1.5">
                             <div className="flex items-center justify-between gap-2">
                               <h5 
                                 className="font-bold text-[11px] text-foreground cursor-pointer hover:text-primary transition-colors"
-                                onClick={() => handleUserClick(reply.authorClerkId, reply.author?.role)}
+                                onClick={() => handleUserClick(reply.authorClerkId, reply.author?.role, reply.author?.username)}
                               >
                                 {reply.author?.name}
                               </h5>
@@ -254,7 +254,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                                       const mentionedName = reply.content.split(' ')[0];
                                       const mentionedUser = findMentionedUser(mentionedName, comment, replies);
                                       if (mentionedUser) {
-                                        handleUserClick(mentionedUser.id, mentionedUser.role);
+                                        handleUserClick(mentionedUser.id, mentionedUser.role, mentionedUser.username);
                                       }
                                     }}
                                   >
