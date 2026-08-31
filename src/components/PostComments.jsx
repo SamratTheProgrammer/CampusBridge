@@ -35,12 +35,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
       navigate(location.pathname.includes('/mentor-dashboard') ? '/mentor-dashboard/profile' : '/dashboard/profile');
       return;
     }
-    const basePath = location.pathname.includes('/mentor-dashboard') ? '/mentor-dashboard' : '/dashboard';
-    if (userRole?.toLowerCase() === 'mentor' || userRole?.toLowerCase() === 'alumni') {
-      navigate(`${basePath}/mentor/${userId}`);
-    } else {
-      navigate(`${basePath}/student/${userId}`);
-    }
+    navigate(`/profile/${userId}`);
   };
 
   const commentsArray = post.comments || [];

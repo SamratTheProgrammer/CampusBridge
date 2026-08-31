@@ -113,6 +113,37 @@ const MyNetwork = () => {
     }
   };
 
+  const handleCancelRequest = async (targetClerkId) => {
+    if (!user) return;
+    setIsConnecting(targetClerkId);
+    try {
+      const res = await fetch(`${API_BASE}/api/connections/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterClerkId: user.id,
+          recipientClerkId: targetClerkId
+        })
+      });
+
+      if (res.ok) {
+        toast.success('Connection request cancelled.');
+        // Remove from connections list
+        setConnections((prev) => prev.filter(c => !(c.requesterClerkId === user.id && c.recipientClerkId === targetClerkId && c.status === 'pending')));
+        
+        // Update suggestions if the user is in suggestions? (Might not be needed, but harmless if missing)
+        setSuggestions(prev => prev);
+      } else {
+        toast.error('Failed to cancel request');
+      }
+    } catch (err) {
+      console.error('Error cancelling:', err);
+      toast.error('Network error.');
+    } finally {
+      setIsConnecting(null);
+    }
+  };
+
   const handleUnfriendConfirm = async () => {
     const { connectionId, targetName } = unfriendConfirm;
     if (!connectionId) return;
@@ -272,7 +303,7 @@ const MyNetwork = () => {
                         className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4 hover:border-primary/40 transition-all hover:shadow-md"
                       >
                         <div className="flex items-start gap-4">
-                          <Link to={`/dashboard/student/${target?.clerkId}`}>
+                          <Link to={`/profile/${target?.username || target?.clerkId}`}>
                             <img
                               src={target?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${target?.name}`}
                               alt={target?.name}
@@ -281,7 +312,7 @@ const MyNetwork = () => {
                           </Link>
                           <div className="flex-1 min-w-0">
                             <Link
-                              to={`/dashboard/student/${target?.clerkId}`}
+                              to={`/profile/${target?.username || target?.clerkId}`}
                               className="font-bold text-base text-foreground hover:text-primary transition-colors block truncate"
                             >
                               {target?.name}
@@ -433,21 +464,31 @@ const MyNetwork = () => {
                         key={req._id}
                         className="bg-card border border-border/50 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        <Link to={`/profile/${req.targetUser?.username || req.targetUser?.clerkId}`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity">
                           <img
                             src={req.targetUser?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.targetUser?.name}`}
                             alt={req.targetUser?.name}
                             className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
                           />
                           <div className="min-w-0">
-                            <h4 className="font-bold text-sm text-foreground truncate">{req.targetUser?.name}</h4>
+                            <h4 className="font-bold text-sm text-foreground truncate hover:text-primary transition-colors">{req.targetUser?.name}</h4>
                             <p className="text-xs text-muted-foreground truncate">{req.targetUser?.course || 'Member'}</p>
                           </div>
-                        </div>
+                        </Link>
 
-                        <span className="text-xs font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full flex items-center gap-1 shrink-0">
-                          <Clock className="w-3 h-3" /> Request Sent ⏳
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[11px] sm:text-xs font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 sm:px-3 py-1 rounded-full flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> <span className="hidden sm:inline">Request</span> Sent ⏳
+                          </span>
+                          <button
+                            onClick={() => handleCancelRequest(req.targetUser?.clerkId)}
+                            disabled={isConnecting === req.targetUser?.clerkId}
+                            className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-medium text-rose-500 hover:text-white border border-rose-500/30 hover:bg-rose-500 transition-colors flex items-center gap-1 group disabled:opacity-50"
+                            title="Unsend Request"
+                          >
+                            {isConnecting === req.targetUser?.clerkId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><X className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Unsend</span></>}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -475,7 +516,7 @@ const MyNetwork = () => {
                       key={item.clerkId}
                       className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col items-center text-center space-y-4 hover:border-primary/40 transition-all hover:shadow-md"
                     >
-                      <Link to={`/dashboard/student/${item.clerkId}`}>
+                      <Link to={`/profile/${item.username || item.clerkId}`}>
                         <img
                           src={item.image}
                           alt={item.name}
@@ -485,7 +526,7 @@ const MyNetwork = () => {
 
                       <div className="space-y-1 w-full">
                         <Link
-                          to={`/dashboard/student/${item.clerkId}`}
+                          to={`/profile/${item.username || item.clerkId}`}
                           className="font-bold text-base text-foreground hover:text-primary transition-colors block truncate"
                         >
                           {item.name}

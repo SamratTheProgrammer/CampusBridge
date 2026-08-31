@@ -539,7 +539,7 @@ const MentorSessions = () => {
             return (
               <div key={session._id} className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row gap-5 items-start md:items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <Link to={`/mentor-dashboard/student/${student?.clerkId}`} className="shrink-0 group">
+                  <Link to={`/profile/${student?.username || student?.clerkId}`} className="shrink-0 group">
                     <img src={studentImg} alt={studentName} className="w-14 h-14 rounded-full object-cover ring-2 ring-muted group-hover:ring-primary/50 transition-all" />
                   </Link>
                   <div>
@@ -553,7 +553,7 @@ const MentorSessions = () => {
                         {session.mode === 'Offline' ? <><MapPin className="w-3 h-3" /> Offline</> : <><Globe className="w-3 h-3" /> Online</>}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Student: <Link to={`/mentor-dashboard/student/${student?.clerkId}`} className="font-semibold text-foreground hover:text-primary transition-colors">{studentName}</Link></p>
+                    <p className="text-xs text-muted-foreground">Student: <Link to={`/profile/${student?.username || student?.clerkId}`} className="font-semibold text-foreground hover:text-primary transition-colors">{studentName}</Link></p>
                     {session.mode === 'Offline' && (
                       <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 mt-1">
                         <MapPin className="w-3.5 h-3.5" /> Venue: {session.location || 'Campus Location'}
@@ -814,7 +814,7 @@ const MentorSessions = () => {
                 {registeredStudents.map((app) => (
                   <div key={app._id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border/40">
                     <div className="flex items-center gap-3">
-                      <Link to={`/mentor-dashboard/student/${app.applicant?.clerkId || app.applicant?._id}`} className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setIsApplicationsModalOpen(false)}>
+                      <Link to={`/profile/${app.applicant?.username || app.applicant?.clerkId || app.applicant?._id}`} className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setIsApplicationsModalOpen(false)}>
                         <img 
                           src={app.applicant?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.applicant?.name}`} 
                           alt="Student" 
@@ -822,7 +822,7 @@ const MentorSessions = () => {
                         />
                       </Link>
                       <div>
-                        <Link to={`/mentor-dashboard/student/${app.applicant?.clerkId || app.applicant?._id}`} className="hover:underline" onClick={() => setIsApplicationsModalOpen(false)}>
+                        <Link to={`/profile/${app.applicant?.username || app.applicant?.clerkId || app.applicant?._id}`} className="hover:underline" onClick={() => setIsApplicationsModalOpen(false)}>
                           <h4 className="font-bold text-sm text-foreground">{app.applicant?.name || app.applicant?.firstName}</h4>
                         </Link>
                         <p className="text-xs text-muted-foreground">{app.applicant?.email}</p>

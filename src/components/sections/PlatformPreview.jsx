@@ -79,7 +79,7 @@ const PlatformPreview = () => {
                <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                <div className="w-3 h-3 rounded-full bg-green-500/80" />
             </div>
-            <div className="aspect-[16/10] bg-background border rounded-xl overflow-hidden relative mt-8 md:mt-0">
+            <div className="aspect-video bg-background border rounded-xl overflow-hidden relative mt-8 md:mt-0">
                <AnimatePresence mode="wait">
                  <motion.div
                    key={activeTab}
@@ -93,12 +93,12 @@ const PlatformPreview = () => {
                        <img 
                          src={tabImages[activeTab].light} 
                          alt={`${activeTab} preview`} 
-                         className="w-full h-full object-cover dark:hidden" 
+                         className="w-full h-full object-contain dark:hidden" 
                        />
                        <img 
                          src={tabImages[activeTab].dark} 
                          alt={`${activeTab} preview`} 
-                         className="w-full h-full object-cover hidden dark:block" 
+                         className="w-full h-full object-contain hidden dark:block" 
                        />
                      </div>
                  </motion.div>

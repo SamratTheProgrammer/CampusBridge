@@ -29,6 +29,7 @@ const enrichCommentsList = async (comments) => {
               name: replyUser.firstName + (replyUser.lastName ? ' ' + replyUser.lastName : ''),
               image: replyUser.imageUrl,
               role: replyUser.role,
+              username: replyUser.username,
             } : { name: 'Unknown User', image: null, role: 'student' }
           };
         })
@@ -40,6 +41,7 @@ const enrichCommentsList = async (comments) => {
           name: commentUser.firstName + (commentUser.lastName ? ' ' + commentUser.lastName : ''),
           image: commentUser.imageUrl,
           role: commentUser.role,
+          username: commentUser.username,
         } : { name: 'Unknown User', image: null, role: 'student' },
         replies: enrichedReplies
       };
@@ -95,6 +97,7 @@ router.get('/', async (req, res) => {
             name: user.firstName + (user.lastName ? ' ' + user.lastName : ''),
             role: user.headline || user.role,
             image: user.imageUrl,
+            username: user.username,
           } : {
             name: 'Unknown User',
             role: 'Member',
@@ -166,6 +169,7 @@ router.get('/user/:clerkId', async (req, res) => {
             name: postAuthor.firstName + (postAuthor.lastName ? ' ' + postAuthor.lastName : ''),
             role: postAuthor.headline || postAuthor.role,
             image: postAuthor.imageUrl,
+            username: postAuthor.username,
           } : {
             name: 'Unknown User',
             role: 'Member',

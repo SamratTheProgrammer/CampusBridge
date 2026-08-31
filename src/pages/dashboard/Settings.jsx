@@ -631,7 +631,7 @@ const Settings = () => {
                   {usernameError ? (
                     <p className="text-xs text-red-500">{usernameError}</p>
                   ) : usernameValue ? (
-                    <p className="text-xs text-muted-foreground">campusbridge.com/u/<span className="text-primary font-medium">{usernameValue}</span></p>
+                    <p className="text-xs text-muted-foreground">campusbridge.com/profile/<span className="text-primary font-medium">{usernameValue}</span></p>
                   ) : (
                     <p className="text-xs text-muted-foreground">Your unique profile URL. Auto-generated on signup, you can change it here.</p>
                   )}

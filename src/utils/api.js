@@ -15,3 +15,11 @@ const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
 export const apiUrl = (path) => `${API_BASE}${path}`;
 
 export default API_BASE;
+
+export const getProfilePath = (target, role = 'student') => {
+  if (!target) return '#';
+  const id = target.username || target.clerkId || target._id || target;
+  if (role === 'mentor' || role === 'alumni') return '/mentor-dashboard/profile/' + id;
+  if (role === 'admin') return '/profile/' + id;
+  return '/dashboard/profile/' + id;
+};

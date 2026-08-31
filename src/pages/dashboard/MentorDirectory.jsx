@@ -213,7 +213,7 @@ const MentorDirectory = () => {
                   {filteredMentors.length > 0 ? (
                     filteredMentors.slice(0, 8).map(mentor => (
                       <div key={`dropdown-${mentor._id}`} className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
-                        <Link to={`/dashboard/mentor/${mentor.clerkId}`} className="flex items-center gap-3 flex-1 min-w-0">
+                        <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="flex items-center gap-3 flex-1 min-w-0">
                           <img src={mentor.imageUrl || defaultPP} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 bg-muted" />
                           <div className="flex flex-col min-w-0">
                             <span className="font-semibold text-sm text-foreground leading-tight truncate">{mentor.firstName} {mentor.lastName || ''}</span>
@@ -310,7 +310,7 @@ const MentorDirectory = () => {
                       </button>
                     )}
                     <Link to={`/dashboard/mentor/${mentor.clerkId}/book`} className="flex-1 sm:flex-none text-primary border border-primary hover:bg-primary/10 font-medium text-[10px] sm:text-sm bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center">Book Session</Link>
-                    <Link to={`/dashboard/mentor/${mentor.clerkId}`} className="flex-1 sm:flex-none text-foreground font-medium text-[10px] sm:text-sm border border-border/50 hover:bg-muted bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center">View Profile</Link>
+                    <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="flex-1 sm:flex-none text-foreground font-medium text-[10px] sm:text-sm border border-border/50 hover:bg-muted bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center">View Profile</Link>
                   </div>
                 </div>
               ))
@@ -370,7 +370,7 @@ const MentorDirectory = () => {
                   </div>
                   <div className="px-4 pb-4 sm:px-5 sm:pb-5 mt-2 sm:mt-4">
                     <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                      <button onClick={() => navigate(`/dashboard/mentor/${mentor.clerkId}`)} className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted py-2 rounded-lg text-[11px] sm:text-xs font-medium"><User className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Profile</span></button>
+                      <button onClick={() => navigate(`/profile/${mentor.username || mentor.clerkId}`)} className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted py-2 rounded-lg text-[11px] sm:text-xs font-medium"><User className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Profile</span></button>
                       <button onClick={() => navigate(`/dashboard/mentor/${mentor.clerkId}/book`)} className="flex items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-[11px] sm:text-xs font-medium shadow-sm"><CalendarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Book</span></button>
                       <button className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted py-2 rounded-lg text-[11px] sm:text-xs font-medium"><MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Chat</span></button>
                     </div>

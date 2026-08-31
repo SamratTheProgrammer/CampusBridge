@@ -825,10 +825,8 @@ const DashboardHome = () => {
                             if (post.authorClerkId === user?.id) {
                               const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
                               navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
-                            } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
-                              navigate(`/dashboard/mentor/${post.authorClerkId}`);
                             } else {
-                              navigate(`/dashboard/student/${post.authorClerkId}`);
+                              navigate(`/profile/${post.author?.username || post.authorClerkId}`);
                             }
                           }}
                         />
@@ -839,10 +837,8 @@ const DashboardHome = () => {
                               if (post.authorClerkId === user?.id) {
                                 const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
                                 navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
-                              } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
-                                navigate(`/dashboard/mentor/${post.authorClerkId}`);
                               } else {
-                                navigate(`/dashboard/student/${post.authorClerkId}`);
+                                navigate(`/profile/${post.author?.username || post.authorClerkId}`);
                               }
                             }}
                           >
@@ -1116,11 +1112,11 @@ const DashboardHome = () => {
                 .slice(0, 5)
                 .map(mentor => (
                   <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start">
-                    <Link to={`/dashboard/mentor/${mentor.username || mentor.clerkId}`} className="shrink-0">
+                    <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="shrink-0">
                       <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 hover:ring-2 hover:ring-primary/40 transition-all" />
                     </Link>
                     <div className="flex-1 min-w-0">
-                      <Link to={`/dashboard/mentor/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
+                      <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
                         {mentor.firstName} {mentor.lastName}
                       </Link>
                       <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{mentor.headline || mentor.role}</p>

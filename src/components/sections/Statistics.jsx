@@ -55,7 +55,6 @@ const Statistics = () => {
     { label: 'Students', value: statsData.students, icon: Users },
     { label: 'Mentors', value: statsData.mentors, icon: MessageCircle },
     { label: 'Jobs', value: statsData.jobs, icon: Briefcase },
-    { label: 'Companies', value: statsData.companies, icon: Building2 },
     { label: 'Events', value: statsData.events, icon: Calendar },
   ]
 
@@ -68,7 +67,7 @@ const Statistics = () => {
             Our growing community is making an impact across the globe. Join us and be part of the success story.
           </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {stats.map((stat, index) => (
             <Counter 
               key={stat.label}

@@ -178,7 +178,7 @@ const MyMentees = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <button 
-                  onClick={() => navigate(`/mentor-dashboard/student/${mentee.fullProfile?.id || mentee.fullProfile?.clerkId}`)}
+                  onClick={() => navigate(`/profile/${mentee.fullProfile?.username || mentee.fullProfile?.clerkId}`)}
                   className="flex items-center justify-center gap-1.5 bg-background border border-border/50 hover:bg-muted text-foreground py-2 rounded-lg text-xs font-medium transition-colors"
                 >
                   <User className="w-3.5 h-3.5" /> Profile

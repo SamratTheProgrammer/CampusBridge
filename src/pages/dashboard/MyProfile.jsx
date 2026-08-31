@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User } from 'lucide-react'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -21,6 +21,7 @@ const MyProfile = () => {
   // Post states
   const [posts, setPosts] = useState([])
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+  const [connectionsCount, setConnectionsCount] = useState(0)
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
   const [commentText, setCommentText] = useState('')
   const [isCommenting, setIsCommenting] = useState(false)
@@ -64,8 +65,22 @@ const MyProfile = () => {
     if (isLoaded && user) {
       fetchUserProfile()
       fetchUserPosts()
+      fetchConnectionsCount()
     }
   }, [isLoaded, user])
+
+  const fetchConnectionsCount = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/connections/user/${user.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        const accepted = data.filter(c => c.status === 'accepted')
+        setConnectionsCount(accepted.length)
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const fetchUserProfile = async () => {
     try {
@@ -343,16 +358,39 @@ const MyProfile = () => {
     return `${likes[0].name || 'Someone'} and ${count - 1} other${count - 1 > 1 ? 's' : ''}`
   }
 
+  const handleShare = async () => {
+    const profileUrl = `${window.location.origin}/profile/${dbUser?.username || dbUser?.clerkId || user?.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${user?.fullName}'s Profile`,
+          url: profileUrl
+        });
+      } catch (err) {
+        console.log('Error sharing:', err);
+      }
+    } else {
+      navigator.clipboard.writeText(profileUrl);
+      toast.success('Profile link copied to clipboard!');
+    }
+  }
+
   if (!isLoaded) return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
 
   const coverPhotoUrl = user?.unsafeMetadata?.coverPhoto
   const profilePhotoUrl = user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-8">
+    <div className="max-w-4xl mx-auto space-y-6 sm:pb-8">
       
       {/* Header Profile Card */}
-      <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-card border-x-0 border-t-0 sm:border border-border/50 rounded-none sm:rounded-2xl overflow-hidden shadow-sm relative">
+        <button 
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors flex items-center justify-center"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
         <div className="h-48 bg-muted relative group">
           {coverPhotoUrl ? (
             <img 
@@ -392,12 +430,13 @@ const MyProfile = () => {
         </div>
         
         <div className="px-4 sm:px-6 pb-6 relative">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end mb-4">
-            <div className="relative group -mt-14 sm:-mt-20 shrink-0" ref={profileMenuRef}>
+          {/* Top Row: Avatar and Actions */}
+          <div className="flex justify-between items-end w-full -mt-16 sm:-mt-20 relative z-10">
+            <div className="relative group shrink-0" ref={profileMenuRef}>
               <img 
                 src={profilePhotoUrl} 
                 alt="Profile" 
-                className="w-24 h-24 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md cursor-pointer"
+                className="w-24 h-24 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-card bg-card shadow-md cursor-pointer transition-all hover:brightness-90"
                 onClick={() => setViewerData({ files: [profilePhotoUrl], index: 0 })}
               />
               <input type="file" ref={profilePicInputRef} onChange={handleProfilePicSelect} accept="image/*" className="hidden" />
@@ -414,7 +453,7 @@ const MyProfile = () => {
                 <Edit3 className="w-5 h-5 sm:w-6 sm:h-6 text-white fill-white stroke-[2.5]" />
               </button>
               {showProfileMenu && (
-                <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 bg-card border border-border/50 rounded-xl shadow-lg overflow-hidden w-40 flex flex-col z-30">
+                <div className="absolute top-full left-0 mt-2 bg-card border border-border/50 rounded-xl shadow-lg overflow-hidden w-40 flex flex-col z-30">
                   <button className="w-full text-left px-4 py-2 hover:bg-muted text-sm font-medium transition-colors" onClick={() => { profilePicInputRef.current?.click(); setShowProfileMenu(false); }}>Upload Photo</button>
                   {user?.hasImage && (
                     <button className="w-full text-left px-4 py-2 hover:bg-muted text-sm text-destructive font-medium transition-colors border-t border-border/50" onClick={() => { handleRemoveProfilePic(); setShowProfileMenu(false); }}>Remove Photo</button>
@@ -422,33 +461,59 @@ const MyProfile = () => {
                 </div>
               )}
             </div>
-            <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 sm:pt-0">
-              <div>
-                <h1 className="text-xl sm:text-3xl font-bold text-foreground">{user?.fullName}</h1>
-                <p className="text-xs sm:text-base text-muted-foreground mt-0">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
-                <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground mt-1.5 sm:mt-2">
-                  <MapPin className="w-3.5 h-3.5" /> 
-                  <span>{dbUser?.location || user?.unsafeMetadata?.location || 'Add location in Settings'}</span>
-                  {(dbUser?.address || user?.unsafeMetadata?.address) && (
-                    <>
-                      <span className="mx-1">&bull;</span>
-                      <span>{dbUser?.address || user?.unsafeMetadata?.address}</span>
-                    </>
-                  )}
-                  {dbUser?.dateOfBirth && (
-                    <>
-                      <span className="mx-1">&bull;</span>
-                      <span>{Math.floor((new Date() - new Date(dbUser.dateOfBirth).getTime()) / 3.15576e+10)} years old {dbUser.ageVisibility === 'private' ? '(Hidden)' : ''}</span>
-                    </>
-                  )}
-                  {dbUser?.gender && dbUser.gender !== 'Prefer not to say' && (
-                    <>
-                      <span className="mx-1">&bull;</span>
-                      <span>{dbUser.gender}</span>
-                    </>
-                  )}
-                </div>
-              </div>
+            
+            {/* Action Buttons on Right */}
+            <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-end mb-2 sm:mb-4">
+              <button
+                onClick={handleShare}
+                className="bg-background border border-border/50 text-foreground hover:bg-muted p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+              >
+                <Share2 className="w-4 h-4" /> <span className="hidden sm:inline">Share</span>
+              </button>
+            </div>
+          </div>
+          
+          {/* User Info Stack */}
+          <div className="mt-2 flex flex-col gap-1.5 text-left w-full">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">{user?.fullName}</h1>
+            
+            <p className="text-sm sm:text-base font-semibold text-primary">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
+            
+            <div className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" />
+                {dbUser?.location || user?.unsafeMetadata?.location || 'Add location in Settings'}
+              </span>
+              {(dbUser?.address || user?.unsafeMetadata?.address) && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {dbUser?.address || user?.unsafeMetadata?.address}
+                </span>
+              )}
+              {dbUser?.dateOfBirth && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5" />
+                  {Math.floor((new Date() - new Date(dbUser.dateOfBirth).getTime()) / 3.15576e+10)} years old {dbUser.ageVisibility === 'private' ? '(Hidden)' : ''}
+                </span>
+              )}
+              {dbUser?.gender && dbUser.gender !== 'Prefer not to say' && (
+                <span className="flex items-center gap-1">
+                  <User className="w-3.5 h-3.5" />
+                  {dbUser.gender}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex gap-6 sm:gap-8 mt-2">
+            <div className="flex gap-1.5 items-baseline">
+              <span className="font-bold text-base sm:text-lg text-foreground">{posts.length}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground font-medium hover:underline cursor-pointer">Posts</span>
+            </div>
+            <div className="flex gap-1.5 items-baseline">
+              <span className="font-bold text-base sm:text-lg text-foreground">{connectionsCount}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground font-medium hover:underline cursor-pointer">Connections</span>
             </div>
           </div>
           

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2 } from 'lucide-react'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -13,11 +13,12 @@ import defaultPP from '../../assets/default_pp.png'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 
-const StudentProfile = () => {
+const StudentProfile = ({ initialUser }) => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id, username } = useParams();
+  const identifier = username || id;
   const { user } = useUser();
-  const [student, setStudent] = useState(null)
+  const [student, setStudent] = useState(initialUser || null)
   const [isLoading, setIsLoading] = useState(true)
   const [viewerData, setViewerData] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('none')
@@ -33,40 +34,36 @@ const StudentProfile = () => {
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
   const [commentText, setCommentText] = useState('')
   const [isCommenting, setIsCommenting] = useState(false)
+  const [connectionsCount, setConnectionsCount] = useState(0)
 
   useEffect(() => {
-    if (!id || id === 'undefined') {
-      setIsLoading(false);
-      toast.error("Failed to load student profile");
-      return;
-    }
     const fetchStudent = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/users/${id}`)
-        if (res.ok) {
-          const data = await res.json()
-          setStudent(data)
-
-          if (user && data.clerkId) {
-            const connRes = await fetch(`${API_BASE}/api/connections/status/${user.id}/${data.clerkId}`)
-            if (connRes.ok) {
-              const connData = await connRes.json()
-              setConnectionStatus(connData.status || 'none')
-              setConnectionId(connData.connectionId || null)
-            }
+        let currentStudent = initialUser;
+        if (!currentStudent && identifier) {
+          const res = await fetch(`${API_BASE}/api/users/${identifier}`)
+          if (res.ok) {
+            currentStudent = await res.json()
+            setStudent(currentStudent)
           }
-        } else {
-          toast.error("Failed to load student profile");
+        }
+
+        if (currentStudent && user && currentStudent.clerkId) {
+          const connRes = await fetch(`${API_BASE}/api/connections/status/${user.id}/${currentStudent.clerkId}`)
+          if (connRes.ok) {
+            const connData = await connRes.json()
+            setConnectionStatus(connData.status || 'none')
+            setConnectionId(connData.connectionId || null)
+          }
         }
       } catch (err) {
         console.error(err)
-        toast.error("An error occurred");
       } finally {
         setIsLoading(false)
       }
     }
     fetchStudent()
-  }, [id])
+  }, [identifier, user, initialUser])
 
   // Fetch posts by this student once we have their clerkId
   useEffect(() => {
@@ -85,7 +82,42 @@ const StudentProfile = () => {
       }
     };
     fetchPosts();
-  }, [student]);
+  }, [student?.clerkId, user?.id]);
+
+  useEffect(() => {
+    if (!student?.clerkId) return;
+    const fetchConnectionsCount = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/connections/user/${student.clerkId}`)
+        if (res.ok) {
+          const data = await res.json()
+          const accepted = data.filter(c => c.status === 'accepted')
+          setConnectionsCount(accepted.length)
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    fetchConnectionsCount();
+  }, [student?.clerkId])
+
+  const handleShare = async () => {
+    if (!student) return;
+    const profileUrl = `${window.location.origin}/profile/${student.username || student.clerkId}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${student.firstName}'s Profile`,
+          url: profileUrl
+        });
+      } catch (err) {
+        console.log('Error sharing:', err);
+      }
+    } else {
+      navigator.clipboard.writeText(profileUrl);
+      toast.success('Profile link copied to clipboard!');
+    }
+  }
 
   const handleLike = async (postId) => {
     if (!user) return;
@@ -272,16 +304,16 @@ const StudentProfile = () => {
 
   return (
     <>
-    <div className="max-w-4xl mx-auto space-y-6 pb-20">
-      <button 
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
-
+    <div className="max-w-4xl mx-auto space-y-6 sm:pb-20">
       {/* Header Profile Card */}
-      <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-card border-x-0 border-t-0 sm:border border-border/50 rounded-none sm:rounded-2xl overflow-hidden shadow-sm relative">
+        <button 
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors flex items-center justify-center"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        
         <div className="h-40 sm:h-48 bg-muted relative">
           {student.coverPhoto ? (
             <img 
@@ -296,90 +328,111 @@ const StudentProfile = () => {
         </div>
         
         <div className="px-4 sm:px-6 pb-6 relative">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-end mb-4">
-            <div className="relative -mt-16 sm:-mt-20 shrink-0">
-              <img 
-                src={student.imageUrl || student.image || getAvatarFallback()} 
-                alt={student.firstName || student.name} 
-                className={`w-24 h-24 sm:w-40 sm:h-40 rounded-2xl object-cover border-4 border-card relative z-10 bg-card shadow-md transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
-                onClick={isLocked ? undefined : () => setViewerData({ files: [student.imageUrl || student.image || getAvatarFallback()], index: 0 })}
-              />
-            </div>
-            <div className="flex-1 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 sm:pt-0">
-              <div>
-                <h1 className="text-xl sm:text-3xl font-bold text-foreground">{student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name}</h1>
-                <p className="text-xs sm:text-base text-primary font-medium mt-0.5 sm:mt-1">{student.course}</p>
-                <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground mt-1.5 sm:mt-2">
-                  <MapPin className="w-3.5 h-3.5" /> <span>{student.location || 'Location not specified'}</span>
-                  {student.dateOfBirth && student.ageVisibility === 'public' && (
-                    <>
-                      <span className="mx-1">&bull;</span>
-                      <span>{Math.floor((new Date() - new Date(student.dateOfBirth).getTime()) / 3.15576e+10)} years old</span>
-                    </>
-                  )}
-                  {student.gender && student.gender !== 'Prefer not to say' && (
-                    <>
-                      <span className="mx-1">&bull;</span>
-                      <span>{student.gender}</span>
-                    </>
-                  )}
-                  <span className="mx-1">&bull;</span> <Calendar className="w-3.5 h-3.5" /> <span>Joined recently</span>
-                </div>
+          <div className="flex flex-col gap-5 sm:gap-6">
+            
+            {/* Top Row: Avatar and Actions */}
+            <div className="flex justify-between items-end w-full -mt-16 sm:-mt-20 relative z-10">
+              <div className="shrink-0">
+                <img 
+                  src={student.imageUrl || student.image || getAvatarFallback()} 
+                  alt={student.firstName || student.name} 
+                  className={`w-24 h-24 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-card bg-card shadow-md transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+                  onClick={isLocked ? undefined : () => setViewerData({ files: [student.imageUrl || student.image || getAvatarFallback()], index: 0 })}
+                />
               </div>
-              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              
+              {/* Action Buttons on Right */}
+              <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-end mb-2 sm:mb-4">
+                <button
+                  onClick={handleShare}
+                  className="bg-background border border-border/50 text-foreground hover:bg-muted p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <Share2 className="w-4 h-4" /> <span className="hidden sm:inline">Share</span>
+                </button>
+                
                 {connectionStatus === 'none' && !isOwner && (
                   <button 
-                    onClick={() => setIsConnectModalOpen(true)}
-                    className="flex-1 sm:flex-none bg-primary/10 text-primary hover:bg-primary/20 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
+                    onClick={() => {
+                      if (!user) {
+                        toast.error('Please login to connect');
+                        navigate('/login');
+                      } else {
+                        setIsConnectModalOpen(true);
+                      }
+                    }}
+                    className="bg-primary/10 text-primary hover:bg-primary/20 p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
                   >
-                    <UserPlus className="w-4 h-4" /> Connect
+                    <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Connect</span>
                   </button>
                 )}
+                
                 {connectionStatus === 'pending' && !isOwner && (
                   <button 
                     onClick={handleCancelRequest}
                     disabled={isConnecting}
-                    className="flex-1 sm:flex-none bg-amber-500/10 text-amber-500 hover:text-rose-500 hover:bg-rose-500/10 border border-amber-500/20 hover:border-rose-500/30 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm transition-colors group"
+                    className="bg-amber-500/10 text-amber-500 hover:text-rose-500 hover:bg-rose-500/10 border border-amber-500/20 hover:border-rose-500/30 p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm transition-colors"
                   >
-                    {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span className="group-hover:hidden flex items-center gap-1.5 sm:gap-2"><Clock className="w-4 h-4" /> Pending</span><span className="hidden group-hover:flex items-center gap-1.5 sm:gap-2"><X className="w-4 h-4" /> Unsend</span></>}
+                    {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><X className="w-4 h-4" /> <span className="hidden sm:inline">Unsend</span></>}
                   </button>
                 )}
+                
                 {connectionStatus === 'accepted' && (
                   <button 
                     onClick={handleUnfriend}
-                    className="flex-1 sm:flex-none bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
+                    className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
                   >
-                    <X className="w-4 h-4" /> Remove
+                    <X className="w-4 h-4" /> <span className="hidden sm:inline">Remove</span>
                   </button>
                 )}
 
-                {!isLocked && (
+                {connectionStatus === 'accepted' && (
                   <>
                     <button 
-                      onClick={() => navigate(`/mentor-dashboard/messages?userId=${student.clerkId || student._id}`)}
-                      className="flex-1 sm:flex-none bg-background border border-border/50 text-foreground hover:bg-muted px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
+                      onClick={() => navigate(`/messages?user=${student.clerkId}`)}
+                      className="bg-background border border-border/50 hover:bg-muted text-foreground p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
                     >
-                      <MessageSquare className="w-4 h-4" /> Message
+                      <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
                     </button>
+                    
                     <button 
                       onClick={() => {
-                        const studentName = student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : student.name;
-                        window.dispatchEvent(new CustomEvent('initiate_call', {
+                        window.dispatchEvent(new CustomEvent('open-video-call', { 
                           detail: { 
-                            targetPartner: { 
-                              clerkId: student.clerkId || student._id, 
-                              name: studentName, 
+                            userToCall: {
+                              id: student.clerkId,
+                              name: `${student.firstName} ${student.lastName}`,
                               image: student.imageUrl || student.image 
                             }, 
                             type: 'video' 
                           }
                         }))
                       }}
-                      className="flex-1 sm:flex-none bg-green-500/10 text-green-500 hover:bg-green-500/20 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
+                      className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm flex-1 sm:flex-none justify-center"
                     >
                       <Video className="w-4 h-4" /> Video Call
                     </button>
                   </>
+                )}
+              </div>
+            </div>
+            
+            {/* User Info Stack */}
+            <div className="mt-2 flex flex-col gap-1.5 text-left w-full">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">
+                {student?.firstName && student?.lastName ? `${student.firstName} ${student.lastName}` : (student?.name || student?.username || 'Student')}
+              </h1>
+              <p className="text-sm sm:text-base font-semibold text-primary">{student?.headline || 'Student'}</p>
+              
+              <div className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {student?.location || 'Location not specified'}
+                </span>
+                {student?.address && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {student.address}
+                  </span>
                 )}
               </div>
             </div>

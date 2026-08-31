@@ -59,7 +59,7 @@ const DashboardLayout = () => {
         navigate('/login', { replace: true })
       } else if (user) {
         const role = sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || user.unsafeMetadata?.role
-        if (role === 'mentor') {
+        if (role === 'mentor' && !location.pathname.startsWith('/profile')) {
           const subPath = location.pathname.replace(/^\/dashboard\/?/, '/');
           navigate(`/mentor-dashboard${subPath === '/' ? '' : subPath}`, { replace: true })
         }
@@ -231,7 +231,7 @@ const DashboardLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
+        <header className={`sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
           <div className="flex items-center gap-4 flex-1">
             <button
               className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
@@ -276,7 +276,7 @@ const DashboardLayout = () => {
                           <button
                             key={mentor.id}
                             onClick={() => {
-                              navigate(`/dashboard/mentor/${mentor.id}`)
+                              navigate(`/profile/${mentor.username || mentor.id}`)
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
@@ -379,7 +379,14 @@ const DashboardLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className={`flex-1 ${location.pathname.includes('/messages') ? 'p-0 sm:p-6 md:p-8' : 'p-3 sm:p-6 md:p-8'} min-w-0`}>
+        <main className={`flex-1 ${
+          location.pathname.includes('/messages') || 
+          location.pathname.includes('/profile') || 
+          location.pathname.includes('/mentor/') || 
+          location.pathname.includes('/student/') 
+            ? 'p-0 sm:p-6 md:p-8' 
+            : 'p-3 sm:p-6 md:p-8'
+        } min-w-0`}>
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>
               <StudentProfileGuard>

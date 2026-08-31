@@ -111,7 +111,7 @@ const MentorSpotlight = () => {
                       navigate('/login')
                       return
                     }
-                    navigate(`/dashboard/mentor/${mentor._id}`)
+                    navigate(`/profile/${mentor.username || mentor.clerkId || mentor._id}`)
                   }}
                   className="w-full bg-foreground text-background py-3 rounded-xl font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
                 >

@@ -80,10 +80,10 @@ const MentorDashboardLayout = () => {
         navigate('/login', { replace: true })
       } else if (user) {
         const role = sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || user.unsafeMetadata?.role
-        if (role === 'student' || role === 'user' || role === 'alumni') {
+        if ((role === 'student' || role === 'user' || role === 'alumni') && !location.pathname.startsWith('/profile')) {
           const subPath = location.pathname.replace(/^\/mentor-dashboard\/?/, '/');
           navigate(`/dashboard${subPath === '/' ? '' : subPath}`, { replace: true })
-        } else if (!isLoadingProfile && role === 'mentor') {
+        } else if (!isLoadingProfile && role === 'mentor' && !location.pathname.startsWith('/profile')) {
           const allowedPaths = ['/mentor-dashboard', '/mentor-dashboard/settings', '/mentor-dashboard/profile'];
           if (isLocked && !allowedPaths.includes(location.pathname)) {
             toast.error('Please complete at least 80% of your profile to access this feature.', { id: 'mentor-locked-guard' });
@@ -244,7 +244,7 @@ const MentorDashboardLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
+        <header className={`sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
           <div className="flex items-center gap-4 flex-1">
             <button 
               className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
@@ -368,7 +368,14 @@ const MentorDashboardLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className={`flex-1 ${location.pathname.includes('/messages') ? 'p-0 sm:p-6 md:p-8' : 'p-3 sm:p-6 md:p-8'} min-w-0`}>
+        <main className={`flex-1 ${
+          location.pathname.includes('/messages') || 
+          location.pathname.includes('/profile') || 
+          location.pathname.includes('/mentor/') || 
+          location.pathname.includes('/student/') 
+            ? 'p-0 sm:p-6 md:p-8' 
+            : 'p-3 sm:p-6 md:p-8'
+        } min-w-0`}>
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>
               <Outlet />

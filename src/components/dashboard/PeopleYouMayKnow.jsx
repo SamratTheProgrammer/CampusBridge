@@ -42,11 +42,8 @@ const PeopleYouMayKnow = () => {
   const [isDiscoverLoading, setIsDiscoverLoading] = useState(false);
 
   // Helper to determine proper profile route
-  const getProfilePath = (targetClerkId, targetRole) => {
-    const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
-    const base = ['mentor', 'alumni'].includes(role?.toLowerCase()) ? '/mentor-dashboard' : '/dashboard';
-    const targetType = ['mentor', 'alumni'].includes(targetRole?.toLowerCase()) ? 'mentor' : 'student';
-    return `${base}/${targetType}/${targetClerkId}`;
+  const getProfilePath = (target) => {
+    return `/profile/${target.username || target.clerkId || target._id}`;
   };
 
   // Fetch initial suggestions for carousel
@@ -235,7 +232,7 @@ const PeopleYouMayKnow = () => {
         {suggestions.map((item) => {
           const status = connectionStates[item.clerkId] || 'none';
           const isMentor = ['mentor', 'alumni'].includes(item.role?.toLowerCase());
-          const profileLink = getProfilePath(item.clerkId, item.role);
+          const profileLink = getProfilePath(item);
 
           return (
             <div
@@ -431,7 +428,7 @@ const PeopleYouMayKnow = () => {
                     {discoverResults.map((item) => {
                       const status = connectionStates[item.clerkId] || item.connectionStatus || 'none';
                       const isMentor = ['mentor', 'alumni'].includes(item.role?.toLowerCase());
-                      const profileLink = getProfilePath(item.clerkId, item.role);
+                      const profileLink = getProfilePath(item);
 
                       return (
                         <div

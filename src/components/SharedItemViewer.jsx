@@ -132,9 +132,7 @@ const SharedItemViewer = () => {
     if (user?.id === data.authorClerkId) {
       navigate(user?.publicMetadata?.role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
     } else {
-      const isTargetMentor = data.author?.role?.toLowerCase() === 'mentor' || data.author?.role?.toLowerCase() === 'alumni';
-      const basePath = user?.publicMetadata?.role === 'mentor' ? '/mentor-dashboard' : '/dashboard';
-      navigate(`${basePath}/${isTargetMentor ? 'mentor' : 'student'}/${data.authorClerkId}`);
+      navigate(`/profile/${data.author?.username || data.authorClerkId}`);
     }
   };
 

@@ -27,6 +27,7 @@ const populateUserDetails = async (connections, currentUserId) => {
         university: targetUser.education?.[0]?.institution || targetUser.company || 'CampusBridge',
         interest: targetUser.skills?.[0] || targetUser.headline || 'Member',
         image: targetUser.imageUrl || targetUser.image,
+        username: targetUser.username,
         role: targetUser.role || 'student'
       } : { name: 'User' }
     };
@@ -238,6 +239,7 @@ router.get('/suggestions/:clerkId', async (req, res) => {
       role: u.role || defaultRole,
       headline: u.headline || u.bio || `${u.role || defaultRole} at CampusBridge`,
       image: u.imageUrl || u.image || null,
+      username: u.username,
       institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
       skills: u.skills || u.expertise || []
     });
@@ -326,6 +328,7 @@ router.get('/discover/:clerkId', async (req, res) => {
         role: u.role || 'student',
         headline: u.headline || u.bio || `${u.role || 'Student'} at CampusBridge`,
         image: u.imageUrl || u.image || null,
+        username: u.username,
         institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
         skills: u.skills || u.expertise || [],
         connectionStatus,

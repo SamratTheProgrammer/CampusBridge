@@ -20,6 +20,7 @@ import IndependenceDayConfetti from './components/IndependenceDayConfetti'
 import HoliSplashAnimation from './components/HoliSplashAnimation'
 import DiwaliFireworks from './components/DiwaliFireworks'
 import SessionManager from './components/SessionManager'
+import { DynamicLayoutWrapper, ProfileDispatcher } from './components/UnifiedProfileRoute'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -123,7 +124,11 @@ function AnimatedRoutes() {
         <Route path="/otp" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><OTPVerification /></main><Footer /></div></PageTransition>} />
         <Route path="/sso-callback" element={<SSOCallback />} />
         <Route path="/sync-user" element={<SyncUser />} />
-        <Route path="/u/:id" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1 bg-background pt-20 pb-10"><StudentProfile /></main><Footer /></div></PageTransition>} />
+        
+        {/* Unified Profile Routes */}
+        <Route path="/profile" element={<PageTransition><DynamicLayoutWrapper /></PageTransition>}>
+          <Route path=":username" element={<ProfileDispatcher />} />
+        </Route>
 
         {/* Authenticated Dashboard Routes */}
         <Route element={<ProtectedRoute allowedRoles={['student', 'user', 'alumni']} />}>
@@ -131,8 +136,6 @@ function AnimatedRoutes() {
             <Route index element={<DashboardHome />} />
             <Route path="profile" element={<MyProfile />} />
             <Route path="mentor" element={<MentorDirectory />} />
-            <Route path="mentor/:id" element={<MentorProfile />} />
-            <Route path="student/:id" element={<StudentProfile />} />
             <Route path="mentor/:id/book" element={<BookSession />} />
             <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
             <Route path="mentorship" element={<MentorshipRequests />} />
@@ -145,6 +148,7 @@ function AnimatedRoutes() {
             <Route path="saved" element={<Saved />} />
             <Route path="network" element={<MyNetwork />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="profile/:username" element={<ProfileDispatcher />} />
           </Route>
         </Route>
 
@@ -156,8 +160,6 @@ function AnimatedRoutes() {
             <Route path="mentees" element={<MyMentees />} />
             <Route path="requests" element={<MentorRequests />} />
             <Route path="network" element={<MyNetwork />} />
-            <Route path="student/:id" element={<StudentProfile />} />
-            <Route path="mentor/:id" element={<MentorProfile />} />
             <Route path="jobs" element={<MentorJobs />} />
             <Route path="sessions" element={<MentorSessions />} />
             <Route path="events" element={<MentorSessions />} />
@@ -165,6 +167,7 @@ function AnimatedRoutes() {
             <Route path="messages" element={<MentorMessages />} />
             <Route path="analytics" element={<MentorAnalytics />} />
             <Route path="settings" element={<MentorSettings />} />
+            <Route path="profile/:username" element={<ProfileDispatcher />} />
           </Route>
         </Route>
 

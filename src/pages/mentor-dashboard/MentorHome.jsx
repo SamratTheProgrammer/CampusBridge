@@ -703,10 +703,8 @@ const MentorHome = () => {
                           onClick={() => {
                             if (post.authorClerkId === user?.id) {
                               navigate('/mentor-dashboard/profile');
-                            } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
-                              navigate(`/mentor-dashboard/mentor/${post.authorClerkId}`);
                             } else {
-                              navigate(`/mentor-dashboard/student/${post.authorClerkId}`);
+                              navigate(`/profile/${post.author?.username || post.authorClerkId}`);
                             }
                           }}
                         />
@@ -716,10 +714,8 @@ const MentorHome = () => {
                             onClick={() => {
                               if (post.authorClerkId === user?.id) {
                                 navigate('/mentor-dashboard/profile');
-                              } else if (post.author?.role?.toLowerCase() === 'mentor' || post.author?.role?.toLowerCase() === 'alumni') {
-                                navigate(`/mentor-dashboard/mentor/${post.authorClerkId}`);
                               } else {
-                                navigate(`/mentor-dashboard/student/${post.authorClerkId}`);
+                                navigate(`/profile/${post.author?.username || post.authorClerkId}`);
                               }
                             }}
                           >
@@ -995,12 +991,12 @@ const MentorHome = () => {
                   src={req.targetUser?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.targetUser?.name}`} 
                   alt={req.targetUser?.name} 
                   className="w-10 h-10 rounded-full object-cover shrink-0 cursor-pointer"
-                  onClick={() => navigate(req.targetUser?.role === 'mentor' || req.targetUser?.role === 'alumni' ? `/mentor-dashboard/mentor/${req.requesterClerkId}` : `/mentor-dashboard/student/${req.requesterClerkId}`)}
+                  onClick={() => navigate(`/profile/${req.targetUser?.username || req.requesterClerkId}`)}
                 />
                 <div className="flex-1">
                   <h4 
                     className="font-semibold text-sm text-foreground leading-tight cursor-pointer hover:underline"
-                    onClick={() => navigate(req.targetUser?.role === 'mentor' || req.targetUser?.role === 'alumni' ? `/mentor-dashboard/mentor/${req.requesterClerkId}` : `/mentor-dashboard/student/${req.requesterClerkId}`)}
+                    onClick={() => navigate(`/profile/${req.targetUser?.username || req.requesterClerkId}`)}
                   >
                     {req.targetUser?.name || 'Student'}
                   </h4>

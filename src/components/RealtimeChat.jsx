@@ -7,6 +7,15 @@ import toast from 'react-hot-toast';
 import EmojiPicker from 'emoji-picker-react';
 import { getPdfViewUrl } from '../utils/pdfViewer';
 import API_BASE from '../utils/api'
+import { isToday, isYesterday, format } from 'date-fns';
+
+const formatMessageDateSeparator = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isToday(date)) return 'Today';
+  if (isYesterday(date)) return 'Yesterday';
+  return format(date, 'MMMM d, yyyy');
+};
 
 
 const THEMES = [
@@ -591,11 +600,7 @@ const RealtimeChat = () => {
   // View Profile
   const viewPartnerProfile = () => {
     if (!activeContact) return;
-    if (activeContact.role?.toLowerCase().includes('mentor')) {
-      navigate(`/dashboard/mentor/${activeContact.clerkId}`);
-    } else {
-      navigate(`/dashboard/student/${activeContact.clerkId}`);
-    }
+    navigate(`/profile/${activeContact.username || activeContact.clerkId}`);
     setShowMoreMenu(false);
   };
 
@@ -904,13 +909,27 @@ const RealtimeChat = () => {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
             ) : messages.length > 0 ? (
-              messages.map((msg) => {
+              messages.map((msg, index) => {
                 const isMe = msg.senderClerkId === user?.id;
+                
+                const currentMsgDate = new Date(msg.createdAt).toDateString();
+                const prevMsgDate = index > 0 ? new Date(messages[index - 1].createdAt).toDateString() : null;
+                const showDateSeparator = currentMsgDate !== prevMsgDate;
+
+                const renderDateSeparator = showDateSeparator && (
+                  <div className="flex justify-center my-4">
+                    <span className="bg-muted text-muted-foreground text-[10px] sm:text-xs font-semibold px-3 py-1 rounded-full shadow-sm border border-border/50">
+                      {formatMessageDateSeparator(msg.createdAt)}
+                    </span>
+                  </div>
+                );
                 
                 if (msg.type === 'call_log') {
                   const isMissed = msg.callInfo?.status === 'missed' || msg.callInfo?.status === 'rejected';
                   return (
-                    <div key={msg._id || Math.random()} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <React.Fragment key={msg._id || Math.random()}>
+                      {renderDateSeparator}
+                      <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className={`flex items-center gap-3 p-3 rounded-2xl border text-xs max-w-[85%] sm:max-w-[70%] shadow-sm ${
                         isMissed
                           ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
@@ -937,11 +956,14 @@ const RealtimeChat = () => {
                         </button>
                       </div>
                     </div>
+                    </React.Fragment>
                   );
                 }
 
                 return (
-                  <div key={msg._id || Math.random()} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
+                  <React.Fragment key={msg._id || Math.random()}>
+                    {renderDateSeparator}
+                    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
                       <div className={`flex items-start gap-2 max-w-[85%] sm:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                       {/* Message Bubble Context Menu */}
                       <div className={`relative opacity-50 hover:opacity-100 transition-opacity flex items-center ${isMe ? 'pr-2' : 'pl-2'} mt-2`}>
@@ -1061,7 +1083,8 @@ const RealtimeChat = () => {
                       </div>
                     </div>
                   </div>
-                );
+                </React.Fragment>
+              );
               })
             ) : (
               <div className="text-center py-12 text-muted-foreground">
