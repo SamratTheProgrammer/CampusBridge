@@ -10,8 +10,7 @@ const AdminLogin = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [role, setRole] = useState('super-admin')
-  const [rememberMe, setRememberMe] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -29,7 +28,7 @@ const AdminLogin = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, password, role })
+        body: JSON.stringify({ email, password, role: 'super-admin' })
       })
 
       const data = await response.json()
@@ -38,11 +37,41 @@ const AdminLogin = () => {
         throw new Error(data.message || 'Invalid admin credentials')
       }
 
+      // Fetch public settings for dynamic session timeout
+      let timeoutValue = 60;
+      let timeoutUnit = 'days';
+      try {
+        const settingsRes = await fetch(`${API_BASE}/api/settings/public`);
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          if (settingsData.success && settingsData.securitySettings) {
+             timeoutValue = settingsData.securitySettings.sessionTimeoutValue || 60;
+             timeoutUnit = settingsData.securitySettings.sessionTimeoutUnit || 'days';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch settings for session timeout', err);
+      }
+
+      let expiryTime = null;
+      if (timeoutUnit !== 'never') {
+        const now = new Date();
+        if (timeoutUnit === 'days') now.setDate(now.getDate() + parseInt(timeoutValue));
+        if (timeoutUnit === 'months') now.setMonth(now.getMonth() + parseInt(timeoutValue));
+        expiryTime = now.getTime();
+      }
+
       const storage = rememberMe ? localStorage : sessionStorage;
       storage.setItem('adminToken', data.token)
       storage.setItem('adminUser', JSON.stringify(data.user))
+      
+      if (expiryTime) {
+        storage.setItem('adminTokenExpiry', expiryTime.toString());
+      } else {
+        storage.removeItem('adminTokenExpiry');
+      }
 
-      toast.success(data.message || `Successfully logged in as ${role.replace('-', ' ')}`)
+      toast.success(data.message || `Successfully logged in`)
       navigate('/admin')
     } catch (error) {
       console.error('Admin authentication error:', error)
@@ -76,22 +105,7 @@ const AdminLogin = () => {
 
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="space-y-4">
-            {/* Role Select */}
-            <div>
-              <label htmlFor="role" className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Admin Role
-              </label>
-              <select
-                id="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-4 py-3 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all appearance-none cursor-pointer"
-              >
-                <option value="super-admin">Super Admin</option>
-                <option value="moderator">Moderator</option>
-                <option value="editor">Editor</option>
-              </select>
-            </div>
+
 
             {/* Email Input */}
             <div>
@@ -150,7 +164,7 @@ const AdminLogin = () => {
                 className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
               />
               <label htmlFor="remember-me" className="ml-2 text-muted-foreground cursor-pointer select-none">
-                Remember device
+                Remember me
               </label>
             </div>
           </div>

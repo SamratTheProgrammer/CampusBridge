@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { 
   Shield, 
   LayoutDashboard, 
@@ -43,11 +44,30 @@ const AdminLayout = () => {
     setIsMobileSidebarOpen(false)
   }, [location.pathname])
 
-  // Protect Admin Layout: Redirect to /admin/login if no adminToken exists
+  // Protect Admin Layout: Redirect to /admin/login if no adminToken exists or if session expired
   useEffect(() => {
     const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken')
+    const expiry = localStorage.getItem('adminTokenExpiry') || sessionStorage.getItem('adminTokenExpiry')
+
     if (!token) {
       navigate('/admin/login', { replace: true })
+      return
+    }
+
+    if (expiry) {
+      const expiryTime = parseInt(expiry, 10);
+      if (new Date().getTime() > expiryTime) {
+        // Session expired
+        localStorage.removeItem('adminToken')
+        localStorage.removeItem('adminUser')
+        localStorage.removeItem('adminTokenExpiry')
+        sessionStorage.removeItem('adminToken')
+        sessionStorage.removeItem('adminUser')
+        sessionStorage.removeItem('adminTokenExpiry')
+        toast.error('Session expired. Please log in again.')
+        navigate('/admin/login', { replace: true })
+        return
+      }
     }
   }, [navigate])
 
@@ -70,8 +90,10 @@ const AdminLayout = () => {
   const handleLogout = () => {
     localStorage.removeItem('adminToken')
     localStorage.removeItem('adminUser')
+    localStorage.removeItem('adminTokenExpiry')
     sessionStorage.removeItem('adminToken')
     sessionStorage.removeItem('adminUser')
+    sessionStorage.removeItem('adminTokenExpiry')
     toast.success('Admin logged out successfully')
     navigate('/admin/login')
   }
