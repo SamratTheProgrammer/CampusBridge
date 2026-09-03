@@ -5,6 +5,7 @@ import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import { formatConnectionTime } from '../../utils/dateFormatter'
 
 const MyMentees = () => {
   const navigate = useNavigate();
@@ -155,6 +156,7 @@ const MyMentees = () => {
               <h3 className="font-bold text-foreground text-base sm:text-lg truncate">{mentee.name}</h3>
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{mentee.course}</p>
               <p className="text-[10px] font-medium text-foreground/70 uppercase tracking-widest mt-1 truncate">{mentee.university}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{formatConnectionTime(mentee.createdAt)}</p>
 
               <div className="flex flex-wrap gap-1.5 justify-center mt-3 sm:mt-4">
                 {mentee.skills.map((skill, index) => (

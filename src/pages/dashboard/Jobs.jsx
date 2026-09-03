@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, MapPin, Briefcase, Filter, Loader2, Calendar, Share2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { formatDistanceToNow } from 'date-fns'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
+import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import API_BASE from '../../utils/api'
 import ShareModal from '../../components/modals/ShareModal'
 
@@ -157,7 +157,7 @@ const Jobs = () => {
 
               <div className="pt-4 border-t border-border/40 flex items-center justify-between mt-auto">
                 <span className="text-xs text-muted-foreground">
-                  Posted {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
+                  Posted {formatPendingRequestTime(job.createdAt)}
                 </span>
                 <div className="flex items-center gap-3">
                   <button 

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Calendar, Clock, MapPin, Users, Link as LinkIcon, Search, Loader2, X, Edit, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
-import { formatDistanceToNow, format } from 'date-fns'
+import { format } from 'date-fns'
+import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import API_BASE from '../../utils/api'
@@ -290,7 +291,7 @@ const MentorEvents = () => {
 
               <div className="flex items-center justify-between pt-4 border-t border-border/50">
                 <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                  Created {formatDistanceToNow(new Date(event.createdAt), { addSuffix: true })}
+                  Created {formatPendingRequestTime(event.createdAt)}
                 </span>
                 <div className="flex gap-2">
                   <button 
@@ -557,7 +558,7 @@ const MentorEvents = () => {
                           </div>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(app.createdAt), { addSuffix: true })}
+                          {formatPendingRequestTime(app.createdAt)}
                         </span>
                       </div>
                     ))}

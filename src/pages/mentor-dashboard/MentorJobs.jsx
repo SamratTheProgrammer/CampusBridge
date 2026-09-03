@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Briefcase, MapPin, DollarSign, Building2, Users, Search, Loader2, Clock, ChevronDown, X, Edit2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
-import { formatDistanceToNow, format } from 'date-fns'
+import { format } from 'date-fns'
+import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
@@ -440,7 +441,7 @@ const MentorJobs = () => {
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
                 <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5" /> 
-                  Posted {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
+                  Posted {formatPendingRequestTime(job.createdAt)}
                 </span>
                 <div className="flex gap-3 items-center">
                   <button 
@@ -631,7 +632,7 @@ const MentorJobs = () => {
                             </div>
                           )}
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-muted-foreground">Applied {formatDistanceToNow(new Date(app.createdAt), { addSuffix: true })}</p>
+                            <p className="text-xs text-muted-foreground">Applied {formatPendingRequestTime(app.createdAt)}</p>
                             <a 
                               href={getPdfViewUrl(app.resumeLink)} 
                               target="_blank" 

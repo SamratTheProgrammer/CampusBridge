@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { MessageSquare, UserPlus, CheckCircle, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { MessageSquare, UserPlus, CheckCircle, ChevronLeft, ChevronRight, Clock, Loader2, X } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
+import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 
 const FeaturedMentor = () => {
@@ -12,6 +13,7 @@ const FeaturedMentor = () => {
   const { user, isLoaded } = useUser()
   const navigate = useNavigate()
   const carouselRef = useRef(null)
+  const [isConnecting, setIsConnecting] = useState(null)
 
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
@@ -72,6 +74,35 @@ const FeaturedMentor = () => {
       return
     }
     navigate(`/profile/${mentorUsername || mentorId}`)
+  }
+
+  const handleUnsendRequest = async (mentorId) => {
+    if (!user) return
+    setIsConnecting(mentorId)
+    try {
+      const res = await fetch(`${API_BASE}/api/connections/request`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderClerkId: user.id,
+          targetClerkId: mentorId
+        })
+      })
+      if (res.ok) {
+        toast.success('Connection request cancelled')
+        setConnections(prev => {
+          const next = { ...prev }
+          delete next[mentorId]
+          return next
+        })
+      } else {
+        toast.error('Failed to cancel request')
+      }
+    } catch (err) {
+      toast.error('Network error')
+    } finally {
+      setIsConnecting(null)
+    }
   }
 
   const handleViewAll = () => {
@@ -209,8 +240,12 @@ const FeaturedMentor = () => {
                         <CheckCircle className="w-4 h-4" /> Connected
                       </button>
                     ) : isPending ? (
-                      <button disabled className="flex-1 bg-muted text-muted-foreground py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-default">
-                        <Clock className="w-4 h-4" /> Pending
+                      <button 
+                        onClick={() => handleUnsendRequest(mentorId)}
+                        disabled={isConnecting === mentorId}
+                        className="group flex-1 bg-muted/50 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      >
+                        {isConnecting === mentorId ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-4 h-4" /> Pending</span><span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5"><X className="w-4 h-4" /> Unsend</span></>}
                       </button>
                     ) : (
                       <button onClick={() => handleConnect(mentorId, person.username)} className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">

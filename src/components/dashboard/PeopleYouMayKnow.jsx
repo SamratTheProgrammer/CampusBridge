@@ -277,7 +277,7 @@ const PeopleYouMayKnow = () => {
                     disabled={isConnecting === item.clerkId}
                     className="w-full text-[10px] sm:text-xs font-semibold text-amber-500 hover:text-rose-500 border border-amber-500/30 hover:border-rose-500/30 bg-amber-500/10 hover:bg-rose-500/10 py-1.5 sm:py-2 rounded-lg sm:rounded-xl flex items-center justify-center gap-1 transition-colors group"
                   >
-                    {isConnecting === item.clerkId ? <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" /> : <><span className="group-hover:hidden flex items-center gap-1"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Sent</span><span className="hidden group-hover:flex items-center gap-1"><X className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Unsend</span></>}
+                    {isConnecting === item.clerkId ? <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" /> : <><span className="hidden sm:flex sm:group-hover:hidden items-center gap-1"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Sent</span><span className="flex sm:hidden sm:group-hover:flex items-center gap-1"><X className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Unsend</span></>}
                   </button>
                 ) : status === 'accepted' ? (
                   <button
@@ -489,7 +489,7 @@ const PeopleYouMayKnow = () => {
                                   disabled={isConnecting === item.clerkId}
                                   className="w-full sm:w-32 text-xs sm:text-sm font-semibold text-amber-500 hover:text-rose-500 border border-amber-500/30 hover:border-rose-500/30 bg-amber-500/10 hover:bg-rose-500/10 py-2 sm:py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5 group shadow-sm"
                                 >
-                                  {isConnecting === item.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><span className="group-hover:hidden flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Sent</span><span className="hidden group-hover:flex items-center gap-1.5"><X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Unsend</span></>}
+                                  {isConnecting === item.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Sent</span><span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5"><X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Unsend</span></>}
                                 </button>
                               ) : status === 'accepted' ? (
                                 <button

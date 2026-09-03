@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import { formatConnectionTime, formatPendingRequestTime } from '../../utils/dateFormatter'
 
 const MyNetwork = () => {
   const { user } = useUser();
@@ -323,6 +324,9 @@ const MyNetwork = () => {
                             <p className="text-xs text-muted-foreground truncate mt-1 flex items-center gap-1">
                               <GraduationCap className="w-3.5 h-3.5 shrink-0" /> {target?.course}
                             </p>
+                            <p className="text-[10px] text-muted-foreground font-medium mt-1">
+                              {formatConnectionTime(conn.createdAt)}
+                            </p>
                           </div>
                         </div>
 
@@ -420,6 +424,9 @@ const MyNetwork = () => {
                             <p className="text-[11px] text-muted-foreground/80 mt-0.5 line-clamp-1 italic">
                               "{req.message || 'Wants to connect with you.'}"
                             </p>
+                            <p className="text-[10px] text-muted-foreground font-medium mt-1">
+                              {formatPendingRequestTime(req.createdAt)}
+                            </p>
                           </div>
                         </div>
 
@@ -510,48 +517,50 @@ const MyNetwork = () => {
               className="space-y-6"
             >
               {filteredDiscover.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredDiscover.map((item) => (
                     <div
                       key={item.clerkId}
-                      className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col items-center text-center space-y-4 hover:border-primary/40 transition-all hover:shadow-md"
+                      className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm flex items-center justify-between gap-4 hover:border-primary/40 transition-all hover:shadow-md"
                     >
-                      <Link to={`/profile/${item.username || item.clerkId}`}>
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-20 h-20 rounded-full object-cover ring-4 ring-primary/20 shadow-md"
-                        />
-                      </Link>
-
-                      <div className="space-y-1 w-full">
-                        <Link
-                          to={`/profile/${item.username || item.clerkId}`}
-                          className="font-bold text-base text-foreground hover:text-primary transition-colors block truncate"
-                        >
-                          {item.name}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Link to={`/profile/${item.username || item.clerkId}`}>
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
+                          />
                         </Link>
-                        <span className="text-xs font-semibold text-primary capitalize bg-primary/10 px-2.5 py-0.5 rounded-full inline-block">
-                          {item.role}
-                        </span>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-2">
-                          {item.headline}
-                        </p>
+                        
+                        <div className="min-w-0">
+                          <Link
+                            to={`/profile/${item.username || item.clerkId}`}
+                            className="font-bold text-sm text-foreground hover:text-primary transition-colors block truncate"
+                          >
+                            {item.name}
+                          </Link>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5 line-clamp-1">{item.headline}</p>
+                          <span className="text-[10px] font-semibold text-primary capitalize bg-primary/10 px-2 py-0.5 rounded-full inline-block mt-1">
+                            {item.role}
+                          </span>
+                        </div>
                       </div>
 
-                      <button
-                        onClick={() => handleSendRequest(item.clerkId, item.name)}
-                        disabled={isConnecting === item.clerkId}
-                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
-                      >
-                        {isConnecting === item.clerkId ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <>
-                            <UserPlus className="w-4 h-4" /> Connect
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center shrink-0">
+                        <button
+                          onClick={() => handleSendRequest(item.clerkId, item.name)}
+                          disabled={isConnecting === item.clerkId}
+                          className="p-2 md:px-4 md:py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          {isConnecting === item.clerkId ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <UserPlus className="w-4 h-4" /> <span className="hidden md:inline">Connect</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

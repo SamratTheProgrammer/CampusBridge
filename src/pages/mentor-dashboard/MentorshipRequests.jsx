@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, User, Calendar, MessageSquare, BookOpen, Loader2, Globe, MapPin, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
-import { formatDistanceToNow } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import API_BASE from '../../utils/api'
+import { formatPendingRequestTime } from '../../utils/dateFormatter'
 
 const MentorshipRequests = () => {
   const { user } = useUser()
@@ -125,7 +125,7 @@ const MentorshipRequests = () => {
                         <p className="text-xs text-muted-foreground">{conn.targetUser?.course || 'Student Profile'}</p>
                       </div>
                       <span className="text-[10px] text-muted-foreground">
-                        {conn.createdAt ? formatDistanceToNow(new Date(conn.createdAt), { addSuffix: true }) : ''}
+                        {formatPendingRequestTime(conn.createdAt)}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg">"{conn.message || 'I would like to connect with you.'}"</p>

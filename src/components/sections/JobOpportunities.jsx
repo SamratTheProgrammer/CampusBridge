@@ -3,9 +3,9 @@ import { MapPin, DollarSign, Clock, Building, ArrowUpRight } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
-import { formatDistanceToNow } from 'date-fns'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import API_BASE from '../../utils/api'
+import { formatPendingRequestTime } from '../../utils/dateFormatter'
 
 const JobOpportunities = () => {
   const [jobs, setJobs] = useState([])
@@ -61,7 +61,7 @@ const JobOpportunities = () => {
         <div className="flex flex-col gap-4">
           {jobs.map((job, index) => {
             const logo = getCompanyLogo(job.company, job.companyLogo)
-            const posted = job.createdAt ? formatDistanceToNow(new Date(job.createdAt), { addSuffix: true }) : 'Recently'
+            const posted = job.createdAt ? formatPendingRequestTime(job.createdAt) : 'Recently'
             
             return (
               <motion.div

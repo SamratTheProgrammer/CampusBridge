@@ -7,6 +7,7 @@ import { socket } from '../services/socket';
 import { ringtoneService } from '../utils/ringtone';
 import toast from 'react-hot-toast';
 import API_BASE from '../utils/api'
+import { formatTime } from '../utils/dateFormatter'
 
 const NotificationDropdown = () => {
   const { user } = useUser();
@@ -275,15 +276,6 @@ const NotificationDropdown = () => {
     }
   };
 
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffSec = Math.floor((now - date) / 1000);
-    if (diffSec < 60) return 'Just now';
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-    return `${Math.floor(diffSec / 86400)}d ago`;
-  };
 
   const getNotificationIcon = (type) => {
     switch (type) {

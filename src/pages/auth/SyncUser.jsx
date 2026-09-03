@@ -11,6 +11,11 @@ const SyncUser = () => {
   const syncAttempted = useRef(false);
 
   useEffect(() => {
+    if (isLoaded && !user) {
+      navigate('/login');
+      return;
+    }
+
     if (isLoaded && user && !syncAttempted.current) {
       syncAttempted.current = true;
       const savedRole = localStorage.getItem('sso_role') || 'student';

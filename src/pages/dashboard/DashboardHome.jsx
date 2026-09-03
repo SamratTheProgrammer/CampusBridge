@@ -7,6 +7,7 @@ import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
 import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
+import { formatTime } from '../../utils/dateFormatter'
 import { 
   Users, 
   FileText, 
@@ -532,16 +533,7 @@ const DashboardHome = () => {
 
 
 
-  const formatTime = (dateString) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInSeconds = Math.floor((now - date) / 1000)
-    
-    if (diffInSeconds < 60) return 'Just now'
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`
-    return `${Math.floor(diffInSeconds / 86400)}d`
-  }
+
 
   const renderLikesText = (likes) => {
     if (!likes || likes.length === 0) return '0 likes'
@@ -1128,8 +1120,8 @@ const DashboardHome = () => {
                           className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted hover:bg-muted/80 px-3 py-1 rounded-full flex items-center gap-1 transition-colors group">
                           {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : (
                             <>
-                              <span className="group-hover:hidden flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
-                              <span className="hidden group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
+                              <span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
+                              <span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
                             </>
                           )}
                         </button>

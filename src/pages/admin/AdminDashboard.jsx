@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { 
-  Users, 
-  UserCheck, 
-  HelpingHand, 
-  Briefcase, 
-  GraduationCap, 
-  Calendar, 
-  MessageSquare, 
-  Clock, 
-  TrendingUp, 
-  TrendingDown, 
-  ArrowUpRight,
-  Loader2
-} from 'lucide-react'
+import { Users, BookOpen, Clock, Activity, TrendingUp, TrendingDown, MoreVertical, GraduationCap, UserCheck, Briefcase, Calendar, HelpingHand, MessageSquare, Loader2 } from 'lucide-react'
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import API_BASE from '../../utils/api'
 
 const AdminDashboard = () => {
@@ -127,46 +115,30 @@ const AdminDashboard = () => {
             </select>
           </div>
 
-          {/* SVG Wave Line Chart */}
-          <div className="h-64 relative flex items-end">
-            <svg viewBox="0 0 500 200" className="w-full h-full text-primary">
-              <defs>
-                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.2"/>
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.0"/>
-                </linearGradient>
-              </defs>
-              {/* Grid Lines */}
-              <line x1="0" y1="50" x2="500" y2="50" stroke="hsl(var(--border))" strokeDasharray="4 4" strokeWidth="0.5" />
-              <line x1="0" y1="100" x2="500" y2="100" stroke="hsl(var(--border))" strokeDasharray="4 4" strokeWidth="0.5" />
-              <line x1="0" y1="150" x2="500" y2="150" stroke="hsl(var(--border))" strokeDasharray="4 4" strokeWidth="0.5" />
-              {/* Gradient Area */}
-              <path 
-                d="M0,180 Q60,110 120,130 T240,80 T360,110 T500,50 L500,200 L0,200 Z" 
-                fill="url(#chartGrad)" 
-              />
-              {/* Stroke Line */}
-              <path 
-                d="M0,180 Q60,110 120,130 T240,80 T360,110 T500,50" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="3.5" 
-                strokeLinecap="round"
-              />
-              {/* Interactive Dots */}
-              <circle cx="120" cy="130" r="5" className="fill-primary stroke-card stroke-2" />
-              <circle cx="240" cy="80" r="5" className="fill-primary stroke-card stroke-2" />
-              <circle cx="500" cy="50" r="5" className="fill-primary stroke-card stroke-2" />
-            </svg>
-            
-            {/* Chart Labels */}
-            <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2">
-              <span>May 1</span>
-              <span>May 8</span>
-              <span>May 15</span>
-              <span>May 22</span>
-              <span>May 31</span>
-            </div>
+          {/* Recharts Area Chart */}
+          <div className="h-64 mt-6">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={[
+                { name: 'May 1', users: 120 },
+                { name: 'May 8', users: 210 },
+                { name: 'May 15', users: 180 },
+                { name: 'May 22', users: 300 },
+                { name: 'May 31', users: 400 },
+              ]} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))', fontWeight: 'bold' }} dy={10} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}
+                  itemStyle={{ color: 'hsl(var(--primary))' }}
+                />
+                <Area type="monotone" dataKey="users" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#chartGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Filter, MapPin, ChevronLeft, ChevronRight, Loader2, UserPlus, CheckCircle2, Clock, MessageSquare, User, Calendar as CalendarIcon } from 'lucide-react'
+import { Search, Filter, MapPin, ChevronLeft, ChevronRight, Loader2, UserPlus, CheckCircle2, Clock, MessageSquare, User, Calendar as CalendarIcon, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -227,7 +227,7 @@ const MentorDirectory = () => {
                               disabled={isConnecting === mentor.clerkId}
                               className="text-xs font-medium text-amber-500 hover:text-rose-500 border border-amber-500/20 hover:border-rose-500/30 hover:bg-rose-500/10 bg-amber-500/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1 group"
                             >
-                              {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : <><span className="group-hover:hidden">Request Sent ⏳</span><span className="hidden group-hover:inline">Unsend ✖</span></>}
+                              {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : <><span className="hidden sm:inline sm:group-hover:hidden">Request Sent ⏳</span><span className="inline sm:hidden sm:group-hover:inline">Unsend ✖</span></>}
                             </button>
                           ) : connections[mentor.clerkId] === 'accepted' ? (
                             <button disabled className="text-xs font-medium text-green-500 border border-green-500/20 bg-green-500/10 px-3 py-1 rounded-full cursor-default">
@@ -294,7 +294,7 @@ const MentorDirectory = () => {
                         disabled={isConnecting === mentor.clerkId}
                         className="flex-1 sm:flex-none text-amber-500 hover:text-rose-500 font-bold text-[10px] sm:text-sm border border-amber-500/30 hover:border-rose-500/30 bg-amber-500/10 hover:bg-rose-500/10 px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors group shadow-sm shadow-amber-500/10"
                       >
-                        {isConnecting === mentor.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><span className="group-hover:hidden flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Request Sent</span><span className="hidden group-hover:flex items-center gap-1.5"><X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Unsend</span></>}
+                        {isConnecting === mentor.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Request Sent</span><span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5"><X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Unsend</span></>}
                       </button>
                     ) : connections[mentor.clerkId] === 'accepted' ? (
                       <button disabled className="flex-1 sm:flex-none text-green-500 font-medium text-[10px] sm:text-sm border border-green-500/20 bg-green-500/10 px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1 sm:gap-2 cursor-default">

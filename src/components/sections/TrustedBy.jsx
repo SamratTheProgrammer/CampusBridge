@@ -7,7 +7,7 @@ const TrustedBy = () => {
     { name: 'Amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg' },
     { name: 'Adobe', logo: 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Adobe_Corporate_Logo.png' },
     { name: 'IBM', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/51/IBM_logo.svg' },
-    { name: 'TCS', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg' },
+    { name: 'Meta', logo: 'https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg' },
     { name: 'Infosys', logo: 'https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg' },
   ]
 
@@ -23,7 +23,7 @@ const TrustedBy = () => {
               <img 
                 src={company.logo} 
                 alt={`${company.name} logo`} 
-                className="h-6 md:h-8 object-contain"
+                className={`object-contain ${company.customClass || 'h-6 md:h-8'}`}
                 title={company.name}
               />
             </div>
