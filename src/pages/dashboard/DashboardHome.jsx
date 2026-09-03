@@ -1101,49 +1101,101 @@ const DashboardHome = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-foreground">Suggested Mentors</h3>
           </div>
-          <div className={`space-y-4 ${showAllMentors ? 'max-h-[260px] overflow-y-auto scrollbar-none' : ''}`}>
+          <motion.div layout className={`flex flex-col gap-4 ${showAllMentors ? 'max-h-[260px] overflow-y-auto scrollbar-none' : ''}`}>
             {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 0 ? (
-              recommendedMentors
-                .filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
-                .slice(0, showAllMentors ? 10 : 2)
-                .map(mentor => (
-                  <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start">
-                    <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="shrink-0">
-                      <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 hover:ring-2 hover:ring-primary/40 transition-all" />
-                    </Link>
-                    <div className="flex-1 min-w-0">
-                      <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
-                        {mentor.firstName} {mentor.lastName}
+              <>
+                {recommendedMentors
+                  .filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
+                  .slice(0, 2)
+                  .map(mentor => (
+                    <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start">
+                      <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="shrink-0">
+                        <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 hover:ring-2 hover:ring-primary/40 transition-all" />
                       </Link>
-                      <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{mentor.headline || mentor.role}</p>
-                      
-                      {connections[mentor.clerkId] === 'pending' ? (
-                        <button 
-                          onClick={() => handleCancelRequest(mentor.clerkId)}
-                          disabled={isConnecting === mentor.clerkId}
-                          className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted hover:bg-muted/80 px-3 py-1 rounded-full flex items-center gap-1 transition-colors group">
-                          {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : (
-                            <>
-                              <span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
-                              <span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
-                            </>
-                          )}
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={() => handleConnect(mentor.clerkId)}
-                          disabled={isConnecting === mentor.clerkId}
-                          className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
-                          {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
-                        </button>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
+                          {mentor.firstName} {mentor.lastName}
+                        </Link>
+                        <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{mentor.headline || mentor.role}</p>
+                        
+                        {connections[mentor.clerkId] === 'pending' ? (
+                          <button 
+                            onClick={() => handleCancelRequest(mentor.clerkId)}
+                            disabled={isConnecting === mentor.clerkId}
+                            className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted hover:bg-muted/80 px-3 py-1 rounded-full flex items-center gap-1 transition-colors group">
+                            {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : (
+                              <>
+                                <span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
+                                <span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleConnect(mentor.clerkId)}
+                            disabled={isConnecting === mentor.clerkId}
+                            className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
+                            {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                
+                <AnimatePresence>
+                  {showAllMentors && recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 2 && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden flex flex-col gap-4"
+                    >
+                      {recommendedMentors
+                        .filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
+                        .slice(2, 10)
+                        .map(mentor => (
+                          <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start">
+                            <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="shrink-0">
+                              <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 hover:ring-2 hover:ring-primary/40 transition-all" />
+                            </Link>
+                            <div className="flex-1 min-w-0">
+                              <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
+                                {mentor.firstName} {mentor.lastName}
+                              </Link>
+                              <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{mentor.headline || mentor.role}</p>
+                              
+                              {connections[mentor.clerkId] === 'pending' ? (
+                                <button 
+                                  onClick={() => handleCancelRequest(mentor.clerkId)}
+                                  disabled={isConnecting === mentor.clerkId}
+                                  className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted hover:bg-muted/80 px-3 py-1 rounded-full flex items-center gap-1 transition-colors group">
+                                  {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : (
+                                    <>
+                                      <span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
+                                      <span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
+                                    </>
+                                  )}
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleConnect(mentor.clerkId)}
+                                  disabled={isConnecting === mentor.clerkId}
+                                  className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
+                                  {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             ) : (
               <p className="text-xs text-muted-foreground italic">No new mentor suggestions right now.</p>
             )}
-          </div>
+          </motion.div>
           {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 2 && (
             <button 
               onClick={() => setShowAllMentors(!showAllMentors)}
@@ -1159,30 +1211,63 @@ const DashboardHome = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-foreground">Recent Jobs</h3>
           </div>
-          <div className={`space-y-3.5 ${showAllJobs ? 'max-h-[260px] overflow-y-auto scrollbar-none' : ''}`}>
+          <motion.div layout className={`flex flex-col gap-3.5 ${showAllJobs ? 'max-h-[260px] overflow-y-auto scrollbar-none' : ''}`}>
             {recentJobs.length > 0 ? (
-              recentJobs
-                .slice(0, showAllJobs ? 10 : 2)
-                .map(job => {
-                const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
-                return (
-                  <Link key={job._id || job.id} to="/dashboard/jobs" className="group block cursor-pointer">
-                    <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
-                      {job.title}
-                    </h4>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {companyName} • {job.location || 'Remote'}
-                    </p>
-                    <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                      {job.createdAt ? formatTime(job.createdAt) : 'Recently posted'}
-                    </span>
-                  </Link>
-                );
-              })
+              <>
+                {recentJobs
+                  .slice(0, 2)
+                  .map(job => {
+                  const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
+                  return (
+                    <Link key={job._id || job.id} to="/dashboard/jobs" className="group block cursor-pointer">
+                      <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
+                        {job.title}
+                      </h4>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {companyName} • {job.location || 'Remote'}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                        {job.createdAt ? formatTime(job.createdAt) : 'Recently posted'}
+                      </span>
+                    </Link>
+                  );
+                })}
+
+                <AnimatePresence>
+                  {showAllJobs && recentJobs.length > 2 && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden flex flex-col gap-3.5"
+                    >
+                      {recentJobs
+                        .slice(2, 10)
+                        .map(job => {
+                        const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
+                        return (
+                          <Link key={job._id || job.id} to="/dashboard/jobs" className="group block cursor-pointer">
+                            <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
+                              {job.title}
+                            </h4>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {companyName} • {job.location || 'Remote'}
+                            </p>
+                            <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                              {job.createdAt ? formatTime(job.createdAt) : 'Recently posted'}
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             ) : (
               <p className="text-xs text-muted-foreground italic">No recent job postings.</p>
             )}
-          </div>
+          </motion.div>
           {recentJobs.length > 2 && (
             <button 
               onClick={() => setShowAllJobs(!showAllJobs)}
