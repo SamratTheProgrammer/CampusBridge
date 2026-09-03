@@ -7,6 +7,8 @@ import {
   Sparkles, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronUp,
+  ChevronDown,
   Search, 
   X, 
   Users, 
@@ -40,6 +42,7 @@ const PeopleYouMayKnow = () => {
   const [discoverRole, setDiscoverRole] = useState('all'); // 'all' | 'student' | 'mentor'
   const [discoverResults, setDiscoverResults] = useState([]);
   const [isDiscoverLoading, setIsDiscoverLoading] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Helper to determine proper profile route
   const getProfilePath = (target) => {
@@ -217,18 +220,36 @@ const PeopleYouMayKnow = () => {
             onClick={() => openDiscoverModal('all')}
             className="text-[11px] sm:text-xs font-semibold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl transition-all flex items-center gap-1"
           >
-            <span>See all</span>
+            <span className="hidden sm:inline">See all</span>
             <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          </button>
+          
+          {/* Collapse Toggle */}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1 sm:p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+            title={isCollapsed ? "Expand" : "Collapse"}
+          >
+            {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
       {/* Horizontal Scrollable Carousel Container */}
-      <div 
-        ref={scrollContainerRef}
-        className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-1 px-1"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
+      <AnimatePresence>
+        {!isCollapsed && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div 
+              ref={scrollContainerRef}
+              className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-1 px-1 pt-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
         {suggestions.map((item) => {
           const status = connectionStates[item.clerkId] || 'none';
           const isMentor = ['mentor', 'alumni'].includes(item.role?.toLowerCase());
@@ -275,9 +296,9 @@ const PeopleYouMayKnow = () => {
                   <button
                     onClick={(e) => { e.preventDefault(); handleCancelRequest(item.clerkId); }}
                     disabled={isConnecting === item.clerkId}
-                    className="w-full text-[10px] sm:text-xs font-semibold text-amber-500 hover:text-rose-500 border border-amber-500/30 hover:border-rose-500/30 bg-amber-500/10 hover:bg-rose-500/10 py-1.5 sm:py-2 rounded-lg sm:rounded-xl flex items-center justify-center gap-1 transition-colors group"
+                    className="w-full text-[10px] sm:text-xs font-semibold text-rose-500 hover:text-rose-600 border border-rose-500/30 hover:border-rose-500/50 bg-rose-500/10 hover:bg-rose-500/20 py-1.5 sm:py-2 rounded-lg sm:rounded-xl flex items-center justify-center gap-1 transition-colors"
                   >
-                    {isConnecting === item.clerkId ? <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" /> : <><span className="hidden sm:flex sm:group-hover:hidden items-center gap-1"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Sent</span><span className="flex sm:hidden sm:group-hover:flex items-center gap-1"><X className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Unsend</span></>}
+                    {isConnecting === item.clerkId ? <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" /> : <><X className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Unsend</>}
                   </button>
                 ) : status === 'accepted' ? (
                   <button
@@ -323,6 +344,9 @@ const PeopleYouMayKnow = () => {
           </span>
         </div>
       </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Discover & Search People Modal (Insta/LinkedIn style) */}
       <AnimatePresence>
@@ -424,7 +448,7 @@ const PeopleYouMayKnow = () => {
                     <p className="text-xs text-muted-foreground">Searching across CampusBridge network...</p>
                   </div>
                 ) : discoverResults.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+                  <div className="flex flex-col space-y-3">
                     {discoverResults.map((item) => {
                       const status = connectionStates[item.clerkId] || item.connectionStatus || 'none';
                       const isMentor = ['mentor', 'alumni'].includes(item.role?.toLowerCase());
@@ -433,9 +457,9 @@ const PeopleYouMayKnow = () => {
                       return (
                         <div
                           key={item.clerkId}
-                          className="bg-background/80 border border-border/50 hover:border-primary/40 rounded-2xl p-4 flex flex-col justify-between space-y-3 hover:shadow-md transition-all group"
+                          className="bg-background/80 border border-border/50 hover:border-primary/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:shadow-md transition-all group"
                         >
-                          <div className="flex items-start gap-3">
+                          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                             <Link 
                               to={profileLink} 
                               onClick={() => setIsDiscoverModalOpen(false)}
@@ -444,83 +468,81 @@ const PeopleYouMayKnow = () => {
                               <img
                                 src={item.image || defaultPP}
                                 alt={item.name}
-                                className={`w-12 h-12 rounded-full object-cover shadow-xs transition-transform group-hover:scale-105 ${
+                                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover shadow-xs transition-transform group-hover:scale-105 ${
                                   isMentor ? 'ring-2 ring-purple-500/40' : 'ring-2 ring-primary/30'
                                 }`}
                               />
                             </Link>
 
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 mb-0.5">
+                              <div className="flex items-center gap-2 mb-1">
                                 <Link
                                   to={profileLink}
                                   onClick={() => setIsDiscoverModalOpen(false)}
-                                  className="font-bold text-sm text-foreground hover:text-primary transition-colors truncate block"
+                                  className="font-bold text-sm sm:text-base text-foreground hover:text-primary transition-colors truncate block"
                                   title={item.name}
                                 >
                                   {item.name}
                                 </Link>
+                                <span className={`text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full inline-block ${
+                                  isMentor ? 'bg-purple-500/10 text-purple-600' : 'bg-primary/10 text-primary'
+                                }`}>
+                                  {item.role}
+                                </span>
                               </div>
-                              <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full inline-block mb-1 ${
-                                isMentor ? 'bg-purple-500/10 text-purple-600' : 'bg-primary/10 text-primary'
-                              }`}>
-                                {item.role}
-                              </span>
-                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                              <p className="text-xs text-muted-foreground line-clamp-1 sm:line-clamp-2">
                                 {item.headline || item.institution || 'CampusBridge Member'}
                               </p>
+                              
+                              {/* Institution / Skills tags if available */}
+                              {item.institution && (
+                                <p className="text-[11px] text-muted-foreground/80 flex items-center gap-1 truncate pt-1">
+                                  {isMentor ? <Briefcase className="w-3 h-3 text-purple-500 shrink-0" /> : <GraduationCap className="w-3 h-3 text-primary shrink-0" />}
+                                  <span className="truncate">{item.institution}</span>
+                                </p>
+                              )}
                             </div>
                           </div>
 
-                          {/* Institution / Skills tags if available */}
-                          {item.institution && (
-                            <p className="text-[11px] text-muted-foreground/80 flex items-center gap-1 truncate pt-1 border-t border-border/30">
-                              {isMentor ? <Briefcase className="w-3 h-3 text-purple-500 shrink-0" /> : <GraduationCap className="w-3 h-3 text-primary shrink-0" />}
-                              <span className="truncate">{item.institution}</span>
-                            </p>
-                          )}
-
                           {/* Action Buttons */}
-                          <div className="flex items-center gap-2 pt-1">
-                            <div className="w-full sm:w-auto mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-border/40 sm:border-0 pl-0 sm:pl-4 shrink-0 flex items-center justify-end">
-                              {status === 'pending' ? (
-                                <button
-                                  onClick={(e) => { e.preventDefault(); handleCancelRequest(item.clerkId); }}
-                                  disabled={isConnecting === item.clerkId}
-                                  className="w-full sm:w-32 text-xs sm:text-sm font-semibold text-amber-500 hover:text-rose-500 border border-amber-500/30 hover:border-rose-500/30 bg-amber-500/10 hover:bg-rose-500/10 py-2 sm:py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5 group shadow-sm"
-                                >
-                                  {isConnecting === item.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Sent</span><span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5"><X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Unsend</span></>}
-                                </button>
-                              ) : status === 'accepted' ? (
-                                <button
-                                  disabled
-                                  className="w-full text-xs font-semibold text-emerald-500 border border-emerald-500/30 bg-emerald-500/10 py-2 rounded-xl flex items-center justify-center gap-1 cursor-default"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Connected
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleConnect(item.clerkId, item.name)}
-                                  disabled={isConnecting === item.clerkId}
-                                  className="w-full text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs"
-                                >
-                                  {isConnecting === item.clerkId ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <UserPlus className="w-3.5 h-3.5" /> Connect
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t border-border/30 sm:border-0">
+                            {status === 'pending' ? (
+                              <button
+                                onClick={(e) => { e.preventDefault(); handleCancelRequest(item.clerkId); }}
+                                disabled={isConnecting === item.clerkId}
+                                className="w-full sm:w-32 text-xs sm:text-sm font-semibold text-amber-500 hover:text-rose-500 border border-amber-500/30 hover:border-rose-500/30 bg-amber-500/10 hover:bg-rose-500/10 py-2 sm:py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5 group shadow-sm"
+                              >
+                                {isConnecting === item.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Sent</span><span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5"><X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Unsend</span></>}
+                              </button>
+                            ) : status === 'accepted' ? (
+                              <button
+                                disabled
+                                className="w-full sm:w-32 text-xs sm:text-sm font-semibold text-emerald-500 border border-emerald-500/30 bg-emerald-500/10 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-default"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Connected
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleConnect(item.clerkId, item.name)}
+                                disabled={isConnecting === item.clerkId}
+                                className="w-full sm:w-32 text-xs sm:text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground py-2 sm:py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                              >
+                                {isConnecting === item.clerkId ? (
+                                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Connect
+                                  </>
+                                )}
+                              </button>
+                            )}
                             <Link
                               to={profileLink}
                               onClick={() => setIsDiscoverModalOpen(false)}
-                              className="p-2 rounded-xl border border-border/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                              className="p-2 sm:p-2.5 rounded-xl border border-border/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
                               title="View Profile"
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              <ExternalLink className="w-4 h-4 sm:w-4 sm:h-4" />
                             </Link>
                           </div>
                         </div>

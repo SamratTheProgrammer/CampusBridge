@@ -129,6 +129,10 @@ const DashboardHome = () => {
   const [cropModalData, setCropModalData] = useState(null)
   const [viewerData, setViewerData] = useState(null)
 
+  // Widget states
+  const [showAllMentors, setShowAllMentors] = useState(false)
+  const [showAllJobs, setShowAllJobs] = useState(false)
+
   const fileInputRef = useRef(null)
 
   const fetchPosts = async () => {
@@ -1091,17 +1095,17 @@ const DashboardHome = () => {
       </div>
 
       {/* Right Column (Widgets) */}
-      <div className="hidden lg:block md:col-span-3 space-y-6 sticky top-24 self-start">
+      <div className="hidden lg:block md:col-span-3 space-y-6 sticky top-24 self-start max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-none pb-4">
         {/* Recommended Mentors */}
         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-foreground">Suggested Mentors</h3>
           </div>
-          <div className="space-y-4">
+          <div className={`space-y-4 ${showAllMentors ? 'max-h-[260px] overflow-y-auto scrollbar-none' : ''}`}>
             {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 0 ? (
               recommendedMentors
                 .filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
-                .slice(0, 5)
+                .slice(0, showAllMentors ? 10 : 2)
                 .map(mentor => (
                   <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start">
                     <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="shrink-0">
@@ -1140,6 +1144,14 @@ const DashboardHome = () => {
               <p className="text-xs text-muted-foreground italic">No new mentor suggestions right now.</p>
             )}
           </div>
+          {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 2 && (
+            <button 
+              onClick={() => setShowAllMentors(!showAllMentors)}
+              className="block w-full mt-4 text-xs font-semibold text-primary hover:underline transition-colors text-center"
+            >
+              {showAllMentors ? 'Show less' : 'See all'}
+            </button>
+          )}
         </div>
 
         {/* Recent Jobs */}
@@ -1147,9 +1159,11 @@ const DashboardHome = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-foreground">Recent Jobs</h3>
           </div>
-          <div className="space-y-3.5">
+          <div className={`space-y-3.5 ${showAllJobs ? 'max-h-[260px] overflow-y-auto scrollbar-none' : ''}`}>
             {recentJobs.length > 0 ? (
-              recentJobs.map(job => {
+              recentJobs
+                .slice(0, showAllJobs ? 10 : 2)
+                .map(job => {
                 const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
                 return (
                   <Link key={job._id || job.id} to="/dashboard/jobs" className="group block cursor-pointer">
@@ -1169,9 +1183,19 @@ const DashboardHome = () => {
               <p className="text-xs text-muted-foreground italic">No recent job postings.</p>
             )}
           </div>
-          <Link to="/dashboard/jobs" className="inline-block mt-4 text-xs font-semibold text-primary hover:underline transition-colors">
-            View all opportunities →
-          </Link>
+          {recentJobs.length > 2 && (
+            <button 
+              onClick={() => setShowAllJobs(!showAllJobs)}
+              className="block w-full mt-4 text-xs font-semibold text-primary hover:underline transition-colors text-center"
+            >
+              {showAllJobs ? 'Show less' : 'See all'}
+            </button>
+          )}
+          {showAllJobs && (
+            <Link to="/dashboard/jobs" className="block w-full mt-3 text-xs font-medium text-muted-foreground hover:text-primary transition-colors text-center">
+              View all opportunities →
+            </Link>
+          )}
         </div>
       </div>
 

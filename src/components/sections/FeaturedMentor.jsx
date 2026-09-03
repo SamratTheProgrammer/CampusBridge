@@ -80,12 +80,12 @@ const FeaturedMentor = () => {
     if (!user) return
     setIsConnecting(mentorId)
     try {
-      const res = await fetch(`${API_BASE}/api/connections/request`, {
-        method: 'DELETE',
+      const res = await fetch(`${API_BASE}/api/connections/cancel`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          senderClerkId: user.id,
-          targetClerkId: mentorId
+          requesterClerkId: user.id,
+          recipientClerkId: mentorId
         })
       })
       if (res.ok) {
@@ -96,7 +96,8 @@ const FeaturedMentor = () => {
           return next
         })
       } else {
-        toast.error('Failed to cancel request')
+        const errorData = await res.json()
+        toast.error(errorData.message || 'Failed to cancel request')
       }
     } catch (err) {
       toast.error('Network error')
