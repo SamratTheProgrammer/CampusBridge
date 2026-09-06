@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Session from '../models/Session.js';
 import Event from '../models/Event.js';
 import mongoose from 'mongoose';
+import Notification from '../models/Notification.js';
 
 const router = express.Router();
 
@@ -32,6 +33,24 @@ router.post('/', async (req, res) => {
     });
 
     await newReview.save();
+
+    if (mentorId) {
+      const mentorUser = await User.findById(mentorId);
+      if (mentorUser && mentorUser.clerkId) {
+        const reviewerName = reviewerUser.name || `${reviewerUser.firstName || ''} ${reviewerUser.lastName || ''}`.trim() || 'A student';
+        await Notification.create({
+          recipientClerkId: mentorUser.clerkId,
+          senderClerkId: reviewerUser.clerkId,
+          senderName: reviewerName,
+          senderImage: reviewerUser.imageUrl,
+          type: 'mentor_review',
+          title: 'New Mentor Review',
+          message: `Left a ${mentorRating}-star review on your mentorship.`,
+          link: '/mentor-dashboard?tab=analytics'
+        });
+      }
+    }
+
     res.status(201).json(newReview);
   } catch (error) {
     console.error('Submit Review Error:', error);
@@ -57,11 +76,46 @@ router.get('/pending/:clerkId', async (req, res) => {
     }).populate('mentor', 'firstName lastName imageUrl');
 
     // Find all events user attended that are in the past
-    // Note: Assuming 'attendees' array has user._id and date is in the past
-    const pastEvents = await Event.find({
+    // We look for events from the last 7 days to show the modal for a limited time ("kichukhoner jonno")
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const candidateEvents = await Event.find({
       attendees: user._id,
-      date: { $lt: new Date() }
+      date: { $gte: sevenDaysAgo }
     }).populate('organizer', 'firstName lastName imageUrl');
+
+    const pastEvents = candidateEvents.filter(event => {
+      const eventDate = new Date(event.date);
+      
+      // If the event was on a previous day, it's definitely ended
+      if (eventDate.setHours(0,0,0,0) < new Date().setHours(0,0,0,0)) return true;
+      
+      // If it's today, try to parse the end time from the time string (e.g., "10:00 AM - 12:00 PM" or "10:00 - 12:00")
+      if (eventDate.setHours(0,0,0,0) === new Date().setHours(0,0,0,0)) {
+          if (event.time && event.time.includes('-')) {
+            const endTimeStr = event.time.split('-')[1].trim();
+            const timeMatch = endTimeStr.match(/(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i);
+            if (timeMatch) {
+                let hours = parseInt(timeMatch[1]);
+                const minutes = parseInt(timeMatch[2]);
+                const ampm = timeMatch[3];
+                
+                if (ampm) {
+                  if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+                  if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+                }
+                
+                const eventEnd = new Date();
+                eventEnd.setHours(hours, minutes, 0, 0);
+                
+                // Return true only if current time is after the event's end time
+                return new Date() > eventEnd;
+            }
+          }
+      }
+      return false;
+    });
 
     // Find all existing reviews by this user
     const userReviews = await Review.find({ reviewer: user._id });

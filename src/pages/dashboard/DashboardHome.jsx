@@ -1664,11 +1664,10 @@ const DashboardHome = () => {
                       <div>
                         <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
                         <input 
-                          type="text" 
+                          type="time" 
                           value={newEventDetails.time}
                           onChange={(e) => setNewEventDetails({...newEventDetails, time: e.target.value})}
                           className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                          placeholder="e.g. 5:00 PM" 
                         />
                       </div>
                     </div>

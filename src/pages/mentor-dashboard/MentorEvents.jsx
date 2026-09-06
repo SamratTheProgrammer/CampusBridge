@@ -377,7 +377,7 @@ const MentorEvents = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                  <input name="time" required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 5:00 PM - 6:00 PM" />
+                  <input name="time" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
 
@@ -469,7 +469,7 @@ const MentorEvents = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                  <input name="time" defaultValue={selectedEvent.time} required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input name="time" defaultValue={selectedEvent.time} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
 

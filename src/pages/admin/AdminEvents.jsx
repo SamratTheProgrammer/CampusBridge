@@ -23,7 +23,8 @@ const AdminEvents = () => {
   const [type, setType] = useState('Workshop')
   const [mode, setMode] = useState('Online') // 'Online' | 'Offline'
   const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
   const [location, setLocation] = useState('')
   const [link, setLink] = useState('')
   const [description, setDescription] = useState('')
@@ -58,7 +59,8 @@ const AdminEvents = () => {
     setType('Workshop')
     setMode('Online')
     setDate('')
-    setTime('')
+    setStartTime('')
+    setEndTime('')
     setLocation('')
     setLink('')
     setDescription('')
@@ -78,7 +80,18 @@ const AdminEvents = () => {
     setType(event.type || 'Workshop')
     setMode(event.mode || (event.location ? 'Offline' : 'Online'))
     setDate(event.date ? new Date(event.date).toISOString().split('T')[0] : '')
-    setTime(event.time || '')
+    
+    // Parse existing time string
+    let parsedStartTime = '';
+    let parsedEndTime = '';
+    if (event.time && event.time.includes('-')) {
+      const parts = event.time.split('-');
+      parsedStartTime = parts[0].trim().replace(/\s*(AM|PM)/i, '');
+      parsedEndTime = parts[1].trim().replace(/\s*(AM|PM)/i, '');
+    }
+    setStartTime(parsedStartTime)
+    setEndTime(parsedEndTime)
+    
     setLocation(event.location || '')
     setLink(event.link || '')
     setDescription(event.description || '')
@@ -87,8 +100,8 @@ const AdminEvents = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!title || !date || !time) {
-      toast.error('Please fill in title, date, and time.')
+    if (!title || !date || !startTime || !endTime) {
+      toast.error('Please fill in title, date, and times.')
       return
     }
 
@@ -122,7 +135,7 @@ const AdminEvents = () => {
         type,
         mode,
         date,
-        time,
+        time: `${startTime} - ${endTime}`,
         location: mode === 'Offline' ? location : '',
         link: mode === 'Online' ? link : '',
         description,
@@ -452,16 +465,27 @@ const AdminEvents = () => {
                     className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Time</label>
-                  <input
-                    type="text"
-                    required
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    placeholder="e.g. 10:00 AM - 12:00 PM"
-                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Start</label>
+                    <input
+                      type="time"
+                      required
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">End</label>
+                    <input
+                      type="time"
+                      required
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
                 </div>
               </div>
 
