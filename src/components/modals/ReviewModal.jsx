@@ -2,18 +2,26 @@ import React, { useState } from 'react';
 import { X, Star } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
+import API_BASE from '../../utils/api';
 
 const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
   const { user } = useUser();
   const [contentRating, setContentRating] = useState(0);
   const [contentHover, setContentHover] = useState(0);
   const [contentComment, setContentComment] = useState('');
-  
+
   const [mentorRating, setMentorRating] = useState(0);
   const [mentorHover, setMentorHover] = useState(0);
   const [mentorComment, setMentorComment] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const demoReviews = [
+    "Incredibly helpful! The guidance provided was exactly what I needed.",
+    "Very knowledgeable and patient. I learned a lot.",
+    "Great insights and actionable advice. Highly recommend!",
+    "A wonderful experience. They really took the time to understand my goals."
+  ];
 
   if (!isOpen || !pendingReview) return null;
 
@@ -29,16 +37,16 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
 
     try {
       setIsSubmitting(true);
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews`, {
+      const res = await fetch(`${API_BASE}/api/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reviewerClerkId: user.id,
-          mentorId: mentor?._id,
+          mentorId: mentor?._id || (type === 'mentor' ? referenceId : undefined),
           type,
           referenceId,
-          mentorRating: mentor ? mentorRating : undefined,
-          mentorComment: mentor ? mentorComment : undefined,
+          mentorRating: mentor ? mentorRating : (type === 'mentor' ? contentRating : undefined),
+          mentorComment: mentor ? mentorComment : (type === 'mentor' ? contentComment : undefined),
           contentRating,
           contentComment
         })
@@ -66,9 +74,8 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
           onClick={() => setRating(star)}
           onMouseEnter={() => setHover(star)}
           onMouseLeave={() => setHover(rating)}
-          className={`focus:outline-none transition-colors duration-200 ${
-            star <= (hover || rating) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
-          }`}
+          className={`focus:outline-none transition-colors duration-200 ${star <= (hover || rating) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
+            }`}
         >
           <Star className="w-8 h-8 fill-current" />
         </button>
@@ -107,6 +114,18 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
                 className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 rows={3}
               />
+              <div className="flex flex-wrap gap-2 mt-2">
+                {demoReviews.map((demo, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setContentComment(demo)}
+                    className="text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-full transition-colors text-left"
+                  >
+                    "{demo}"
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Mentor Rating */}

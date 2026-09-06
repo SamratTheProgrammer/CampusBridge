@@ -21,16 +21,14 @@ const EventRatingBadge = ({ eventId, onClick }) => {
       .catch(() => {})
   }, [eventId])
 
-  if (stats.totalRatings === 0) return null;
-
   return (
     <button 
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(stats.reviews, stats.averageRating); }}
       className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
     >
       <Star className="w-3.5 h-3.5 fill-current" />
-      <span className="font-bold text-sm">{stats.averageRating}</span>
-      <span className="text-xs">({stats.totalRatings} Reviews)</span>
+      <span className="font-bold text-sm">{stats.averageRating || '0.0'}</span>
+      <span className="text-xs">({stats.totalRatings || 0} Reviews)</span>
     </button>
   )
 }

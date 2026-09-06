@@ -15,7 +15,7 @@ import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
 import ReviewListModal from '../../components/modals/ReviewListModal'
-
+import ReviewModal from '../../components/modals/ReviewModal'
 const MentorProfile = ({ initialUser }) => {
   const navigate = useNavigate();
   const { id, username } = useParams();
@@ -41,6 +41,8 @@ const MentorProfile = ({ initialUser }) => {
   
   const [mentorStats, setMentorStats] = useState({ averageRating: 0, totalRatings: 0, reviews: [] })
   const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [pendingReview, setPendingReview] = useState(null)
 
   useEffect(() => {
     const fetchMentorAndConnection = async () => {
@@ -455,16 +457,14 @@ const MentorProfile = ({ initialUser }) => {
                     {mentor.address}
                   </span>
                 )}
-                {mentorStats.totalRatings > 0 && (
-                  <button 
-                    onClick={() => setIsReviewListModalOpen(true)}
-                    className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
-                  >
-                    <Star className="w-3.5 h-3.5 fill-current" />
-                    <span className="font-bold">{mentorStats.averageRating}</span>
-                    <span className="text-xs">({mentorStats.totalRatings} Reviews)</span>
-                  </button>
-                )}
+                <button 
+                  onClick={() => setIsReviewListModalOpen(true)}
+                  className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
+                >
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  <span className="font-bold">{mentorStats.averageRating || '0.0'}</span>
+                  <span className="text-xs">({mentorStats.totalRatings || 0} Reviews)</span>
+                </button>
               </div>
             </div>
           </div>
@@ -935,9 +935,26 @@ const MentorProfile = ({ initialUser }) => {
       <ReviewListModal
         isOpen={isReviewListModalOpen}
         onClose={() => setIsReviewListModalOpen(false)}
-        reviews={mentorStats.reviews}
+        reviews={mentorStats.reviews || []}
         title={`Reviews for ${fullName}`}
         type="mentor"
+        onAddReview={user && user.id !== (mentor.clerkId || mentor._id) ? () => {
+          setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
+          setIsReviewModalOpen(true);
+        } : null}
+      />
+
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        pendingReview={pendingReview}
+        onReviewSubmitted={() => {
+          if (!mentor?.clerkId) return;
+          fetch(`${API_BASE}/api/reviews/mentor/${mentor.clerkId}`)
+            .then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => setMentorStats(data))
+            .catch(err => console.error(err));
+        }}
       />
 
       <ConfirmModal

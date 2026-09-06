@@ -13,7 +13,7 @@ const reviewSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['session', 'event'],
+    enum: ['session', 'event', 'mentor'],
     required: true,
   },
   referenceId: {
@@ -24,7 +24,7 @@ const reviewSchema = new mongoose.Schema({
   typeModel: {
     type: String,
     required: true,
-    enum: ['Session', 'Event']
+    enum: ['Session', 'Event', 'User']
   },
   mentorRating: {
     type: Number,
@@ -42,6 +42,13 @@ const reviewSchema = new mongoose.Schema({
   },
   contentComment: {
     type: String,
+  },
+  likes: [{
+    type: String // Clerk IDs
+  }],
+  reply: {
+    text: String,
+    createdAt: { type: Date, default: Date.now }
   }
 }, { timestamps: true });
 

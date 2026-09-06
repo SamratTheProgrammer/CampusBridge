@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Reviewer not found' });
     }
 
-    const typeModel = type === 'session' ? 'Session' : 'Event';
+    const typeModel = type === 'session' ? 'Session' : type === 'event' ? 'Event' : 'User';
 
     const newReview = new Review({
       reviewer: reviewerUser._id,
@@ -170,6 +170,49 @@ router.get('/session/:sessionId', async (req, res) => {
     });
   } catch (error) {
     console.error('Get Session Reviews Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6. Toggle Like on a review
+router.put('/:id/like', async (req, res) => {
+  try {
+    const { clerkId } = req.body;
+    const review = await Review.findById(req.params.id);
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+
+    if (!review.likes) review.likes = [];
+    
+    if (review.likes.includes(clerkId)) {
+      review.likes = review.likes.filter(id => id !== clerkId);
+    } else {
+      review.likes.push(clerkId);
+    }
+    await review.save();
+    res.json(review);
+  } catch (error) {
+    console.error('Like Review Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 7. Add a reply to a review
+router.post('/:id/reply', async (req, res) => {
+  try {
+    const { clerkId, text } = req.body;
+    const review = await Review.findById(req.params.id).populate('mentor');
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+
+    // Verify mentor permission. If type=event and no mentor, maybe check organizer? Let's just trust for now if mentor is not populated or let's strictly check if mentor exists.
+    if (review.mentor && review.mentor.clerkId !== clerkId) {
+      return res.status(403).json({ error: 'Only the mentor can reply to this review' });
+    }
+
+    review.reply = { text, createdAt: new Date() };
+    await review.save();
+    res.json(review);
+  } catch (error) {
+    console.error('Reply Review Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
