@@ -51,10 +51,8 @@ const Internships = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="flex flex-col gap-4 max-w-4xl mx-auto">
           {internships.map((internship, index) => {
-            // Map the type field to something that looks like 'Paid' or 'Unpaid' if possible,
-            // or just use the location for styling logic as a fallback
             const stipend = internship.salary || '-'
             const isPaid = stipend !== '-' && stipend !== ''
             
@@ -65,30 +63,45 @@ const Internships = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.4, delay: index * 0.1 }}
-                className="bg-card border rounded-2xl p-6 hover:border-primary/50 transition-colors shadow-sm flex flex-col"
+                className="bg-card border rounded-2xl p-5 hover:border-primary/50 transition-colors shadow-sm flex flex-col sm:flex-row gap-5 items-start sm:items-center"
               >
-                <div className="flex items-center justify-between mb-4">
-                  <span className={`text-xs font-bold px-2 py-1 rounded-md ${isPaid ? 'bg-green-500/10 text-green-600' : 'bg-muted text-muted-foreground'}`}>
-                    {isPaid ? 'Paid' : 'Unpaid'}
-                  </span>
-                  <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-md">
-                    {internship.location || 'Remote'}
-                  </span>
+                {/* Company Logo */}
+                <div className="w-14 h-14 shrink-0 rounded-xl bg-muted border overflow-hidden flex items-center justify-center">
+                  {internship.companyLogo ? (
+                    <img src={internship.companyLogo} alt={internship.company} className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(internship.company || 'Company')}&background=random&color=fff`} alt={internship.company} className="w-full h-full object-cover" />
+                  )}
                 </div>
 
-                <h3 className="font-bold text-lg mb-2 text-foreground">{internship.title}</h3>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  <Building className="w-4 h-4" />
-                  <span>{internship.company}</span>
+                {/* Details */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h3 className="font-bold text-lg text-foreground truncate">{internship.title}</h3>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${isPaid ? 'bg-green-500/10 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+                      {isPaid ? 'Paid' : 'Unpaid'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <Building className="w-4 h-4" />
+                      <span className="truncate">{internship.company}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4" />
+                      <span className="truncate">{internship.location || 'Remote'}</span>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="pt-4 border-t flex items-center justify-between mt-auto">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Stipend</p>
-                    <p className="font-semibold text-foreground">{stipend}</p>
+                {/* Actions & Stipend */}
+                <div className="flex items-center sm:flex-col sm:items-end gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-4 sm:pt-0 mt-2 sm:mt-0">
+                  <div className="flex-1 sm:flex-none text-left sm:text-right">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Stipend</p>
+                    <p className="font-semibold text-foreground text-sm">{stipend}</p>
                   </div>
-                  <button onClick={() => handleApply(internship._id)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors">
-                    <ExternalLink className="w-4 h-4" />
+                  <button onClick={() => handleApply(internship._id)} className="px-4 py-2 bg-primary/10 text-primary font-medium text-sm rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors flex items-center gap-2 shrink-0">
+                    Apply Now <ExternalLink className="w-4 h-4" />
                   </button>
                 </div>
               </motion.div>

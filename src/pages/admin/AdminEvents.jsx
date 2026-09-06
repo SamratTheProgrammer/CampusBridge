@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Edit3, Calendar, Video, MapPin, Loader2, Globe, Clock, X, Pause, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, Edit3, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import { useUser } from '@clerk/clerk-react'
@@ -41,6 +41,7 @@ const AdminEvents = () => {
         toast.error('Failed to load events')
       }
     } catch (err) {
+      console.error(err)
       toast.error('Error fetching events')
     } finally {
       setIsLoading(false)
@@ -107,6 +108,7 @@ const AdminEvents = () => {
             throw new Error('Upload failed')
           }
         } catch (err) {
+          console.error(err)
           toast.error('Image upload failed', { id: 'img-upload' })
           setIsSubmitting(false)
           return
@@ -153,6 +155,7 @@ const AdminEvents = () => {
         toast.error(errorData.error || 'Operation failed')
       }
     } catch (err) {
+      console.error(err)
       toast.error('Failed to save event')
     } finally {
       setIsSubmitting(false)
@@ -194,6 +197,7 @@ const AdminEvents = () => {
           toast.error('Failed to delete event')
         }
       } catch (err) {
+        console.error(err)
         toast.error('Error deleting event')
       }
     } else {
@@ -248,8 +252,8 @@ const AdminEvents = () => {
               <thead>
                 <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   <th className="px-6 py-4">Event</th>
-                  <th className="px-6 py-4">Mode & Type</th>
-                  <th className="px-6 py-4">Date & Time</th>
+                  <th className="px-6 py-4">Mode &amp; Type</th>
+                  <th className="px-6 py-4">Date &amp; Time</th>
                   <th className="px-6 py-4">Registrations</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>

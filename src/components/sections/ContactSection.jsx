@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Mail, Send, Phone, MapPin, MessageSquare, CheckCircle2, ShieldAlert, History, Calendar } from 'lucide-react'
+import { Mail, Send, Phone, MapPin, MessageSquare, CheckCircle2, ShieldAlert, History, Calendar, ChevronDown, ChevronUp } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
@@ -17,6 +18,7 @@ const ContactSection = () => {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [history, setHistory] = useState([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
 
   const fetchHistory = async (clerkId) => {
     setIsLoadingHistory(true)
@@ -138,46 +140,66 @@ const ContactSection = () => {
             </div>
 
             {isSignedIn && (
-              <div className="bg-card border border-border/50 rounded-3xl p-6 shadow-sm space-y-4 max-h-[400px] overflow-y-auto">
-                <div className="flex items-center gap-2 mb-2">
-                  <History className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-bold text-foreground">Your Support History</h3>
+              <div className="bg-card border border-border/50 rounded-3xl p-6 shadow-sm space-y-4">
+                <div 
+                  className="flex items-center justify-between cursor-pointer group"
+                  onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                >
+                  <div className="flex items-center gap-2">
+                    <History className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-bold text-foreground">Your Support History</h3>
+                  </div>
+                  {isHistoryOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground group-hover:text-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground group-hover:text-foreground" />}
                 </div>
-                {isLoadingHistory ? (
-                  <p className="text-xs text-muted-foreground animate-pulse">Loading history...</p>
-                ) : history.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">You have no previous support requests.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {history.map((msg, idx) => (
-                      <div key={idx} className="border border-border/50 rounded-2xl p-4 bg-muted/20 space-y-2">
-                        <div className="flex justify-between items-start gap-2">
-                          <h4 className="font-bold text-foreground text-sm line-clamp-1" title={msg.subject}>{msg.subject || 'Inquiry'}</h4>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                            msg.status === 'Resolved' ? 'bg-emerald-500/10 text-emerald-500' :
-                            msg.status === 'Replied' ? 'bg-blue-500/10 text-blue-500' :
-                            'bg-amber-500/10 text-amber-500'
-                          }`}>
-                            {msg.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{msg.message}</p>
-                        
-                        {msg.adminReply && (
-                          <div className="mt-2 pt-2 border-t border-border/50">
-                            <span className="text-[10px] font-bold text-primary block mb-1">Admin Reply:</span>
-                            <p className="text-xs text-foreground bg-primary/5 p-2 rounded-lg">{msg.adminReply}</p>
+                
+                <AnimatePresence>
+                  {isHistoryOpen && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pt-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        {isLoadingHistory ? (
+                          <p className="text-xs text-muted-foreground animate-pulse">Loading history...</p>
+                        ) : history.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">You have no previous support requests.</p>
+                        ) : (
+                          <div className="space-y-4">
+                            {history.map((msg, idx) => (
+                              <div key={idx} className="border border-border/50 rounded-2xl p-4 bg-muted/20 space-y-2">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h4 className="font-bold text-foreground text-sm line-clamp-1" title={msg.subject}>{msg.subject || 'Inquiry'}</h4>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                                    msg.status === 'Resolved' ? 'bg-emerald-500/10 text-emerald-500' :
+                                    msg.status === 'Replied' ? 'bg-blue-500/10 text-blue-500' :
+                                    'bg-amber-500/10 text-amber-500'
+                                  }`}>
+                                    {msg.status}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground line-clamp-2">{msg.message}</p>
+                                
+                                {msg.adminReply && (
+                                  <div className="mt-2 pt-2 border-t border-border/50">
+                                    <span className="text-[10px] font-bold text-primary block mb-1">Admin Reply:</span>
+                                    <p className="text-xs text-foreground bg-primary/5 p-2 rounded-lg">{msg.adminReply}</p>
+                                  </div>
+                                )}
+                                
+                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-2">
+                                  <Calendar className="w-3 h-3" />
+                                  {new Date(msg.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
-                        
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-2">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(msg.createdAt).toLocaleDateString()}
-                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
           </div>

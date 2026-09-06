@@ -26,7 +26,7 @@ const LandingPage = () => {
       <Statistics />
       <Features />
       <div id="about"><HowItWorks /></div>
-      <WatchDemo />
+      <div id="demo"><WatchDemo /></div>
       <div id="mentor"><FeaturedMentor /></div>
       <div id="mentorship"><MentorSpotlight /></div>
       <div id="jobs"><JobOpportunities /></div>

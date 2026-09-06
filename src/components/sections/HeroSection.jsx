@@ -55,7 +55,7 @@ const HeroSection = () => {
               <Link to="/dashboard/mentor" className="w-full sm:w-auto px-8 py-3.5 border border-primary/50 text-primary rounded-full font-medium hover:bg-primary/5 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
                 Find a Mentor
               </Link>
-              <button className="w-full sm:w-auto px-8 py-3.5 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-2 font-medium whitespace-nowrap">
+              <button onClick={(e) => { e.preventDefault(); document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' }); }} className="w-full sm:w-auto px-8 py-3.5 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-2 font-medium whitespace-nowrap">
                 <PlayCircle className="w-5 h-5" />
                 Watch Demo
               </button>

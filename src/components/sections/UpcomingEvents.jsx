@@ -161,8 +161,14 @@ const UpcomingEvents = () => {
     }
   }, [selectedEvent])
 
-  if (isLoading || events.length === 0) {
-    return null
+  if (isLoading) {
+    return (
+      <section className="py-24 bg-muted/20 relative">
+        <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12 text-center">
+          <p className="text-muted-foreground animate-pulse">Loading upcoming events...</p>
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -180,11 +186,19 @@ const UpcomingEvents = () => {
           </button>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {events.map((event, index) => (
-            <EventCard key={event._id || index} event={event} index={index} onRegister={setSelectedEvent} />
-          ))}
-        </div>
+        {events.length === 0 ? (
+          <div className="text-center py-12 bg-card border border-dashed rounded-2xl">
+            <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <h3 className="text-xl font-bold text-foreground mb-2">No Upcoming Events</h3>
+            <p className="text-muted-foreground">Check back later for new workshops, webinars, and networking events.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {events.map((event, index) => (
+              <EventCard key={event._id || index} event={event} index={index} onRegister={setSelectedEvent} />
+            ))}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
