@@ -144,9 +144,9 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) =
               {!!navigator.share && (
                 <button 
                   onClick={handleNativeShare}
-                  className="w-full py-3 bg-secondary text-secondary-foreground font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-secondary/80 transition-colors border border-border mt-2"
+                  className="w-full py-2.5 sm:py-3 px-2 bg-secondary text-secondary-foreground text-xs sm:text-sm font-semibold sm:font-bold rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-secondary/80 transition-colors border border-border mt-2 text-center"
                 >
-                  <Share2 className="w-4 h-4" /> Share via Apps (WhatsApp, Facebook, etc.)
+                  <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" /> Share via Apps (WhatsApp, Facebook, etc.)
                 </button>
               )}
             </div>
@@ -165,8 +165,17 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) =
 
               <div className="h-60 overflow-y-auto space-y-1 pr-2">
                 {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <div className="space-y-2">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 p-2 rounded-xl animate-pulse">
+                        <div className="w-10 h-10 rounded-full bg-muted shrink-0"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3.5 bg-muted rounded w-1/2"></div>
+                          <div className="h-2.5 bg-muted rounded w-1/3"></div>
+                        </div>
+                        <div className="w-5 h-5 rounded-full border border-border bg-muted/50"></div>
+                      </div>
+                    ))}
                   </div>
                 ) : filteredContacts.length === 0 ? (
                   <p className="text-center text-sm text-muted-foreground py-8">No friends found.</p>

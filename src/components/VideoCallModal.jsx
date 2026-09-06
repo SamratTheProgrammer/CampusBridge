@@ -300,6 +300,9 @@ const VideoCallModal = ({ currentUser }) => {
 
     if (callState === 'connected' || (isCallerRef.current && finalStatus === 'missed')) {
       saveCallLogToDb(finalStatus, finalDuration);
+      if (finalStatus === 'completed') {
+        window.dispatchEvent(new CustomEvent('video-call-ended'));
+      }
     }
 
     setCallState('idle');

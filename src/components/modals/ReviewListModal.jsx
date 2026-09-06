@@ -59,24 +59,24 @@ const ReviewListModal = ({ isOpen, onClose, reviews: initialReviews, title, type
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-          <div className="flex-1 flex justify-between items-center mr-4">
+      <div className="bg-card text-card-foreground rounded-2xl border border-border/50 w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="p-3 sm:p-4 border-b border-border/50 flex justify-between items-center bg-muted/30">
+          <div className="flex-1 flex justify-between items-center mr-2 sm:mr-4">
             <div>
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Reviews & Ratings</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
+              <h2 className="text-lg sm:text-xl font-bold text-foreground">Reviews & Ratings</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">{title}</p>
             </div>
             {onAddReview && (
               <button 
                 onClick={() => { onClose(); onAddReview(); }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors shrink-0"
               >
                 Add Review
               </button>
             )}
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
-            <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded-full transition-colors ml-2 shrink-0">
+            <X className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
           </button>
         </div>
 

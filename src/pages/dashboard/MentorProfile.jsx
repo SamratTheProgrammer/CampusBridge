@@ -348,7 +348,7 @@ const MentorProfile = ({ initialUser }) => {
           <div className="flex flex-col gap-5 sm:gap-6">
             
             {/* Top Row: Avatar and Actions */}
-            <div className="flex justify-between items-end w-full -mt-16 sm:-mt-20 relative z-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end w-full -mt-16 sm:-mt-20 relative z-10 gap-4 sm:gap-0">
               <div className="shrink-0">
                 <img
                   src={avatarUrl}
@@ -359,7 +359,7 @@ const MentorProfile = ({ initialUser }) => {
               </div>
               
               {/* Action Buttons on Right */}
-              <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-end mb-2 sm:mb-4">
+              <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-start sm:justify-end w-full sm:w-auto mb-1 sm:mb-4">
                 <button
                   onClick={handleShare}
                   className="bg-background border border-border/50 text-foreground hover:bg-muted p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
