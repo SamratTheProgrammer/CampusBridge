@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import EventSkeleton from '../../components/skeletons/EventSkeleton'
 import { Plus, Calendar, Clock, MapPin, Users, Link as LinkIcon, Search, Loader2, X, Edit, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
@@ -237,9 +238,11 @@ const MentorEvents = () => {
 
       {/* Event Grid */}
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <div className="w-full space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <EventSkeleton key={i}  />
+              ))}
+            </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredEvents.map((event) => (
@@ -525,9 +528,11 @@ const MentorEvents = () => {
 
               <div className="p-6 overflow-y-auto flex-1">
                 {isLoadingApps ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  </div>
+                  <div className="w-full space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <EventSkeleton key={i}  />
+              ))}
+            </div>
                 ) : applications.length === 0 ? (
                   <div className="text-center py-12">
                     <Users className="w-12 h-12 text-muted-foreground opacity-50 mx-auto mb-3" />

@@ -11,6 +11,7 @@ const ImageCropModal = ({ imageSrc, aspectRatio, onCropComplete, onCancel }) => 
   const [scaleX, setScaleX] = useState(1)
   const [scaleY, setScaleY] = useState(1)
   const [dragMode, setDragMode] = useState('crop') // 'crop' or 'move'
+  const [currentAspectRatio, setCurrentAspectRatio] = useState(aspectRatio) // Allows toggling to free crop
 
   const handleCrop = () => {
     const imageElement = cropperRef?.current

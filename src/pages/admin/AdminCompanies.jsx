@@ -1,3 +1,4 @@
+import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, Building2, ExternalLink, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -75,7 +76,7 @@ const AdminCompanies = () => {
 
       {isLoading ? (
         <div className="py-20 text-center flex flex-col items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+          <CardSkeleton />
           <p className="text-sm font-medium text-muted-foreground">Loading companies...</p>
         </div>
       ) : companies.length > 0 ? (

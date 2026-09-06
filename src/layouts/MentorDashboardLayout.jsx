@@ -14,6 +14,7 @@ import { calculateProfileCompleteness } from '../utils/profileCompleteness'
 import toast from 'react-hot-toast'
 import API_BASE from '../utils/api'
 import ReviewModal from '../components/modals/ReviewModal'
+import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 
 const MOCK_STUDENTS = [
   { id: 1, name: 'Ananya Sharma', role: 'B.Tech CS Student', university: 'NIT Trichy' },
@@ -236,12 +237,7 @@ const MentorDashboardLayout = () => {
   }, [user, navigate]);
 
   if (!isLoaded || (isSignedIn && !user)) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading CampusBridge...</p>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   const filteredMentees = MOCK_STUDENTS.filter(mentee => 

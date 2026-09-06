@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import UserSkeleton from '../../components/skeletons/UserSkeleton'
 import { Search, Filter, MessageSquare, User, CheckCircle2, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
@@ -127,9 +128,11 @@ const MyMentees = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <UserSkeleton key={i} variant="grid" />
+              ))}
+            </div>
       ) : (
         <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">

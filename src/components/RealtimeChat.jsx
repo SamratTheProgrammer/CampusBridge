@@ -3,6 +3,7 @@ import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circl
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
+import MessageSkeleton from './skeletons/MessageSkeleton';
 import toast from 'react-hot-toast';
 import EmojiPicker from 'emoji-picker-react';
 import { getPdfViewUrl } from '../utils/pdfViewer';
@@ -643,8 +644,10 @@ const RealtimeChat = () => {
         {/* Contacts List */}
         <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-border/30">
           {isLoadingContacts ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="flex flex-col">
+              {[...Array(6)].map((_, i) => (
+                <MessageSkeleton key={i} variant="contact" />
+              ))}
             </div>
           ) : filteredContacts.length > 0 ? (
             filteredContacts.map((contact) => {
@@ -906,9 +909,7 @@ const RealtimeChat = () => {
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
             {isLoadingMessages ? (
-              <div className="flex justify-center p-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
+              <MessageSkeleton variant="chat" />
             ) : messages.length > 0 ? (
               messages.map((msg, index) => {
                 const isMe = msg.senderClerkId === user?.id;
@@ -1331,3 +1332,4 @@ const RealtimeChat = () => {
 };
 
 export default RealtimeChat;
+

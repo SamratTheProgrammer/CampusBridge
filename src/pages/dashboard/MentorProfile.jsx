@@ -1,3 +1,4 @@
+import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import React, { useState, useEffect } from 'react'
 import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -296,7 +297,7 @@ const MentorProfile = ({ initialUser }) => {
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <CardSkeleton />
       </div>
     )
   }
@@ -613,7 +614,7 @@ const MentorProfile = ({ initialUser }) => {
         <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
         {isLoadingPosts ? (
           <div className="flex justify-center p-8">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <CardSkeleton />
           </div>
         ) : posts.length > 0 ? (
           posts.map(post => {

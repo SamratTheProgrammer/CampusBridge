@@ -1,3 +1,4 @@
+import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import React, { useEffect, useRef } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
@@ -70,7 +71,7 @@ const SyncUser = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+      <CardSkeleton />
       <p className="text-muted-foreground">Setting up your account...</p>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import UserSkeleton from '../../components/skeletons/UserSkeleton'
 import { Search, Filter, MapPin, ChevronLeft, ChevronRight, Loader2, UserPlus, CheckCircle2, Clock, MessageSquare, User, Calendar as CalendarIcon, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
@@ -268,7 +269,11 @@ const MentorDirectory = () => {
 
           <div className="space-y-4 max-w-5xl">
             {isLoading ? (
-              <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+              <div className="w-full space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <UserSkeleton key={i} variant="list" />
+              ))}
+            </div>
             ) : paginatedMentors.length > 0 ? (
               paginatedMentors.map(mentor => (
                 <div key={mentor._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 hover:shadow-md transition-shadow">
@@ -352,7 +357,11 @@ const MentorDirectory = () => {
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+            <div className="w-full space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <UserSkeleton key={i} variant="list" />
+              ))}
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredMyMentors.map((mentor) => (

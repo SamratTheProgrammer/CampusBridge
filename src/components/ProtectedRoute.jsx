@@ -4,15 +4,16 @@ import { useUser } from '@clerk/clerk-react'
 import { Loader2 } from 'lucide-react'
 import BlockedUserScreen from './BlockedUserScreen'
 import API_BASE from '../utils/api'
+import DashboardSkeleton from './skeletons/DashboardSkeleton'
 
 const ProtectedRoute = ({ allowedRoles = [] }) => {
   const { user, isLoaded, isSignedIn } = useUser()
-  const [userRole, setUserRole] = useState(() => {
-    return sessionStorage.getItem('campusbridge_user_role') || null
-  })
+  const cachedRole = sessionStorage.getItem('campusbridge_user_role')
+  const [userRole, setUserRole] = useState(cachedRole || null)
   const [isBlockedUser, setIsBlockedUser] = useState(false)
   const [blockReason, setBlockReason] = useState('')
-  const [isRoleLoading, setIsRoleLoading] = useState(true)
+  // Only show loading if no cached role (first login)
+  const [isRoleLoading, setIsRoleLoading] = useState(!cachedRole)
   const location = useLocation()
 
   // Admin session check via standalone admin login
@@ -84,12 +85,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
   // 1. Loading state while checking authentication and role
   if (!isLoaded || isRoleLoading) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">Verifying route integrity...</p>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   // 1.5. Blocked User Check -> Show Blocked User Screen

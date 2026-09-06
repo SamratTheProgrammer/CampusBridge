@@ -1,3 +1,4 @@
+import SessionSkeleton from '../../components/skeletons/SessionSkeleton'
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, Clock, Video, XCircle, CheckCircle2, Globe, MapPin, Loader2, User, Plus, X, Briefcase, ChevronRight, ExternalLink } from 'lucide-react'
@@ -465,9 +466,11 @@ const MySessions = () => {
       {/* Main Tab Content */}
       <div>
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <SessionSkeleton key={i}  />
+              ))}
+            </div>
 
         ) : activeTab === 'available' ? (
           /* ====== AVAILABLE MENTOR SESSIONS TAB ====== */

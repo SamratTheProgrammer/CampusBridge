@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import { Check, X, FileText, ExternalLink, ShieldCheck, Loader2, User, Building, Briefcase, GraduationCap, Clock, Award, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
@@ -145,7 +146,7 @@ const AdminVerification = () => {
       {/* Content State */}
       {isLoading ? (
         <div className="py-20 text-center flex flex-col items-center justify-center bg-card border border-border/50 rounded-2xl">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+          <CardSkeleton />
           <p className="text-sm font-medium text-muted-foreground">Loading mentor verifications from database...</p>
         </div>
       ) : (

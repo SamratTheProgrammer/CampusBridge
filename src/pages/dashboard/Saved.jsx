@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import JobSkeleton from '../../components/skeletons/JobSkeleton'
+import EventSkeleton from '../../components/skeletons/EventSkeleton'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookmarkMinus, MapPin, Building2, Calendar, ExternalLink, GraduationCap, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -97,7 +99,7 @@ const Saved = () => {
             >
               {isLoading ? (
                 <div className="p-12 flex justify-center items-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{[...Array(3)].map((_, i) => activeTab === 'Jobs' ? <JobSkeleton key={i} /> : <EventSkeleton key={i} />)}</div>
                 </div>
               ) : savedJobs.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

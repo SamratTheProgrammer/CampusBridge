@@ -4,7 +4,7 @@ import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
 
-const ShareModal = ({ isOpen, onClose, shareUrl, shareType, itemId }) => {
+const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) => {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState('link'); // 'link' | 'chat'
   const [contacts, setContacts] = useState([]);

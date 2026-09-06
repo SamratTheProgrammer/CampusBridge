@@ -9,16 +9,14 @@ import Navbar from './Navbar'
 import Footer from './Footer'
 import MentorProfile from '../pages/dashboard/MentorProfile'
 import StudentProfile from '../pages/mentor-dashboard/StudentProfile'
+import DashboardSkeleton from './skeletons/DashboardSkeleton'
+import ProfileSkeleton from './skeletons/ProfileSkeleton'
 
 export const DynamicLayoutWrapper = () => {
   const { user, isLoaded, isSignedIn } = useUser()
 
   if (!isLoaded) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   if (!isSignedIn) {
@@ -74,8 +72,8 @@ export const ProfileDispatcher = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-[60vh] p-4 sm:p-6 md:p-8">
+        <ProfileSkeleton />
       </div>
     )
   }

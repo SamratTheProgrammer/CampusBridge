@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import UserSkeleton from '../../components/skeletons/UserSkeleton'
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, UserPlus, CheckCircle2, Clock, MessageSquare, Video, Check, X, Search, Loader2, Sparkles, Building, GraduationCap } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
@@ -280,9 +281,11 @@ const MyNetwork = () => {
 
       {/* Loading State */}
       {isLoading ? (
-        <div className="flex justify-center p-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <div className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {[...Array(8)].map((_, i) => (
+                <UserSkeleton key={i} variant="grid" />
+              ))}
+            </div>
       ) : (
         <AnimatePresence mode="wait">
           

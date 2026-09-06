@@ -1,5 +1,7 @@
+import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Loader2, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User } from 'lucide-react'
+import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -366,7 +368,7 @@ const MyProfile = () => {
     }
   }
 
-  if (!isLoaded) return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
+  if (!isLoaded) return <div className="p-8"><ProfileSkeleton /></div>
 
   const coverPhotoUrl = user?.unsafeMetadata?.coverPhoto
   const profilePhotoUrl = user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)
@@ -625,8 +627,9 @@ const MyProfile = () => {
         <div className="md:col-span-2 space-y-6">
           <h2 className="text-xl font-bold text-foreground px-1">My Posts</h2>
           {isLoadingPosts ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="space-y-6">
+              <PostSkeleton />
+              <PostSkeleton />
             </div>
           ) : posts.length > 0 ? (
             posts.map(post => {

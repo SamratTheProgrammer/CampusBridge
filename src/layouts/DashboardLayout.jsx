@@ -14,6 +14,7 @@ import toast from 'react-hot-toast'
 import StudentProfileGuard from '../components/dashboard/StudentProfileGuard'
 import API_BASE from '../utils/api'
 import ReviewModal from '../components/modals/ReviewModal'
+import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 
 const DashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -197,12 +198,7 @@ const DashboardLayout = () => {
   }, [user, navigate]);
 
   if (!isLoaded || (isSignedIn && !user)) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading CampusBridge...</p>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   const filteredMentor = mentorsList.filter(mentor => {

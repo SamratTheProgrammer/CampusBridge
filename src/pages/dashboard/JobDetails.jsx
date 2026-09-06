@@ -1,3 +1,4 @@
+import { Skeleton } from '../../components/ui/Skeleton'
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Bookmark, Share2, Loader2, MapPin, Briefcase, Calendar, Bell, BellRing, IndianRupee } from 'lucide-react'
@@ -205,8 +206,53 @@ const JobDetails = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="max-w-3xl mx-auto space-y-6 pb-8 animate-pulse pt-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <Skeleton className="h-5 w-24 rounded-md" />
+          <div className="flex gap-3">
+            <Skeleton className="h-9 w-20 rounded-lg" />
+            <Skeleton className="h-9 w-24 rounded-lg" />
+            <Skeleton className="h-9 w-20 rounded-lg" />
+          </div>
+        </div>
+        
+        <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 shadow-sm">
+          <div className="flex items-center gap-5 mb-8">
+            <Skeleton className="w-16 h-16 rounded-xl shrink-0" />
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-48 rounded-md" />
+              <Skeleton className="h-5 w-32 rounded-md" />
+              <Skeleton className="h-3 w-40 rounded-md" />
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 pb-8 border-b border-border/40">
+            <div className="space-y-3">
+              <Skeleton className="h-3 w-32 rounded-md" />
+              <div className="flex gap-3">
+                <Skeleton className="h-6 w-40 rounded-full" />
+              </div>
+            </div>
+            <Skeleton className="h-11 w-full sm:w-32 rounded-xl" />
+          </div>
+
+          <div className="space-y-8">
+            <section>
+              <Skeleton className="h-6 w-40 rounded-md mb-4" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full rounded-md" />
+                <Skeleton className="h-4 w-full rounded-md" />
+                <Skeleton className="h-4 w-5/6 rounded-md" />
+                <Skeleton className="h-4 w-4/6 rounded-md" />
+              </div>
+            </section>
+            
+            <section>
+              <Skeleton className="h-6 w-40 rounded-md mb-4" />
+              <Skeleton className="h-10 w-32 rounded-lg" />
+            </section>
+          </div>
+        </div>
       </div>
     )
   }

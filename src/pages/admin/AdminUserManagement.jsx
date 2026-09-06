@@ -1,3 +1,4 @@
+import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import React, { useState, useEffect } from 'react'
 import { 
   Search, 
@@ -267,7 +268,7 @@ const AdminUserManagement = () => {
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
         {isLoading ? (
           <div className="py-20 text-center flex flex-col items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+            <CardSkeleton />
             <p className="text-sm font-medium text-muted-foreground">Loading registered users from database...</p>
           </div>
         ) : (

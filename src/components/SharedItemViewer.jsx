@@ -1,3 +1,4 @@
+import CardSkeleton from './skeletons/CardSkeleton'
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { X, Heart, MessageCircle, Share2, Loader2, MapPin, Building, Calendar as CalendarIcon, ExternalLink, MoreVertical, Edit3, Trash2 } from 'lucide-react';
@@ -270,7 +271,7 @@ const SharedItemViewer = () => {
 
         {loading ? (
           <div className="w-full md:w-[600px] h-full flex flex-col items-center justify-center bg-muted/20">
-            <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+            <CardSkeleton />
             <p className="text-muted-foreground font-medium">Loading details...</p>
           </div>
         ) : data ? (

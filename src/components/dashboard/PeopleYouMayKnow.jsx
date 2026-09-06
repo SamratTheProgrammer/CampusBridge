@@ -1,3 +1,4 @@
+import UserSkeleton from '../skeletons/UserSkeleton'
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   UserPlus, 
@@ -444,7 +445,7 @@ const PeopleYouMayKnow = () => {
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                 {isDiscoverLoading ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <div className="w-full space-y-4 text-left">{[...Array(3)].map((_, i) => <UserSkeleton key={i} variant="list" />)}</div>
                     <p className="text-xs text-muted-foreground">Searching across CampusBridge network...</p>
                   </div>
                 ) : discoverResults.length > 0 ? (

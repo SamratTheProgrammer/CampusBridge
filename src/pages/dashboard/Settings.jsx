@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2 } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
+import SettingsSkeleton from '../../components/skeletons/SettingsSkeleton'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { AnimatePresence } from 'framer-motion'
@@ -168,6 +169,7 @@ const Settings = () => {
   const [showSkillDropdown, setShowSkillDropdown] = useState(false)
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
   const [hasInitialized, setHasInitialized] = useState(false)
+  const [isDataLoading, setIsDataLoading] = useState(true)
   
   const [isUploading, setIsUploading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -236,10 +238,12 @@ const Settings = () => {
             if (data.gender) setGender(data.gender);
             if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
             setHasInitialized(true);
+            setIsDataLoading(false);
           }
         } catch (error) {
           console.error("Failed to fetch mongo profile:", error);
-          setHasInitialized(true); // Proceed even if fetch fails to avoid getting stuck
+          setHasInitialized(true);
+            setIsDataLoading(false); // Proceed even if fetch fails to avoid getting stuck
         }
       };
       fetchMongoProfile();
@@ -1560,3 +1564,4 @@ const Settings = () => {
 }
 
 export default Settings
+

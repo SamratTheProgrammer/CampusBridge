@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
+import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
 import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
@@ -665,8 +666,10 @@ const MentorHome = () => {
         {/* Feed Posts */}
         <div className="space-y-6">
           {isLoadingPosts ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="flex flex-col gap-4">
+              <PostSkeleton />
+              <PostSkeleton />
+              <PostSkeleton />
             </div>
           ) : posts.length > 0 ? (
             posts.map(post => {

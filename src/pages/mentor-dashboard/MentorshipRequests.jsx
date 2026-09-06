@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, User, Calendar, MessageSquare, BookOpen, Loader2, Globe, MapPin, Clock } from 'lucide-react'
+import UserSkeleton from '../../components/skeletons/UserSkeleton'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
@@ -81,9 +82,11 @@ const MentorshipRequests = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <div className="w-full space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <UserSkeleton key={i} variant="list" />
+              ))}
+            </div>
       ) : (
         <>
           {/* Tabs */}

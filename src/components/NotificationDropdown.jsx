@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -291,8 +291,10 @@ const NotificationDropdown = () => {
         return <MessageSquare className="w-4 h-4 text-purple-500" />;
       case 'session_booked':
         return <Calendar className="w-4 h-4 text-amber-500" />;
+      case 'admin':
+        return <Bell className="w-4 h-4 text-amber-500" />;
       default:
-        return <Sparkles className="w-4 h-4 text-primary" />;
+        return <User className="w-4 h-4 text-primary" />;
     }
   };
 
@@ -434,13 +436,15 @@ const NotificationDropdown = () => {
                       {n.senderImage ? (
                         <img src={n.senderImage} alt={n.senderName} className="w-9 h-9 rounded-full object-cover border border-border/50" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border/50">
-                          {getNotificationIcon(n.type)}
-                        </div>
+                        <>
+                          <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border/50">
+                            {getNotificationIcon(n.type)}
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border border-border/50">
+                            {getNotificationIcon(n.type)}
+                          </div>
+                        </>
                       )}
-                      <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border border-border/50">
-                        {getNotificationIcon(n.type)}
-                      </div>
                     </div>
 
                     {/* Content */}

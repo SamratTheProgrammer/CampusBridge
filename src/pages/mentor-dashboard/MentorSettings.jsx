@@ -428,12 +428,7 @@ const MentorSettings = () => {
           >
             <User className="w-4 h-4 shrink-0" /> Account Profile
           </button>
-          <button 
-            onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'notifications' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
-          >
-            <Bell className="w-4 h-4 shrink-0" /> Notifications
-          </button>
+
           <button 
             onClick={() => setActiveTab('privacy')}
             className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'privacy' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}

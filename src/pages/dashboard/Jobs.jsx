@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import JobSkeleton from '../../components/skeletons/JobSkeleton'
 import { Link } from 'react-router-dom'
 import { Search, MapPin, Briefcase, Filter, Loader2, Calendar, Share2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -97,9 +98,11 @@ const Jobs = () => {
 
       {/* Jobs Grid */}
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <JobSkeleton key={i}  />
+              ))}
+            </div>
       ) : filteredJobs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredJobs.map(job => (

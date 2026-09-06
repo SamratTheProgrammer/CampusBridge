@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Skeleton } from '../../components/ui/Skeleton'
 import { motion } from 'framer-motion'
 import { Briefcase, Building2, MapPin, Clock, MoreVertical, ExternalLink, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -76,8 +77,30 @@ const Applications = () => {
 
       <div className="bg-card border border-border/40 rounded-2xl shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="p-12 flex justify-center items-center">
-             <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="divide-y divide-border/40 animate-pulse">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="p-6 flex flex-col md:flex-row md:items-center gap-6">
+                {/* Logo */}
+                <Skeleton className="w-12 h-12 rounded-xl shrink-0" />
+                {/* Details */}
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-5 w-40 rounded-md" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    <Skeleton className="h-4 w-24 rounded-md" />
+                    <Skeleton className="h-4 w-28 rounded-md" />
+                    <Skeleton className="h-4 w-20 rounded-md" />
+                  </div>
+                </div>
+                {/* Date + Action */}
+                <div className="flex flex-col items-end gap-3 shrink-0">
+                  <Skeleton className="h-4 w-32 rounded-md" />
+                  <Skeleton className="h-9 w-9 rounded-lg" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredApplications.length > 0 ? (
           <div className="divide-y divide-border/40">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import SessionSkeleton from '../../components/skeletons/SessionSkeleton'
 import { Plus, Calendar, Clock, MapPin, Users, Link as LinkIcon, Search, Loader2, X, Edit, Trash2, Globe, Video, BookOpen, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
@@ -419,9 +420,11 @@ const MentorSessions = () => {
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <SessionSkeleton key={i}  />
+              ))}
+            </div>
       ) : (activeTab === 'events' || activeTab === 'sessions') ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {(activeTab === 'events' ? filteredEvents : filteredGroupSessions).map((session) => (
@@ -806,9 +809,11 @@ const MentorSessions = () => {
             </div>
 
             {isLoadingStudents ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
+              <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <SessionSkeleton key={i}  />
+              ))}
+            </div>
             ) : registeredStudents.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                 {registeredStudents.map((app) => (

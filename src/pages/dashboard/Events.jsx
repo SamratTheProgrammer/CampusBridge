@@ -1,3 +1,4 @@
+import EventSkeleton from '../../components/skeletons/EventSkeleton'
 
 import React, { useState, useEffect } from 'react'
 import { Loader2, Calendar, Clock, MapPin, Users, X, CheckCircle2, Globe, Video, Share2 } from 'lucide-react'
@@ -201,9 +202,11 @@ const Events = () => {
 
       <div className="space-y-4 pt-2">
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <div className="w-full space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <EventSkeleton key={i}  />
+              ))}
+            </div>
         ) : filteredEvents.length > 0 ? (
           filteredEvents.map(event => {
             const registered = isRegistered(event)
@@ -435,6 +438,8 @@ const Events = () => {
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         shareUrl={shareConfig?.shareUrl}
+        shareType={shareConfig?.shareType || 'event'}
+        itemId={shareConfig?.itemId}
         title="Share this event!"
       />
       <ReviewListModal

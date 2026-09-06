@@ -1,3 +1,4 @@
+import JobSkeleton from '../../components/skeletons/JobSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Briefcase, MapPin, DollarSign, Building2, Users, Search, Loader2, Clock, ChevronDown, X, Edit2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -386,9 +387,11 @@ const MentorJobs = () => {
 
       {/* Job Grid */}
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <JobSkeleton key={i}  />
+              ))}
+            </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredJobs.map((job) => (
@@ -573,9 +576,11 @@ const MentorJobs = () => {
 
               <div className="p-6 sm:p-8 overflow-y-auto flex-1">
                 {isLoadingApps ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  </div>
+                  <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <JobSkeleton key={i}  />
+              ))}
+            </div>
                 ) : applications.length === 0 ? (
                   <div className="text-center py-12">
                     <Users className="w-12 h-12 text-muted-foreground opacity-50 mx-auto mb-3" />

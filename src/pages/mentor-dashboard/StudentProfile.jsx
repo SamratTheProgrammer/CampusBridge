@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2 } from 'lucide-react'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -271,7 +272,7 @@ const StudentProfile = ({ initialUser }) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <CardSkeleton />
       </div>
     )
   }
@@ -610,7 +611,7 @@ const StudentProfile = ({ initialUser }) => {
         <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
         {isLoadingPosts ? (
           <div className="flex justify-center p-8">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <CardSkeleton />
           </div>
         ) : posts.length > 0 ? (
           posts.map(post => {

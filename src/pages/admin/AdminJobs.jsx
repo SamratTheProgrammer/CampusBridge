@@ -1,3 +1,4 @@
+import JobSkeleton from '../../components/skeletons/JobSkeleton'
 import React, { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -245,7 +246,11 @@ const AdminJobs = () => {
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
         {isLoading ? (
           <div className="py-20 text-center flex flex-col items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <JobSkeleton key={i}  />
+              ))}
+            </div>
             <p className="text-sm font-medium text-muted-foreground">Loading job postings from database...</p>
           </div>
         ) : (

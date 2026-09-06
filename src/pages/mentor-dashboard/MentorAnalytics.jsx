@@ -1,14 +1,8 @@
+import { Skeleton } from '../../components/ui/Skeleton'
 import React, { useState, useEffect } from 'react'
 import { Users, Eye, MousePointerClick, TrendingUp, Star, Award, Loader2 } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
-
-const STATS = [
-  { label: 'Total Students', value: '48', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-  { label: 'Profile Views', value: '1,245', icon: Eye, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-  { label: 'Post Engagements', value: '3,892', icon: MousePointerClick, color: 'text-pink-500', bg: 'bg-pink-500/10' },
-  { label: 'Sessions Hosted', value: '156', icon: Award, color: 'text-orange-500', bg: 'bg-orange-500/10' },
-]
 
 const PERFORMANCE_DATA = [
   { month: 'Jan', value: 40 },
@@ -46,8 +40,73 @@ const MentorAnalytics = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="max-w-6xl mx-auto space-y-8 animate-pulse">
+        {/* Header */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-56 rounded-md" />
+          <Skeleton className="h-4 w-80 rounded-md" />
+        </div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex justify-between items-start">
+                <Skeleton className="w-12 h-12 rounded-xl" />
+                <Skeleton className="h-6 w-14 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-28 rounded-md" />
+              <Skeleton className="h-9 w-16 rounded-md" />
+            </div>
+          ))}
+        </div>
+        {/* Chart + Feedback row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-6">
+            <div className="flex justify-between">
+              <Skeleton className="h-5 w-44 rounded-md" />
+              <Skeleton className="h-8 w-28 rounded-lg" />
+            </div>
+            <div className="h-64 flex items-end justify-between gap-2 pt-4">
+              {[65, 45, 80, 55, 95, 70, 85, 100].map((h, i) => (
+                <Skeleton key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%` }} />
+              ))}
+            </div>
+          </div>
+          <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-4">
+            <Skeleton className="h-5 w-36 rounded-md" />
+            <div className="flex flex-col items-center py-6 gap-3">
+              <Skeleton className="h-14 w-20 rounded-md" />
+              <Skeleton className="h-5 w-32 rounded-md" />
+              <Skeleton className="h-4 w-24 rounded-md" />
+            </div>
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="space-y-1">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-3 w-12 rounded" />
+                    <Skeleton className="h-3 w-8 rounded" />
+                  </div>
+                  <Skeleton className="h-1.5 w-full rounded-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Bottom two cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-4">
+              <Skeleton className="h-5 w-44 rounded-md" />
+              {[...Array(3)].map((_, j) => (
+                <div key={j} className="p-4 rounded-xl border border-border/50 space-y-2">
+                  <Skeleton className="h-4 w-full rounded" />
+                  <Skeleton className="h-4 w-4/5 rounded" />
+                  <Skeleton className="h-3 w-24 rounded" />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -72,7 +131,7 @@ const MentorAnalytics = () => {
   ];
 
   const chartData = dataToRender.performanceData;
-  const maxVal = Math.max(...chartData.map(d => d.value), 1) // avoid div by 0
+  const maxVal = Math.max(...chartData.map(d => d.value), 1)
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -242,4 +301,3 @@ const MentorAnalytics = () => {
 }
 
 export default MentorAnalytics
-
