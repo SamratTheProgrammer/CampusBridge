@@ -1,0 +1,177 @@
+import express from 'express';
+import Review from '../models/Review.js';
+import User from '../models/User.js';
+import Session from '../models/Session.js';
+import Event from '../models/Event.js';
+import mongoose from 'mongoose';
+
+const router = express.Router();
+
+// 1. Submit a review
+router.post('/', async (req, res) => {
+  try {
+    const { reviewerClerkId, mentorId, type, referenceId, mentorRating, mentorComment, contentRating, contentComment } = req.body;
+
+    const reviewerUser = await User.findOne({ clerkId: reviewerClerkId });
+    if (!reviewerUser) {
+      return res.status(404).json({ error: 'Reviewer not found' });
+    }
+
+    const typeModel = type === 'session' ? 'Session' : 'Event';
+
+    const newReview = new Review({
+      reviewer: reviewerUser._id,
+      mentor: mentorId, // Can be undefined for events
+      type,
+      referenceId,
+      typeModel,
+      mentorRating,
+      mentorComment,
+      contentRating,
+      contentComment
+    });
+
+    await newReview.save();
+    res.status(201).json(newReview);
+  } catch (error) {
+    console.error('Submit Review Error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'You have already reviewed this.' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 2. Get pending reviews for a user
+router.get('/pending/:clerkId', async (req, res) => {
+  try {
+    const user = await User.findOne({ clerkId: req.params.clerkId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Find all completed sessions where user is the student
+    const completedSessions = await Session.find({
+      student: user._id,
+      status: 'completed'
+    }).populate('mentor', 'firstName lastName imageUrl');
+
+    // Find all events user attended that are in the past
+    // Note: Assuming 'attendees' array has user._id and date is in the past
+    const pastEvents = await Event.find({
+      attendees: user._id,
+      date: { $lt: new Date() }
+    }).populate('organizer', 'firstName lastName imageUrl');
+
+    // Find all existing reviews by this user
+    const userReviews = await Review.find({ reviewer: user._id });
+    const reviewedReferenceIds = userReviews.map(r => r.referenceId.toString());
+
+    const pending = [];
+
+    completedSessions.forEach(session => {
+      if (!reviewedReferenceIds.includes(session._id.toString())) {
+        pending.push({
+          type: 'session',
+          referenceId: session._id,
+          title: `Session with ${session.mentor?.firstName || 'Mentor'}`,
+          mentor: session.mentor,
+          date: session.date
+        });
+      }
+    });
+
+    pastEvents.forEach(event => {
+      if (!reviewedReferenceIds.includes(event._id.toString())) {
+        pending.push({
+          type: 'event',
+          referenceId: event._id,
+          title: event.title,
+          mentor: event.organizer,
+          date: event.date
+        });
+      }
+    });
+
+    res.json(pending);
+  } catch (error) {
+    console.error('Get Pending Reviews Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 3. Get reviews and average rating for a mentor
+router.get('/mentor/:clerkId', async (req, res) => {
+  try {
+    const mentorUser = await User.findOne({ clerkId: req.params.clerkId });
+    if (!mentorUser) {
+      return res.status(404).json({ error: 'Mentor not found' });
+    }
+
+    const reviews = await Review.find({ mentor: mentorUser._id, mentorRating: { $exists: true, $ne: null } })
+      .populate('reviewer', 'firstName lastName imageUrl')
+      .populate('referenceId')
+      .sort({ createdAt: -1 });
+
+    const totalRatings = reviews.length;
+    const averageRating = totalRatings > 0
+      ? (reviews.reduce((acc, curr) => acc + curr.mentorRating, 0) / totalRatings).toFixed(1)
+      : 0;
+
+    res.json({
+      averageRating: Number(averageRating),
+      totalRatings,
+      reviews
+    });
+  } catch (error) {
+    console.error('Get Mentor Reviews Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4. Get reviews for an event
+router.get('/event/:eventId', async (req, res) => {
+  try {
+    const reviews = await Review.find({ type: 'event', referenceId: req.params.eventId })
+      .populate('reviewer', 'firstName lastName imageUrl')
+      .sort({ createdAt: -1 });
+
+    const totalRatings = reviews.length;
+    const averageRating = totalRatings > 0
+      ? (reviews.reduce((acc, curr) => acc + curr.contentRating, 0) / totalRatings).toFixed(1)
+      : 0;
+
+    res.json({
+      averageRating: Number(averageRating),
+      totalRatings,
+      reviews
+    });
+  } catch (error) {
+    console.error('Get Event Reviews Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 5. Get review for a session
+router.get('/session/:sessionId', async (req, res) => {
+  try {
+    const reviews = await Review.find({ type: 'session', referenceId: req.params.sessionId })
+      .populate('reviewer', 'firstName lastName imageUrl');
+
+    const totalRatings = reviews.length;
+    const averageRating = totalRatings > 0
+      ? (reviews.reduce((acc, curr) => acc + curr.contentRating, 0) / totalRatings).toFixed(1)
+      : 0;
+
+    res.json({
+      averageRating: Number(averageRating),
+      totalRatings,
+      reviews
+    });
+  } catch (error) {
+    console.error('Get Session Reviews Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;

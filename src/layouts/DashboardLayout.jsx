@@ -13,8 +13,7 @@ import { ringtoneService } from '../utils/ringtone'
 import toast from 'react-hot-toast'
 import StudentProfileGuard from '../components/dashboard/StudentProfileGuard'
 import API_BASE from '../utils/api'
-
-
+import ReviewModal from '../components/modals/ReviewModal'
 
 const DashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -24,6 +23,10 @@ const DashboardLayout = () => {
   const [mentorsList, setMentorsList] = useState([])
   const [jobsList, setJobsList] = useState([])
   const [eventsList, setEventsList] = useState([])
+  
+  const [pendingReviews, setPendingReviews] = useState([])
+  const [currentReview, setCurrentReview] = useState(null)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   
   const navigate = useNavigate()
   const location = useLocation()
@@ -52,6 +55,32 @@ const DashboardLayout = () => {
       fetchGlobalData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`${API_BASE}/api/reviews/pending/${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            setPendingReviews(data)
+            setCurrentReview(data[0])
+            setIsReviewModalOpen(true)
+          }
+        })
+        .catch(err => console.error('Error fetching pending reviews:', err))
+    }
+  }, [user?.id]);
+
+  const handleReviewSubmitted = (referenceId) => {
+    const updatedPending = pendingReviews.filter(r => r.referenceId !== referenceId)
+    setPendingReviews(updatedPending)
+    if (updatedPending.length > 0) {
+      setCurrentReview(updatedPending[0])
+    } else {
+      setIsReviewModalOpen(false)
+      setCurrentReview(null)
+    }
+  }
 
   useEffect(() => {
     if (isLoaded) {
@@ -396,6 +425,12 @@ const DashboardLayout = () => {
           </AnimatePresence>
         </main>
         {isLoaded && user && <VideoCallModal currentUser={user} />}
+        <ReviewModal 
+          isOpen={isReviewModalOpen} 
+          onClose={() => setIsReviewModalOpen(false)}
+          pendingReview={currentReview}
+          onReviewSubmitted={handleReviewSubmitted}
+        />
       </div>
     </div>
   )
