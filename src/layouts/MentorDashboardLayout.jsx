@@ -12,6 +12,8 @@ import { socket } from '../services/socket'
 import { ringtoneService } from '../utils/ringtone'
 import { calculateProfileCompleteness } from '../utils/profileCompleteness'
 import toast from 'react-hot-toast'
+import API_BASE from '../utils/api'
+import ReviewModal from '../components/modals/ReviewModal'
 
 const MOCK_STUDENTS = [
   { id: 1, name: 'Ananya Sharma', role: 'B.Tech CS Student', university: 'NIT Trichy' },
@@ -28,6 +30,10 @@ const MentorDashboardLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [pendingReviews, setPendingReviews] = useState([])
+  const [currentReview, setCurrentReview] = useState(null)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  
   const navigate = useNavigate()
   const location = useLocation()
   const searchRef = useRef(null)
@@ -70,6 +76,34 @@ const MentorDashboardLayout = () => {
       socket.off('update_sidebar', handleUpdate)
     }
   }, [user])
+
+  const isVerifiedStatus = verificationStatus === 'Approved'
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`${API_BASE}/api/reviews/pending/${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            setPendingReviews(data)
+            setCurrentReview(data[0])
+            setIsReviewModalOpen(true)
+          }
+        })
+        .catch(err => console.error('Error fetching pending reviews:', err))
+    }
+  }, [user?.id]);
+
+  const handleReviewSubmitted = (referenceId) => {
+    const updatedPending = pendingReviews.filter(r => r.referenceId !== referenceId)
+    setPendingReviews(updatedPending)
+    if (updatedPending.length > 0) {
+      setCurrentReview(updatedPending[0])
+    } else {
+      setIsReviewModalOpen(false)
+      setCurrentReview(null)
+    }
+  }
 
   const isApproved = verificationStatus === 'Approved' || isVerified
   const isLocked = profileCompleteness.percentage < 80
@@ -383,6 +417,12 @@ const MentorDashboardLayout = () => {
           </AnimatePresence>
         </main>
         {isLoaded && user && <VideoCallModal currentUser={user} />}
+        <ReviewModal 
+          isOpen={isReviewModalOpen} 
+          onClose={() => setIsReviewModalOpen(false)}
+          pendingReview={currentReview}
+          onReviewSubmitted={handleReviewSubmitted}
+        />
       </div>
     </div>
   )

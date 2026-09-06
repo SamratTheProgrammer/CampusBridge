@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2 } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -14,7 +14,8 @@ import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
-
+import ReviewListModal from '../../components/modals/ReviewListModal'
+import ReviewModal from '../../components/modals/ReviewModal'
 const MentorProfile = ({ initialUser }) => {
   const navigate = useNavigate();
   const { id, username } = useParams();
@@ -37,6 +38,11 @@ const MentorProfile = ({ initialUser }) => {
   const [commentText, setCommentText] = useState('')
   const [isCommenting, setIsCommenting] = useState(false)
   const [connectionsCount, setConnectionsCount] = useState(0)
+  
+  const [mentorStats, setMentorStats] = useState({ averageRating: 0, totalRatings: 0, reviews: [] })
+  const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [pendingReview, setPendingReview] = useState(null)
 
   useEffect(() => {
     const fetchMentorAndConnection = async () => {
@@ -101,6 +107,22 @@ const MentorProfile = ({ initialUser }) => {
       }
     }
     fetchConnectionsCount();
+  }, [mentor?.clerkId])
+
+  useEffect(() => {
+    if (!mentor?.clerkId) return;
+    const fetchMentorStats = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/reviews/mentor/${mentor.clerkId}`)
+        if (res.ok) {
+          const data = await res.json()
+          setMentorStats(data)
+        }
+      } catch (err) {
+        console.error('Error fetching mentor stats:', err)
+      }
+    }
+    fetchMentorStats();
   }, [mentor?.clerkId])
 
   const handleShare = async () => {
@@ -435,6 +457,14 @@ const MentorProfile = ({ initialUser }) => {
                     {mentor.address}
                   </span>
                 )}
+                <button 
+                  onClick={() => setIsReviewListModalOpen(true)}
+                  className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
+                >
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  <span className="font-bold">{mentorStats.averageRating || '0.0'}</span>
+                  <span className="text-xs">({mentorStats.totalRatings || 0} Reviews)</span>
+                </button>
               </div>
             </div>
           </div>
@@ -900,6 +930,31 @@ const MentorProfile = ({ initialUser }) => {
         mediaFiles={viewerData?.files} 
         initialIndex={viewerData?.index || 0} 
         onClose={() => setViewerData(null)} 
+      />
+
+      <ReviewListModal
+        isOpen={isReviewListModalOpen}
+        onClose={() => setIsReviewListModalOpen(false)}
+        reviews={mentorStats.reviews || []}
+        title={`Reviews for ${fullName}`}
+        type="mentor"
+        onAddReview={user && user.id !== (mentor.clerkId || mentor._id) ? () => {
+          setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
+          setIsReviewModalOpen(true);
+        } : null}
+      />
+
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        pendingReview={pendingReview}
+        onReviewSubmitted={() => {
+          if (!mentor?.clerkId) return;
+          fetch(`${API_BASE}/api/reviews/mentor/${mentor.clerkId}`)
+            .then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => setMentorStats(data))
+            .catch(err => console.error(err));
+        }}
       />
 
       <ConfirmModal

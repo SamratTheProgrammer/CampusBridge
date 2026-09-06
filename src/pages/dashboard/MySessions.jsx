@@ -6,6 +6,31 @@ import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
+import ReviewListModal from '../../components/modals/ReviewListModal'
+import { Star } from 'lucide-react'
+
+const SessionRatingBadge = ({ sessionId, onClick }) => {
+  const [stats, setStats] = useState({ averageRating: 0, totalRatings: 0, reviews: [] })
+  
+  useEffect(() => {
+    fetch(`${API_BASE}/api/reviews/session/${sessionId}`)
+      .then(res => res.json())
+      .then(data => setStats(data))
+      .catch(() => {})
+  }, [sessionId])
+
+  if (stats.totalRatings === 0) return null;
+
+  return (
+    <button 
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(stats.reviews, stats.averageRating); }}
+      className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
+    >
+      <Star className="w-3.5 h-3.5 fill-current" />
+      <span className="font-bold text-[10px]">{stats.averageRating}</span>
+    </button>
+  )
+}
 
 const MySessions = () => {
   const { user } = useUser()
@@ -23,6 +48,11 @@ const MySessions = () => {
   const [selectedSession, setSelectedSession] = useState(null)
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false)
+
+  // Review List Modal State
+  const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
+  const [selectedReviews, setSelectedReviews] = useState([])
+  const [selectedSessionTitle, setSelectedSessionTitle] = useState('')
 
   const fetchData = async () => {
     try {
@@ -280,6 +310,17 @@ const MySessions = () => {
           )}
 
           <div className="flex items-center gap-2">
+            {(isPast || item.status === 'completed' || item.status === 'declined' || item.status === 'cancelled') && !isEvent ? (
+              <SessionRatingBadge 
+                sessionId={item._id} 
+                onClick={(reviews) => {
+                  setSelectedReviews(reviews)
+                  setSelectedSessionTitle(`Reviews for Session with ${mentorName}`)
+                  setIsReviewListModalOpen(true)
+                }} 
+              />
+            ) : null}
+            
             {isPast || item.status === 'completed' || item.status === 'declined' || item.status === 'cancelled' ? (
               <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-muted text-muted-foreground">
                 {item.status === 'declined' || item.status === 'cancelled' ? item.status : 'Completed'}
@@ -710,6 +751,15 @@ const MySessions = () => {
           </div>
         </div>
       )}
+
+      {/* Review List Modal */}
+      <ReviewListModal
+        isOpen={isReviewListModalOpen}
+        onClose={() => setIsReviewListModalOpen(false)}
+        reviews={selectedReviews}
+        title={selectedSessionTitle}
+        type="session"
+      />
     </div>
   )
 }

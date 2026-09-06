@@ -8,6 +8,30 @@ import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 import { useNavigate } from 'react-router-dom'
 import ShareModal from '../../components/modals/ShareModal'
+import ReviewListModal from '../../components/modals/ReviewListModal'
+import { Star } from 'lucide-react'
+
+const EventRatingBadge = ({ eventId, onClick }) => {
+  const [stats, setStats] = useState({ averageRating: 0, totalRatings: 0, reviews: [] })
+  
+  useEffect(() => {
+    fetch(`${API_BASE}/api/reviews/event/${eventId}`)
+      .then(res => res.json())
+      .then(data => setStats(data))
+      .catch(() => {})
+  }, [eventId])
+
+  return (
+    <button 
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(stats.reviews, stats.averageRating); }}
+      className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
+    >
+      <Star className="w-3.5 h-3.5 fill-current" />
+      <span className="font-bold text-sm">{stats.averageRating || '0.0'}</span>
+      <span className="text-xs">({stats.totalRatings || 0} Reviews)</span>
+    </button>
+  )
+}
 
 const Events = () => {
   const { user } = useUser()
@@ -16,9 +40,13 @@ const Events = () => {
   const [events, setEvents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Share Modal State
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [shareConfig, setShareConfig] = useState(null)
+  
+  // Review List Modal State
+  const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
+  const [selectedReviews, setSelectedReviews] = useState([])
+  const [selectedEventTitle, setSelectedEventTitle] = useState('')
 
   const handleShareEvent = (e, eventId) => {
     e.preventDefault();
@@ -245,13 +273,23 @@ const Events = () => {
                         </div>
                       )}
                     </div>
-                    <p className="text-xs font-medium text-muted-foreground bg-muted inline-block px-2 py-1 rounded border border-border/50 flex items-center gap-1 w-fit">
-                      <Users className="w-3.5 h-3.5 text-primary" /> {event.attendees?.length || 0} Registered
-                    </p>
-                    
-                    {registered && (() => {
-                      const isPastEvent = event.date && new Date(event.date).getTime() < new Date().setHours(0,0,0,0);
-                      return (
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <p className="text-xs font-medium text-muted-foreground bg-muted inline-block px-2 py-1 rounded border border-border/50 flex items-center gap-1 w-fit">
+                        <Users className="w-3.5 h-3.5 text-primary" /> {event.attendees?.length || 0} Registered
+                      </p>
+                      <EventRatingBadge 
+                        eventId={event._id} 
+                        onClick={(reviews) => {
+                          setSelectedReviews(reviews)
+                          setSelectedEventTitle(`Reviews for ${event.title}`)
+                          setIsReviewListModalOpen(true)
+                        }} 
+                      />
+                    </div>
+                  </div>
+                  {registered && (() => {
+                    const isPastEvent = event.date && new Date(event.date).getTime() < new Date().setHours(0,0,0,0);
+                    return (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {event.date && !isPastEvent && (
                           <a 
@@ -277,9 +315,8 @@ const Events = () => {
                           <Share2 className="w-3.5 h-3.5" /> {isPastEvent ? 'Share Experience' : 'Share Thought'}
                         </button>
                       </div>
-                      );
-                    })()}
-                  </div>
+                    );
+                  })()}
                 </div>
                 {event.active && !registered && (
                   <button 
@@ -298,7 +335,6 @@ const Events = () => {
           </div>
         )}
       </div>
-
 
       <AnimatePresence>
         {showRegisterModal && selectedEvent && (
@@ -395,12 +431,18 @@ const Events = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      <ShareModal 
-        isOpen={isShareModalOpen} 
-        onClose={() => setIsShareModalOpen(false)} 
-        shareUrl={shareConfig?.shareUrl} 
-        shareType={shareConfig?.shareType} 
-        itemId={shareConfig?.itemId} 
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        shareUrl={shareConfig?.shareUrl}
+        title="Share this event!"
+      />
+      <ReviewListModal
+        isOpen={isReviewListModalOpen}
+        onClose={() => setIsReviewListModalOpen(false)}
+        reviews={selectedReviews}
+        title={selectedEventTitle}
+        type="event"
       />
     </div>
   )
