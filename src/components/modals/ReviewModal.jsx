@@ -30,7 +30,7 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (contentRating === 0 || (mentor && mentorRating === 0)) {
+    if (contentRating === 0 || (mentor && type === 'session' && mentorRating === 0)) {
       toast.error('Please provide a star rating.');
       return;
     }
@@ -129,7 +129,7 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
             </div>
 
             {/* Mentor Rating */}
-            {mentor && (
+            {mentor && type === 'session' && (
               <div className="space-y-3 pt-6 border-t border-gray-100 dark:border-gray-700">
                 <label className="block text-base font-semibold text-gray-700 dark:text-gray-300">
                   How would you rate {mentor.firstName || 'the mentor'}?

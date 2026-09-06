@@ -243,7 +243,7 @@ const MentorJobs = () => {
     }
 
     try {
-      const url = jobToEdit ? `/api/jobs/${jobToEdit._id}` : '/api/jobs'
+      const url = jobToEdit ? `${API_BASE}/api/jobs/${jobToEdit._id}` : `${API_BASE}/api/jobs`
       const method = jobToEdit ? 'PUT' : 'POST'
       
       const res = await fetch(url, {

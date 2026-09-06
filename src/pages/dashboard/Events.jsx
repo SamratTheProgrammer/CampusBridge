@@ -9,6 +9,7 @@ import API_BASE from '../../utils/api'
 import { useNavigate } from 'react-router-dom'
 import ShareModal from '../../components/modals/ShareModal'
 import ReviewListModal from '../../components/modals/ReviewListModal'
+import ReviewModal from '../../components/modals/ReviewModal'
 import { Star } from 'lucide-react'
 
 const EventRatingBadge = ({ eventId, onClick }) => {
@@ -47,6 +48,10 @@ const Events = () => {
   const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
   const [selectedReviews, setSelectedReviews] = useState([])
   const [selectedEventTitle, setSelectedEventTitle] = useState('')
+  const [selectedEventForReview, setSelectedEventForReview] = useState(null)
+  
+  // Manual Review Modal State
+  const [isManualReviewModalOpen, setIsManualReviewModalOpen] = useState(false)
 
   const handleShareEvent = (e, eventId) => {
     e.preventDefault();
@@ -162,7 +167,31 @@ const Events = () => {
   }
 
   const filteredEvents = events.filter(event => {
-    const isPast = event.date ? new Date(event.date) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
+    let isPast = false;
+    if (event.date) {
+      const eventDate = new Date(event.date);
+      const today = new Date();
+      if (eventDate.setHours(0, 0, 0, 0) < today.setHours(0, 0, 0, 0)) {
+        isPast = true;
+      } else if (eventDate.setHours(0, 0, 0, 0) === today.setHours(0, 0, 0, 0)) {
+        if (event.time && event.time.includes('-')) {
+          const endTimeStr = event.time.split('-')[1].trim();
+          const timeMatch = endTimeStr.match(/(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i);
+          if (timeMatch) {
+            let hours = parseInt(timeMatch[1]);
+            const minutes = parseInt(timeMatch[2]);
+            const ampm = timeMatch[3];
+            if (ampm) {
+              if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+              if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+            }
+            const eventEnd = new Date();
+            eventEnd.setHours(hours, minutes, 0, 0);
+            if (new Date() > eventEnd) isPast = true;
+          }
+        }
+      }
+    }
     const isActive = event.active && !isPast;
     
     if (activeTab === 'upcoming') return isActive;
@@ -277,14 +306,17 @@ const Events = () => {
                       <p className="text-xs font-medium text-muted-foreground bg-muted inline-block px-2 py-1 rounded border border-border/50 flex items-center gap-1 w-fit">
                         <Users className="w-3.5 h-3.5 text-primary" /> {event.attendees?.length || 0} Registered
                       </p>
-                      <EventRatingBadge 
-                        eventId={event._id} 
-                        onClick={(reviews) => {
-                          setSelectedReviews(reviews)
-                          setSelectedEventTitle(`Reviews for ${event.title}`)
-                          setIsReviewListModalOpen(true)
-                        }} 
-                      />
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <EventRatingBadge 
+                          eventId={event._id} 
+                          onClick={(reviews) => {
+                            setSelectedReviews(reviews)
+                            setSelectedEventTitle(`Reviews for ${event.title}`)
+                            setSelectedEventForReview(event)
+                            setIsReviewListModalOpen(true)
+                          }} 
+                        />
+                      </div>
                     </div>
                   </div>
                   {registered && (() => {
@@ -318,7 +350,7 @@ const Events = () => {
                     );
                   })()}
                 </div>
-                {event.active && !registered && (
+                {event.active && !registered && !(event.date && new Date(event.date).getTime() < new Date().setHours(0,0,0,0)) && (
                   <button 
                     onClick={() => handleRegisterClick(event)}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm shrink-0 w-full sm:w-auto"
@@ -443,6 +475,25 @@ const Events = () => {
         reviews={selectedReviews}
         title={selectedEventTitle}
         type="event"
+        mentorId={selectedEventForReview?.organizer?._id || selectedEventForReview?.organizer}
+        onAddReview={() => {
+          setIsReviewListModalOpen(false);
+          setIsManualReviewModalOpen(true);
+        }}
+      />
+      <ReviewModal 
+        isOpen={isManualReviewModalOpen}
+        onClose={() => setIsManualReviewModalOpen(false)}
+        pendingReview={selectedEventForReview ? {
+          type: 'event',
+          referenceId: selectedEventForReview._id,
+          title: selectedEventForReview.title,
+          mentor: selectedEventForReview.organizer
+        } : null}
+        onReviewSubmitted={(referenceId) => {
+           setIsManualReviewModalOpen(false);
+           toast.success("Review added!");
+        }}
       />
     </div>
   )

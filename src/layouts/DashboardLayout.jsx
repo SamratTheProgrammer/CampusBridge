@@ -62,14 +62,39 @@ const DashboardLayout = () => {
         .then(res => res.json())
         .then(data => {
           if (data && data.length > 0) {
-            setPendingReviews(data)
-            setCurrentReview(data[0])
-            setIsReviewModalOpen(true)
+            const dismissed = JSON.parse(localStorage.getItem('dismissedReviews') || '[]');
+            const filteredData = data.filter(r => !dismissed.includes(r.referenceId));
+            if (filteredData.length > 0) {
+              setPendingReviews(filteredData)
+              setCurrentReview(filteredData[0])
+              setIsReviewModalOpen(true)
+            }
           }
         })
         .catch(err => console.error('Error fetching pending reviews:', err))
     }
   }, [user?.id]);
+
+  const handleCloseReviewModal = () => {
+    if (currentReview) {
+      const dismissed = JSON.parse(localStorage.getItem('dismissedReviews') || '[]');
+      if (!dismissed.includes(currentReview.referenceId)) {
+        dismissed.push(currentReview.referenceId);
+        localStorage.setItem('dismissedReviews', JSON.stringify(dismissed));
+      }
+      
+      const updatedPending = pendingReviews.filter(r => r.referenceId !== currentReview.referenceId);
+      setPendingReviews(updatedPending);
+      if (updatedPending.length > 0) {
+        setCurrentReview(updatedPending[0]);
+      } else {
+        setIsReviewModalOpen(false);
+        setCurrentReview(null);
+      }
+    } else {
+      setIsReviewModalOpen(false);
+    }
+  }
 
   const handleReviewSubmitted = (referenceId) => {
     const updatedPending = pendingReviews.filter(r => r.referenceId !== referenceId)
@@ -427,7 +452,7 @@ const DashboardLayout = () => {
         {isLoaded && user && <VideoCallModal currentUser={user} />}
         <ReviewModal 
           isOpen={isReviewModalOpen} 
-          onClose={() => setIsReviewModalOpen(false)}
+          onClose={handleCloseReviewModal}
           pendingReview={currentReview}
           onReviewSubmitted={handleReviewSubmitted}
         />

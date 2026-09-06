@@ -423,9 +423,9 @@ const MentorSessions = () => {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (activeTab === 'events' || activeTab === 'sessions') ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-4">
           {(activeTab === 'events' ? filteredEvents : filteredGroupSessions).map((session) => (
-            <div key={session._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group relative">
+            <div key={session._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-6 justify-between items-start md:items-center group relative">
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -494,7 +494,7 @@ const MentorSessions = () => {
                   Created {formatDistanceToNow(new Date(session.createdAt), { addSuffix: true })}
                 </span>
                 <div className="flex gap-2">
-                  {session.link && (
+                  {session.link && !checkIsPast(session.date, session.time) && (
                     <a 
                       href={session.link.startsWith('http') ? session.link : `https://${session.link}`}
                       target="_blank"
@@ -591,7 +591,7 @@ const MentorSessions = () => {
                     </>
                   ) : (
                     <>
-                      {session.mode === 'Online' && session.status === 'accepted' && (
+                      {session.mode === 'Online' && session.status === 'accepted' && !checkIsPast(session.date, session.time) && (
                         <button 
                           onClick={() => {
                             const studentObj = {
@@ -733,7 +733,7 @@ const MentorSessions = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                  <input name="time" required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 5:00 PM - 6:00 PM" />
+                  <input name="time" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
 
@@ -941,7 +941,7 @@ const MentorSessions = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                  <input name="time" defaultValue={selectedSession.time} required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input name="time" defaultValue={selectedSession.time} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
 
