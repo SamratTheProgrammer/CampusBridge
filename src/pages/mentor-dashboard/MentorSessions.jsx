@@ -4,6 +4,7 @@ import { Plus, Calendar, Clock, MapPin, Users, Link as LinkIcon, Search, Loader2
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
 import { formatDistanceToNow, format } from 'date-fns'
+import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
@@ -19,9 +20,16 @@ const MentorSessions = () => {
   const checkIsPast = (dateStr, timeStr) => {
     if (!dateStr) return false;
     try {
-      let time24 = timeStr;
-      if (timeStr && timeStr.match(/AM|PM/i)) {
-        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      // timeStr might be "HH:mm - HH:mm" or just "HH:mm"
+      let actualTimeStr = timeStr || '';
+      if (actualTimeStr.includes('-')) {
+        const parts = actualTimeStr.split('-');
+        actualTimeStr = parts[1].trim() || parts[0].trim(); // use end time if available
+      }
+      
+      let time24 = actualTimeStr;
+      if (actualTimeStr && actualTimeStr.match(/AM|PM/i)) {
+        const match = actualTimeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
         if (match) {
           let [_, hours, mins, modifier] = match;
           hours = parseInt(hours, 10);
@@ -29,13 +37,18 @@ const MentorSessions = () => {
           if (modifier.toUpperCase() === 'PM') hours += 12;
           time24 = `${hours.toString().padStart(2, '0')}:${mins}:00`;
         }
-      } else if (timeStr) {
-        time24 = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
+      } else if (actualTimeStr) {
+        time24 = actualTimeStr.length === 5 ? `${actualTimeStr}:00` : actualTimeStr;
+        // Check if it's still missing seconds
+        if (time24.split(':').length === 2) {
+          time24 = `${time24}:00`;
+        }
       } else {
         time24 = '23:59:59';
       }
       
       const sessionDate = new Date(`${dateStr.split('T')[0]}T${time24}`);
+      if (isNaN(sessionDate.getTime())) return false;
       return sessionDate < new Date();
     } catch (e) {
       return false;
@@ -184,7 +197,7 @@ const MentorSessions = () => {
       type: formData.get('type'),
       mode: formData.get('mode') || 'Online',
       date: formData.get('date'),
-      time: formData.get('time'),
+      time: `${formData.get('startTime')} - ${formData.get('endTime')}`,
       location: formData.get('location') || '',
       link: formData.get('link') || '',
       description: formData.get('description'),
@@ -246,7 +259,7 @@ const MentorSessions = () => {
       type: formData.get('type'),
       mode: formData.get('mode') || 'Online',
       date: formData.get('date'),
-      time: formData.get('time'),
+      time: `${formData.get('startTime')} - ${formData.get('endTime')}`,
       location: formData.get('location'),
       link: formData.get('link'),
       description: formData.get('description'),
@@ -497,7 +510,7 @@ const MentorSessions = () => {
                 </div>
               <div className="flex items-center justify-between pt-4 border-t border-border/50 mt-auto">
                 <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                  Created {formatDistanceToNow(new Date(session.createdAt), { addSuffix: true })}
+                  Created {formatPendingRequestTime(session.createdAt)}
                 </span>
                 <div className="flex gap-2">
                   {session.link && !checkIsPast(session.date, session.time) && (
@@ -733,14 +746,18 @@ const MentorSessions = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
                   <input name="date" required type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                  <input name="time" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Start Time</label>
+                  <input name="startTime" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">End Time</label>
+                  <input name="endTime" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
 
@@ -943,14 +960,18 @@ const MentorSessions = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
                   <input name="date" defaultValue={selectedSession.date ? new Date(selectedSession.date).toISOString().split('T')[0] : ''} required type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                  <input name="time" defaultValue={selectedSession.time} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Start Time</label>
+                  <input name="startTime" defaultValue={selectedSession.time ? selectedSession.time.split(' - ')[0] : ''} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">End Time</label>
+                  <input name="endTime" defaultValue={selectedSession.time ? (selectedSession.time.split(' - ')[1] || selectedSession.time.split(' - ')[0]) : ''} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
 
@@ -1008,7 +1029,7 @@ const MentorSessions = () => {
         {cropModalData && (
           <ImageCropModal 
             imageSrc={cropModalData.src}
-            aspectRatio={16/9}
+            aspectRatio={NaN}
             onCropComplete={handleCropComplete}
             onCancel={() => setCropModalData(null)}
           />

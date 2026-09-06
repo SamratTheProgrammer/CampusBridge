@@ -78,7 +78,7 @@ const MentorEvents = () => {
       type: formData.get('type'),
       mode: formData.get('mode') || 'Online',
       date: formData.get('date'),
-      time: formData.get('time'),
+      time: `${formData.get('startTime')} - ${formData.get('endTime')}`,
       location: formData.get('location'),
       link: formData.get('link'),
       description: formData.get('description'),
@@ -137,7 +137,7 @@ const MentorEvents = () => {
       type: formData.get('type'),
       mode: formData.get('mode') || 'Online',
       date: formData.get('date'),
-      time: formData.get('time'),
+      time: `${formData.get('startTime')} - ${formData.get('endTime')}`,
       location: formData.get('location'),
       link: formData.get('link'),
       description: formData.get('description'),
@@ -370,14 +370,18 @@ const MentorEvents = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
                   <input name="date" required type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                  <input name="time" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Start Time</label>
+                  <input name="startTime" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">End Time</label>
+                  <input name="endTime" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
 
@@ -462,14 +466,18 @@ const MentorEvents = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
                   <input name="date" defaultValue={selectedEvent.date ? format(new Date(selectedEvent.date), 'yyyy-MM-dd') : ''} required type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
-                  <input name="time" defaultValue={selectedEvent.time} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Start Time</label>
+                  <input name="startTime" defaultValue={selectedEvent.time ? selectedEvent.time.split(' - ')[0] : ''} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">End Time</label>
+                  <input name="endTime" defaultValue={selectedEvent.time ? (selectedEvent.time.split(' - ')[1] || selectedEvent.time.split(' - ')[0]) : ''} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
 

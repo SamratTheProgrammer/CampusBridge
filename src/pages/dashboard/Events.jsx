@@ -167,32 +167,44 @@ const Events = () => {
     }
   }
 
-  const filteredEvents = events.filter(event => {
-    let isPast = false;
-    if (event.date) {
-      const eventDate = new Date(event.date);
-      const today = new Date();
-      if (eventDate.setHours(0, 0, 0, 0) < today.setHours(0, 0, 0, 0)) {
-        isPast = true;
-      } else if (eventDate.setHours(0, 0, 0, 0) === today.setHours(0, 0, 0, 0)) {
-        if (event.time && event.time.includes('-')) {
-          const endTimeStr = event.time.split('-')[1].trim();
-          const timeMatch = endTimeStr.match(/(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i);
-          if (timeMatch) {
-            let hours = parseInt(timeMatch[1]);
-            const minutes = parseInt(timeMatch[2]);
-            const ampm = timeMatch[3];
-            if (ampm) {
-              if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-              if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
-            }
-            const eventEnd = new Date();
-            eventEnd.setHours(hours, minutes, 0, 0);
-            if (new Date() > eventEnd) isPast = true;
-          }
-        }
+  const checkIsPast = (dateStr, timeStr) => {
+    if (!dateStr) return false;
+    try {
+      let actualTimeStr = timeStr || '';
+      if (actualTimeStr.includes('-')) {
+        const parts = actualTimeStr.split('-');
+        actualTimeStr = parts[1].trim() || parts[0].trim();
       }
+      
+      let time24 = actualTimeStr;
+      if (actualTimeStr && actualTimeStr.match(/AM|PM/i)) {
+        const match = actualTimeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (match) {
+          let [_, hours, mins, modifier] = match;
+          hours = parseInt(hours, 10);
+          if (hours === 12) hours = 0;
+          if (modifier.toUpperCase() === 'PM') hours += 12;
+          time24 = `${hours.toString().padStart(2, '0')}:${mins}:00`;
+        }
+      } else if (actualTimeStr) {
+        time24 = actualTimeStr.length === 5 ? `${actualTimeStr}:00` : actualTimeStr;
+        if (time24.split(':').length === 2) {
+          time24 = `${time24}:00`;
+        }
+      } else {
+        time24 = '23:59:59';
+      }
+      
+      const sessionDate = new Date(`${dateStr.split('T')[0]}T${time24}`);
+      if (isNaN(sessionDate.getTime())) return false;
+      return sessionDate < new Date();
+    } catch (e) {
+      return false;
     }
+  }
+
+  const filteredEvents = events.filter(event => {
+    const isPast = checkIsPast(event.date, event.time);
     const isActive = event.active && !isPast;
     
     if (activeTab === 'upcoming') return isActive;
@@ -323,7 +335,7 @@ const Events = () => {
                     </div>
                   </div>
                   {registered && (() => {
-                    const isPastEvent = event.date && new Date(event.date).getTime() < new Date().setHours(0,0,0,0);
+                    const isPastEvent = checkIsPast(event.date, event.time);
                     return (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {event.date && !isPastEvent && (
@@ -353,7 +365,7 @@ const Events = () => {
                     );
                   })()}
                 </div>
-                {event.active && !registered && !(event.date && new Date(event.date).getTime() < new Date().setHours(0,0,0,0)) && (
+                {event.active && !registered && !checkIsPast(event.date, event.time) && (
                   <button 
                     onClick={() => handleRegisterClick(event)}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm shrink-0 w-full sm:w-auto"
