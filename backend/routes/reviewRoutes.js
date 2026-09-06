@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Session from '../models/Session.js';
 import Event from '../models/Event.js';
 import mongoose from 'mongoose';
+import Notification from '../models/Notification.js';
 
 const router = express.Router();
 
@@ -32,6 +33,24 @@ router.post('/', async (req, res) => {
     });
 
     await newReview.save();
+
+    if (mentorId) {
+      const mentorUser = await User.findById(mentorId);
+      if (mentorUser && mentorUser.clerkId) {
+        const reviewerName = reviewerUser.name || `${reviewerUser.firstName || ''} ${reviewerUser.lastName || ''}`.trim() || 'A student';
+        await Notification.create({
+          recipientClerkId: mentorUser.clerkId,
+          senderClerkId: reviewerUser.clerkId,
+          senderName: reviewerName,
+          senderImage: reviewerUser.imageUrl,
+          type: 'mentor_review',
+          title: 'New Mentor Review',
+          message: `Left a ${mentorRating}-star review on your mentorship.`,
+          link: '/mentor-dashboard?tab=analytics'
+        });
+      }
+    }
+
     res.status(201).json(newReview);
   } catch (error) {
     console.error('Submit Review Error:', error);

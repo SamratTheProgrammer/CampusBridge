@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Eye, MousePointerClick, TrendingUp, Star, Award, Loader2 } from 'lucide-react'
+import { Users, Eye, MousePointerClick, TrendingUp, Star, StarHalf, Award, Loader2 } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
 
@@ -60,8 +60,27 @@ const MentorAnalytics = () => {
     performanceData: PERFORMANCE_DATA,
     averageRating: 4.9,
     totalReviews: 124,
+    totalReviews: 124,
+    ratingDistribution: { 5: 92, 4: 6, 3: 2, 2: 0, 1: 0 },
     topPosts: [],
     studentFeedback: []
+  };
+
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.push(<Star key={i} className="w-5 h-5 fill-current" />);
+      } else if (i === fullStars && hasHalfStar) {
+        stars.push(<StarHalf key={i} className="w-5 h-5 fill-current" />);
+      } else {
+        stars.push(<Star key={i} className="w-5 h-5 opacity-20" />);
+      }
+    }
+    return stars;
   };
 
   const dynamicStats = [
@@ -151,43 +170,26 @@ const MentorAnalytics = () => {
           <div className="flex flex-col items-center justify-center flex-1 py-8 border-b border-border/40">
             <h1 className="text-5xl font-bold text-foreground mb-2">{dataToRender.averageRating.toFixed(1)}</h1>
             <div className="flex items-center gap-1 text-yellow-400 mb-2">
-              <Star className="w-5 h-5 fill-current" />
-              <Star className="w-5 h-5 fill-current" />
-              <Star className="w-5 h-5 fill-current" />
-              <Star className="w-5 h-5 fill-current" />
-              <Star className="w-5 h-5 fill-current" />
+              {renderStars(dataToRender.averageRating)}
             </div>
             <p className="text-sm text-muted-foreground">Based on {dataToRender.totalReviews} reviews</p>
           </div>
 
           <div className="pt-6 space-y-4">
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-foreground font-medium">5 Stars</span>
-                <span className="text-muted-foreground">92%</span>
-              </div>
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-400 rounded-full w-[92%]"></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-foreground font-medium">4 Stars</span>
-                <span className="text-muted-foreground">6%</span>
-              </div>
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-400 rounded-full w-[6%]"></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-foreground font-medium">3 Stars</span>
-                <span className="text-muted-foreground">2%</span>
-              </div>
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-400 rounded-full w-[2%]"></div>
-              </div>
-            </div>
+            {[5, 4, 3, 2, 1].map(star => {
+              const percent = dataToRender.ratingDistribution ? dataToRender.ratingDistribution[star] : 0;
+              return (
+                <div key={star}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-foreground font-medium">{star} Star{star > 1 ? 's' : ''}</span>
+                    <span className="text-muted-foreground">{percent}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${percent}%` }}></div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

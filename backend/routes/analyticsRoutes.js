@@ -4,6 +4,7 @@ import Session from '../models/Session.js';
 import Event from '../models/Event.js';
 import Post from '../models/Post.js';
 import Job from '../models/Job.js';
+import Review from '../models/Review.js';
 
 const router = express.Router();
 
@@ -77,28 +78,48 @@ router.get('/mentor/:clerkId', async (req, res) => {
       date: p.createdAt
     }));
 
-    // Extract student feedback (recent comments on their posts)
-    let allComments = [];
-    mentorPosts.forEach(post => {
-      if (post.comments && post.comments.length > 0) {
-        post.comments.forEach(c => {
-          // We only take comments not made by the mentor themselves as feedback
-          if (c.authorClerkId !== clerkId) {
-            allComments.push({
-              id: c._id,
-              text: c.content,
-              studentName: 'Student', // Ideally we'd populate this, but for now we'll just send it
-              date: c.createdAt,
-              authorClerkId: c.authorClerkId
-            });
-          }
-        });
-      }
-    });
+    // Fetch actual reviews for the mentor
+    const reviews = await Review.find({ mentor: user._id, mentorRating: { $exists: true, $ne: null } })
+      .populate('reviewer', 'firstName lastName name imageUrl');
+      
+    const totalReviews = reviews.length;
+    let averageRating = 0;
+    let ratingDistribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     
-    // Sort by newest and take top 4
-    allComments.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const studentFeedback = allComments.slice(0, 4);
+    if (totalReviews > 0) {
+      const sum = reviews.reduce((acc, curr) => {
+        const rating = Math.floor(curr.mentorRating);
+        if (rating >= 1 && rating <= 5) {
+          ratingDistribution[rating]++;
+        }
+        return acc + curr.mentorRating;
+      }, 0);
+      averageRating = parseFloat((sum / totalReviews).toFixed(1));
+      
+      // Convert to percentages
+      for (let i = 1; i <= 5; i++) {
+        ratingDistribution[i] = Math.round((ratingDistribution[i] / totalReviews) * 100);
+      }
+    } else {
+      averageRating = 5.0; // Default if no reviews
+      ratingDistribution = { 5: 100, 4: 0, 3: 0, 2: 0, 1: 0 };
+    }
+
+    // Extract student feedback from actual reviews
+    const studentFeedback = reviews
+      .filter(r => r.mentorComment)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 4)
+      .map(r => {
+        const reviewer = r.reviewer;
+        const studentName = reviewer ? (reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()) : 'Student';
+        return {
+          id: r._id,
+          text: r.mentorComment,
+          studentName: studentName || 'Student',
+          date: r.createdAt
+        };
+      });
 
     // 4. Sessions Hosted (Total events/group sessions created by the user)
     const sessionsHosted = await Event.countDocuments({ organizer: user._id });
@@ -134,9 +155,9 @@ router.get('/mentor/:clerkId', async (req, res) => {
       performanceData,
       topPosts,
       studentFeedback,
-      // Hardcode average rating for now since we don't have a Review model
-      averageRating: 4.9, 
-      totalReviews: 124 
+      averageRating,
+      totalReviews,
+      ratingDistribution
     });
 
   } catch (error) {

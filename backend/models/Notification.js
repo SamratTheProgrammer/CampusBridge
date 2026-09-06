@@ -17,7 +17,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['connection_request', 'connection_accepted', 'connection_declined', 'post_like', 'post_comment', 'session_booked', 'system'],
+    enum: ['connection_request', 'connection_accepted', 'connection_declined', 'post_like', 'post_comment', 'session_booked', 'system', 'mentor_review'],
     default: 'system',
   },
   title: {
