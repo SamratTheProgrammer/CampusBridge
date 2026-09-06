@@ -30,7 +30,7 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (contentRating === 0 || (mentor && type === 'session' && mentorRating === 0)) {
+    if (contentRating === 0 || (mentor && (type === 'session' || type === 'event') && mentorRating === 0)) {
       toast.error('Please provide a star rating.');
       return;
     }
@@ -85,23 +85,23 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Rate your experience</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
-            <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+      <div className="bg-card text-card-foreground border border-border/50 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="p-4 border-b border-border/50 flex justify-between items-center bg-muted/30">
+          <h2 className="text-xl font-bold text-foreground">Rate your experience</h2>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded-full transition-colors">
+            <X className="w-6 h-6 text-muted-foreground" />
           </button>
         </div>
 
         <div className="p-6 overflow-y-auto">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
-            You recently completed: <strong className="text-gray-800 dark:text-gray-200">{title}</strong>
+          <p className="text-sm text-muted-foreground mb-6 text-center">
+            You recently completed: <strong className="text-foreground">{title}</strong>
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Content Rating */}
             <div className="space-y-3">
-              <label className="block text-base font-semibold text-gray-700 dark:text-gray-300">
+              <label className="block text-base font-semibold text-foreground">
                 How would you rate this {type}?
               </label>
               <div className="flex justify-center py-2">
@@ -111,7 +111,7 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
                 value={contentComment}
                 onChange={(e) => setContentComment(e.target.value)}
                 placeholder={`Leave a comment about the ${type} (optional)`}
-                className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full p-3 rounded-xl border border-border/50 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                 rows={3}
               />
               <div className="flex flex-wrap gap-2 mt-2">
@@ -120,7 +120,7 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
                     key={idx}
                     type="button"
                     onClick={() => setContentComment(demo)}
-                    className="text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-full transition-colors text-left"
+                    className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded-full transition-colors text-left"
                   >
                     "{demo}"
                   </button>
@@ -129,9 +129,9 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
             </div>
 
             {/* Mentor Rating */}
-            {mentor && type === 'session' && (
-              <div className="space-y-3 pt-6 border-t border-gray-100 dark:border-gray-700">
-                <label className="block text-base font-semibold text-gray-700 dark:text-gray-300">
+            {mentor && (type === 'session' || type === 'event') && (
+              <div className="space-y-3 pt-6 border-t border-border/50">
+                <label className="block text-base font-semibold text-foreground">
                   How would you rate {mentor.firstName || 'the mentor'}?
                 </label>
                 <div className="flex justify-center py-2">
@@ -141,7 +141,7 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
                   value={mentorComment}
                   onChange={(e) => setMentorComment(e.target.value)}
                   placeholder={`Leave a comment about ${mentor.firstName || 'the mentor'} (optional)`}
-                  className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full p-3 rounded-xl border border-border/50 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                   rows={3}
                 />
               </div>
@@ -150,7 +150,7 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium shadow-sm transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Review'}
             </button>

@@ -426,10 +426,15 @@ const MentorSessions = () => {
               ))}
             </div>
       ) : (activeTab === 'events' || activeTab === 'sessions') ? (
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {(activeTab === 'events' ? filteredEvents : filteredGroupSessions).map((session) => (
-            <div key={session._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-6 justify-between items-start md:items-center group relative">
-              <div>
+            <div key={session._id} className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col overflow-hidden group relative">
+              {session.imageUrl && (
+                <div className="w-full h-48 shrink-0 overflow-hidden">
+                  <img src={session.imageUrl} alt={session.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                </div>
+              )}
+              <div className="p-6 flex flex-col flex-1">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -490,9 +495,7 @@ const MentorSessions = () => {
                     </button>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-border/50">
+              <div className="flex items-center justify-between pt-4 border-t border-border/50 mt-auto">
                 <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                   Created {formatDistanceToNow(new Date(session.createdAt), { addSuffix: true })}
                 </span>
@@ -521,6 +524,7 @@ const MentorSessions = () => {
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
+                </div>
                 </div>
               </div>
             </div>
