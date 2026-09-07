@@ -7,20 +7,54 @@ import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 
 const EventCard = ({ event, index, onRegister }) => {
-  // Simple countdown logic for visual purposes
-  const [timeLeft, setTimeLeft] = useState({ days: 3, hours: 12, mins: 45 })
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0 })
 
   useEffect(() => {
+    const calculateTimeLeft = () => {
+      if (!event.date) return { days: 0, hours: 0, mins: 0 };
+      
+      let timeStr = event.time || '00:00';
+      if (timeStr.includes('-')) timeStr = timeStr.split('-')[0].trim();
+      
+      let eventDateStr = event.date.split('T')[0];
+      let targetTime = new Date(`${eventDateStr}T${timeStr}`);
+      
+      // Handle AM/PM if present
+      if (timeStr.match(/AM|PM/i)) {
+         const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+         if (match) {
+            let [_, hours, mins, modifier] = match;
+            hours = parseInt(hours, 10);
+            if (hours === 12) hours = 0;
+            if (modifier.toUpperCase() === 'PM') hours += 12;
+            targetTime = new Date(`${eventDateStr}T${hours.toString().padStart(2, '0')}:${mins}:00`);
+         }
+      } else if (!timeStr.includes(':')) {
+        targetTime = new Date(`${eventDateStr}T00:00:00`);
+      }
+      
+      const now = new Date();
+      const diffMs = targetTime.getTime() - now.getTime();
+      
+      if (diffMs <= 0 || isNaN(diffMs)) {
+        return { days: 0, hours: 0, mins: 0 };
+      }
+      
+      return {
+        days: Math.floor(diffMs / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        mins: Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+      };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.mins > 0) return { ...prev, mins: prev.mins - 1 }
-        if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, mins: 59 }
-        if (prev.days > 0) return { ...prev, days: prev.days - 1, hours: 23, mins: 59 }
-        return prev
-      })
-    }, 60000)
-    return () => clearInterval(timer)
-  }, [])
+      setTimeLeft(calculateTimeLeft());
+    }, 60000);
+    
+    return () => clearInterval(timer);
+  }, [event.date, event.time]);
 
   return (
     <motion.div

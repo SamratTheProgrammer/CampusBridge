@@ -138,9 +138,15 @@ const MySessions = () => {
   const checkIsPast = (dateStr, timeStr) => {
     if (!dateStr) return false;
     try {
-      let time24 = timeStr;
-      if (timeStr && timeStr.match(/AM|PM/i)) {
-        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      let actualTimeStr = timeStr || '';
+      if (actualTimeStr.includes('-')) {
+        const parts = actualTimeStr.split('-');
+        actualTimeStr = parts[1].trim() || parts[0].trim();
+      }
+      
+      let time24 = actualTimeStr;
+      if (actualTimeStr && actualTimeStr.match(/AM|PM/i)) {
+        const match = actualTimeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
         if (match) {
           let [_, hours, mins, modifier] = match;
           hours = parseInt(hours, 10);
@@ -148,13 +154,17 @@ const MySessions = () => {
           if (modifier.toUpperCase() === 'PM') hours += 12;
           time24 = `${hours.toString().padStart(2, '0')}:${mins}:00`;
         }
-      } else if (timeStr) {
-        time24 = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
+      } else if (actualTimeStr) {
+        let parts = actualTimeStr.split(':');
+        let hours = parts[0].padStart(2, '0');
+        let mins = (parts[1] || '00').padStart(2, '0');
+        time24 = `${hours}:${mins}:00`;
       } else {
         time24 = '23:59:59';
       }
       
       const sessionDate = new Date(`${dateStr.split('T')[0]}T${time24}`);
+      if (isNaN(sessionDate.getTime())) return false;
       return sessionDate < new Date();
     } catch (e) {
       return false;

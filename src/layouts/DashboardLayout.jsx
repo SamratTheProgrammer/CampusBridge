@@ -18,7 +18,7 @@ import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 
 const DashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true')
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [mentorsList, setMentorsList] = useState([])
@@ -34,6 +34,10 @@ const DashboardLayout = () => {
   const searchRef = useRef(null)
   
   const { user, isLoaded, isSignedIn } = useUser()
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', isCollapsed)
+  }, [isCollapsed])
 
   useEffect(() => {
     const fetchGlobalData = async () => {

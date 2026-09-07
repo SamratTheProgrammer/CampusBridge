@@ -20,11 +20,10 @@ const MentorSessions = () => {
   const checkIsPast = (dateStr, timeStr) => {
     if (!dateStr) return false;
     try {
-      // timeStr might be "HH:mm - HH:mm" or just "HH:mm"
       let actualTimeStr = timeStr || '';
       if (actualTimeStr.includes('-')) {
         const parts = actualTimeStr.split('-');
-        actualTimeStr = parts[1].trim() || parts[0].trim(); // use end time if available
+        actualTimeStr = parts[1].trim() || parts[0].trim();
       }
       
       let time24 = actualTimeStr;
@@ -38,11 +37,10 @@ const MentorSessions = () => {
           time24 = `${hours.toString().padStart(2, '0')}:${mins}:00`;
         }
       } else if (actualTimeStr) {
-        time24 = actualTimeStr.length === 5 ? `${actualTimeStr}:00` : actualTimeStr;
-        // Check if it's still missing seconds
-        if (time24.split(':').length === 2) {
-          time24 = `${time24}:00`;
-        }
+        let parts = actualTimeStr.split(':');
+        let hours = parts[0].padStart(2, '0');
+        let mins = (parts[1] || '00').padStart(2, '0');
+        time24 = `${hours}:${mins}:00`;
       } else {
         time24 = '23:59:59';
       }

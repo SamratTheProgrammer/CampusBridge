@@ -270,10 +270,47 @@ const SharedItemViewer = () => {
         </button>
 
         {loading ? (
-          <div className="w-full md:w-[600px] h-full flex flex-col items-center justify-center bg-muted/20">
-            <CardSkeleton />
-            <p className="text-muted-foreground font-medium">Loading details...</p>
-          </div>
+          <>
+            {/* Left Media Area Skeleton */}
+            <div className="absolute inset-0 md:relative w-full md:w-[calc(90vh*9/16)] md:max-w-[calc(100vw-450px)] md:shrink bg-black/5 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-border/50 z-0">
+              <div className="w-24 h-24 rounded-full bg-muted animate-pulse flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground/50" />
+              </div>
+            </div>
+
+            {/* Right Details Area Skeleton */}
+            <div className="relative w-full md:w-[400px] md:bg-card flex flex-col justify-start h-[100dvh] md:h-full overflow-hidden md:shrink-0 z-10 pt-32 md:pt-4 px-4 pb-4">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-muted animate-pulse"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted animate-pulse rounded w-1/3"></div>
+                  <div className="h-3 bg-muted animate-pulse rounded w-1/4"></div>
+                </div>
+              </div>
+              <div className="space-y-3 mb-6">
+                <div className="h-4 bg-muted animate-pulse rounded w-full"></div>
+                <div className="h-4 bg-muted animate-pulse rounded w-5/6"></div>
+                <div className="h-4 bg-muted animate-pulse rounded w-4/6"></div>
+              </div>
+              <div className="flex-1 flex flex-col gap-4 pt-4 border-t border-border/50">
+                <div className="h-6 bg-muted animate-pulse rounded w-24 mb-2"></div>
+                <div className="flex gap-3">
+                   <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0"></div>
+                   <div className="flex-1 space-y-2 mt-1">
+                     <div className="h-3 bg-muted animate-pulse rounded w-1/4"></div>
+                     <div className="h-3 bg-muted animate-pulse rounded w-full"></div>
+                   </div>
+                </div>
+                <div className="flex gap-3">
+                   <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0"></div>
+                   <div className="flex-1 space-y-2 mt-1">
+                     <div className="h-3 bg-muted animate-pulse rounded w-1/4"></div>
+                     <div className="h-3 bg-muted animate-pulse rounded w-5/6"></div>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </>
         ) : data ? (
           <>
             {/* Left Media Area */}

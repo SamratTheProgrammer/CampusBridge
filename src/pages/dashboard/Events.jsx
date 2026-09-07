@@ -187,10 +187,10 @@ const Events = () => {
           time24 = `${hours.toString().padStart(2, '0')}:${mins}:00`;
         }
       } else if (actualTimeStr) {
-        time24 = actualTimeStr.length === 5 ? `${actualTimeStr}:00` : actualTimeStr;
-        if (time24.split(':').length === 2) {
-          time24 = `${time24}:00`;
-        }
+        let parts = actualTimeStr.split(':');
+        let hours = parts[0].padStart(2, '0');
+        let mins = (parts[1] || '00').padStart(2, '0');
+        time24 = `${hours}:${mins}:00`;
       } else {
         time24 = '23:59:59';
       }

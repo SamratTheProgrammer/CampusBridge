@@ -28,7 +28,7 @@ const MOCK_POSTS = [
 
 const MentorDashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true')
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [pendingReviews, setPendingReviews] = useState([])
@@ -40,6 +40,10 @@ const MentorDashboardLayout = () => {
   const searchRef = useRef(null)
   
   const { user, isLoaded, isSignedIn } = useUser()
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', isCollapsed)
+  }, [isCollapsed])
 
   const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 100, isEligibleForVerification: true })
   const [verificationStatus, setVerificationStatus] = useState('Pending')
