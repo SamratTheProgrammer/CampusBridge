@@ -493,10 +493,10 @@ const Events = () => {
         title={selectedEventTitle}
         type="event"
         mentorId={selectedEventForReview?.organizer?._id || selectedEventForReview?.organizer}
-        onAddReview={() => {
+        onAddReview={selectedEventForReview && isRegistered(selectedEventForReview) ? () => {
           setIsReviewListModalOpen(false);
           setIsManualReviewModalOpen(true);
-        }}
+        } : undefined}
       />
       <ReviewModal 
         isOpen={isManualReviewModalOpen}

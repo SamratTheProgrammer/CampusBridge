@@ -62,22 +62,29 @@ const DashboardLayout = () => {
   }, [user]);
 
   useEffect(() => {
-    if (user?.id) {
-      fetch(`${API_BASE}/api/reviews/pending/${user.id}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.length > 0) {
-            const dismissed = JSON.parse(localStorage.getItem('dismissedReviews') || '[]');
-            const filteredData = data.filter(r => !dismissed.includes(r.referenceId));
-            if (filteredData.length > 0) {
-              setPendingReviews(filteredData)
-              setCurrentReview(filteredData[0])
-              setIsReviewModalOpen(true)
+    const fetchPendingReviews = () => {
+      if (user?.id) {
+        fetch(`${API_BASE}/api/reviews/pending/${user.id}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.length > 0) {
+              const dismissed = JSON.parse(localStorage.getItem('dismissedReviews') || '[]');
+              const filteredData = data.filter(r => !dismissed.includes(r.referenceId));
+              if (filteredData.length > 0) {
+                setPendingReviews(filteredData)
+                setCurrentReview(filteredData[0])
+                setIsReviewModalOpen(true)
+              }
             }
-          }
-        })
-        .catch(err => console.error('Error fetching pending reviews:', err))
-    }
+          })
+          .catch(err => console.error('Error fetching pending reviews:', err))
+      }
+    };
+
+    fetchPendingReviews();
+
+    window.addEventListener('video-call-ended', fetchPendingReviews);
+    return () => window.removeEventListener('video-call-ended', fetchPendingReviews);
   }, [user?.id]);
 
   const handleCloseReviewModal = () => {

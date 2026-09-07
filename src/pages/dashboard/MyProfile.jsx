@@ -1,6 +1,7 @@
 import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star } from 'lucide-react'
+import ReviewListModal from '../../components/modals/ReviewListModal'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import { useUser } from '@clerk/clerk-react'
@@ -35,6 +36,9 @@ const MyProfile = () => {
   const [postToDelete, setPostToDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [likesModalPost, setLikesModalPost] = useState(null)
+  
+  const [mentorStats, setMentorStats] = useState({ averageRating: 0, totalRatings: 0, reviews: [] })
+  const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
 
   const coverPhotoInputRef = useRef(null)
   const profilePicInputRef = useRef(null)
@@ -468,7 +472,19 @@ const MyProfile = () => {
           
           {/* User Info Stack */}
           <div className="mt-2 flex flex-col gap-1.5 text-left w-full">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">{user?.fullName}</h1>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-0.5">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{user?.fullName}</h1>
+              {dbUser?.role === 'mentor' && (
+                <button
+                  onClick={() => setIsReviewListModalOpen(true)}
+                  className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
+                >
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  <span className="font-bold">{mentorStats?.averageRating || '0.0'}</span>
+                  <span className="text-xs">({mentorStats?.totalRatings || 0} Reviews)</span>
+                </button>
+              )}
+            </div>
             
             <p className="text-sm sm:text-base font-semibold text-primary">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
             
@@ -975,6 +991,13 @@ const MyProfile = () => {
           />
         )}
       </AnimatePresence>
+      <ReviewListModal
+        isOpen={isReviewListModalOpen}
+        onClose={() => setIsReviewListModalOpen(false)}
+        reviews={mentorStats?.reviews || []}
+        title={`Reviews for ${user?.fullName}`}
+        type="mentor"
+      />
     </div>
   )
 }
