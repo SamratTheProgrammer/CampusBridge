@@ -44,6 +44,21 @@ const SharedItemViewer = () => {
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
+  const customFormatTime = (date) => {
+    if (!date) return '';
+    const dateObj = new Date(date);
+    const diffDays = Math.floor((new Date() - dateObj) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 365) {
+      const years = Math.floor(diffDays / 365);
+      return `${years} yr${years > 1 ? 's' : ''} ago`;
+    }
+    if (diffDays >= 7) {
+      const weeks = Math.floor(diffDays / 7);
+      return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+    }
+    return formatDistanceToNow(dateObj, { addSuffix: true });
+  };
+
   useEffect(() => {
     if (postId) {
       setItemType('post');
@@ -671,7 +686,7 @@ const SharedItemViewer = () => {
                             </div>
                           )}
                           <p className="text-[10px] text-white/60 md:text-muted-foreground mt-2 uppercase tracking-wide drop-shadow-md md:drop-shadow-none">
-                            {data.createdAt ? formatDistanceToNow(new Date(data.createdAt), { addSuffix: true }) : ''}
+                            {customFormatTime(data.createdAt)}
                           </p>
                         </div>
 
@@ -730,7 +745,7 @@ const SharedItemViewer = () => {
                         post={data}
                         currentUser={user}
                         onRefresh={fetchData}
-                        formatTime={(date) => formatDistanceToNow(new Date(date), { addSuffix: true })}
+                        formatTime={customFormatTime}
                         getAvatarFallback={(name) => `https://ui-avatars.com/api/?name=${name || 'User'}`}
                         fullHeight={true}
                         showCommentInput={showCommentInput || isMobileCommentsOpen}

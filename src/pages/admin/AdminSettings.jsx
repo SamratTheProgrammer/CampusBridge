@@ -126,7 +126,7 @@ const AdminSettings = () => {
 
   const fetchAuthSettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings/auth')
+      const res = await fetch(`${API_BASE}/api/admin/settings/auth`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.authSettings) {
@@ -142,7 +142,7 @@ const AdminSettings = () => {
     e.preventDefault()
     setIsAuthLoading(true)
     try {
-      const res = await fetch('/api/admin/settings/auth', {
+      const res = await fetch(`${API_BASE}/api/admin/settings/auth`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authSettings })
@@ -170,7 +170,7 @@ const AdminSettings = () => {
 
   const fetchEmailSettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings/email')
+      const res = await fetch(`${API_BASE}/api/admin/settings/email`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.emailSettings) {
@@ -186,7 +186,7 @@ const AdminSettings = () => {
     e.preventDefault()
     setIsEmailLoading(true)
     try {
-      const res = await fetch('/api/admin/settings/email', {
+      const res = await fetch(`${API_BASE}/api/admin/settings/email`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ emailSettings })
@@ -219,7 +219,7 @@ const AdminSettings = () => {
 
   const fetchSecuritySettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings/security')
+      const res = await fetch(`${API_BASE}/api/admin/settings/security`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.securitySettings) {
@@ -235,7 +235,7 @@ const AdminSettings = () => {
     e.preventDefault()
     setIsSecurityLoading(true)
     try {
-      const res = await fetch('/api/admin/settings/security', {
+      const res = await fetch(`${API_BASE}/api/admin/settings/security`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ securitySettings })
@@ -268,7 +268,7 @@ const AdminSettings = () => {
 
   const fetchPrivacySettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings/privacy')
+      const res = await fetch(`${API_BASE}/api/admin/settings/privacy`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.privacySettings) {
@@ -284,7 +284,7 @@ const AdminSettings = () => {
     e.preventDefault()
     setIsPrivacyLoading(true)
     try {
-      const res = await fetch('/api/admin/settings/privacy', {
+      const res = await fetch(`${API_BASE}/api/admin/settings/privacy`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ privacySettings })
@@ -317,7 +317,7 @@ const AdminSettings = () => {
 
   const fetchIntegrationSettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings/integrations')
+      const res = await fetch(`${API_BASE}/api/admin/settings/integrations`)
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.integrationSettings) {
@@ -333,7 +333,7 @@ const AdminSettings = () => {
     e.preventDefault()
     setIsIntegrationLoading(true)
     try {
-      const res = await fetch('/api/admin/settings/integrations', {
+      const res = await fetch(`${API_BASE}/api/admin/settings/integrations`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ integrationSettings })
