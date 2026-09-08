@@ -122,6 +122,8 @@ const SignUp = () => {
           }
         })
         if (completeSignUp.status === 'complete') {
+          sessionStorage.setItem('campusbridge_just_authenticated', 'true')
+          sessionStorage.setItem('campusbridge_user_role', selectedRole || 'student')
           await setActive({ session: completeSignUp.createdSessionId })
           toast.success('Account created successfully!')
           navigate(selectedRole === 'mentor' ? '/mentor-dashboard' : '/dashboard')
@@ -189,6 +191,7 @@ const SignUp = () => {
         return
       }
 
+      sessionStorage.setItem('campusbridge_just_authenticated', 'true')
       await setActive({ session: completeSignUp.createdSessionId })
       sessionStorage.setItem('campusbridge_user_role', selectedRole || 'student')
       toast.success('Account created successfully!')

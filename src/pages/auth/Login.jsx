@@ -91,6 +91,7 @@ const Login = () => {
       })
 
       if (signInAttempt.status === 'complete') {
+        sessionStorage.setItem('campusbridge_just_authenticated', 'true')
         await setActive({ session: signInAttempt.createdSessionId })
         toast.success('Logged in successfully!')
         

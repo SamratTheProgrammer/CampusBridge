@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import API_BASE from '../utils/api'
 import ReviewModal from '../components/modals/ReviewModal'
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
+import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 
 const MOCK_STUDENTS = [
   { id: 1, name: 'Ananya Sharma', role: 'B.Tech CS Student', university: 'NIT Trichy' },
@@ -248,6 +249,9 @@ const MentorDashboardLayout = () => {
   }, [user, navigate]);
 
   if (!isLoaded || (isSignedIn && !user)) {
+    if (sessionStorage.getItem('campusbridge_just_authenticated') === 'true') {
+      return <RouteIntegrityLoader />
+    }
     return <DashboardSkeleton />
   }
 

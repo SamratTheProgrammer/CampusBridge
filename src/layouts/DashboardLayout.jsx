@@ -15,6 +15,7 @@ import StudentProfileGuard from '../components/dashboard/StudentProfileGuard'
 import API_BASE from '../utils/api'
 import ReviewModal from '../components/modals/ReviewModal'
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
+import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 
 const DashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -234,6 +235,9 @@ const DashboardLayout = () => {
   }, [user, navigate]);
 
   if (!isLoaded || (isSignedIn && !user)) {
+    if (sessionStorage.getItem('campusbridge_just_authenticated') === 'true') {
+      return <RouteIntegrityLoader />
+    }
     return <DashboardSkeleton />
   }
 

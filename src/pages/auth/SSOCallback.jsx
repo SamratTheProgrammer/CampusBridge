@@ -1,13 +1,14 @@
 import React from 'react';
-import CardSkeleton from '../../components/skeletons/CardSkeleton'
+import RouteIntegrityLoader from '../../components/RouteIntegrityLoader';
 import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
-import { Loader2 } from 'lucide-react';
 
 const SSOCallback = () => {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <CardSkeleton />
-      <p className="text-muted-foreground">Redirecting...</p>
+    <div className="relative min-h-screen">
+      <RouteIntegrityLoader 
+        title="Verifying credentials..." 
+        subtitle="Connecting securely with your provider..."
+      />
       <div className="hidden">
         <AuthenticateWithRedirectCallback 
           signInForceRedirectUrl="/sync-user" 

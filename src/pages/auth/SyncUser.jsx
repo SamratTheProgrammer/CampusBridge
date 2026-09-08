@@ -1,10 +1,9 @@
-import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import React, { useEffect, useRef } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import API_BASE from '../../utils/api'
+import API_BASE from '../../utils/api';
+import RouteIntegrityLoader from '../../components/RouteIntegrityLoader';
 
 const SyncUser = () => {
   const { user, isLoaded } = useUser();
@@ -40,6 +39,7 @@ const SyncUser = () => {
         if (!res.ok) {
           toast.error(data.message || 'An error occurred during account sync.');
           if (data.existingRole) {
+            sessionStorage.setItem('campusbridge_just_authenticated', 'true');
             sessionStorage.setItem('campusbridge_user_role', data.existingRole);
             if (data.existingRole === 'mentor') {
               navigate('/mentor-dashboard');
@@ -53,6 +53,7 @@ const SyncUser = () => {
         }
 
         const finalRole = data.role || user.publicMetadata?.role || savedRole;
+        sessionStorage.setItem('campusbridge_just_authenticated', 'true');
         sessionStorage.setItem('campusbridge_user_role', finalRole);
 
         if (finalRole === 'mentor') {
@@ -64,16 +65,17 @@ const SyncUser = () => {
       })
       .catch(err => {
         console.error('Error syncing user:', err);
+        sessionStorage.setItem('campusbridge_just_authenticated', 'true');
         navigate('/dashboard');
       });
     }
   }, [isLoaded, user, navigate]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <CardSkeleton />
-      <p className="text-muted-foreground">Setting up your account...</p>
-    </div>
+    <RouteIntegrityLoader 
+      title="Verifying account integrity..."
+      subtitle="Setting up your account and workspace..."
+    />
   );
 };
 

@@ -4,16 +4,17 @@ import { useUser } from '@clerk/clerk-react'
 import { Loader2 } from 'lucide-react'
 import BlockedUserScreen from './BlockedUserScreen'
 import API_BASE from '../utils/api'
-import DashboardSkeleton from './skeletons/DashboardSkeleton'
+import RouteIntegrityLoader from './RouteIntegrityLoader'
 
 const ProtectedRoute = ({ allowedRoles = [] }) => {
   const { user, isLoaded, isSignedIn } = useUser()
+  const justAuthenticated = sessionStorage.getItem('campusbridge_just_authenticated') === 'true'
   const cachedRole = sessionStorage.getItem('campusbridge_user_role')
   const [userRole, setUserRole] = useState(cachedRole || null)
   const [isBlockedUser, setIsBlockedUser] = useState(false)
   const [blockReason, setBlockReason] = useState('')
-  // Only show loading if no cached role (first login)
-  const [isRoleLoading, setIsRoleLoading] = useState(!cachedRole)
+  // Show loading if just authenticated or no cached role
+  const [isRoleLoading, setIsRoleLoading] = useState(justAuthenticated || !cachedRole)
   const location = useLocation()
 
   // Admin session check via standalone admin login
@@ -62,6 +63,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
       if (isMounted) {
         setUserRole(role)
         sessionStorage.setItem('campusbridge_user_role', role)
+        sessionStorage.removeItem('campusbridge_just_authenticated')
         setIsRoleLoading(false)
       }
     }
@@ -71,6 +73,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
         const fallbackRole = user?.publicMetadata?.role || user?.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student'
         setUserRole(fallbackRole)
         sessionStorage.setItem('campusbridge_user_role', fallbackRole)
+        sessionStorage.removeItem('campusbridge_just_authenticated')
         setIsRoleLoading(false)
       }
     }, 4000)
@@ -84,8 +87,8 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   }, [isLoaded, isSignedIn, user])
 
   // 1. Loading state while checking authentication and role
-  if (!isLoaded || isRoleLoading) {
-    return <DashboardSkeleton />
+  if (!isLoaded || isRoleLoading || (isSignedIn && !user)) {
+    return <RouteIntegrityLoader />
   }
 
   // 1.5. Blocked User Check -> Show Blocked User Screen
