@@ -10,6 +10,7 @@ const FinalCTA = () => {
   const handleGetStarted = (e) => {
     if (isLoaded && user) {
       e.preventDefault()
+      sessionStorage.setItem('campusbridge_just_authenticated', 'true')
       const role = user.publicMetadata?.role || 'student'
       if (role === 'mentor' || role === 'alumni') {
         navigate('/mentor-dashboard')

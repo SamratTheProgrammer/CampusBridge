@@ -186,7 +186,10 @@ const Navbar = () => {
                         <Link 
                           to={(sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
                           className="px-4 py-2 text-sm hover:bg-muted transition-colors font-medium text-primary"
-                          onClick={() => setIsProfileOpen(false)}
+                          onClick={() => {
+                            sessionStorage.setItem('campusbridge_just_authenticated', 'true')
+                            setIsProfileOpen(false)
+                          }}
                         >
                           Go to Dashboard
                         </Link>
@@ -265,7 +268,10 @@ const Navbar = () => {
                       <Link 
                         to={(sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
                         className="w-full text-center py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-colors"
-                        onClick={() => setIsMobileMenuOpen(false)}
+                        onClick={() => {
+                          sessionStorage.setItem('campusbridge_just_authenticated', 'true')
+                          setIsMobileMenuOpen(false)
+                        }}
                       >
                         Go to Dashboard
                       </Link>
