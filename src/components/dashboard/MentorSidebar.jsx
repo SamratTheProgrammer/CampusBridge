@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  Compass
 } from 'lucide-react'
 import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
@@ -94,6 +95,7 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
     { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true },
     { name: 'My Students', path: '/mentor-dashboard/mentees', icon: Users },
     { name: 'Student Requests', path: '/mentor-dashboard/requests', icon: BookOpen },
+    { name: 'Mentor Directory', path: '/mentor-dashboard/mentor', icon: Compass },
     { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase },
     { name: 'Events & Sessions', path: '/mentor-dashboard/sessions', icon: Calendar },
     { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: unreadMessages > 0 ? unreadMessages : null },

@@ -39,10 +39,16 @@ const StudentProfile = ({ initialUser }) => {
   const [connectionsCount, setConnectionsCount] = useState(0)
 
   useEffect(() => {
+    if (initialUser) {
+      setStudent(initialUser);
+    }
+  }, [initialUser]);
+
+  useEffect(() => {
     const fetchStudent = async () => {
       try {
         let currentStudent = initialUser;
-        if (!currentStudent && identifier) {
+        if (identifier) {
           const res = await fetch(`${API_BASE}/api/users/${identifier}`)
           if (res.ok) {
             currentStudent = await res.json()
@@ -308,12 +314,12 @@ const StudentProfile = ({ initialUser }) => {
         </button>
         
         <div className="h-40 sm:h-48 bg-muted relative">
-          {student.coverPhoto ? (
+          {(student.coverPhoto || (user?.id === (student.clerkId || student._id) ? user?.unsafeMetadata?.coverPhoto : null)) ? (
             <img 
-              src={student.coverPhoto} 
+              src={student.coverPhoto || user?.unsafeMetadata?.coverPhoto} 
               alt="Cover" 
               className={`w-full h-full object-cover transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
-              onClick={isLocked ? undefined : () => setViewerData({ files: [student.coverPhoto], index: 0 })}
+              onClick={isLocked ? undefined : () => setViewerData({ files: [student.coverPhoto || user?.unsafeMetadata?.coverPhoto], index: 0 })}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600"></div>
@@ -381,7 +387,10 @@ const StudentProfile = ({ initialUser }) => {
                 {connectionStatus === 'accepted' && (
                   <>
                     <button 
-                      onClick={() => navigate(`/messages?user=${student.clerkId}`)}
+                      onClick={() => {
+                        const isMentor = ['mentor', 'alumni'].includes((user?.publicMetadata?.role || '').toLowerCase());
+                        navigate(isMentor ? `/mentor-dashboard/messages?user=${student.clerkId}` : `/dashboard/messages?user=${student.clerkId}`);
+                      }}
                       className="bg-background border border-border/50 hover:bg-muted text-foreground p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
                     >
                       <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>

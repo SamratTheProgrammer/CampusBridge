@@ -78,17 +78,27 @@ import ProtectedRoute from './components/ProtectedRoute'
 import SharedItemViewer from './components/SharedItemViewer'
 
 function ScrollToHash() {
-  const { hash } = useLocation()
+  const { hash, pathname } = useLocation()
   useEffect(() => {
     if (hash) {
-      const element = document.getElementById(hash.replace('#', ''))
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' })
+      const targetId = hash.replace('#', '')
+      const scrollToTarget = () => {
+        const element = document.getElementById(targetId)
+        if (element) {
+          const offset = 80
+          const bodyRect = document.body.getBoundingClientRect().top
+          const elementRect = element.getBoundingClientRect().top
+          const offsetPosition = elementRect - bodyRect - offset
+          window.scrollTo({ top: offsetPosition, behavior: 'smooth' })
+        }
       }
+      scrollToTarget()
+      const timer = setTimeout(scrollToTarget, 200)
+      return () => clearTimeout(timer)
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-  }, [hash])
+  }, [hash, pathname])
   return null
 }
 
@@ -157,6 +167,9 @@ function AnimatedRoutes() {
           <Route path="/mentor-dashboard" element={<PageTransition><MentorDashboardLayout /></PageTransition>}>
             <Route index element={<MentorHome />} />
             <Route path="profile" element={<MyProfile />} />
+            <Route path="mentor" element={<MentorDirectory />} />
+            <Route path="mentor/:id/book" element={<BookSession />} />
+            <Route path="mentor/:id/book/success" element={<BookingSuccess />} />
             <Route path="mentees" element={<MyMentees />} />
             <Route path="requests" element={<MentorRequests />} />
             <Route path="network" element={<MyNetwork />} />

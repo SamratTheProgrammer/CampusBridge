@@ -1,6 +1,6 @@
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
-import React, { useState, useEffect } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -44,12 +44,22 @@ const MentorProfile = ({ initialUser }) => {
   const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [pendingReview, setPendingReview] = useState(null)
+  const [activeTab, setActiveTab] = useState('posts')
+  const [replyingReviewId, setReplyingReviewId] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false)
+
+  useEffect(() => {
+    if (initialUser) {
+      setMentor(initialUser);
+    }
+  }, [initialUser]);
 
   useEffect(() => {
     const fetchMentorAndConnection = async () => {
       try {
         let currentMentor = initialUser;
-        if (!currentMentor && identifier) {
+        if (identifier) {
           const res = await fetch(`${API_BASE}/api/users/${identifier}`)
           if (res.ok) {
             currentMentor = await res.json()
@@ -72,7 +82,7 @@ const MentorProfile = ({ initialUser }) => {
       }
     }
     fetchMentorAndConnection()
-  }, [identifier, user, initialUser])
+  }, [identifier, user])
 
   // Fetch posts by this mentor
   useEffect(() => {
@@ -110,21 +120,69 @@ const MentorProfile = ({ initialUser }) => {
     fetchConnectionsCount();
   }, [mentor?.clerkId])
 
-  useEffect(() => {
+  const fetchMentorStats = useCallback(async () => {
     if (!mentor?.clerkId) return;
-    const fetchMentorStats = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/reviews/mentor/${mentor.clerkId}`)
-        if (res.ok) {
-          const data = await res.json()
-          setMentorStats(data)
-        }
-      } catch (err) {
-        console.error('Error fetching mentor stats:', err)
+    try {
+      const res = await fetch(`${API_BASE}/api/reviews/mentor/${mentor.clerkId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMentorStats(data);
       }
+    } catch (err) {
+      console.error('Error fetching mentor stats:', err);
     }
+  }, [mentor?.clerkId]);
+
+  useEffect(() => {
     fetchMentorStats();
-  }, [mentor?.clerkId])
+  }, [fetchMentorStats]);
+
+  const handleReviewLike = async (reviewId) => {
+    if (!user) {
+      toast.error('Please sign in to like reviews');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/reviews/${reviewId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      if (res.ok) {
+        fetchMentorStats();
+      }
+    } catch (err) {
+      console.error('Failed to like review:', err);
+    }
+  };
+
+  const handleReplySubmit = async (reviewId) => {
+    if (!replyText.trim() || !user) return;
+    setIsSubmittingReply(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/reviews/${reviewId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mentorClerkId: user.id,
+          text: replyText.trim()
+        })
+      });
+      if (res.ok) {
+        toast.success('Reply added!');
+        setReplyingReviewId(null);
+        setReplyText('');
+        fetchMentorStats();
+      } else {
+        toast.error('Failed to submit reply');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Error submitting reply');
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
 
   const handleShare = async () => {
     if (!mentor) return;
@@ -312,9 +370,9 @@ const MentorProfile = ({ initialUser }) => {
 
   const fullName = `${mentor.firstName} ${mentor.lastName || ''}`.trim()
   const avatarUrl = mentor.imageUrl || getAvatarFallback(mentor.firstName)
-  const coverUrl = mentor.coverPhoto
-
   const isOwner = user?.id === (mentor.clerkId || mentor._id);
+  const coverUrl = mentor.coverPhoto || (isOwner ? user?.unsafeMetadata?.coverPhoto : null);
+
   const isConnected = connectionStatus === 'accepted';
   const isMentorRole = user?.unsafeMetadata?.role === 'mentor';
   
@@ -369,7 +427,11 @@ const MentorProfile = ({ initialUser }) => {
                 
                 {!isLocked && mentor?.role === 'mentor' && (
                   <button
-                    onClick={() => navigate(`/dashboard/mentor/${id}/book`)}
+                    onClick={() => {
+                      const targetId = mentor?.clerkId || mentor?._id || identifier;
+                      const isMentor = ['mentor', 'alumni'].includes((user?.publicMetadata?.role || '').toLowerCase());
+                      navigate(isMentor ? `/mentor-dashboard/mentor/${targetId}/book` : `/dashboard/mentor/${targetId}/book`);
+                    }}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
                   >
                     <Calendar className="w-4 h-4" /> <span className="hidden sm:inline">Book Session</span>
@@ -414,7 +476,10 @@ const MentorProfile = ({ initialUser }) => {
                 {!isLocked && (
                   <>
                     <button 
-                      onClick={() => navigate(`/messages?user=${mentor.clerkId}`)}
+                      onClick={() => {
+                        const isMentor = ['mentor', 'alumni'].includes((user?.publicMetadata?.role || '').toLowerCase());
+                        navigate(isMentor ? `/mentor-dashboard/messages?user=${mentor.clerkId}` : `/dashboard/messages?user=${mentor.clerkId}`);
+                      }}
                       className="bg-background border border-border/50 hover:bg-muted text-foreground p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
                     >
                       <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
@@ -459,8 +524,16 @@ const MentorProfile = ({ initialUser }) => {
                   </span>
                 )}
                 <button 
-                  onClick={() => setIsReviewListModalOpen(true)}
-                  className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
+                  onClick={() => {
+                    setActiveTab('reviews');
+                    const tabEl = document.getElementById('profile-content-tabs');
+                    if (tabEl) {
+                      tabEl.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                      setIsReviewListModalOpen(true);
+                    }
+                  }}
+                  className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20 cursor-pointer"
                 >
                   <Star className="w-3.5 h-3.5 fill-current" />
                   <span className="font-bold">{mentorStats.averageRating || '0.0'}</span>
@@ -609,8 +682,213 @@ const MentorProfile = ({ initialUser }) => {
         </div>
       </div>
 
-      {/* Posts Section */}
-      <div className="space-y-4 mt-6">
+      {/* Content Tabs */}
+      <div id="profile-content-tabs" className="mt-8 border-b border-border/50 flex items-center justify-between gap-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('posts')}
+            className={`pb-3 px-4 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+              activeTab === 'posts'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Posts
+            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-normal">
+              {posts.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`pb-3 px-4 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+              activeTab === 'reviews'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5 fill-current text-yellow-500" />
+            Reviews
+            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 font-semibold border border-yellow-400/20">
+              {mentorStats?.totalRatings || 0}
+            </span>
+          </button>
+        </div>
+
+        {activeTab === 'reviews' && user && user.id !== (mentor?.clerkId || mentor?._id) && (
+          <button
+            onClick={() => {
+              setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
+              setIsReviewModalOpen(true);
+            }}
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 mb-2"
+          >
+            <Star className="w-3 h-3 fill-current" />
+            Write a Review
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'reviews' ? (
+        <div className="space-y-6 mt-6 animate-in fade-in duration-200">
+          {/* Reviews Summary Card */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-center sm:text-left">
+              <div className="w-16 h-16 rounded-2xl bg-yellow-400/20 border border-yellow-400/30 flex flex-col items-center justify-center shrink-0">
+                <span className="text-2xl font-black text-yellow-600 dark:text-yellow-400 leading-none">
+                  {mentorStats?.averageRating || '0.0'}
+                </span>
+                <div className="flex text-yellow-500 text-[10px] mt-1">
+                  <Star className="w-3 h-3 fill-current" />
+                </div>
+              </div>
+              <div>
+                <h3 className="font-bold text-foreground text-base sm:text-lg">Overall Student Rating</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Based on {mentorStats?.totalRatings || 0} reviews from mentorship sessions.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {user && user.id !== (mentor?.clerkId || mentor?._id) && (
+                <button
+                  onClick={() => {
+                    setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
+                    setIsReviewModalOpen(true);
+                  }}
+                  className="bg-primary text-primary-foreground text-xs font-semibold px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors shadow-xs shrink-0 flex items-center gap-1.5"
+                >
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  Write a Review
+                </button>
+              )}
+              <button
+                onClick={() => setIsReviewListModalOpen(true)}
+                className="bg-card border border-border/60 hover:bg-muted text-foreground text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-xs shrink-0"
+              >
+                Open Full View
+              </button>
+            </div>
+          </div>
+
+          {/* Reviews List */}
+          {mentorStats?.reviews && mentorStats.reviews.length > 0 ? (
+            <div className="space-y-4">
+              {mentorStats.reviews.map((rev) => {
+                const reviewer = rev.reviewer || {};
+                const reviewerName = reviewer.firstName
+                  ? `${reviewer.firstName} ${reviewer.lastName || ''}`.trim()
+                  : 'Student';
+                const reviewerImg = reviewer.imageUrl || defaultPP;
+                const rating = rev.mentorRating || rev.contentRating || 5;
+                const comment = rev.mentorComment || rev.contentComment;
+                const likes = rev.likes || [];
+                const hasLiked = user && likes.includes(user.id);
+                const isMentorOwner = user && user.id === mentor?.clerkId;
+
+                return (
+                  <div key={rev._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={reviewerImg}
+                          alt={reviewerName}
+                          className="w-10 h-10 rounded-full object-cover border border-border/50 bg-muted"
+                        />
+                        <div>
+                          <h4 className="font-semibold text-sm text-foreground leading-tight">{reviewerName}</h4>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-lg border border-yellow-400/20">
+                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
+                        <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">{rating}.0</span>
+                      </div>
+                    </div>
+
+                    {comment ? (
+                      <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap pl-1">
+                        "{comment}"
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic pl-1">No comment provided.</p>
+                    )}
+
+                    {/* Likes & Replies */}
+                    <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                      <button
+                        onClick={() => handleReviewLike(rev._id)}
+                        className={`flex items-center gap-1.5 font-medium transition-colors ${
+                          hasLiked ? 'text-primary' : 'hover:text-foreground'
+                        }`}
+                      >
+                        <ThumbsUp className={`w-3.5 h-3.5 ${hasLiked ? 'fill-current' : ''}`} />
+                        <span>{likes.length} {likes.length === 1 ? 'Like' : 'Likes'}</span>
+                      </button>
+
+                      {isMentorOwner && !rev.reply && (
+                        <button
+                          onClick={() => {
+                            setReplyingReviewId(replyingReviewId === rev._id ? null : rev._id);
+                            setReplyText('');
+                          }}
+                          className="flex items-center gap-1 text-primary hover:underline font-medium"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          {replyingReviewId === rev._id ? 'Cancel Reply' : 'Reply to Student'}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Mentor Existing Reply */}
+                    {rev.reply && (
+                      <div className="mt-3 bg-primary/5 border-l-2 border-primary pl-3 py-2 rounded-r-lg">
+                        <p className="text-[11px] font-bold text-primary mb-0.5">Mentor Reply:</p>
+                        <p className="text-xs text-foreground/90">{rev.reply.text}</p>
+                      </div>
+                    )}
+
+                    {/* Inline Reply Input for Mentor */}
+                    {isMentorOwner && replyingReviewId === rev._id && (
+                      <div className="mt-2 flex gap-2 pt-2 border-t border-border/40">
+                        <input
+                          type="text"
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          placeholder="Write a thoughtful reply to this student..."
+                          className="flex-1 text-xs bg-muted/40 border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleReplySubmit(rev._id)}
+                          disabled={isSubmittingReply || !replyText.trim()}
+                          className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {isSubmittingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          Reply
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-card border border-border/50 rounded-2xl p-6">
+              <Star className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+              <h4 className="font-semibold text-foreground text-sm">No Reviews Yet</h4>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                {user && user.id !== (mentor?.clerkId || mentor?._id)
+                  ? 'Be the first to review this mentor and share your experience!'
+                  : 'As you host sessions and mentor students, their feedback and ratings will appear here.'}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Posts Section */
+        <div className="space-y-4 mt-6">
         <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
         {isLoadingPosts ? (
           <div className="flex justify-center p-8">
@@ -888,6 +1166,7 @@ const MentorProfile = ({ initialUser }) => {
           </div>
         )}
       </div>
+      )}
       </>
       )}
 
@@ -939,7 +1218,9 @@ const MentorProfile = ({ initialUser }) => {
         reviews={mentorStats.reviews || []}
         title={`Reviews for ${fullName}`}
         type="mentor"
-        onAddReview={user && user.id !== (mentor.clerkId || mentor._id) ? () => {
+        mentorId={mentor?.clerkId}
+        onReviewUpdated={fetchMentorStats}
+        onAddReview={user && user.id !== (mentor?.clerkId || mentor?._id) ? () => {
           setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
           setIsReviewModalOpen(true);
         } : null}
@@ -949,13 +1230,7 @@ const MentorProfile = ({ initialUser }) => {
         isOpen={isReviewModalOpen}
         onClose={() => setIsReviewModalOpen(false)}
         pendingReview={pendingReview}
-        onReviewSubmitted={() => {
-          if (!mentor?.clerkId) return;
-          fetch(`${API_BASE}/api/reviews/mentor/${mentor.clerkId}`)
-            .then(res => res.ok ? res.json() : Promise.reject())
-            .then(data => setMentorStats(data))
-            .catch(err => console.error(err));
-        }}
+        onReviewSubmitted={fetchMentorStats}
       />
 
       <ConfirmModal

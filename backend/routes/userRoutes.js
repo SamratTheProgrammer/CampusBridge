@@ -4,6 +4,8 @@ import User from '../models/User.js';
 import Connection from '../models/Connection.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 import { createNotificationHelper } from './notificationRoutes.js';
+import { clerkClient } from '@clerk/clerk-sdk-node';
+import { deleteCloudinaryAsset } from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -53,7 +55,12 @@ router.post('/sync', async (req, res) => {
       if (firstName) user.firstName = firstName;
       if (lastName !== undefined) user.lastName = lastName;
       if (imageUrl) user.imageUrl = imageUrl;
-      if (coverPhoto) user.coverPhoto = coverPhoto;
+      if (coverPhoto !== undefined && coverPhoto !== null) {
+        if (user.coverPhoto && user.coverPhoto !== coverPhoto && coverPhoto) {
+          deleteCloudinaryAsset(user.coverPhoto).catch(e => console.error('Cloudinary cleanup error:', e));
+        }
+        user.coverPhoto = coverPhoto;
+      }
       if (username && !user.username) user.username = username;
       await user.save();
       return res.status(200).json(user);
@@ -200,6 +207,24 @@ router.get('/:clerkId', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Auto-sync coverPhoto from Clerk if different or missing in DB
+    if (user.clerkId) {
+      try {
+        const clerkUser = await clerkClient.users.getUser(user.clerkId);
+        const clerkCover = clerkUser?.unsafeMetadata?.coverPhoto;
+        if (clerkCover && user.coverPhoto !== clerkCover) {
+          if (user.coverPhoto && user.coverPhoto !== clerkCover) {
+            deleteCloudinaryAsset(user.coverPhoto).catch(() => {});
+          }
+          user.coverPhoto = clerkCover;
+          await user.save();
+        }
+      } catch (e) {
+        // Non-blocking fallback
+      }
+    }
+
     res.status(200).json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -280,7 +305,24 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (education !== undefined) targetUser.education = education;
     if (skills !== undefined) targetUser.skills = skills;
     if (imageUrl !== undefined) targetUser.imageUrl = imageUrl;
-    if (coverPhoto !== undefined) targetUser.coverPhoto = coverPhoto;
+    if (coverPhoto !== undefined) {
+      if (targetUser.coverPhoto && targetUser.coverPhoto !== coverPhoto) {
+        deleteCloudinaryAsset(targetUser.coverPhoto).catch(e => console.error('Cloudinary cleanup error:', e));
+      }
+      targetUser.coverPhoto = coverPhoto;
+
+      // Also ensure Clerk unsafeMetadata stays in sync if clerkId is known
+      if (targetUser.clerkId) {
+        clerkClient.users.getUser(targetUser.clerkId).then(clerkUser => {
+          return clerkClient.users.updateUser(targetUser.clerkId, {
+            unsafeMetadata: {
+              ...clerkUser.unsafeMetadata,
+              coverPhoto: coverPhoto || null
+            }
+          });
+        }).catch(err => console.log('Clerk sync note:', err.message));
+      }
+    }
     if (yearsOfExperience !== undefined) targetUser.yearsOfExperience = yearsOfExperience;
     if (profileVisibility !== undefined) targetUser.profileVisibility = profileVisibility;
     if (dateOfBirth !== undefined) targetUser.dateOfBirth = dateOfBirth;

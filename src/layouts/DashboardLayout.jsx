@@ -248,6 +248,7 @@ const DashboardLayout = () => {
            (mentor.skills || []).some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
   }).map(m => ({
     id: m.clerkId,
+    username: m.username,
     name: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
     role: m.headline || 'Mentor',
     company: m.location || ''

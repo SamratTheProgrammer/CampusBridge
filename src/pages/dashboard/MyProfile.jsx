@@ -1,6 +1,6 @@
 import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle } from 'lucide-react'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -39,6 +39,14 @@ const MyProfile = () => {
   
   const [mentorStats, setMentorStats] = useState({ averageRating: 0, totalRatings: 0, reviews: [] })
   const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
+  const [profileTab, setProfileTab] = useState('posts') // 'posts' | 'reviews'
+  const [replyingReviewId, setReplyingReviewId] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false)
+
+  const isMentorUser = dbUser?.role === 'mentor' || dbUser?.role === 'alumni' ||
+    user?.publicMetadata?.role === 'mentor' || user?.unsafeMetadata?.role === 'mentor' ||
+    sessionStorage.getItem('campusbridge_user_role') === 'mentor'
 
   const coverPhotoInputRef = useRef(null)
   const profilePicInputRef = useRef(null)
@@ -73,6 +81,7 @@ const MyProfile = () => {
       fetchUserProfile()
       fetchUserPosts()
       fetchConnectionsCount()
+      fetchMentorStats()
     }
   }, [isLoaded, user])
 
@@ -86,6 +95,60 @@ const MyProfile = () => {
       }
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const fetchMentorStats = async () => {
+    if (!user?.id) return
+    try {
+      const res = await fetch(`${API_BASE}/api/reviews/mentor/${user.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setMentorStats(data)
+      }
+    } catch (err) {
+      console.error('Error fetching mentor stats:', err)
+    }
+  }
+
+  const handleReviewLike = async (reviewId) => {
+    if (!user?.id) return toast.error('Please log in to like reviews')
+    try {
+      const res = await fetch(`${API_BASE}/api/reviews/${reviewId}/like`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user.id })
+      })
+      if (res.ok) {
+        fetchMentorStats()
+      }
+    } catch (err) {
+      console.error('Failed to like review:', err)
+    }
+  }
+
+  const handleReplySubmit = async (reviewId) => {
+    if (!replyText.trim()) return
+    setIsSubmittingReply(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/reviews/${reviewId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user.id, text: replyText })
+      })
+      if (res.ok) {
+        toast.success('Reply posted successfully!')
+        setReplyText('')
+        setReplyingReviewId(null)
+        fetchMentorStats()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Failed to post reply')
+      }
+    } catch (err) {
+      toast.error('Network error')
+    } finally {
+      setIsSubmittingReply(false)
     }
   }
 
@@ -150,7 +213,7 @@ const MyProfile = () => {
         })
         
         // Update MongoDB
-        await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
+        const mongoRes = await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -158,6 +221,13 @@ const MyProfile = () => {
             imageUrl: user.imageUrl 
           })
         })
+        
+        if (mongoRes.ok) {
+          const updated = await mongoRes.json()
+          setDbUser(updated)
+        } else {
+          setDbUser(prev => prev ? { ...prev, coverPhoto: newUrl } : { coverPhoto: newUrl })
+        }
         
         toast.success('Cover photo updated!')
         fetchUserProfile() // refresh
@@ -222,11 +292,17 @@ const MyProfile = () => {
           coverPhoto: null
         }
       })
-      await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
+      const mongoRes = await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ coverPhoto: '' })
       })
+      if (mongoRes.ok) {
+        const updated = await mongoRes.json()
+        setDbUser(updated)
+      } else {
+        setDbUser(prev => prev ? { ...prev, coverPhoto: '' } : null)
+      }
       toast.success('Cover photo removed!', { id: 'cover-remove' })
     } catch (error) {
       console.error(error)
@@ -374,7 +450,8 @@ const MyProfile = () => {
 
   if (!isLoaded) return <div className="p-8"><ProfileSkeleton /></div>
 
-  const coverPhotoUrl = user?.unsafeMetadata?.coverPhoto
+  const coverPhotoUrl = dbUser?.coverPhoto || user?.unsafeMetadata?.coverPhoto
+  const hasCoverPhoto = Boolean(coverPhotoUrl)
   const profilePhotoUrl = user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)
 
   return (
@@ -403,7 +480,7 @@ const MyProfile = () => {
             <input type="file" ref={coverPhotoInputRef} onChange={handleCoverPhotoSelect} accept="image/*" className="hidden" />
             <button 
               onClick={() => {
-                if (!user?.unsafeMetadata?.coverPhoto) {
+                if (!hasCoverPhoto) {
                   coverPhotoInputRef.current?.click();
                 } else {
                   setShowCoverMenu(!showCoverMenu);
@@ -418,7 +495,7 @@ const MyProfile = () => {
             {showCoverMenu && (
               <div className="mt-2 bg-card border border-border/50 rounded-xl shadow-lg overflow-hidden w-40 flex flex-col">
                 <button className="w-full text-left px-4 py-2 hover:bg-muted text-sm font-medium transition-colors" onClick={() => { coverPhotoInputRef.current?.click(); setShowCoverMenu(false); }}>Upload New</button>
-                {user?.unsafeMetadata?.coverPhoto && (
+                {hasCoverPhoto && (
                   <button className="w-full text-left px-4 py-2 hover:bg-muted text-sm text-destructive font-medium transition-colors border-t border-border/50" onClick={() => { handleRemoveCover(); setShowCoverMenu(false); }}>Remove Photo</button>
                 )}
               </div>
@@ -474,7 +551,7 @@ const MyProfile = () => {
           <div className="mt-2 flex flex-col gap-1.5 text-left w-full">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-0.5">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{user?.fullName}</h1>
-              {dbUser?.role === 'mentor' && (
+              {isMentorUser && (
                 <button
                   onClick={() => setIsReviewListModalOpen(true)}
                   className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
@@ -639,335 +716,501 @@ const MyProfile = () => {
           )}
         </div>
 
-        {/* Right Column - User Posts */}
+        {/* Right Column - User Posts & Reviews */}
         <div className="md:col-span-2 space-y-6">
-          <h2 className="text-xl font-bold text-foreground px-1">My Posts</h2>
-          {isLoadingPosts ? (
-            <div className="space-y-6">
-              <PostSkeleton />
-              <PostSkeleton />
+          {isMentorUser ? (
+            <div className="flex border-b border-border/40 gap-4 mb-2">
+              <button
+                onClick={() => setProfileTab('posts')}
+                className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+                  profileTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                My Posts ({posts.length})
+              </button>
+              <button
+                onClick={() => setProfileTab('reviews')}
+                className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+                  profileTab === 'reviews' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                Mentorship Reviews ({mentorStats?.totalRatings || mentorStats?.reviews?.length || 0})
+              </button>
             </div>
-          ) : posts.length > 0 ? (
-            posts.map(post => {
-              const safeLikes = post.likes || []
-              const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
-              const commentsArray = post.comments || []
-              const postAuthorDP = profilePhotoUrl
-              const showComments = activeCommentPostId === post._id
+          ) : (
+            <h2 className="text-xl font-bold text-foreground px-1">My Posts</h2>
+          )}
 
-              if (post.moderationStatus === 'paused') {
-                return (
-                  <motion.div
-                    key={post._id}
-                    id={`post-${post._id}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-card border border-rose-500/30 bg-rose-500/5 rounded-2xl overflow-hidden shadow-sm p-5 mb-6 relative"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="bg-rose-500/20 p-2.5 rounded-full text-rose-500 shrink-0">
-                        <AlertCircle className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-rose-600 text-base">This post has been blocked</h3>
-                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                          Your post was flagged by our moderation team and has been temporarily hidden.
-                          <br />
-                          <span className="font-medium text-foreground mt-1 block">Reason: {post.moderationRemark || 'Violation of community guidelines.'}</span>
-                        </p>
-                        <button onClick={() => navigate('/#contact')} className="mt-4 text-xs bg-background border border-border/50 hover:bg-muted text-foreground px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-2 font-semibold shadow-sm">
-                          Contact Support <ArrowRight className="w-4 h-4" />
-                        </button>
-                      </div>
+          {profileTab === 'reviews' && isMentorUser ? (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Reviews Summary Card */}
+              <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4 text-center sm:text-left">
+                  <div className="w-16 h-16 rounded-2xl bg-yellow-400/20 border border-yellow-400/30 flex flex-col items-center justify-center shrink-0">
+                    <span className="text-2xl font-black text-yellow-600 dark:text-yellow-400 leading-none">
+                      {mentorStats?.averageRating || '0.0'}
+                    </span>
+                    <div className="flex text-yellow-500 text-[10px] mt-1">
+                      <Star className="w-3 h-3 fill-current" />
                     </div>
-                  </motion.div>
-                )
-              }
-
-              return (
-                <motion.div
-                  key={post._id}
-                  id={`post-${post._id}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground text-base sm:text-lg">Overall Student Rating</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Based on {mentorStats?.totalRatings || 0} reviews from completed sessions and mentorship.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsReviewListModalOpen(true)}
+                  className="bg-card border border-border/60 hover:bg-muted text-foreground text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-xs shrink-0"
                 >
-                  <div className="p-4 sm:p-5">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex gap-3">
-                        <img 
-                          src={postAuthorDP} 
-                          alt={user.fullName} 
-                          className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
-                          onClick={() => {
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                        />
-                        <div>
-                          <h3 
-                            className="font-bold text-foreground text-sm cursor-pointer hover:underline"
-                            onClick={() => {
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                          >
-                            {user.fullName}
-                          </h3>
-                          <p className="text-[10px] text-muted-foreground mt-1">{formatTime(post.createdAt)}</p>
-                        </div>
-                      </div>
-                      <div className="relative">
-                        <button 
-                          onClick={() => setActiveDropdownId(activeDropdownId === post._id ? null : post._id)}
-                          className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors"
-                        >
-                          <MoreHorizontal className="w-5 h-5" />
-                        </button>
+                  Open Full View
+                </button>
+              </div>
 
-                        <AnimatePresence>
-                          {activeDropdownId === post._id && (
-                            <motion.div 
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.95 }}
-                              className="absolute right-0 mt-1 w-36 bg-card border border-border/50 rounded-xl shadow-xl overflow-hidden z-20"
-                            >
-                              <button 
-                                onClick={() => { setEditingPostId(post._id); setEditContent(post.content); setActiveDropdownId(null); }}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2"
-                              >
-                                <Edit3 className="w-4 h-4" /> Edit
-                              </button>
-                              <button 
-                                onClick={() => { setPostToDelete(post._id); setActiveDropdownId(null); }}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-destructive/10 text-destructive transition-colors flex items-center gap-2"
-                              >
-                                <Trash2 className="w-4 h-4" /> Delete
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </div>
+              {/* Reviews List */}
+              {mentorStats?.reviews && mentorStats.reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {mentorStats.reviews.map((rev) => {
+                    const reviewer = rev.reviewer || {}
+                    const reviewerName = reviewer.firstName
+                      ? `${reviewer.firstName} ${reviewer.lastName || ''}`.trim()
+                      : 'Student'
+                    const reviewerImg = reviewer.imageUrl || defaultPP
+                    const rating = rev.mentorRating || rev.contentRating || 5
+                    const comment = rev.mentorComment || rev.contentComment
+                    const likes = rev.likes || []
+                    const hasLiked = likes.includes(user?.id)
 
-                    {editingPostId === post._id ? (
-                      <div className="mb-4">
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          className="w-full bg-background border border-border/50 rounded-xl p-3 text-sm focus:outline-none focus:border-primary resize-none"
-                          rows="3"
-                        />
-                        <div className="flex justify-end gap-2 mt-2">
-                          <button onClick={() => setEditingPostId(null)} className="px-3 py-1.5 text-xs font-medium hover:bg-muted rounded-lg transition-colors">Cancel</button>
-                          <button onClick={() => handleSaveEdit(post._id)} className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg transition-colors">Save</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {post.bgGradient ? (
-                          <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
-                            <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
-                              {post.content}
-                            </h2>
+                    return (
+                      <div key={rev._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={reviewerImg}
+                              alt={reviewerName}
+                              className="w-10 h-10 rounded-full object-cover border border-border/50 bg-muted"
+                            />
+                            <div>
+                              <h4 className="font-semibold text-sm text-foreground leading-tight">{reviewerName}</h4>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
+                              </p>
+                            </div>
                           </div>
-                        ) : (
-                          <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                            {post.content}
+                          <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-lg border border-yellow-400/20">
+                            <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
+                            <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">{rating}.0</span>
+                          </div>
+                        </div>
+
+                        {comment ? (
+                          <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap pl-1">
+                            "{comment}"
                           </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic pl-1">No comment provided.</p>
                         )}
-                        
-                        {post.eventDetails && post.eventDetails.title && (
-                          <div 
-                            onClick={() => {
-                              const role = user?.publicMetadata?.role || 'student';
-                              navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
-                            }}
-                            className="mb-4 bg-muted/30 hover:bg-muted/60 border border-border/50 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200 group"
+
+                        {/* Likes and Reply toggle */}
+                        <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                          <button
+                            onClick={() => handleReviewLike(rev._id)}
+                            className={`flex items-center gap-1.5 font-medium transition-colors ${
+                              hasLiked ? 'text-primary' : 'hover:text-foreground'
+                            }`}
                           >
-                            {/* FB-Style Top Image Banner */}
-                            {(post.imageUrl || post.eventDetails.imageUrl) ? (
-                              <div 
-                                className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (typeof setViewerData === 'function') {
-                                    setViewerData({ files: [post.imageUrl || post.eventDetails.imageUrl], index: 0 });
-                                  } else {
-                                    window.open(post.imageUrl || post.eventDetails.imageUrl, '_blank');
-                                  }
+                            <ThumbsUp className={`w-3.5 h-3.5 ${hasLiked ? 'fill-current' : ''}`} />
+                            <span>{likes.length} {likes.length === 1 ? 'Like' : 'Likes'}</span>
+                          </button>
+
+                          {!rev.reply && (
+                            <button
+                              onClick={() => {
+                                setReplyingReviewId(replyingReviewId === rev._id ? null : rev._id)
+                                setReplyText('')
+                              }}
+                              className="flex items-center gap-1 text-primary hover:underline font-medium"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              {replyingReviewId === rev._id ? 'Cancel Reply' : 'Reply to Student'}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Mentor's Existing Reply */}
+                        {rev.reply && (
+                          <div className="mt-3 bg-primary/5 border-l-2 border-primary pl-3 py-2 rounded-r-lg">
+                            <p className="text-[11px] font-bold text-primary mb-0.5">Your Reply:</p>
+                            <p className="text-xs text-foreground/90">{rev.reply.text}</p>
+                          </div>
+                        )}
+
+                        {/* Inline Reply Input */}
+                        {replyingReviewId === rev._id && (
+                          <div className="mt-2 flex gap-2 pt-2 border-t border-border/40">
+                            <input
+                              type="text"
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              placeholder="Write a thoughtful reply to this student..."
+                              className="flex-1 text-xs bg-muted/40 border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleReplySubmit(rev._id)}
+                              disabled={isSubmittingReply || !replyText.trim()}
+                              className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                              {isSubmittingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                              Reply
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-card border border-border/50 rounded-2xl p-6">
+                  <Star className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <h4 className="font-semibold text-foreground text-sm">No Reviews Yet</h4>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                    As you host sessions and mentor students, their feedback and ratings will appear here.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {isLoadingPosts ? (
+                <div className="space-y-6">
+                  <PostSkeleton />
+                  <PostSkeleton />
+                </div>
+              ) : posts.length > 0 ? (
+                posts.map(post => {
+                  const safeLikes = post.likes || []
+                  const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
+                  const commentsArray = post.comments || []
+                  const postAuthorDP = profilePhotoUrl
+                  const showComments = activeCommentPostId === post._id
+
+                  if (post.moderationStatus === 'paused') {
+                    return (
+                      <motion.div
+                        key={post._id}
+                        id={`post-${post._id}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-card border border-rose-500/30 bg-rose-500/5 rounded-2xl overflow-hidden shadow-sm p-5 mb-6 relative"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="bg-rose-500/20 p-2.5 rounded-full text-rose-500 shrink-0">
+                            <AlertCircle className="w-6 h-6" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-rose-600 text-base">This post has been blocked</h3>
+                            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                              Your post was flagged by our moderation team and has been temporarily hidden.
+                              <br />
+                              <span className="font-medium text-foreground mt-1 block">Reason: {post.moderationRemark || 'Violation of community guidelines.'}</span>
+                            </p>
+                            <button onClick={() => navigate('/#contact')} className="mt-4 text-xs bg-background border border-border/50 hover:bg-muted text-foreground px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-2 font-semibold shadow-sm">
+                              Contact Support <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  }
+
+                  return (
+                    <motion.div
+                      key={post._id}
+                      id={`post-${post._id}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+                    >
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex gap-3">
+                            <img 
+                              src={postAuthorDP} 
+                              alt={user.fullName} 
+                              className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                              onClick={() => {
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                            />
+                            <div>
+                              <h3 
+                                className="font-bold text-foreground text-sm cursor-pointer hover:underline"
+                                onClick={() => {
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                               >
-                                <img 
-                                  src={post.imageUrl || post.eventDetails.imageUrl} 
-                                  alt={post.eventDetails.title} 
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                                />
-                                <div className="absolute top-3 left-3 flex gap-2">
-                                  <span className="bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
-                                    {post.eventDetails.type || 'Event'}
-                                  </span>
-                                  {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
-                                    <span className="bg-red-600/90 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
-                                      Expired
-                                    </span>
-                                  )}
-                                </div>
+                                {user.fullName}
+                              </h3>
+                              <p className="text-[10px] text-muted-foreground mt-1">{formatTime(post.createdAt)}</p>
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <button 
+                              onClick={() => setActiveDropdownId(activeDropdownId === post._id ? null : post._id)}
+                              className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors"
+                            >
+                              <MoreHorizontal className="w-5 h-5" />
+                            </button>
+
+                            <AnimatePresence>
+                              {activeDropdownId === post._id && (
+                                <motion.div 
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  className="absolute right-0 mt-1 w-36 bg-card border border-border/50 rounded-xl shadow-xl overflow-hidden z-20"
+                                >
+                                  <button 
+                                    onClick={() => { setEditingPostId(post._id); setEditContent(post.content); setActiveDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                                  >
+                                    <Edit3 className="w-4 h-4" /> Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => { setPostToDelete(post._id); setActiveDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-destructive/10 text-destructive transition-colors flex items-center gap-2"
+                                  >
+                                    <Trash2 className="w-4 h-4" /> Delete
+                                  </button>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </div>
+
+                        {editingPostId === post._id ? (
+                          <div className="mb-4">
+                            <textarea
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              className="w-full bg-background border border-border/50 rounded-xl p-3 text-sm focus:outline-none focus:border-primary resize-none"
+                              rows="3"
+                            />
+                            <div className="flex justify-end gap-2 mt-2">
+                              <button onClick={() => setEditingPostId(null)} className="px-3 py-1.5 text-xs font-medium hover:bg-muted rounded-lg transition-colors">Cancel</button>
+                              <button onClick={() => handleSaveEdit(post._id)} className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg transition-colors">Save</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {post.bgGradient ? (
+                              <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
+                                <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
+                                  {post.content}
+                                </h2>
                               </div>
                             ) : (
-                              <div className="w-full h-28 sm:h-36 bg-gradient-to-r from-orange-500/20 via-pink-500/10 to-primary/20 flex items-center justify-between px-6 border-b border-border/40 relative overflow-hidden">
-                                <div className="flex items-center gap-3 z-10">
-                                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
-                                    <Calendar className="w-6 h-6" />
-                                  </div>
-                                  <div>
-                                    <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                                      {post.eventDetails.type || 'Event'}
-                                    </span>
-                                    {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
-                                      <span className="ml-2 text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
-                                        Expired
+                              <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
+                                {post.content}
+                              </p>
+                            )}
+                            
+                            {post.eventDetails && post.eventDetails.title && (
+                              <div 
+                                onClick={() => {
+                                  const role = user?.publicMetadata?.role || 'student';
+                                  navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard/events' : '/dashboard/events');
+                                }}
+                                className="mb-4 bg-muted/30 hover:bg-muted/60 border border-border/50 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200 group"
+                              >
+                                {(post.imageUrl || post.eventDetails.imageUrl) ? (
+                                  <div 
+                                    className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (typeof setViewerData === 'function') {
+                                        setViewerData({ files: [post.imageUrl || post.eventDetails.imageUrl], index: 0 });
+                                      } else {
+                                        window.open(post.imageUrl || post.eventDetails.imageUrl, '_blank');
+                                      }
+                                    }}
+                                  >
+                                    <img 
+                                      src={post.imageUrl || post.eventDetails.imageUrl} 
+                                      alt={post.eventDetails.title} 
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                    />
+                                    <div className="absolute top-3 left-3 flex gap-2">
+                                      <span className="bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
+                                        {post.eventDetails.type || 'Event'}
                                       </span>
-                                    )}
+                                      {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                        <span className="bg-red-600/90 backdrop-blur-md text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm">
+                                          Expired
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-28 sm:h-36 bg-gradient-to-r from-orange-500/20 via-pink-500/10 to-primary/20 flex items-center justify-between px-6 border-b border-border/40 relative overflow-hidden">
+                                    <div className="flex items-center gap-3 z-10">
+                                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                                        <Calendar className="w-6 h-6" />
+                                      </div>
+                                      <div>
+                                        <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                          {post.eventDetails.type || 'Event'}
+                                        </span>
+                                        {post.eventDetails.date && new Date(post.eventDetails.date).getTime() < new Date().setHours(0,0,0,0) && (
+                                          <span className="ml-2 text-[10px] uppercase font-bold tracking-wider bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
+                                            Expired
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <Calendar className="w-24 h-24 text-foreground/5 absolute -right-4 -bottom-4 pointer-events-none" />
+                                  </div>
+                                )}
+
+                                <div className="p-4 sm:p-5 flex items-start gap-4">
+                                  {post.eventDetails.date && (
+                                    <div className="w-12 sm:w-14 h-12 sm:h-14 rounded-xl bg-primary/10 border border-primary/20 flex flex-col items-center justify-center shrink-0 text-center shadow-xs">
+                                      <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase leading-tight">
+                                        {new Date(post.eventDetails.date).toLocaleDateString('en-US', { month: 'short' })}
+                                      </span>
+                                      <span className="text-base sm:text-lg font-black text-foreground leading-none mt-0.5">
+                                        {new Date(post.eventDetails.date).getDate()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="text-base sm:text-lg font-bold text-foreground mb-1 leading-snug group-hover:text-primary transition-colors">
+                                      {post.eventDetails.title}
+                                    </h4>
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium text-muted-foreground mt-1.5">
+                                      <span className="flex items-center gap-1.5">
+                                        <Calendar className="w-3.5 h-3.5 text-primary" /> 
+                                        {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                                      </span>
+                                      <span className="flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5 text-primary" /> 
+                                        {post.eventDetails.time || 'TBD'}
+                                      </span>
+                                      <span className="flex items-center gap-1.5">
+                                        <MapPin className="w-3.5 h-3.5 text-primary" /> 
+                                        {post.eventDetails.location || 'TBD'}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
-                                <Calendar className="w-24 h-24 text-foreground/5 absolute -right-4 -bottom-4 pointer-events-none" />
                               </div>
                             )}
 
-                            {/* Event Info Details Bar */}
-                            <div className="p-4 sm:p-5 flex items-start gap-4">
-                              {post.eventDetails.date && (
-                                <div className="w-12 sm:w-14 h-12 sm:h-14 rounded-xl bg-primary/10 border border-primary/20 flex flex-col items-center justify-center shrink-0 text-center shadow-xs">
-                                  <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase leading-tight">
-                                    {new Date(post.eventDetails.date).toLocaleDateString('en-US', { month: 'short' })}
-                                  </span>
-                                  <span className="text-base sm:text-lg font-black text-foreground leading-none mt-0.5">
-                                    {new Date(post.eventDetails.date).getDate()}
-                                  </span>
+                            {post.jobDetails && post.jobDetails.title && (
+                              <div className="mb-4 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-purple-500/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-md relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-70 text-2xl sm:text-3xl pointer-events-none">✨🎉</div>
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white text-purple-600 flex flex-col items-center justify-center shrink-0 shadow-sm z-10 overflow-hidden p-2 border border-border/50">
+                                  {post.jobDetails.companyLogo ? (
+                                    <img src={post.jobDetails.companyLogo} alt={post.jobDetails.company} className="w-full h-full object-contain" />
+                                  ) : (
+                                    <Briefcase className="w-6 h-6" />
+                                  )}
                                 </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-base sm:text-lg font-bold text-foreground mb-1 leading-snug group-hover:text-primary transition-colors">
-                                  {post.eventDetails.title}
-                                </h4>
-                                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium text-muted-foreground mt-1.5">
-                                  <span className="flex items-center gap-1.5">
-                                    <Calendar className="w-3.5 h-3.5 text-primary" /> 
-                                    {post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
-                                  </span>
-                                  <span className="flex items-center gap-1.5">
-                                    <Clock className="w-3.5 h-3.5 text-primary" /> 
-                                    {post.eventDetails.time || 'TBD'}
-                                  </span>
-                                  <span className="flex items-center gap-1.5">
-                                    <MapPin className="w-3.5 h-3.5 text-primary" /> 
-                                    {post.eventDetails.location || 'TBD'}
-                                  </span>
+                                <div className="flex-1 min-w-0 z-10">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <span className="text-[10px] uppercase font-bold tracking-wider bg-purple-500/20 text-purple-700 px-2 py-0.5 rounded-full">
+                                      I Got The Job! 🚀
+                                    </span>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider bg-background/50 backdrop-blur-sm text-foreground px-2 py-0.5 rounded-full border border-border/50">
+                                      {post.jobDetails.role || 'Full-time'}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.jobDetails.title}</h4>
+                                  <p className="text-sm font-medium text-foreground/80">{post.jobDetails.company}</p>
+                                  {post.jobDetails.location && (
+                                    <p className="text-xs text-foreground/60 mt-1 flex items-center gap-1">
+                                      📍 {post.jobDetails.location}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                          </div>
+                            )}
+
+                            {((post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                              <FeedMediaGrid 
+                                mediaFiles={post.mediaFiles} 
+                                imageUrl={post.imageUrl} 
+                                mediaType={post.mediaType}
+                                onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
+                                onImageClick={(files, idx) => setViewerData({ files, index: idx })}
+                              />
+                            )}
+                          </>
                         )}
 
-                        {post.jobDetails && post.jobDetails.title && (
-                          <div className="mb-4 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-purple-500/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start shadow-md relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-70 text-2xl sm:text-3xl pointer-events-none">✨🎉</div>
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white text-purple-600 flex flex-col items-center justify-center shrink-0 shadow-sm z-10 overflow-hidden p-2 border border-border/50">
-                              {post.jobDetails.companyLogo ? (
-                                <img src={post.jobDetails.companyLogo} alt={post.jobDetails.company} className="w-full h-full object-contain" />
-                              ) : (
-                                <Briefcase className="w-6 h-6" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0 z-10">
-                              <div className="flex flex-wrap items-center gap-2 mb-1">
-                                <span className="text-[10px] uppercase font-bold tracking-wider bg-purple-500/20 text-purple-700 px-2 py-0.5 rounded-full">
-                                  I Got The Job! 🚀
-                                </span>
-                                <span className="text-[10px] uppercase font-bold tracking-wider bg-background/50 backdrop-blur-sm text-foreground px-2 py-0.5 rounded-full border border-border/50">
-                                  {post.jobDetails.role || 'Full-time'}
-                                </span>
-                              </div>
-                              <h4 className="text-base font-bold text-foreground mb-1 truncate">{post.jobDetails.title}</h4>
-                              <p className="text-sm font-medium text-foreground/80">{post.jobDetails.company}</p>
-                              {post.jobDetails.location && (
-                                <p className="text-xs text-foreground/60 mt-1 flex items-center gap-1">
-                                  📍 {post.jobDetails.location}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {((post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
-                          <FeedMediaGrid 
-                            mediaFiles={post.mediaFiles} 
-                            imageUrl={post.imageUrl} 
-                            mediaType={post.mediaType}
-                            onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
-                            onImageClick={(files, idx) => setViewerData({ files, index: idx })}
-                          />
-                        )}
-                      </>
-                    )}
-
-                  </div>
-
-                  <div className="px-4 sm:px-5 py-3">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
-                      <div 
-                        className="flex items-center gap-2 cursor-pointer hover:underline"
-                        onClick={() => post.likes?.length > 0 && setLikesModalPost(post)}
-                      >
-                        <span className="bg-blue-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
-                        <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes)}</span>
                       </div>
-                      <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
-                      <button 
-                        onClick={() => handleLike(post._id)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1 sm:flex-none justify-center
-                          ${hasLiked ? 'text-blue-500 hover:bg-blue-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-                      >
-                        <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
-                        <span className="hidden sm:inline">{hasLiked ? 'Liked' : 'Like'}</span>
-                      </button>
-                      <button 
-                        onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 flex-1 sm:flex-none justify-center"
-                      >
-                        <MessageSquare className="w-5 h-5" />
-                        <span className="hidden sm:inline">Comment</span>
-                      </button>
-                    </div>
-                  </div>
 
-                  <AnimatePresence>
-                    {showComments && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="border-t border-border/40 bg-muted/10 overflow-hidden"
-                      >
-                        <PostComments 
-                          post={post}
-                          currentUser={user}
-                          onRefresh={fetchUserPosts}
-                          formatTime={formatTime}
-                          getAvatarFallback={getAvatarFallback}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )
-            })
-          ) : (
-            <div className="text-center py-10 bg-card border border-border/50 rounded-2xl">
-              <p className="text-muted-foreground text-sm">You haven't posted anything yet.</p>
-            </div>
+                      <div className="px-4 sm:px-5 py-3">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer hover:underline"
+                            onClick={() => post.likes?.length > 0 && setLikesModalPost(post)}
+                          >
+                            <span className="bg-blue-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
+                            <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes)}</span>
+                          </div>
+                          <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
+                        </div>
+                        <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
+                          <button 
+                            onClick={() => handleLike(post._id)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1 sm:flex-none justify-center
+                              ${hasLiked ? 'text-blue-500 hover:bg-blue-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                          >
+                            <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
+                            <span className="hidden sm:inline">{hasLiked ? 'Liked' : 'Like'}</span>
+                          </button>
+                          <button 
+                            onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 flex-1 sm:flex-none justify-center"
+                          >
+                            <MessageSquare className="w-5 h-5" />
+                            <span className="hidden sm:inline">Comment</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <AnimatePresence>
+                        {showComments && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="border-t border-border/40 bg-muted/10 overflow-hidden"
+                          >
+                            <PostComments 
+                              post={post}
+                              currentUser={user}
+                              onRefresh={fetchUserPosts}
+                              formatTime={formatTime}
+                              getAvatarFallback={getAvatarFallback}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  )
+                })
+              ) : (
+                <div className="text-center py-10 bg-card border border-border/50 rounded-2xl">
+                  <p className="text-muted-foreground text-sm">You haven't posted anything yet.</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -997,6 +1240,8 @@ const MyProfile = () => {
         reviews={mentorStats?.reviews || []}
         title={`Reviews for ${user?.fullName}`}
         type="mentor"
+        mentorId={user?.id}
+        onReviewUpdated={fetchMentorStats}
       />
     </div>
   )

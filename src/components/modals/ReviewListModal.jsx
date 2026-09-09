@@ -5,7 +5,7 @@ import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
 
-const ReviewListModal = ({ isOpen, onClose, reviews: initialReviews, title, type = 'mentor', mentorId, onAddReview }) => {
+const ReviewListModal = ({ isOpen, onClose, reviews: initialReviews, title, type = 'mentor', mentorId, onAddReview, onReviewUpdated }) => {
   const { user } = useUser();
   const [reviews, setReviews] = useState(initialReviews);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -31,6 +31,7 @@ const ReviewListModal = ({ isOpen, onClose, reviews: initialReviews, title, type
       if (res.ok) {
         const updated = await res.json();
         setReviews(reviews.map(r => r._id === reviewId ? { ...r, likes: updated.likes } : r));
+        if (onReviewUpdated) onReviewUpdated();
       }
     } catch (e) {
       toast.error('Failed to like review');
@@ -51,6 +52,7 @@ const ReviewListModal = ({ isOpen, onClose, reviews: initialReviews, title, type
         setReplyingTo(null);
         setReplyText('');
         toast.success('Reply added!');
+        if (onReviewUpdated) onReviewUpdated();
       }
     } catch (e) {
       toast.error('Failed to add reply');

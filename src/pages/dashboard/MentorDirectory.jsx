@@ -11,6 +11,7 @@ import defaultPP from '../../assets/default_pp.png'
 const MentorDirectory = () => {
   const { user } = useUser()
   const navigate = useNavigate()
+  const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || user?.unsafeMetadata?.role || 'student'
   const [activeTab, setActiveTab] = useState('discover') // 'discover' | 'myMentors'
 
   const [mentors, setMentors] = useState([])
@@ -47,12 +48,14 @@ const MentorDirectory = () => {
           const acceptedMentors = []
           
           connsData.forEach(c => {
+            const isTargetMentor = ['mentor', 'alumni'].includes(c.targetUser?.role?.toLowerCase());
             if (c.requesterClerkId === user.id) {
               connMap[c.recipientClerkId] = c.status;
-              if (c.status === 'accepted' && ['mentor', 'alumni'].includes(c.targetUser?.role?.toLowerCase())) {
+              if (c.status === 'accepted' && isTargetMentor) {
                 acceptedMentors.push({
                   id: c._id,
-                  clerkId: c.targetUser?.id,
+                  clerkId: c.targetUser?.clerkId || c.targetUser?.id,
+                  username: c.targetUser?.username,
                   name: c.targetUser?.name || 'Unknown Mentor',
                   company: c.targetUser?.university || 'Not specified',
                   role: c.targetUser?.interest || 'Mentor',
@@ -61,6 +64,17 @@ const MentorDirectory = () => {
               }
             } else if (c.recipientClerkId === user.id) {
               connMap[c.requesterClerkId] = c.status;
+              if (c.status === 'accepted' && isTargetMentor) {
+                acceptedMentors.push({
+                  id: c._id,
+                  clerkId: c.targetUser?.clerkId || c.targetUser?.id,
+                  username: c.targetUser?.username,
+                  name: c.targetUser?.name || 'Unknown Mentor',
+                  company: c.targetUser?.university || 'Not specified',
+                  role: c.targetUser?.interest || 'Mentor',
+                  image: c.targetUser?.image || defaultPP,
+                })
+              }
             }
           });
           setConnections(connMap);
@@ -277,10 +291,10 @@ const MentorDirectory = () => {
             ) : paginatedMentors.length > 0 ? (
               paginatedMentors.map(mentor => (
                 <div key={mentor._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 hover:shadow-md transition-shadow">
-                  <div className="flex flex-row items-center gap-4 sm:gap-5 min-w-0">
-                    <img src={mentor.imageUrl || defaultPP} alt={mentor.firstName} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 bg-muted border border-border/50" />
+                  <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="flex flex-row items-center gap-4 sm:gap-5 min-w-0 group hover:opacity-90 transition-opacity">
+                    <img src={mentor.imageUrl || defaultPP} alt={mentor.firstName} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 bg-muted border border-border/50 group-hover:ring-2 group-hover:ring-primary/40 transition-all" />
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-base sm:text-lg font-bold text-foreground truncate">{mentor.firstName} {mentor.lastName || ''}</h3>
+                      <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors truncate">{mentor.firstName} {mentor.lastName || ''}</h3>
                       <p className="text-xs sm:text-sm font-medium text-foreground truncate">{mentor.headline || 'Mentor'}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 truncate">
                         <MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{mentor.location || 'Location not specified'}</span>
@@ -291,7 +305,7 @@ const MentorDirectory = () => {
                         ))}
                       </div>
                     </div>
-                  </div>
+                  </Link>
                   <div className="flex flex-row sm:flex-nowrap gap-1.5 sm:gap-3 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/40 w-full sm:w-auto mt-2 sm:mt-0">
                     {connections[mentor.clerkId] === 'pending' ? (
                       <button 
@@ -366,22 +380,22 @@ const MentorDirectory = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredMyMentors.map((mentor) => (
                 <div key={mentor.id} className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col">
-                  <div className="p-4 sm:p-5 flex-1 text-center relative">
+                  <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="p-4 sm:p-5 flex-1 text-center relative group block hover:opacity-90 transition-opacity">
                     <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
                       <span className="bg-green-500/10 text-green-500 text-[9px] sm:text-[10px] font-bold px-2 py-0.5 sm:py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> Connected
                       </span>
                     </div>
-                    <img src={mentor.image} alt={mentor.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto mb-3 sm:mb-4 border-2 border-primary/20" />
-                    <h3 className="font-bold text-foreground text-base sm:text-lg truncate">{mentor.name}</h3>
+                    <img src={mentor.image} alt={mentor.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto mb-3 sm:mb-4 border-2 border-primary/20 group-hover:scale-105 transition-transform" />
+                    <h3 className="font-bold text-foreground text-base sm:text-lg truncate group-hover:text-primary transition-colors">{mentor.name}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{mentor.role}</p>
                     <p className="text-[10px] font-medium text-foreground/70 uppercase tracking-widest mt-1 truncate">{mentor.company}</p>
-                  </div>
+                  </Link>
                   <div className="px-4 pb-4 sm:px-5 sm:pb-5 mt-2 sm:mt-4">
                     <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                       <button onClick={() => navigate(`/profile/${mentor.username || mentor.clerkId}`)} className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted py-2 rounded-lg text-[11px] sm:text-xs font-medium"><User className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Profile</span></button>
                       <button onClick={() => navigate(`/dashboard/mentor/${mentor.clerkId}/book`)} className="flex items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-[11px] sm:text-xs font-medium shadow-sm"><CalendarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Book</span></button>
-                      <button className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted py-2 rounded-lg text-[11px] sm:text-xs font-medium"><MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Chat</span></button>
+                      <button onClick={() => navigate(userRole === 'mentor' ? `/mentor-dashboard/messages?user=${mentor.clerkId}` : `/dashboard/messages?user=${mentor.clerkId}`)} className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted py-2 rounded-lg text-[11px] sm:text-xs font-medium"><MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Chat</span></button>
                     </div>
                     <button onClick={() => setUnfriendConfirm({ isOpen: true, connectionId: mentor.id, targetName: mentor.name })} className="w-full mt-2 flex items-center justify-center gap-1 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium transition-colors">
                       Unfriend

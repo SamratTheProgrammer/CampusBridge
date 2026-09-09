@@ -17,21 +17,17 @@ import ReviewModal from '../components/modals/ReviewModal'
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 
-const MOCK_STUDENTS = [
-  { id: 1, name: 'Ananya Sharma', role: 'B.Tech CS Student', university: 'NIT Trichy' },
-  { id: 2, name: 'Rahul Verma', role: 'MCA Student', university: 'Delhi University' },
-]
 
-const MOCK_POSTS = [
-  { id: 1, title: 'How to crack FAANG interviews', type: 'Post' },
-  { id: 2, title: 'React Performance Tips', type: 'Post' },
-]
 
 const MentorDashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true')
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [mentorsList, setMentorsList] = useState([])
+  const [jobsList, setJobsList] = useState([])
+  const [eventsList, setEventsList] = useState([])
+  const [studentsList, setStudentsList] = useState([])
   const [pendingReviews, setPendingReviews] = useState([])
   const [currentReview, setCurrentReview] = useState(null)
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
@@ -45,6 +41,37 @@ const MentorDashboardLayout = () => {
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', isCollapsed)
   }, [isCollapsed])
+
+  useEffect(() => {
+    const fetchSearchData = async () => {
+      try {
+        const [mentorsRes, jobsRes, eventsRes, connsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/users/mentors/all`),
+          fetch(`${API_BASE}/api/jobs`),
+          fetch(`${API_BASE}/api/events`),
+          user ? fetch(`${API_BASE}/api/connections/user/${user.id}`) : Promise.resolve({ ok: false })
+        ]);
+
+        if (mentorsRes.ok) setMentorsList(await mentorsRes.json());
+        if (jobsRes.ok) setJobsList(await jobsRes.json());
+        if (eventsRes.ok) setEventsList(await eventsRes.json());
+        if (connsRes && connsRes.ok) {
+          const conns = await connsRes.json();
+          const accepted = conns
+            .filter(c => c.status === 'accepted')
+            .map(c => c.targetUser)
+            .filter(Boolean);
+          setStudentsList(accepted);
+        }
+      } catch (error) {
+        console.error('Error fetching search data for MentorDashboardLayout:', error);
+      }
+    };
+
+    if (user) {
+      fetchSearchData();
+    }
+  }, [user]);
 
   const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 100, isEligibleForVerification: true })
   const [verificationStatus, setVerificationStatus] = useState('Pending')
@@ -255,16 +282,48 @@ const MentorDashboardLayout = () => {
     return <DashboardSkeleton />
   }
 
-  const filteredMentees = MOCK_STUDENTS.filter(mentee => 
-    mentee.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    mentee.role.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredMentors = mentorsList.filter(mentor => {
+    const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim().toLowerCase();
+    return fullName.includes(searchQuery.toLowerCase()) ||
+           (mentor.headline || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (mentor.skills || []).some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+  }).map(m => ({
+    id: m.clerkId,
+    username: m.username,
+    name: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
+    role: m.headline || 'Mentor',
+    company: m.location || ''
+  }))
 
-  const filteredPosts = MOCK_POSTS.filter(post => 
-    post.title.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredStudents = studentsList.filter(student =>
+    (student.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (student.course || '').toLowerCase().includes(searchQuery.toLowerCase())
+  ).map(s => ({
+    id: s.clerkId || s.id || s._id,
+    username: s.username,
+    name: s.name || 'Student',
+    role: s.course || 'Student'
+  }))
 
-  const hasResults = filteredMentees.length > 0 || filteredPosts.length > 0
+  const filteredJobs = jobsList.filter(job =>
+    (job.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (job.company || '').toLowerCase().includes(searchQuery.toLowerCase())
+  ).map(j => ({
+    id: j._id,
+    title: j.title,
+    company: j.company
+  }))
+
+  const filteredEvents = eventsList.filter(event =>
+    (event.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (event.type || '').toLowerCase().includes(searchQuery.toLowerCase())
+  ).map(e => ({
+    id: e._id,
+    title: e.title,
+    type: e.type
+  }))
+
+  const hasResults = filteredMentors.length > 0 || filteredStudents.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -324,48 +383,96 @@ const MentorDashboardLayout = () => {
               {isDropdownOpen && searchQuery && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-xl z-50 max-h-[380px] overflow-y-auto divide-y divide-border/40 scrollbar-none animate-in fade-in slide-in-from-top-1 duration-200">
                   
-                  {filteredMentees.length > 0 && (
+                  {filteredMentors.length > 0 && (
                     <div className="p-2">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" /> Students
+                        <Users className="w-3.5 h-3.5" /> Mentors
                       </div>
                       <div className="space-y-0.5 mt-1">
-                        {filteredMentees.map(mentee => (
+                        {filteredMentors.map(mentor => (
                           <button
-                            key={mentee.id}
+                            key={mentor.id}
                             onClick={() => {
-                              navigate(`/mentor-dashboard/mentees`)
+                              navigate(`/profile/${mentor.username || mentor.id}`)
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
                             className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
                           >
-                            <span className="font-semibold text-foreground">{mentee.name}</span>
-                            <span className="text-xs text-muted-foreground">{mentee.role} at {mentee.university}</span>
+                            <span className="font-semibold text-foreground">{mentor.name}</span>
+                            <span className="text-xs text-muted-foreground">{mentor.role}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {filteredPosts.length > 0 && (
+                  {filteredStudents.length > 0 && (
                     <div className="p-2">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Briefcase className="w-3.5 h-3.5" /> Posts
+                        <Users className="w-3.5 h-3.5" /> Students & Mentees
                       </div>
                       <div className="space-y-0.5 mt-1">
-                        {filteredPosts.map(post => (
+                        {filteredStudents.map(student => (
                           <button
-                            key={post.id}
+                            key={student.id}
                             onClick={() => {
-                              navigate(`/mentor-dashboard/posts`)
+                              navigate(`/profile/${student.username || student.id}`)
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
                             className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
                           >
-                            <span className="font-semibold text-foreground">{post.title}</span>
-                            <span className="text-xs text-muted-foreground">{post.type}</span>
+                            <span className="font-semibold text-foreground">{student.name}</span>
+                            <span className="text-xs text-muted-foreground">{student.role}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredJobs.length > 0 && (
+                    <div className="p-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
+                        <Briefcase className="w-3.5 h-3.5" /> Jobs
+                      </div>
+                      <div className="space-y-0.5 mt-1">
+                        {filteredJobs.map(job => (
+                          <button
+                            key={job.id}
+                            onClick={() => {
+                              navigate('/mentor-dashboard/jobs')
+                              setSearchQuery('')
+                              setIsDropdownOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                          >
+                            <span className="font-semibold text-foreground">{job.title}</span>
+                            <span className="text-xs text-muted-foreground">{job.company}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredEvents.length > 0 && (
+                    <div className="p-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" /> Events & Sessions
+                      </div>
+                      <div className="space-y-0.5 mt-1">
+                        {filteredEvents.map(event => (
+                          <button
+                            key={event.id}
+                            onClick={() => {
+                              navigate('/mentor-dashboard/sessions')
+                              setSearchQuery('')
+                              setIsDropdownOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                          >
+                            <span className="font-semibold text-foreground">{event.title}</span>
+                            <span className="text-xs text-muted-foreground">{event.type}</span>
                           </button>
                         ))}
                       </div>

@@ -79,6 +79,7 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
         experience: unsafe_metadata?.experience || [],
         education: unsafe_metadata?.education || [],
         skills: unsafe_metadata?.skills || [],
+        coverPhoto: unsafe_metadata?.coverPhoto || '',
       };
 
       // Check if user already exists
@@ -97,6 +98,9 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
         user.experience = userData.experience;
         user.education = userData.education;
         user.skills = userData.skills;
+        if (unsafe_metadata?.coverPhoto !== undefined) {
+          user.coverPhoto = unsafe_metadata.coverPhoto || '';
+        }
         if (username) user.username = userData.username; // Only update if username is provided explicitly
         await user.save();
         console.log(`User updated in DB: ${id}`);
