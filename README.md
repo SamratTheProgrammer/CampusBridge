@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Alumni Networking and Mentorship Management Platform** is a web-based application that connects students with alumni for mentorship, career guidance, professional networking, and opportunity sharing. The platform aims to strengthen alumni engagement by providing a centralized space for communication and collaboration.
+The **Alumni Networking and Mentorship Management Platform** is a web-based and mobile application that connects students with alumni for mentorship, career guidance, professional networking, and opportunity sharing. The platform aims to strengthen alumni engagement by providing a centralized space for communication and collaboration.
 
 **Project Status:** In Progress
 
@@ -26,28 +26,35 @@ The **Alumni Networking and Mentorship Management Platform** is a web-based appl
 - **Career Portal:** Dedicated space for alumni to post and students to find job & internship opportunities.
 - **Admin Management Panel:** Comprehensive infrastructure to manage platform settings, users, and site configurations.
 - **Dynamic Theming & Animations:** Built-in festive `<canvas>` animations (Diwali, Holi, Independence Day) and theme switching.
-- **Networking & Messaging:** In-app communication tools to foster long-term alumni engagement.
+- **Networking & Messaging:** In-app real-time communication tools and community posts to foster long-term alumni engagement.
+- **Event Management:** Create, manage, and register for platform-wide or mentor-specific events.
+- **Cross-platform Access:** Companion mobile application built with React Native and Expo.
 
 ---
 
 ## Tech Stack
 
-### Frontend
+### Frontend (Web)
 - React.js
-- HTML
-- CSS
-- JavaScript
+- Tailwind CSS
+- Framer Motion
+- Vite
+
+### Frontend (Mobile)
+- React Native
+- Expo
 
 ### Backend
 - Node.js
 - Express.js
+- Socket.io (Real-time Messaging)
 
 ### Database
 - MongoDB
+- Mongoose
 
 ### Other Tools
-- Git
-- GitHub
+- Git & GitHub
 - REST API
 - Clerk Authentication
 
@@ -58,9 +65,11 @@ The **Alumni Networking and Mentorship Management Platform** is a web-based appl
 ```
 CampusBridge/
 │
-├── src/           (React Frontend)
+├── src/           (React Web Frontend)
 │
-├── backend/       (Node.js API)
+├── mobile/        (React Native Mobile App)
+│
+├── backend/       (Node.js REST API & WebSocket Server)
 │
 ├── public/        (Static Assets)
 │
@@ -81,20 +90,26 @@ CampusBridge/
 - Core UI development (Tailwind CSS & Framer Motion)
 - Database schema design (MongoDB/Mongoose)
 - Backend API foundation
-- Dynamic theming with custom canvas animations (Diwali, Holi, Independence Day)
+- Dynamic theming with custom canvas animations
 - Admin Dashboard infrastructure & Platform Settings
-
-### In Progress
-
-- Mentorship management system
+- Mentorship management system (Directory, Profiles, Requests, Reviews)
 - Mentor booking and sessions workflow
-- Job & Internship opportunity portal
-- Messaging system
+- Job & Internship opportunity portal (Posting, applying, managing)
+- Event management system (Creation, registration, tracking)
+- Community posts and networking feed
+- Advanced Analytics for Admins and Mentors
+- Real-time Messaging and Chat
+
+### 🔄 In Progress
+
+- Cross-platform Mobile Application Development (React Native/Expo)
+- Push Notifications integration
+- Advanced User Verification workflows
+- Support and Ticketing system refinements
 
 ### 📌 Upcoming
 
-- Real-time Notifications
-- Advanced Analytics for Admin and Mentors
+- AI-based Mentorship Matching recommendations
 - Deployment & CI/CD Pipeline
 
 ---
@@ -106,7 +121,7 @@ CampusBridge/
 | Project Type | Industry |
 | Complexity | Intermediate |
 | Domain | Social Networking, EdTech |
-| Technology | MERN Stack |
+| Technology | MERN Stack, React Native |
 | Group Size | 3 |
 | Phase | Development (In Progress) |
 
