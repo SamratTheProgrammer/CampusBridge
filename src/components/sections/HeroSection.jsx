@@ -7,6 +7,7 @@ import { useUser } from '@clerk/clerk-react'
 const HeroSection = () => {
   const { user, isLoaded } = useUser()
   const navigate = useNavigate()
+  const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student'
 
   const handleGetStarted = (e) => {
     if (isLoaded && user) {
@@ -19,6 +20,31 @@ const HeroSection = () => {
         navigate('/admin')
       } else {
         navigate('/dashboard')
+      }
+    }
+  }
+
+  const handleFindMentor = (e) => {
+    e.preventDefault()
+    if (isLoaded && user) {
+      sessionStorage.setItem('campusbridge_just_authenticated', 'true')
+      const role = sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || 'student'
+      if (role === 'mentor' || role === 'alumni') {
+        navigate('/mentor-dashboard/mentor')
+      } else {
+        navigate('/dashboard/mentor')
+      }
+    } else {
+      // If browsing as visitor on landing page, smoothly scroll to Featured Mentors section
+      const mentorSection = document.getElementById('mentor')
+      if (mentorSection) {
+        const offset = 80
+        const bodyRect = document.body.getBoundingClientRect().top
+        const elementRect = mentorSection.getBoundingClientRect().top
+        const offsetPosition = elementRect - bodyRect - offset
+        window.scrollTo({ top: offsetPosition, behavior: 'smooth' })
+      } else {
+        navigate('/dashboard/mentor')
       }
     }
   }
@@ -53,9 +79,12 @@ const HeroSection = () => {
                 {isLoaded && user ? 'Go to Dashboard' : 'Get Started'}
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link to="/dashboard/mentor" className="w-full sm:w-auto px-8 py-3.5 border border-primary/50 text-primary rounded-full font-medium hover:bg-primary/5 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+              <button 
+                onClick={handleFindMentor}
+                className="w-full sm:w-auto px-8 py-3.5 border border-primary/50 text-primary rounded-full font-medium hover:bg-primary/5 transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
+              >
                 Find a Mentor
-              </Link>
+              </button>
               <button onClick={(e) => { e.preventDefault(); document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' }); }} className="w-full sm:w-auto px-8 py-3.5 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-2 font-medium whitespace-nowrap">
                 <PlayCircle className="w-5 h-5" />
                 Watch Demo

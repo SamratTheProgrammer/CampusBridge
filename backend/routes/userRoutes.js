@@ -150,9 +150,8 @@ router.get('/mentors/all', async (req, res) => {
   try {
     const mentors = await User.find({ 
       role: { $in: ['mentor', 'alumni'] },
-      verificationStatus: 'Approved',
       profileVisibility: { $ne: 'hidden' }
-    });
+    }).sort({ isVerified: -1, verificationStatus: 1, createdAt: -1 });
     res.status(200).json(mentors);
   } catch (error) {
     console.error('Error fetching mentors:', error);
@@ -180,9 +179,8 @@ router.get('/mentors/suggested', async (req, res) => {
     const mentors = await User.find({ 
       clerkId: { $nin: excludedClerkIds },
       role: { $in: ['mentor', 'alumni'] },
-      verificationStatus: 'Approved',
       profileVisibility: { $ne: 'hidden' }
-    }).limit(5);
+    }).sort({ isVerified: -1, verificationStatus: 1, createdAt: -1 }).limit(5);
     res.status(200).json(mentors);
   } catch (error) {
     console.error('Error fetching mentors:', error);

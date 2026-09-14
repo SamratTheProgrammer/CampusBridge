@@ -1,4 +1,4 @@
-import EventSkeleton from '../../components/skeletons/EventSkeleton'
+import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, Edit3, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -257,11 +257,7 @@ const AdminEvents = () => {
       {/* Events Table */}
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
         {isLoading ? (
-          <div className="w-full space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <EventSkeleton key={i}  />
-              ))}
-            </div>
+          <AdminSpinner message="Loading events from database..." />
         ) : (
           <div className="overflow-x-auto">
             <table className="whitespace-nowrap w-full text-left border-collapse">

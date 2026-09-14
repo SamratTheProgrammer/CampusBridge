@@ -1,5 +1,6 @@
 import express from 'express';
 import Review from '../models/Review.js';
+import PlatformReview from '../models/PlatformReview.js';
 import User from '../models/User.js';
 import Session from '../models/Session.js';
 import Event from '../models/Event.js';
@@ -224,6 +225,104 @@ router.get('/session/:sessionId', async (req, res) => {
     });
   } catch (error) {
     console.error('Get Session Reviews Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// Platform Success Stories & Reviews Routes
+// ==========================================
+
+// GET /api/reviews/platform
+router.get('/platform', async (req, res) => {
+  try {
+    const reviews = await PlatformReview.find({ isSeed: { $ne: true } }).sort({ createdAt: -1 });
+    res.json(reviews);
+  } catch (error) {
+    console.error('Get Platform Reviews Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/reviews/platform
+router.post('/platform', async (req, res) => {
+  try {
+    const { name, role, qualification, before, after, image, quote, rating, userClerkId } = req.body;
+    if (!quote || !quote.trim() || !rating) {
+      return res.status(400).json({ error: 'Quote and rating are required' });
+    }
+
+    const newReview = new PlatformReview({
+      name: name?.trim() || 'Anonymous',
+      role: role?.trim() || 'Student',
+      qualification: qualification?.trim() || '',
+      before: before?.trim() || '',
+      after: after?.trim() || '',
+      image: image || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Anonymous')}&background=random`,
+      quote: quote.trim(),
+      rating: Number(rating),
+      likes: [],
+      replies: [],
+      userClerkId: userClerkId || null
+    });
+
+    await newReview.save();
+    res.status(201).json(newReview);
+  } catch (error) {
+    console.error('Create Platform Review Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/reviews/platform/:id/like
+router.put('/platform/:id/like', async (req, res) => {
+  try {
+    const { clerkId } = req.body;
+    const review = await PlatformReview.findById(req.params.id);
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+
+    const likeIdentifier = clerkId || 'anonymous';
+    if (!review.likes) review.likes = [];
+
+    if (review.likes.includes(likeIdentifier)) {
+      review.likes = review.likes.filter(id => id !== likeIdentifier);
+    } else {
+      review.likes.push(likeIdentifier);
+    }
+
+    await review.save();
+    res.json(review);
+  } catch (error) {
+    console.error('Like Platform Review Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/reviews/platform/:id/reply
+router.post('/platform/:id/reply', async (req, res) => {
+  try {
+    const { name, image, text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Reply text is required' });
+    }
+
+    const review = await PlatformReview.findById(req.params.id);
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+
+    if (!review.replies) review.replies = [];
+    const newReply = {
+      id: Date.now().toString(),
+      name: name || 'Community Member',
+      image: image || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`,
+      text: text.trim(),
+      createdAt: new Date()
+    };
+
+    review.replies.push(newReply);
+    await review.save();
+    res.json(review);
+  } catch (error) {
+    console.error('Reply Platform Review Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

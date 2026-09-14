@@ -6,6 +6,7 @@ import { useUser } from '@clerk/clerk-react'
 const FinalCTA = () => {
   const { user, isLoaded } = useUser()
   const navigate = useNavigate()
+  const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student'
 
   const handleGetStarted = (e) => {
     if (isLoaded && user) {
@@ -39,7 +40,10 @@ const FinalCTA = () => {
             {isLoaded && user ? 'Go to Dashboard' : 'Join CampusBridge'}
             <UserPlus className="w-5 h-5" />
           </Link>
-          <Link to="/dashboard/mentor" className="w-full sm:w-auto px-8 py-4 bg-card text-foreground border-2 rounded-full font-bold hover:bg-muted transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md text-lg">
+          <Link 
+            to={userRole === 'mentor' ? '/mentor-dashboard/mentor' : '/dashboard/mentor'} 
+            className="w-full sm:w-auto px-8 py-4 bg-card text-foreground border-2 rounded-full font-bold hover:bg-muted transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md text-lg"
+          >
             Explore Mentor
             <Search className="w-5 h-5" />
           </Link>

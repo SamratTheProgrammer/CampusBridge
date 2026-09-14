@@ -43,10 +43,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // Check if a connection already exists
+    // Check if a connection already exists in either direction
     const existing = await Connection.findOne({
-      requesterClerkId,
-      recipientClerkId,
+      $or: [
+        { requesterClerkId, recipientClerkId },
+        { requesterClerkId: recipientClerkId, recipientClerkId: requesterClerkId }
+      ],
       status: { $in: ['pending', 'accepted'] }
     });
 

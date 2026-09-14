@@ -328,8 +328,13 @@ const MentorDirectory = () => {
                         {isConnecting === mentor.clerkId ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <><UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Connect</>}
                       </button>
                     )}
-                    <Link to={`/dashboard/mentor/${mentor.clerkId}/book`} className="flex-1 sm:flex-none text-primary border border-primary hover:bg-primary/10 font-medium text-[10px] sm:text-sm bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center">Book Session</Link>
-                    <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="flex-1 sm:flex-none text-foreground font-medium text-[10px] sm:text-sm border border-border/50 hover:bg-muted bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center">View Profile</Link>
+                    <Link 
+                      to={userRole === 'mentor' ? `/mentor-dashboard/mentor/${mentor.clerkId || mentor._id}/book` : `/dashboard/mentor/${mentor.clerkId || mentor._id}/book`} 
+                      className="flex-1 sm:flex-none text-primary border border-primary hover:bg-primary/10 font-medium text-[10px] sm:text-sm bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center"
+                    >
+                      Book Session
+                    </Link>
+                    <Link to={`/profile/${mentor.username || mentor.clerkId || mentor._id}`} className="flex-1 sm:flex-none text-foreground font-medium text-[10px] sm:text-sm border border-border/50 hover:bg-muted bg-background px-2 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center justify-center">View Profile</Link>
                   </div>
                 </div>
               ))
@@ -394,7 +399,7 @@ const MentorDirectory = () => {
                   <div className="px-4 pb-4 sm:px-5 sm:pb-5 mt-2 sm:mt-4">
                     <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                       <button onClick={() => navigate(`/profile/${mentor.username || mentor.clerkId}`)} className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted py-2 rounded-lg text-[11px] sm:text-xs font-medium"><User className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Profile</span></button>
-                      <button onClick={() => navigate(`/dashboard/mentor/${mentor.clerkId}/book`)} className="flex items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-[11px] sm:text-xs font-medium shadow-sm"><CalendarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Book</span></button>
+                      <button onClick={() => navigate(userRole === 'mentor' ? `/mentor-dashboard/mentor/${mentor.clerkId}/book` : `/dashboard/mentor/${mentor.clerkId}/book`)} className="flex items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-[11px] sm:text-xs font-medium shadow-sm"><CalendarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Book</span></button>
                       <button onClick={() => navigate(userRole === 'mentor' ? `/mentor-dashboard/messages?user=${mentor.clerkId}` : `/dashboard/messages?user=${mentor.clerkId}`)} className="flex items-center justify-center gap-1 bg-background border border-border/50 hover:bg-muted py-2 rounded-lg text-[11px] sm:text-xs font-medium"><MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="truncate">Chat</span></button>
                     </div>
                     <button onClick={() => setUnfriendConfirm({ isOpen: true, connectionId: mentor.id, targetName: mentor.name })} className="w-full mt-2 flex items-center justify-center gap-1 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium transition-colors">

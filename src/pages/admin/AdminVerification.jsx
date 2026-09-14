@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import CardSkeleton from '../../components/skeletons/CardSkeleton'
+import AdminSpinner from '../../components/admin/AdminSpinner'
 import { Check, X, FileText, ExternalLink, ShieldCheck, Loader2, User, Building, Briefcase, GraduationCap, Clock, Award, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
@@ -145,9 +145,8 @@ const AdminVerification = () => {
 
       {/* Content State */}
       {isLoading ? (
-        <div className="py-20 text-center flex flex-col items-center justify-center bg-card border border-border/50 rounded-2xl">
-          <CardSkeleton />
-          <p className="text-sm font-medium text-muted-foreground">Loading mentor verifications from database...</p>
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
+          <AdminSpinner message="Loading mentor verifications from database..." />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

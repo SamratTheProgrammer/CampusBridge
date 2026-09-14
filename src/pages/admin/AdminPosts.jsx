@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import CardSkeleton from '../../components/skeletons/CardSkeleton'
+import AdminSpinner from '../../components/admin/AdminSpinner'
 import { Search, Trash2, CheckCircle2, AlertCircle, Loader2, Pause, MessageSquare, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
@@ -158,10 +158,7 @@ const AdminPosts = () => {
       {/* Posts Table */}
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
         {isLoading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center">
-            <CardSkeleton />
-            <p className="text-sm font-medium text-muted-foreground">Loading posts from database...</p>
-          </div>
+          <AdminSpinner message="Loading posts from database..." />
         ) : (
           <div className="overflow-x-auto">
             <table className="whitespace-nowrap w-full text-left border-collapse">

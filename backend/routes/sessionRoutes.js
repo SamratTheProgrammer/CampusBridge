@@ -1,26 +1,33 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
 import { createNotificationHelper } from './notificationRoutes.js';
 
 const router = express.Router();
 
+// Helper to query user by clerkId, _id, username, or email
+const findUserByIdentifier = async (identifier) => {
+  if (!identifier || identifier === 'undefined') return null;
+  let query = [{ clerkId: identifier }, { username: identifier }, { email: identifier.toLowerCase().trim() }];
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    query.push({ _id: identifier });
+  }
+  return await User.findOne({ $or: query });
+};
+
 // Create a new session request
 router.post('/', async (req, res) => {
   try {
     const { studentClerkId, mentorClerkId, mentorId, type, mode, date, time, duration, meetingLink, location, message } = req.body;
 
-    const studentUser = await User.findOne({ clerkId: studentClerkId });
+    const studentUser = await findUserByIdentifier(studentClerkId);
     if (!studentUser) {
       return res.status(404).json({ error: 'Student user not found' });
     }
 
-    let mentorUser = null;
-    if (mentorClerkId) {
-      mentorUser = await User.findOne({ clerkId: mentorClerkId });
-    } else if (mentorId) {
-      mentorUser = await User.findById(mentorId);
-    }
+    const mentorTarget = mentorClerkId || mentorId;
+    const mentorUser = await findUserByIdentifier(mentorTarget);
 
     if (!mentorUser) {
       return res.status(404).json({ error: 'Mentor user not found' });
@@ -62,7 +69,7 @@ router.post('/', async (req, res) => {
 // Get sessions for a user (either student or mentor)
 router.get('/user/:clerkId', async (req, res) => {
   try {
-    const user = await User.findOne({ clerkId: req.params.clerkId });
+    const user = await findUserByIdentifier(req.params.clerkId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

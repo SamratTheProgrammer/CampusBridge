@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import HeroSection from '../components/sections/HeroSection'
 import TrustedBy from '../components/sections/TrustedBy'
 import Statistics from '../components/sections/Statistics'
@@ -19,6 +20,23 @@ import ContactSection from '../components/sections/ContactSection'
 import FinalCTA from '../components/sections/FinalCTA'
 
 const LandingPage = () => {
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace('#', '')
+      const el = document.getElementById(id)
+      if (el) {
+        setTimeout(() => {
+          const offset = 80
+          const bodyRect = document.body.getBoundingClientRect().top
+          const elementRect = el.getBoundingClientRect().top
+          const offsetPosition = elementRect - bodyRect - offset
+          window.scrollTo({ top: offsetPosition, behavior: 'smooth' })
+        }, 100)
+      }
+    }
+  }, [location.hash])
   return (
     <div className="w-full overflow-hidden">
       <div id="home"><HeroSection /></div>
@@ -35,9 +53,9 @@ const LandingPage = () => {
       <div id="resources"><Communities /></div>
       <SuccessStories />
       <PlatformPreview />
-      <FAQ />
+      <div id="faq"><FAQ /></div>
       <Newsletter />
-      <ContactSection />
+      <div id="contact"><ContactSection /></div>
       <FinalCTA />
     </div>
   )

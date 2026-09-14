@@ -1,4 +1,4 @@
-import CardSkeleton from '../../components/skeletons/CardSkeleton'
+import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, Building2, ExternalLink, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -75,10 +75,7 @@ const AdminCompanies = () => {
       </div>
 
       {isLoading ? (
-        <div className="py-20 text-center flex flex-col items-center justify-center">
-          <CardSkeleton />
-          <p className="text-sm font-medium text-muted-foreground">Loading companies...</p>
-        </div>
+        <AdminSpinner message="Loading companies..." />
       ) : companies.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {companies.map((company) => (

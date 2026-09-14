@@ -1,37 +1,55 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, FileText, Users, Briefcase, Calendar, Info, LogIn, UserPlus, BookOpen, Loader2, Compass } from 'lucide-react'
+import { Search, X, FileText, Users, Briefcase, Calendar, Info, LogIn, UserPlus, BookOpen, Loader2, Compass, MessageSquare, Settings as SettingsIcon, Bookmark, HelpCircle, Mail, PlayCircle, ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../utils/api'
 
 const staticSearchData = [
   {
-    category: 'Navigation',
+    category: 'Mentors & Mentorship',
     items: [
-      { id: 'find-mentor', title: 'Find Mentor (Mentor Directory)', path: '/dashboard/mentor', icon: Compass, description: 'Browse and connect with verified mentors' },
-      { id: 'mentor-dir', title: 'Mentor Directory', path: '/dashboard/mentor', icon: Compass, description: 'Find mentors by company, domain, and skills' },
-      { id: 'dash-jobs', title: 'Browse Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase, description: 'Explore career opportunities and open roles' },
-      { id: 'dash-events', title: 'Upcoming Events & Sessions', path: '/dashboard/events', icon: Calendar, description: 'Workshops, webinars, and 1-on-1 mentorship sessions' },
+      { id: 'find-mentor', title: 'Find Mentor (Mentor Directory)', path: '/dashboard/mentor', icon: Compass, description: 'Browse, search and connect with verified mentors', keywords: ['mentor', 'find', 'directory', 'search', 'connect', 'guidance', 'career'] },
+      { id: 'book-session', title: 'Book a Session with Mentor', path: '/dashboard/mentor', icon: Calendar, description: 'Schedule 1-on-1 mentorship, mock interviews & resume reviews', keywords: ['book', 'session', 'schedule', 'meeting', 'interview', '1-on-1', 'call'] },
+      { id: 'my-sessions', title: 'My Sessions & Bookings', path: '/dashboard/sessions', icon: Calendar, description: 'View your upcoming and past mentorship sessions', keywords: ['sessions', 'my sessions', 'bookings', 'calendar', 'upcoming'] },
+      { id: 'mentor-requests', title: 'Mentorship Requests & Network', path: '/dashboard/mentorship', icon: Users, description: 'Manage connection requests and mentor relationships', keywords: ['mentorship', 'requests', 'mentees', 'connect', 'connections'] },
+      { id: 'explore-mentors', title: 'Explore Featured Mentors', path: '/#mentor', icon: Users, description: 'Discover top mentors working at Google, Microsoft, Amazon & more', keywords: ['explore', 'featured', 'alumni', 'mentor network', 'spotlight'] },
     ]
   },
   {
-    category: 'Pages',
+    category: 'Jobs & Events',
     items: [
-      { id: 'home', title: 'Home', path: '/#home', icon: FileText, description: 'Return to the landing page' },
-      { id: 'login', title: 'Login', path: '/login', icon: LogIn, description: 'Access your account' },
-      { id: 'signup', title: 'Sign Up', path: '/signup', icon: UserPlus, description: 'Create a new account' },
+      { id: 'dash-jobs', title: 'Browse Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase, description: 'Explore career opportunities and open roles', keywords: ['jobs', 'internships', 'careers', 'openings', 'hiring', 'apply'] },
+      { id: 'my-applications', title: 'My Job Applications', path: '/dashboard/applications', icon: FileText, description: 'Track your submitted job and internship applications', keywords: ['applications', 'applied', 'status', 'track'] },
+      { id: 'dash-events', title: 'Upcoming Events & Workshops', path: '/dashboard/events', icon: Calendar, description: 'Webinars, tech talks, and community meetups', keywords: ['events', 'workshops', 'webinars', 'talks', 'meetups'] },
+      { id: 'saved-items', title: 'Saved Jobs & Opportunities', path: '/dashboard/saved', icon: Bookmark, description: 'Access your bookmarked jobs, internships and events', keywords: ['saved', 'bookmarks', 'favorites'] },
     ]
   },
   {
-    category: 'Sections',
+    category: 'Networking & Community',
     items: [
-      { id: 'mentor', title: 'Mentor Network', path: '/#mentor', icon: Users, description: 'Connect with featured mentor' },
-      { id: 'mentorship', title: 'Mentorship Spotlight', path: '/#mentorship', icon: BookOpen, description: 'Find or become a mentor' },
-      { id: 'jobs', title: 'Jobs & Internships Section', path: '/#jobs', icon: Briefcase, description: 'Explore career opportunities' },
-      { id: 'events', title: 'Upcoming Events Section', path: '/#events', icon: Calendar, description: 'Webinars, workshops, and meetups' },
-      { id: 'resources', title: 'Resources & Communities', path: '/#resources', icon: FileText, description: 'Join student communities' },
-      { id: 'about', title: 'About Us', path: '/#about', icon: Info, description: 'Learn how CampusBridge works' },
+      { id: 'my-network', title: 'My Network & People', path: '/dashboard/network', icon: Users, description: 'Connect with students, alumni, and campus peers', keywords: ['network', 'people', 'friends', 'classmates', 'students'] },
+      { id: 'messages', title: 'Messages & Chat', path: '/dashboard/messages', icon: MessageSquare, description: 'Direct message your mentors and campus peers', keywords: ['messages', 'chat', 'inbox', 'dm', 'conversation'] },
+      { id: 'resources', title: 'Communities & Roadmaps', path: '/#resources', icon: BookOpen, description: 'Join student tech communities and learning roadmaps', keywords: ['communities', 'resources', 'roadmaps', 'clubs', 'ai', 'cybersecurity'] },
+    ]
+  },
+  {
+    category: 'Account & Settings',
+    items: [
+      { id: 'my-profile', title: 'My Profile', path: '/dashboard/profile', icon: Users, description: 'View and update your public profile and bio', keywords: ['profile', 'account', 'resume', 'bio', 'edit'] },
+      { id: 'settings', title: 'Settings & Preferences', path: '/dashboard/settings', icon: SettingsIcon, description: 'Manage security, notifications and app preferences', keywords: ['settings', 'preferences', 'security', 'password'] },
+      { id: 'login', title: 'Login / Sign In', path: '/login', icon: LogIn, description: 'Access your CampusBridge student or mentor account', keywords: ['login', 'signin', 'auth', 'access'] },
+      { id: 'signup', title: 'Sign Up / Create Account', path: '/signup', icon: UserPlus, description: 'Join CampusBridge as a student or alumni mentor', keywords: ['signup', 'register', 'join', 'create'] },
+    ]
+  },
+  {
+    category: 'Platform & About',
+    items: [
+      { id: 'home', title: 'Home Page', path: '/#home', icon: FileText, description: 'Return to the CampusBridge landing page', keywords: ['home', 'landing', 'main', 'start'] },
+      { id: 'how-it-works', title: 'How CampusBridge Works', path: '/#about', icon: Info, description: 'Learn how our platform connects students and mentors', keywords: ['about', 'how it works', 'info', 'platform'] },
+      { id: 'watch-demo', title: 'Watch Demo Video', path: '/#demo', icon: PlayCircle, description: 'Take a quick walkthrough of key features', keywords: ['demo', 'watch', 'video', 'preview'] },
+      { id: 'faq', title: 'Frequently Asked Questions (FAQ)', path: '/#faq', icon: HelpCircle, description: 'Answers to common questions about mentorship and jobs', keywords: ['faq', 'questions', 'help', 'answers', 'support'] },
+      { id: 'contact', title: 'Contact Us & Support', path: '/#contact', icon: Mail, description: 'Get in touch with the CampusBridge support team', keywords: ['contact', 'support', 'help', 'email', 'reach'] },
     ]
   }
 ]
@@ -89,22 +107,27 @@ const SearchModal = ({ isOpen, onClose }) => {
     return () => clearTimeout(delayDebounceFn)
   }, [query])
 
-  // Filter static data based on query
+  // Filter static data based on query & keywords
+  const q = query.toLowerCase().trim()
   const filteredStaticData = staticSearchData.map(group => ({
     ...group,
-    items: group.items.filter(item => 
-      item.title.toLowerCase().includes(query.toLowerCase()) || 
-      item.description.toLowerCase().includes(query.toLowerCase())
-    ).map(item => {
+    items: group.items.filter(item => {
+      if (!q) return true
+      const matchesTitle = item.title.toLowerCase().includes(q)
+      const matchesDesc = item.description.toLowerCase().includes(q)
+      const matchesKeywords = item.keywords?.some(k => k.toLowerCase().includes(q))
+      return matchesTitle || matchesDesc || matchesKeywords
+    }).map(item => {
       // Adjust path for mentors if needed
-      if (userRole === 'mentor' && item.path === '/dashboard/mentor') {
-        return { ...item, path: '/mentor-dashboard/mentor' }
-      }
-      if (userRole === 'mentor' && item.path === '/dashboard/jobs') {
-        return { ...item, path: '/mentor-dashboard/jobs' }
-      }
-      if (userRole === 'mentor' && item.path === '/dashboard/events') {
-        return { ...item, path: '/mentor-dashboard/sessions' }
+      if (userRole === 'mentor') {
+        if (item.path === '/dashboard/mentor') return { ...item, path: '/mentor-dashboard/mentor' }
+        if (item.path === '/dashboard/jobs') return { ...item, path: '/mentor-dashboard/jobs' }
+        if (item.path === '/dashboard/events' || item.path === '/dashboard/sessions') return { ...item, path: '/mentor-dashboard/sessions' }
+        if (item.path === '/dashboard/mentorship') return { ...item, path: '/mentor-dashboard/requests' }
+        if (item.path === '/dashboard/network') return { ...item, path: '/mentor-dashboard/network' }
+        if (item.path === '/dashboard/messages') return { ...item, path: '/mentor-dashboard/messages' }
+        if (item.path === '/dashboard/profile') return { ...item, path: '/mentor-dashboard/profile' }
+        if (item.path === '/dashboard/settings') return { ...item, path: '/mentor-dashboard/settings' }
       }
       return item
     })
@@ -116,13 +139,13 @@ const SearchModal = ({ isOpen, onClose }) => {
 
     if (dynamicResults.users?.length > 0) {
       combined.push({
-        category: 'Users & Mentors',
+        category: 'Mentors & Community Members',
         items: dynamicResults.users.map(u => ({
           id: u._id || u.clerkId,
           title: `${u.firstName} ${u.lastName || ''}`.trim(),
           path: `/profile/${u.username || u.clerkId}`,
           icon: Users,
-          description: u.headline || (u.role === 'mentor' ? 'Mentor' : 'Student'),
+          description: u.headline || (u.company ? `At ${u.company}` : (u.role === 'mentor' ? 'Verified Mentor' : 'Student Member')),
           image: u.imageUrl
         }))
       })
@@ -130,7 +153,7 @@ const SearchModal = ({ isOpen, onClose }) => {
 
     if (dynamicResults.events?.length > 0) {
       combined.push({
-        category: 'Events',
+        category: 'Live Events & Workshops',
         items: dynamicResults.events.map(e => ({
           id: e._id,
           title: e.title,
@@ -144,7 +167,7 @@ const SearchModal = ({ isOpen, onClose }) => {
 
     if (dynamicResults.jobs?.length > 0) {
       combined.push({
-        category: 'Jobs',
+        category: 'Jobs & Openings',
         items: dynamicResults.jobs.map(j => ({
           id: j._id,
           title: j.title,
@@ -176,9 +199,10 @@ const SearchModal = ({ isOpen, onClose }) => {
   const handleSelect = (path) => {
     onClose()
     if (path.startsWith('/#')) {
+      const hash = path.substring(1)
+      const targetId = hash.replace('#', '')
       if (window.location.pathname === '/') {
-        const hash = path.substring(1)
-        const element = document.getElementById(hash.replace('#', ''))
+        const element = document.getElementById(targetId)
         if (element) {
           const offset = 80
           const bodyRect = document.body.getBoundingClientRect().top

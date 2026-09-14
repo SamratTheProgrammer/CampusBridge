@@ -7,6 +7,9 @@ const BookingSuccess = () => {
   const navigate = useNavigate()
   const { id } = useParams()
 
+  const isMentorDashboard = window.location.pathname.startsWith('/mentor-dashboard')
+  const basePath = isMentorDashboard ? '/mentor-dashboard' : '/dashboard'
+
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center p-4">
       <motion.div 
@@ -31,14 +34,14 @@ const BookingSuccess = () => {
 
         <div className="space-y-4">
           <button 
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(basePath)}
             className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-4 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
           >
             <ArrowLeft className="w-5 h-5" /> Back to Dashboard
           </button>
           
           <button 
-            onClick={() => navigate('/dashboard/sessions')}
+            onClick={() => navigate(`${basePath}/sessions`)}
             className="w-full bg-background border border-border/50 text-foreground hover:bg-muted py-4 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
           >
             <Calendar className="w-5 h-5" /> View My Sessions

@@ -50,13 +50,16 @@ const Login = () => {
   useEffect(() => {
     if (isUserLoaded && isSignedIn && user) {
       const role = user.publicMetadata?.role || user.unsafeMetadata?.role || selectedRole
-      if (role === 'mentor') {
+      const fromPath = location.state?.from?.pathname || (typeof location.state?.from === 'string' ? location.state.from : null)
+      if (fromPath) {
+        navigate(fromPath, { replace: true })
+      } else if (role === 'mentor') {
         navigate('/mentor-dashboard', { replace: true })
       } else {
         navigate('/dashboard', { replace: true })
       }
     }
-  }, [isUserLoaded, isSignedIn, user, selectedRole, navigate])
+  }, [isUserLoaded, isSignedIn, user, selectedRole, location.state, navigate])
 
   const handleGoogleAuth = async (e) => {
     e?.preventDefault()
@@ -115,8 +118,11 @@ const Login = () => {
           sessionStorage.setItem('campusbridge_user_role', finalRole)
         }
         
-        // Navigation will be automatically handled by the useEffect above once user is populated
-        if (finalRole === 'mentor') {
+        // Navigation will be automatically handled by the useEffect or fallback below
+        const fromPath = location.state?.from?.pathname || (typeof location.state?.from === 'string' ? location.state.from : null)
+        if (fromPath) {
+          navigate(fromPath)
+        } else if (finalRole === 'mentor') {
           navigate('/mentor-dashboard')
         } else {
           navigate('/dashboard')

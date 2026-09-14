@@ -6,6 +6,7 @@ import {
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 import socket from '../../services/socket'
+import AdminSpinner from '../../components/admin/AdminSpinner'
 
 // Helper to generate domain-smart webmail URLs with prefilled reply
 const getEmailLinks = (email, subject = '', bodyText = '') => {
@@ -393,10 +394,7 @@ const AdminSupportMessages = () => {
           {/* Messages Scroll List */}
           <div className="flex-1 overflow-y-auto divide-y divide-border/30">
             {isLoading ? (
-              <div className="p-12 text-center text-xs text-muted-foreground space-y-2">
-                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary" />
-                <p>Loading messages...</p>
-              </div>
+              <AdminSpinner message="Loading messages..." size="sm" minHeight="min-h-[220px]" />
             ) : filteredMessages.length > 0 ? (
               filteredMessages.map((msg) => {
                 const isSelected = selectedMessage?._id === msg._id

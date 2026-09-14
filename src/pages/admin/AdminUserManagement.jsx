@@ -1,4 +1,4 @@
-import CardSkeleton from '../../components/skeletons/CardSkeleton'
+import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
 import { 
   Search, 
@@ -267,10 +267,7 @@ const AdminUserManagement = () => {
       {/* Table */}
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
         {isLoading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center">
-            <CardSkeleton />
-            <p className="text-sm font-medium text-muted-foreground">Loading registered users from database...</p>
-          </div>
+          <AdminSpinner message="Loading registered users from database..." />
         ) : (
           <div className="overflow-x-auto">
             <table className="whitespace-nowrap w-full text-left border-collapse">

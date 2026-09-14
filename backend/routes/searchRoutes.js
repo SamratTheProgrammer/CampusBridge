@@ -22,33 +22,45 @@ router.get('/', async (req, res) => {
         $or: [
           { firstName: regex },
           { lastName: regex },
-          { username: regex }
-        ]
+          { username: regex },
+          { headline: regex },
+          { company: regex },
+          { skills: regex },
+          { role: regex }
+        ],
+        profileVisibility: { $ne: 'hidden' }
       })
-      .select('firstName lastName username imageUrl headline role clerkId')
-      .limit(5)
+      .select('firstName lastName username imageUrl headline role clerkId skills company')
+      .limit(8)
       .lean(),
 
       // Search Events and Sessions
       Event.find({
-        title: regex,
+        $or: [
+          { title: regex },
+          { category: regex },
+          { mode: regex },
+          { description: regex }
+        ],
         active: true
       })
       .select('title type mode date imageUrl category _id')
-      .limit(5)
+      .limit(6)
       .lean(),
 
       // Search Jobs
       Job.find({
         $or: [
           { title: regex },
-          { company: regex }
+          { company: regex },
+          { location: regex },
+          { skills: regex }
         ],
         active: true,
         status: 'Approved'
       })
       .select('title company type location companyLogo _id')
-      .limit(5)
+      .limit(6)
       .lean()
     ]);
 

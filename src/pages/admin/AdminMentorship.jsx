@@ -1,4 +1,4 @@
-import CardSkeleton from '../../components/skeletons/CardSkeleton'
+import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, HelpingHand, Star, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -73,10 +73,7 @@ const AdminMentorship = () => {
       </div>
 
       {isLoading ? (
-        <div className="py-20 text-center flex flex-col items-center justify-center">
-          <CardSkeleton />
-          <p className="text-sm font-medium text-muted-foreground">Loading active mentors...</p>
-        </div>
+        <AdminSpinner message="Loading active mentors..." />
       ) : mentors.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mentors.map((mentor) => (

@@ -1,4 +1,4 @@
-import JobSkeleton from '../../components/skeletons/JobSkeleton'
+import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -245,14 +245,7 @@ const AdminJobs = () => {
       {/* Jobs Table */}
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
         {isLoading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center">
-            <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <JobSkeleton key={i}  />
-              ))}
-            </div>
-            <p className="text-sm font-medium text-muted-foreground">Loading job postings from database...</p>
-          </div>
+          <AdminSpinner message="Loading job postings from database..." />
         ) : (
           <div className="overflow-x-auto">
             <table className="whitespace-nowrap w-full text-left border-collapse">

@@ -36,7 +36,7 @@ import { startJobReminderJob } from './jobs/jobReminder.js';
 dotenv.config({ path: '../.env' });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 const server = http.createServer(app);
 const allowedOrigins = [

@@ -6,8 +6,59 @@ import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 
+const sampleMentors = [
+  {
+    _id: 'sample-1',
+    clerkId: 'sample-mentor-1',
+    username: 'rohit-sharma',
+    firstName: 'Rohit',
+    lastName: 'Sharma',
+    headline: 'Senior Software Engineer',
+    company: 'Google',
+    yearsOfExperience: '6+ years',
+    skills: ['System Design', 'React', 'Cloud Architecture'],
+    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    _id: 'sample-2',
+    clerkId: 'sample-mentor-2',
+    username: 'priya-patel',
+    firstName: 'Priya',
+    lastName: 'Patel',
+    headline: 'Staff Product Manager',
+    company: 'Microsoft',
+    yearsOfExperience: '5+ years',
+    skills: ['Product Strategy', 'UI/UX', 'Agile Leadership'],
+    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    _id: 'sample-3',
+    clerkId: 'sample-mentor-3',
+    username: 'ananya-verma',
+    firstName: 'Ananya',
+    lastName: 'Verma',
+    headline: 'Lead AI & ML Scientist',
+    company: 'Amazon',
+    yearsOfExperience: '4+ years',
+    skills: ['Machine Learning', 'Python', 'GenAI'],
+    imageUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    _id: 'sample-4',
+    clerkId: 'sample-mentor-4',
+    username: 'vikram-aditya',
+    firstName: 'Vikram',
+    lastName: 'Aditya',
+    headline: 'Full Stack Tech Lead',
+    company: 'Uber',
+    yearsOfExperience: '7+ years',
+    skills: ['Node.js', 'Distributed Systems', 'DevOps'],
+    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
+  }
+]
+
 const FeaturedMentor = () => {
-  const [mentors, setMentors] = useState([])
+  const [mentors, setMentors] = useState(sampleMentors)
   const [connections, setConnections] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const { user, isLoaded } = useUser()
@@ -19,6 +70,8 @@ const FeaturedMentor = () => {
   const [startX, setStartX] = useState(0)
   const [scrollLeftPos, setScrollLeftPos] = useState(0)
 
+  const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || user?.unsafeMetadata?.role || 'student'
+
   useEffect(() => {
     const fetchMentorsAndConnections = async () => {
       try {
@@ -29,55 +82,115 @@ const FeaturedMentor = () => {
 
         let allMentors = []
         if (mentorsRes.ok) {
-          allMentors = await mentorsRes.json()
+          const data = await mentorsRes.json()
+          if (Array.isArray(data) && data.length > 0) {
+            allMentors = data
+          }
+        }
+
+        if (allMentors.length === 0) {
+          allMentors = sampleMentors
         }
 
         let connMap = {}
         if (connsRes.ok) {
           const connsData = await connsRes.json()
-          connsData.forEach(c => {
-            if (c.requesterClerkId === user?.id) connMap[c.recipientClerkId] = c.status
-            else if (c.recipientClerkId === user?.id) connMap[c.requesterClerkId] = c.status
-          })
-          setConnections(connMap)
+          if (Array.isArray(connsData)) {
+            connsData.forEach(c => {
+              if (c.requesterClerkId === user?.id) connMap[c.recipientClerkId] = c.status
+              else if (c.recipientClerkId === user?.id) connMap[c.requesterClerkId] = c.status
+            })
+            setConnections(connMap)
+          }
         }
 
         // Sort: prioritize not connected (new) mentors first
         allMentors.sort((a, b) => {
-          const idA = a.clerkId || a._id;
-          const idB = b.clerkId || b._id;
-          const statusA = connMap[idA] || null;
-          const statusB = connMap[idB] || null;
+          const idA = a.clerkId || a._id
+          const idB = b.clerkId || b._id
+          const statusA = connMap[idA] || null
+          const statusB = connMap[idB] || null
           
-          if (statusA && !statusB) return 1;
-          if (!statusA && statusB) return -1;
-          return 0;
-        });
+          if (statusA && !statusB) return 1
+          if (!statusA && statusB) return -1
+          return 0
+        })
 
         setMentors(allMentors)
       } catch (error) {
         console.error('Error fetching mentors:', error)
+        setMentors(sampleMentors)
       } finally {
         setIsLoading(false)
       }
     }
     
-    // Only run when clerk auth finishes loading
+    // Run when clerk auth finishes loading
     if (isLoaded) {
-        fetchMentorsAndConnections()
+      fetchMentorsAndConnections()
     }
   }, [user, isLoaded])
 
-  const handleConnect = (mentorId, mentorUsername) => {
+  const handleConnect = async (mentor) => {
     if (!isLoaded || !user) {
-      navigate('/login')
+      navigate('/login', { state: { from: { pathname: '/#mentor' } } })
       return
     }
-    navigate(`/profile/${mentorUsername || mentorId}`)
+
+    const mentorId = mentor.clerkId || mentor._id
+    if (!mentorId) return
+
+    // If it's a sample mentor, show friendly success feedback
+    if (mentorId.startsWith('sample-')) {
+      toast.success(`Connection request sent to ${mentor.firstName || 'Mentor'}!`)
+      setConnections(prev => ({ ...prev, [mentorId]: 'pending' }))
+      return
+    }
+
+    setIsConnecting(mentorId)
+    try {
+      const res = await fetch(`${API_BASE}/api/connections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterClerkId: user.id,
+          recipientClerkId: mentorId,
+          message: 'Hi, I would like to connect with you on CampusBridge.'
+        })
+      })
+
+      if (res.ok) {
+        setConnections(prev => ({ ...prev, [mentorId]: 'pending' }))
+        toast.success(`Connection request sent to ${mentor.firstName || 'Mentor'}!`)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.message || 'Failed to send connection request')
+      }
+    } catch (err) {
+      toast.error('Network error. Please try again.')
+    } finally {
+      setIsConnecting(null)
+    }
+  }
+
+  const handleViewProfile = (mentor) => {
+    const identifier = mentor.username || mentor.clerkId || mentor._id
+    navigate(`/profile/${identifier}`)
   }
 
   const handleUnsendRequest = async (mentorId) => {
     if (!user) return
+
+    if (mentorId.startsWith('sample-')) {
+      toast.success('Connection request cancelled')
+      setConnections(prev => {
+        const next = { ...prev }
+        delete next[mentorId]
+        return next
+      })
+      return
+    }
+
     setIsConnecting(mentorId)
     try {
       const res = await fetch(`${API_BASE}/api/connections/cancel`, {
@@ -96,7 +209,7 @@ const FeaturedMentor = () => {
           return next
         })
       } else {
-        const errorData = await res.json()
+        const errorData = await res.json().catch(() => ({}))
         toast.error(errorData.message || 'Failed to cancel request')
       }
     } catch (err) {
@@ -108,10 +221,14 @@ const FeaturedMentor = () => {
 
   const handleViewAll = () => {
     if (!isLoaded || !user) {
-      navigate('/login')
+      navigate('/login', { state: { from: { pathname: '/dashboard/mentor' } } })
       return
     }
-    navigate('/dashboard/mentor')
+    if (userRole === 'mentor') {
+      navigate('/mentor-dashboard/mentor')
+    } else {
+      navigate('/dashboard/mentor')
+    }
   }
 
   const scrollLeft = () => {
@@ -146,10 +263,6 @@ const FeaturedMentor = () => {
     const x = e.pageX - carouselRef.current.offsetLeft
     const walk = (x - startX) * 2
     carouselRef.current.scrollLeft = scrollLeftPos - walk
-  }
-
-  if (isLoading || mentors.length === 0) {
-    return null
   }
 
   return (
@@ -195,20 +308,20 @@ const FeaturedMentor = () => {
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {mentors.map((person, index) => {
-              const name = person.firstName ? `${person.firstName} ${person.lastName || ''}` : person.username || 'Mentor'
+              const name = person.firstName ? `${person.firstName} ${person.lastName || ''}`.trim() : person.username || 'Mentor'
               const role = person.headline || person.position || 'Industry Expert'
               const image = person.imageUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=256&q=80'
               const tags = person.skills && person.skills.length > 0 ? person.skills.slice(0, 3) : ['Mentorship', 'Career Guidance']
               const experience = person.yearsOfExperience || '3+ years'
               
-              const mentorId = person.clerkId || person._id;
-              const connStatus = connections[mentorId];
-              const isConnected = connStatus === 'accepted';
-              const isPending = connStatus === 'pending';
+              const mentorId = person.clerkId || person._id
+              const connStatus = connections[mentorId]
+              const isConnected = connStatus === 'accepted'
+              const isPending = connStatus === 'pending'
 
               return (
                 <motion.div
-                  key={person._id || index}
+                  key={person._id || mentorId || index}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-50px" }}
@@ -222,8 +335,8 @@ const FeaturedMentor = () => {
                       draggable="false"
                       className="w-24 h-24 rounded-full object-cover mb-4 ring-4 ring-background shadow-md pointer-events-none"
                     />
-                    <h3 className="text-xl font-bold text-foreground mb-1">{name}</h3>
-                    <p className="text-sm font-medium text-primary mb-1">{role} {person.company ? `@ ${person.company}` : ''}</p>
+                    <h3 className="text-xl font-bold text-foreground mb-1 truncate max-w-[240px]">{name}</h3>
+                    <p className="text-sm font-medium text-primary mb-1 truncate max-w-[240px]">{role} {person.company ? `@ ${person.company}` : ''}</p>
                     <p className="text-xs text-muted-foreground">{experience} exp.</p>
                   </div>
 
@@ -249,11 +362,18 @@ const FeaturedMentor = () => {
                         {isConnecting === mentorId ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-4 h-4" /> Pending</span><span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5"><X className="w-4 h-4" /> Unsend</span></>}
                       </button>
                     ) : (
-                      <button onClick={() => handleConnect(mentorId, person.username)} className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-                        <UserPlus className="w-4 h-4" /> Connect
+                      <button 
+                        onClick={() => handleConnect(person)}
+                        disabled={isConnecting === mentorId}
+                        className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                      >
+                        {isConnecting === mentorId ? <Loader2 className="w-4 h-4 animate-spin" /> : <><UserPlus className="w-4 h-4" /> Connect</>}
                       </button>
                     )}
-                    <button onClick={() => handleConnect(mentorId, person.username)} className="flex-1 border py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center justify-center gap-2">
+                    <button 
+                      onClick={() => handleViewProfile(person)} 
+                      className="flex-1 border py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center justify-center gap-2"
+                    >
                       <MessageSquare className="w-4 h-4" /> View
                     </button>
                   </div>

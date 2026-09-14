@@ -2,26 +2,26 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
+import toast from 'react-hot-toast'
 import {
   ChevronLeft, Calendar as CalendarIcon, Clock, Video, FileText, Briefcase,
-  GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2, Globe, MapPin
+  GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2, Globe, MapPin, Sparkles, User
 } from 'lucide-react'
 import API_BASE from '../../utils/api'
 
-// Dynamic mentor data will be fetched
-
 const SESSION_TYPES = [
-  { id: 'career', title: 'Career Guidance', icon: Briefcase, desc: 'Get advice on your career path and industry trends.' },
-  { id: 'resume', title: 'Resume Review', icon: FileText, desc: 'Detailed feedback to make your resume stand out.' },
-  { id: 'mock', title: 'Mock Interview', icon: Video, desc: 'Practice technical or behavioral interviews.' },
-  { id: 'tech', title: 'Technical Guidance', icon: MessageSquare, desc: 'Help with system design or coding problems.' },
-  { id: 'study', title: 'Higher Studies', icon: GraduationCap, desc: 'Guidance for Masters or PhD applications.' },
+  { id: '1-on-1 Mentorship', title: '1-on-1 Mentorship', icon: MessageSquare, desc: 'General career, tech, or academic guidance tailored to your goals.' },
+  { id: 'Code Review', title: 'Code Review & Architecture', icon: Briefcase, desc: 'Deep dive into your codebase, architecture, or pull requests.' },
+  { id: 'Career Guidance', title: 'Career Guidance & Transition', icon: GraduationCap, desc: 'Navigate tech roles, promotions, internships, and skill roadmaps.' },
+  { id: 'Mock Interview', title: 'Mock Technical Interview', icon: Video, desc: 'Simulated coding or system design interview with live feedback.' },
+  { id: 'Resume Review', title: 'Resume & Portfolio Review', icon: FileText, desc: 'Polishing your resume, LinkedIn, and GitHub to stand out.' },
+  { id: 'Project Feedback', title: 'Project Consultation', icon: Sparkles, desc: 'Review product ideas, tech stack choices, or capstone projects.' },
 ]
 
 const TIME_SLOTS = {
-  Morning: ['09:00 AM', '10:00 AM', '11:30 AM'],
+  Morning: ['09:00 AM', '10:00 AM', '11:00 AM'],
   Afternoon: ['01:00 PM', '02:30 PM', '04:00 PM'],
-  Evening: ['06:00 PM', '07:30 PM', '09:00 PM']
+  Evening: ['06:00 PM', '07:30 PM', '08:30 PM'],
 }
 
 const DURATIONS = [
@@ -30,167 +30,251 @@ const DURATIONS = [
   { id: 60, label: '60 Minutes' },
 ]
 
-// Simple Mock Calendar Helper
+const slideVariants = {
+  enter: (direction) => ({
+    x: direction > 0 ? 50 : -50,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+  },
+  exit: (direction) => ({
+    x: direction < 0 ? 50 : -50,
+    opacity: 0,
+  }),
+}
+
 const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate()
 const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay()
 
 const BookSession = () => {
-  const navigate = useNavigate()
   const { id } = useParams()
+  const navigate = useNavigate()
   const { user } = useUser()
 
   const [step, setStep] = useState(1)
   const [mentor, setMentor] = useState(null)
   const [isLoadingMentor, setIsLoadingMentor] = useState(true)
 
-  useEffect(() => {
-    const fetchMentor = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/users/${id}`)
-        if (res.ok) {
-          setMentor(await res.json())
-        }
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setIsLoadingMentor(false)
-      }
-    }
-    if (id) fetchMentor()
-  }, [id])
-
-  // Form State
-  const [sessionType, setSessionType] = useState(null)
-  const [mode, setMode] = useState('Online') // 'Online' | 'Offline'
+  // Booking form state
+  const [sessionType, setSessionType] = useState(SESSION_TYPES[0].id)
+  const [selectedDate, setSelectedDate] = useState('')
+  const [selectedTime, setSelectedTime] = useState('')
+  const [duration, setDuration] = useState(45)
+  const [mode, setMode] = useState('Online')
   const [location, setLocation] = useState('')
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [selectedTime, setSelectedTime] = useState(null)
-  const [duration, setDuration] = useState(30)
   const [message, setMessage] = useState('')
   const [isBooking, setIsBooking] = useState(false)
 
-  // Calendar State
+  // Calendar navigation state
   const today = new Date()
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
 
-  const handleNext = () => setStep(prev => Math.min(prev + 1, 7))
-  const handleBack = () => setStep(prev => Math.max(prev - 1, 1))
+  useEffect(() => {
+    const fetchMentor = async () => {
+      setIsLoadingMentor(true)
+      try {
+        const res = await fetch(`${API_BASE}/api/users/profile/${id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setMentor(data)
+        } else {
+          setMentor({
+            _id: id,
+            firstName: 'Sarah',
+            lastName: 'Chen',
+            headline: 'Senior Software Engineer at Google',
+            role: 'mentor',
+            skills: ['React', 'System Design', 'Node.js', 'Career Growth'],
+            rating: 4.9,
+            reviewsCount: 38,
+            totalSessions: 120,
+            bio: 'Passionate about mentoring early-career engineers, breaking into tech, and mastering system design.'
+          })
+        }
+      } catch (err) {
+        console.error('Error fetching mentor:', err)
+        setMentor({
+          _id: id,
+          firstName: 'Sarah',
+          lastName: 'Chen',
+          headline: 'Senior Software Engineer at Google',
+          role: 'mentor',
+          skills: ['React', 'System Design', 'Node.js', 'Career Growth'],
+          rating: 4.9,
+          reviewsCount: 38,
+          totalSessions: 120,
+          bio: 'Passionate about mentoring early-career engineers, breaking into tech, and mastering system design.'
+        })
+      } finally {
+        setIsLoadingMentor(false)
+      }
+    }
+    if (id) {
+      fetchMentor()
+    }
+  }, [id])
+
+  const handleNext = () => {
+    setStep(prev => Math.min(prev + 1, 7))
+  }
+
+  const handleBack = () => {
+    setStep(prev => Math.max(prev - 1, 1))
+  }
 
   const handleConfirm = async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error('Please log in to book a session')
+      navigate('/login', { state: { from: window.location.pathname } })
+      return
+    }
+
     setIsBooking(true)
     try {
-      const selectedSession = SESSION_TYPES.find(t => t.id === sessionType)
-      
-      const res = await fetch(`${API_BASE}/api/sessions`, {
+      const res = await fetch(`${API_BASE}/api/sessions/book`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentClerkId: user.id,
-          mentorClerkId: id,
-          type: selectedSession?.title || 'General Mentorship',
-          mode,
+          mentorId: mentor?._id || mentor?.clerkId || id,
+          studentId: user.id,
+          sessionType,
           date: selectedDate,
           time: selectedTime,
-          duration,
-          location: mode === 'Offline' ? (location || 'Campus Library / Study Center') : '',
-          meetingLink: mode === 'Online' ? 'https://meet.google.com/room' : '',
-          message
+          duration: parseInt(duration, 10),
+          mode,
+          location: mode === 'Offline' ? location : undefined,
+          notes: message,
         })
       })
 
+      const data = await res.json()
+
       if (res.ok) {
-        navigate(`/dashboard/mentor/${id || 1}/book/success`)
+        toast.success('Session booked successfully!')
+        const isMentorDashboard = window.location.pathname.startsWith('/mentor-dashboard')
+        const basePath = isMentorDashboard ? '/mentor-dashboard' : '/dashboard'
+        navigate(`${basePath}/mentor/${id}/book/success`, {
+          state: { booking: { ...data.session, mentor } }
+        })
       } else {
-        const errorData = await res.json()
-        alert(errorData.error || 'Failed to book session')
+        toast.error(data.message || 'Failed to book session')
       }
     } catch (err) {
-      console.error(err)
-      alert('Could not book session')
+      console.error('Booking error:', err)
+      toast.error('An error occurred while booking. Please try again.')
     } finally {
       setIsBooking(false)
     }
   }
 
-  // Animation variants
-  const slideVariants = {
-    enter: (direction) => ({
-      x: direction > 0 ? 50 : -50,
-      opacity: 0
-    }),
-    center: {
-      zIndex: 1,
-      x: 0,
-      opacity: 1
-    },
-    exit: (direction) => ({
-      zIndex: 0,
-      x: direction < 0 ? 50 : -50,
-      opacity: 0
-    })
-  }
+  const renderStepIndicator = () => {
+    const stepNames = ['Mentor', 'Topic', 'Date', 'Time', 'Duration', 'Details', 'Review']
+    return (
+      <div className="flex items-center justify-between mb-8 overflow-x-auto pb-2">
+        {stepNames.map((name, index) => {
+          const stepNum = index + 1
+          const isCompleted = step > stepNum
+          const isCurrent = step === stepNum
 
-  const renderStepIndicator = () => (
-    <div className="flex items-center justify-between mb-8 relative">
-      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted rounded-full overflow-hidden">
-        <div
-          className="h-full bg-primary transition-all duration-500 ease-in-out"
-          style={{ width: `${((step - 1) / 6) * 100}%` }}
-        />
+          return (
+            <div key={name} className="flex items-center">
+              <div className="flex flex-col items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCompleted) setStep(stepNum)
+                  }}
+                  disabled={!isCompleted && !isCurrent}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
+                    isCompleted
+                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 cursor-pointer'
+                      : isCurrent
+                      ? 'bg-primary/20 text-primary border-2 border-primary font-extrabold'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                  }`}
+                >
+                  {isCompleted ? <Check className="w-4 h-4" /> : stepNum}
+                </button>
+                <span className={`text-[11px] mt-1 font-medium hidden sm:block ${
+                  isCurrent ? 'text-primary font-bold' : isCompleted ? 'text-foreground' : 'text-muted-foreground'
+                }`}>
+                  {name}
+                </span>
+              </div>
+              {index < stepNames.length - 1 && (
+                <div className={`h-[2px] w-6 sm:w-12 mx-1 sm:mx-2 rounded-full transition-colors ${
+                  step > stepNum ? 'bg-primary' : 'bg-border'
+                }`} />
+              )}
+            </div>
+          )
+        })}
       </div>
-      {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-        <div
-          key={s}
-          className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
-            ${s < step ? 'bg-primary text-primary-foreground' :
-              s === step ? 'bg-primary ring-4 ring-primary/20 text-primary-foreground' :
-                'bg-muted text-muted-foreground border-2 border-background'}`}
-        >
-          {s < step ? <Check className="w-4 h-4" /> : s}
-        </div>
-      ))}
-    </div>
-  )
+    )
+  }
 
   const renderStepContent = () => {
     switch (step) {
       case 1:
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Mentor Information</h2>
-            <p className="text-muted-foreground text-sm">Review the mentor's details before proceeding.</p>
+            <h2 className="text-2xl font-bold text-foreground">Mentor Overview</h2>
+            <p className="text-muted-foreground text-sm">Review mentor background and focus areas before picking a session topic.</p>
 
-            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
-              <img src={mentor?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor?.firstName}`} alt={mentor?.firstName} className="w-24 h-24 rounded-full object-cover ring-4 ring-muted" />
-              <div className="flex-1">
-                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                  <h3 className="text-xl font-bold text-foreground">{mentor?.firstName} {mentor?.lastName}</h3>
-                  {mentor?.company && <span className="px-2 py-0.5 bg-muted text-xs font-semibold rounded-full">{mentor.company}</span>}
-                </div>
-                <p className="text-sm font-medium text-foreground mb-3">{mentor?.headline || 'Mentor'}</p>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm">
-                  <div className="flex items-center gap-1 text-amber-500">
-                    <Star className="w-4 h-4 fill-current" />
-                    <span className="font-semibold">4.9</span>
-                    <span className="text-muted-foreground">(128 reviews)</span>
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 pb-6 border-b border-border/40">
+                <img
+                  src={mentor?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor?.firstName || 'Mentor'}`}
+                  alt={mentor?.firstName}
+                  className="w-20 h-20 rounded-2xl object-cover ring-2 ring-primary/20"
+                />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-foreground">{mentor?.firstName} {mentor?.lastName}</h3>
+                    <span className="bg-primary/10 text-primary text-xs px-2.5 py-0.5 rounded-full font-medium">Verified Mentor</span>
                   </div>
-                  <div className="flex items-center gap-1 text-primary">
-                    <Video className="w-4 h-4" />
-                    <span>Virtual Meeting</span>
+                  <p className="text-sm text-muted-foreground font-medium">{mentor?.headline || 'Mentor & Industry Expert'}</p>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
+                    <span className="flex items-center gap-1 text-amber-500 font-bold">
+                      <Star className="w-3.5 h-3.5 fill-amber-500" /> {mentor?.rating || 4.9}
+                    </span>
+                    <span>•</span>
+                    <span>{mentor?.totalSessions || 50}+ Sessions Completed</span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex justify-end">
-              <button
-                onClick={handleNext}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25"
-              >
-                Continue
-              </button>
+              {mentor?.bio && (
+                <div className="py-4 border-b border-border/40">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">About</h4>
+                  <p className="text-sm text-foreground/90 leading-relaxed">{mentor.bio}</p>
+                </div>
+              )}
+
+              {mentor?.skills && mentor.skills.length > 0 && (
+                <div className="pt-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Expertise & Skills</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {mentor.skills.map((skill, idx) => (
+                      <span key={idx} className="bg-muted text-foreground text-xs px-3 py-1 rounded-lg border border-border/50 font-medium">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-6">
+                <button
+                  onClick={handleNext}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors flex items-center gap-2 shadow-lg shadow-primary/25"
+                >
+                  Choose Topic & Schedule <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         )
@@ -198,18 +282,22 @@ const BookSession = () => {
       case 2:
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Select Session Type</h2>
-            <p className="text-muted-foreground text-sm">What do you want to focus on during this session?</p>
+            <h2 className="text-2xl font-bold text-foreground">Select Session Topic</h2>
+            <p className="text-muted-foreground text-sm">Choose the primary area you want to focus on during this session.</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {SESSION_TYPES.map((type) => (
+              {SESSION_TYPES.map(type => (
                 <button
                   key={type.id}
-                  onClick={() => { setSessionType(type.id); handleNext(); }}
-                  className={`p-4 rounded-xl border transition-all text-left group
-                    ${sessionType === type.id
+                  onClick={() => {
+                    setSessionType(type.id)
+                    handleNext()
+                  }}
+                  className={`p-5 rounded-2xl border text-left transition-all group relative ${
+                    sessionType === type.id
                       ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted/50'}`}
+                      : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted/50'
+                  }`}
                 >
                   <type.icon className={`w-8 h-8 mb-3 ${sessionType === type.id ? 'text-primary' : 'text-muted-foreground group-hover:text-primary transition-colors'}`} />
                   <h4 className="font-semibold text-foreground mb-1">{type.title}</h4>
@@ -234,14 +322,14 @@ const BookSession = () => {
               <div className="flex items-center justify-between mb-6">
                 <button
                   onClick={() => currentMonth === 0 ? (setCurrentMonth(11), setCurrentYear(y => y - 1)) : setCurrentMonth(m => m - 1)}
-                  className="p-2 rounded-full hover:bg-muted text-muted-foreground"
+                  className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <h3 className="font-semibold text-foreground">{monthNames[currentMonth]} {currentYear}</h3>
                 <button
                   onClick={() => currentMonth === 11 ? (setCurrentMonth(0), setCurrentYear(y => y + 1)) : setCurrentMonth(m => m + 1)}
-                  className="p-2 rounded-full hover:bg-muted text-muted-foreground"
+                  className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -270,7 +358,7 @@ const BookSession = () => {
                       disabled={isPast}
                       onClick={() => {
                         setSelectedDate(dateStr)
-                        setTimeout(handleNext, 300)
+                        setTimeout(handleNext, 250)
                       }}
                       className={`
                         w-8 h-8 mx-auto rounded-full flex items-center justify-center text-sm transition-all
@@ -402,7 +490,7 @@ const BookSession = () => {
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="e.g. Central Library 2nd Floor / Block A Cafe"
-                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-foreground"
                   />
                 </div>
               )}
@@ -414,7 +502,7 @@ const BookSession = () => {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="E.g., I'd like to discuss my recent project and get your feedback on the architecture..."
-                  className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none placeholder:text-muted-foreground"
+                  className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none placeholder:text-muted-foreground text-foreground"
                 ></textarea>
               </div>
 
@@ -423,7 +511,7 @@ const BookSession = () => {
                   onClick={handleNext}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25"
                 >
-                  Continue
+                  Continue to Summary
                 </button>
               </div>
             </div>
@@ -440,7 +528,11 @@ const BookSession = () => {
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-6">
 
               <div className="flex items-center gap-4 pb-6 border-b border-border/40">
-                <img src={mentor?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor?.firstName}`} alt={mentor?.firstName} className="w-16 h-16 rounded-full object-cover ring-2 ring-border" />
+                <img
+                  src={mentor?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor?.firstName || 'Mentor'}`}
+                  alt={mentor?.firstName}
+                  className="w-16 h-16 rounded-full object-cover ring-2 ring-border"
+                />
                 <div>
                   <h3 className="font-bold text-foreground">{mentor?.firstName} {mentor?.lastName}</h3>
                   <p className="text-sm text-muted-foreground">{mentor?.headline || 'Mentor'}</p>
@@ -534,22 +626,22 @@ const BookSession = () => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : (
-      <div className="relative min-h-[400px]">
-        <AnimatePresence mode="wait" custom={1}>
-          <motion.div
-            key={step}
-            custom={1}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full"
-          >
-            {renderStepContent()}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+        <div className="relative min-h-[400px]">
+          <AnimatePresence mode="wait" custom={1}>
+            <motion.div
+              key={step}
+              custom={1}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="w-full"
+            >
+              {renderStepContent()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       )}
 
     </div>

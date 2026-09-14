@@ -10,11 +10,12 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   const { user, isLoaded, isSignedIn } = useUser()
   const justAuthenticated = sessionStorage.getItem('campusbridge_just_authenticated') === 'true'
   const cachedRole = sessionStorage.getItem('campusbridge_user_role')
-  const [userRole, setUserRole] = useState(cachedRole || null)
+  const initialRole = cachedRole || user?.publicMetadata?.role || user?.unsafeMetadata?.role || (isSignedIn && user ? 'student' : null)
+  const [userRole, setUserRole] = useState(initialRole)
   const [isBlockedUser, setIsBlockedUser] = useState(false)
   const [blockReason, setBlockReason] = useState('')
   // Only show integrity loading if explicitly coming from authentication or "Go to Dashboard"
-  const [isRoleLoading, setIsRoleLoading] = useState(justAuthenticated)
+  const [isRoleLoading, setIsRoleLoading] = useState(justAuthenticated || (isSignedIn && !initialRole))
   const location = useLocation()
 
   // Admin session check via standalone admin login
@@ -93,7 +94,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   }, [isLoaded, isSignedIn, user, justAuthenticated])
 
   // 1. Loading state while checking authentication and role
-  if (!isLoaded || (justAuthenticated && isRoleLoading) || (isSignedIn && !user)) {
+  if (!isLoaded || (justAuthenticated && isRoleLoading) || (isSignedIn && !userRole)) {
     if (justAuthenticated) {
       return <RouteIntegrityLoader />
     }
@@ -117,13 +118,17 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
     if (!isAllowed) {
       // Redirect to authorized dashboard based on actual user role
       if (userRole === 'mentor') {
-        const subPath = location.pathname.replace(/^\/dashboard\/?/, '/');
-        return <Navigate to={`/mentor-dashboard${subPath === '/' ? '' : subPath}`} replace />
+        const subPath = location.pathname.startsWith('/dashboard')
+          ? location.pathname.replace(/^\/dashboard\/?/, '')
+          : location.pathname.replace(/^\//, '');
+        return <Navigate to={`/mentor-dashboard${subPath ? `/${subPath}` : ''}`} replace />
       } else if (userRole === 'admin') {
         return <Navigate to="/admin" replace />
       } else {
-        const subPath = location.pathname.replace(/^\/mentor-dashboard\/?/, '/');
-        return <Navigate to={`/dashboard${subPath === '/' ? '' : subPath}`} replace />
+        const subPath = location.pathname.startsWith('/mentor-dashboard')
+          ? location.pathname.replace(/^\/mentor-dashboard\/?/, '')
+          : location.pathname.replace(/^\//, '');
+        return <Navigate to={`/dashboard${subPath ? `/${subPath}` : ''}`} replace />
       }
     }
   }
