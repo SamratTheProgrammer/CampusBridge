@@ -5,11 +5,15 @@ import API_BASE from '../utils/api';
 import { useNavigate, useLocation } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import EmojiPicker from 'emoji-picker-react';
+import { useTheme } from './ThemeProvider';
 
 const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallback, fullHeight = false, postCaptionNode, showCommentInput = true, beforeInputNode }) => {
+  const { theme } = useTheme();
   const [commentText, setCommentText] = useState('');
   const [isCommenting, setIsCommenting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
 
   const [replyingCommentId, setReplyingCommentId] = useState(null);
   const [replyText, setReplyText] = useState('');
@@ -395,10 +399,15 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
             </div>
             
             {showEmojiPicker && (
-              <div className="absolute bottom-full right-0 mb-2 z-50">
+              <div className="absolute bottom-full right-0 mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden max-w-[calc(100vw-32px)]">
                 <EmojiPicker 
                   onEmojiClick={(emoji) => setCommentText(prev => prev + emoji.emoji)}
-                  theme="auto"
+                  theme={isDark ? 'dark' : 'light'}
+                  previewConfig={{ showPreview: false }}
+                  width={320}
+                  height={380}
+                  lazyLoadEmojis={true}
+                  searchPlaceHolder="Search emoji..."
                 />
               </div>
             )}

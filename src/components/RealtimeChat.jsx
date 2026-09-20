@@ -9,6 +9,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { getPdfViewUrl } from '../utils/pdfViewer';
 import API_BASE from '../utils/api'
 import { isToday, isYesterday, format } from 'date-fns';
+import { useTheme } from './ThemeProvider';
 
 const formatMessageDateSeparator = (dateString) => {
   if (!dateString) return '';
@@ -38,6 +39,8 @@ const RealtimeChat = () => {
   const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   
   const searchParams = new URLSearchParams(location.search);
   const targetUserId = searchParams.get('userId') || location.state?.selectedUserId || location.state?.clerkId;
@@ -1188,9 +1191,14 @@ const RealtimeChat = () => {
                   <Smile className="w-5 h-5" />
                 </button>
                 {showEmojiPicker && (
-                  <div className="absolute bottom-16 right-0 z-50">
+                  <div className="absolute bottom-16 right-0 z-50 shadow-2xl rounded-2xl overflow-hidden max-w-[calc(100vw-32px)]">
                     <EmojiPicker 
-                      theme="auto" 
+                      theme={isDark ? 'dark' : 'light'} 
+                      previewConfig={{ showPreview: false }}
+                      width={320}
+                      height={380}
+                      lazyLoadEmojis={true}
+                      searchPlaceHolder="Search emoji..."
                       onEmojiClick={(emojiData) => {
                         setInputText(prev => prev + emojiData.emoji);
                         setShowEmojiPicker(false);

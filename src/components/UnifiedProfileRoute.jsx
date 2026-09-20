@@ -14,6 +14,7 @@ import ProfileSkeleton from './skeletons/ProfileSkeleton'
 
 export const DynamicLayoutWrapper = () => {
   const { user, isLoaded, isSignedIn } = useUser()
+  const { username } = useParams()
 
   if (!isLoaded) {
     return <DashboardSkeleton />
@@ -32,7 +33,6 @@ export const DynamicLayoutWrapper = () => {
   }
 
   const role = sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || user.unsafeMetadata?.role || 'student'
-  const { username } = useParams()
   
   if (role === 'mentor' || role === 'alumni') {
     return <Navigate to={`/mentor-dashboard/profile/${username}`} replace />

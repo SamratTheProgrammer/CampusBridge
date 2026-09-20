@@ -79,136 +79,97 @@
     --input: 217.2 32.6% 10%;
   }
 
-  /* DIWALI THEME */
+  /* DIWALI THEME (Festival of Lights) */
   .event-diwali {
-    --background: 50 100% 98%;
-    --foreground: 0 0% 10%;
+    --background: 40 40% 98%;
+    --foreground: 24 30% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 24 30% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
-    --primary: 50 100% 50%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 90%;
-    --secondary-foreground: 0 0% 10%;
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 50 100% 50%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 100% 50%;
+    --popover-foreground: 24 30% 12%;
+    --primary: 34 95% 48%; /* Warm Amber/Gold - High contrast */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 35 60% 93%;
+    --secondary-foreground: 24 40% 20%;
+    --muted: 35 40% 94%;
+    --muted-foreground: 30 20% 45%;
+    --accent: 34 95% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border: 50 100% 80%;
-    --input: 50 100% 80%;
-    --ring: 50 100% 50%;
+    --border: 35 35% 88%;
+    --input: 35 35% 88%;
+    --ring: 34 95% 48%;
   }
 
   .dark.event-diwali {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 95%;
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 4%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 50 100% 50%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 60%;
-    --accent: 50 100% 50%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 100% 50%;
-    --destructive-foreground: 0 100% 95%;
-    --border: 50 100% 20%;
-    --input: 0 0% 15%;
-    --ring: 50 100% 50%;
+    --background: 24 40% 5%;
+    --foreground: 40 30% 95%;
+    --card: 24 35% 8%;
+    --card-foreground: 40 30% 95%;
+    --popover: 24 35% 8%;
+    --popover-foreground: 40 30% 95%;
+    --primary: 38 95% 54%; /* Radiant Warm Gold */
+    --primary-foreground: 24 40% 6%;
+    --secondary: 24 25% 15%;
+    --secondary-foreground: 40 30% 92%;
+    --muted: 24 25% 15%;
+    --muted-foreground: 35 20% 65%;
+    --accent: 38 95% 54%;
+    --accent-foreground: 24 40% 6%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 35 30% 20%;
+    --input: 24 25% 16%;
+    --ring: 38 95% 54%;
   }
 
-  /* Immersive Diwali Theme (Festival of Lights) */
-  html.event-diwali .bg-primary {
-    background: linear-gradient(135deg, #FFA500, #FF4500, #FFD700) !important;
-    color: white !important;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
-    border: none !important;
-    box-shadow: 0 4px 15px rgba(255, 165, 0, 0.4);
-  }
-  html.event-diwali .bg-primary:hover {
-    background: linear-gradient(135deg, #ffb31a, #ff5c1a, #ffe033) !important;
-    box-shadow: 0 6px 20px rgba(255, 165, 0, 0.6);
-  }
-
-  /* Glassmorphism for Diwali cards */
-  html.event-diwali .bg-card {
-    background-color: hsl(var(--card) / 0.65) !important;
-    backdrop-filter: blur(12px);
-    border-color: hsl(var(--border) / 0.5) !important;
-  }
-
-
-  /* HOLI THEME */
+  /* HOLI THEME (Festival of Colors) */
   .event-holi {
-    --background: 300 100% 98%;
-    --foreground: 300 10% 10%;
+    --background: 310 30% 98%;
+    --foreground: 300 20% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 300 10% 10%;
+    --card-foreground: 300 20% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 300 10% 10%;
-    --primary: 320 100% 50%;
+    --popover-foreground: 300 20% 12%;
+    --primary: 326 90% 50%; /* Vibrant Pink/Magenta */
     --primary-foreground: 0 0% 100%;
-    --secondary: 180 100% 90%;
-    --secondary-foreground: 180 100% 20%;
-    --muted: 300 20% 90%;
-    --muted-foreground: 300 10% 40%;
-    --accent: 50 100% 50%;
-    --accent-foreground: 50 100% 10%;
-    --destructive: 0 100% 50%;
-    --destructive-foreground: 0 100% 100%;
-    --border: 300 30% 80%;
-    --input: 300 30% 80%;
-    --ring: 320 100% 50%;
+    --secondary: 175 60% 92%;
+    --secondary-foreground: 175 80% 20%;
+    --muted: 310 20% 94%;
+    --muted-foreground: 300 15% 45%;
+    --accent: 175 80% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 310 25% 88%;
+    --input: 310 25% 88%;
+    --ring: 326 90% 50%;
   }
 
   .dark.event-holi {
-    --background: 300 50% 5%;
-    --foreground: 300 100% 95%;
-    --card: 300 50% 8%;
-    --card-foreground: 300 100% 95%;
-    --popover: 300 50% 8%;
-    --popover-foreground: 300 100% 95%;
-    --primary: 320 100% 60%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 180 100% 20%;
-    --secondary-foreground: 180 100% 90%;
-    --muted: 300 50% 15%;
-    --muted-foreground: 300 30% 60%;
-    --accent: 50 100% 50%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 100% 50%;
-    --destructive-foreground: 0 100% 100%;
-    --border: 300 50% 20%;
-    --input: 300 50% 20%;
-    --ring: 320 100% 60%;
+    --background: 300 30% 5%;
+    --foreground: 300 20% 95%;
+    --card: 300 25% 8%;
+    --card-foreground: 300 20% 95%;
+    --popover: 300 25% 8%;
+    --popover-foreground: 300 20% 95%;
+    --primary: 326 85% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 175 40% 18%;
+    --secondary-foreground: 175 60% 90%;
+    --muted: 300 20% 14%;
+    --muted-foreground: 300 15% 65%;
+    --accent: 175 80% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 300 25% 18%;
+    --input: 300 25% 18%;
+    --ring: 326 85% 60%;
   }
 
-  /* Multi-color Holi Buttons */
-  html.event-holi .bg-primary {
-    background: linear-gradient(45deg, #FF0080, #FF8C00, #00CED1) !important;
-    color: white !important;
-    border: none !important;
-  }
-  html.event-holi .bg-primary:hover {
-    background: linear-gradient(45deg, #E60073, #E67E00, #00B8BA) !important;
-  }
-
-  /* Glassmorphism for Holi cards so the colorful background shines through */
-  html.event-holi .bg-card {
-    background-color: hsl(var(--card) / 0.6) !important;
-    backdrop-filter: blur(12px);
-    border-color: hsl(var(--border) / 0.4) !important;
-  }
-
-
-  /* INDEPENDENCE THEME */
+  /* INDEPENDENCE THEME (Patriotic Tricolor) */
   .event-independence {
     --background: 0 0% 100%;
     --foreground: 222 84% 15%;
@@ -216,107 +177,128 @@
     --card-foreground: 222 84% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 84% 15%;
-    --primary: 29 100% 60%; /* Saffron */
+    --primary: 25 95% 50%; /* Vibrant Saffron */
     --primary-foreground: 0 0% 100%;
-    --secondary: 115 89% 30%; /* Green */
+    --secondary: 142 70% 36%; /* India Green */
     --secondary-foreground: 0 0% 100%;
-    --muted: 115 20% 95%;
-    --muted-foreground: 115 15% 40%;
-    --accent: 29 100% 95%;
-    --accent-foreground: 29 100% 30%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 15% 45%;
+    --accent: 25 95% 50%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border: 29 30% 90%;
-    --input: 29 30% 90%;
-    --ring: 240 100% 25%;
+    --border: 220 20% 90%;
+    --input: 220 20% 90%;
+    --ring: 25 95% 50%;
   }
 
   .dark.event-independence {
-    --background: 222 84% 4%;
+    --background: 222 45% 5%;
     --foreground: 0 0% 95%;
-    --card: 222 84% 7%;
+    --card: 222 40% 8%;
     --card-foreground: 0 0% 95%;
-    --popover: 222 84% 7%;
+    --popover: 222 40% 8%;
     --popover-foreground: 0 0% 95%;
-    --primary: 29 100% 60%; /* Saffron */
-    --primary-foreground: 0 0% 0%;
-    --secondary: 115 89% 30%; /* Green */
+    --primary: 25 95% 54%; /* Saffron */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 142 65% 40%; /* Green */
     --secondary-foreground: 0 0% 100%;
-    --muted: 222 84% 15%;
-    --muted-foreground: 222 50% 60%;
-    --accent: 29 100% 20%;
-    --accent-foreground: 29 100% 95%;
+    --muted: 222 30% 15%;
+    --muted-foreground: 222 25% 65%;
+    --accent: 25 95% 54%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border: 222 84% 20%;
-    --input: 222 84% 20%;
-    --ring: 240 100% 50%;
+    --border: 222 30% 18%;
+    --input: 222 30% 18%;
+    --ring: 25 95% 54%;
   }
+}
 
-  /* Tricolor Buttons */
-  html.event-independence .bg-primary {
-    background: linear-gradient(90deg, #FF9933 0%, #FFFFFF 50%, #138808 100%) !important;
-    color: #000080 !important; /* Navy Blue text (Chakra color) for visibility */
-    text-shadow: 0 1px 2px rgba(255,255,255,0.5); /* subtle shadow for readability */
-    border: none !important;
-  }
-  html.event-independence .bg-primary:hover {
-    background: linear-gradient(90deg, #e68a2e 0%, #f0f0f0 50%, #107a07 100%) !important;
-  }
+/* Event Theme Accents & Card Styles */
+html.event-diwali .bg-card,
+html.event-holi .bg-card,
+html.event-independence .bg-card {
+  backdrop-filter: blur(12px);
+}
 
-  /* Glassmorphism for cards so the flag background shines through */
-  html.event-independence .bg-card {
-    background-color: hsl(var(--card) / 0.5) !important;
-    backdrop-filter: blur(12px);
-    border-color: hsl(var(--border) / 0.3) !important;
-  }
+html.event-diwali button.bg-primary,
+html.event-diwali a.bg-primary {
+  background: linear-gradient(135deg, #FF8C00, #E65100 60%, #FFA000) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(230, 81, 0, 0.35);
+}
+html.event-diwali button.bg-primary:hover,
+html.event-diwali a.bg-primary:hover {
+  background: linear-gradient(135deg, #FFA000, #EF6C00 60%, #FFB300) !important;
+  box-shadow: 0 6px 18px rgba(230, 81, 0, 0.5);
+}
+
+html.event-holi button.bg-primary,
+html.event-holi a.bg-primary {
+  background: linear-gradient(135deg, #FF0080 0%, #FF6F00 50%, #00C4CC 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(255, 0, 128, 0.3);
+}
+html.event-holi button.bg-primary:hover,
+html.event-holi a.bg-primary:hover {
+  background: linear-gradient(135deg, #E60073 0%, #E66400 50%, #00AFB5 100%) !important;
+}
+
+html.event-independence button.bg-primary,
+html.event-independence a.bg-primary {
+  background: linear-gradient(135deg, #FF7700 0%, #FF9933 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(255, 119, 0, 0.35);
+}
+html.event-independence button.bg-primary:hover,
+html.event-independence a.bg-primary:hover {
+  background: linear-gradient(135deg, #E66800 0%, #FF8800 100%) !important;
 }
 
 html.event-independence body {
   background-image: 
-    linear-gradient(to bottom, rgba(255, 153, 51, 0.4) 0%, rgba(255, 255, 255, 0.7) 50%, rgba(19, 136, 8, 0.4) 100%),
-    radial-gradient(ellipse at top right, hsl(var(--primary) / 0.07), transparent 40%),
-    radial-gradient(ellipse at bottom left, hsl(var(--secondary) / 0.07), transparent 40%);
+    radial-gradient(circle at 10% 10%, rgba(255, 153, 51, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(19, 136, 8, 0.08) 0%, transparent 40%),
+    radial-gradient(ellipse at center, hsl(var(--background)), transparent 70%);
 }
 
 html.dark.event-independence body {
   background-image: 
-    linear-gradient(to bottom, rgba(255, 153, 51, 0.3) 0%, rgba(0, 0, 0, 0.3) 50%, rgba(19, 136, 8, 0.3) 100%),
-    radial-gradient(ellipse at top right, hsl(var(--primary) / 0.07), transparent 40%),
-    radial-gradient(ellipse at bottom left, hsl(var(--secondary) / 0.07), transparent 40%);
+    radial-gradient(circle at 10% 10%, rgba(255, 153, 51, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(19, 136, 8, 0.1) 0%, transparent 40%),
+    radial-gradient(ellipse at center, hsl(var(--background)), transparent 70%);
 }
 
 html.event-holi body {
   background-image: 
-    radial-gradient(circle at top left, rgba(255, 0, 128, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at top right, rgba(0, 206, 209, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at bottom left, rgba(255, 140, 0, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at bottom right, rgba(128, 0, 255, 0.3) 0%, transparent 50%);
+    radial-gradient(circle at top left, rgba(255, 0, 128, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at top right, rgba(0, 206, 209, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at bottom left, rgba(255, 140, 0, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at bottom right, rgba(128, 0, 255, 0.08) 0%, transparent 45%);
 }
 
 html.dark.event-holi body {
   background-image: 
-    radial-gradient(circle at top left, rgba(255, 0, 128, 0.2) 0%, transparent 50%),
-    radial-gradient(circle at top right, rgba(0, 206, 209, 0.2) 0%, transparent 50%),
-    radial-gradient(circle at bottom left, rgba(255, 140, 0, 0.2) 0%, transparent 50%),
-    radial-gradient(circle at bottom right, rgba(128, 0, 255, 0.2) 0%, transparent 50%);
+    radial-gradient(circle at top left, rgba(255, 0, 128, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at top right, rgba(0, 206, 209, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at bottom left, rgba(255, 140, 0, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at bottom right, rgba(128, 0, 255, 0.1) 0%, transparent 45%);
 }
 
-/* Diwali Background Gradients (Glowing Lights & Diyas) */
+/* Diwali Background Gradients (Glowing Warm Lights) */
 html.event-diwali body {
-  background-color: #fff9e6;
   background-image: 
-    radial-gradient(circle at 10% 20%, rgba(255, 165, 0, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 90% 80%, rgba(255, 69, 0, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.15) 0%, transparent 50%);
+    radial-gradient(circle at 15% 15%, rgba(255, 165, 0, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(255, 69, 0, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.08) 0%, transparent 50%);
 }
 
 html.dark.event-diwali body {
-  background-color: #0a0500;
   background-image: 
-    radial-gradient(circle at 15% 25%, rgba(255, 165, 0, 0.25) 0%, transparent 45%),
-    radial-gradient(circle at 85% 75%, rgba(255, 69, 0, 0.25) 0%, transparent 45%),
-    radial-gradient(circle at 50% 10%, rgba(255, 215, 0, 0.25) 0%, transparent 40%);
+    radial-gradient(circle at 15% 25%, rgba(255, 165, 0, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(255, 69, 0, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 50% 10%, rgba(255, 215, 0, 0.1) 0%, transparent 40%);
 }
 
 body {

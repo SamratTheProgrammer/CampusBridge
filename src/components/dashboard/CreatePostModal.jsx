@@ -1,10 +1,26 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, Image as ImageIcon, Video, UserPlus, MapPin, Smile, MoreHorizontal } from 'lucide-react'
 import toast from 'react-hot-toast'
+import EmojiPicker from 'emoji-picker-react'
+import { useTheme } from '../ThemeProvider'
 
 const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
   const [content, setContent] = useState('')
   const [media, setMedia] = useState(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiRef = useRef(null)
+  const { theme } = useTheme()
+  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (emojiRef.current && !emojiRef.current.contains(e.target)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     if (initialMedia) {
@@ -127,9 +143,32 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
               <button className="hidden sm:block p-2 hover:bg-muted rounded-full transition-colors text-red-500" title="Add location" onClick={() => toast.success('Add location opened!')}>
                 <MapPin className="w-5 h-5" />
               </button>
-              <button className="hidden sm:block p-2 hover:bg-muted rounded-full transition-colors text-yellow-500" title="Add emoji" onClick={() => toast.success('Emoji picker opened!')}>
-                <Smile className="w-5 h-5" />
-              </button>
+              <div className="relative" ref={emojiRef}>
+                <button 
+                  type="button"
+                  className="p-2 hover:bg-muted rounded-full transition-colors text-yellow-500" 
+                  title="Add emoji" 
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
+                {showEmojiPicker && (
+                  <div className="absolute bottom-full left-0 mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden max-w-[calc(100vw-32px)]">
+                    <EmojiPicker 
+                      theme={isDark ? 'dark' : 'light'}
+                      previewConfig={{ showPreview: false }}
+                      width={320}
+                      height={380}
+                      lazyLoadEmojis={true}
+                      searchPlaceHolder="Search emoji..."
+                      onEmojiClick={(emojiData) => {
+                        setContent(prev => prev + emojiData.emoji)
+                        setShowEmojiPicker(false)
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
               <button className="sm:hidden p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground" onClick={() => toast.success('More options opened!')}>
                 <MoreHorizontal className="w-5 h-5" />
               </button>

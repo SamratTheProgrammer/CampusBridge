@@ -326,7 +326,7 @@ const NotificationDropdown = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="fixed top-16 right-2 left-2 sm:absolute sm:top-auto sm:right-0 sm:left-auto sm:-right-4 mt-2 w-auto sm:w-[380px] bg-card border border-border/80 rounded-2xl shadow-2xl z-[100] overflow-hidden"
+            className="fixed top-16 right-2 left-2 sm:absolute sm:top-full sm:right-0 sm:left-auto mt-2 w-auto sm:w-[380px] bg-card border border-border/80 rounded-2xl shadow-2xl z-[100] overflow-hidden"
           >
             {isSettingsOpen ? (
               // Settings View
@@ -434,16 +434,16 @@ const NotificationDropdown = () => {
                     {/* Icon or Sender DP */}
                     <div className="relative shrink-0 mt-0.5">
                       {n.senderImage ? (
-                        <img src={n.senderImage} alt={n.senderName} className="w-9 h-9 rounded-full object-cover border border-border/50" />
-                      ) : (
                         <>
-                          <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border/50">
-                            {getNotificationIcon(n.type)}
-                          </div>
-                          <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border border-border/50">
+                          <img src={n.senderImage} alt={n.senderName} className="w-9 h-9 rounded-full object-cover border border-border/50" />
+                          <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border border-border/50 shadow-sm">
                             {getNotificationIcon(n.type)}
                           </div>
                         </>
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border/50 shadow-sm">
+                          {getNotificationIcon(n.type)}
+                        </div>
                       )}
                     </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Settings, Shield, Key, Mail, Lock, Sliders, Globe, Eye, Sun, Moon, MonitorSmartphone, PartyPopper, Sparkles } from 'lucide-react'
+import { Settings, Shield, Key, Mail, Lock, Sliders, Globe, Eye, Sun, Moon, MonitorSmartphone, PartyPopper, Sparkles, Flame, Palette, Flag, CheckCircle2, Check } from 'lucide-react'
 import { useTheme } from '../../components/ThemeProvider'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
@@ -15,10 +15,19 @@ const AdminSettings = () => {
   const [phone, setPhone] = useState('+91-6289258359')
   const [address, setAddress] = useState('Chandigarh University, Mohali, Punjab, India')
 
-  const [adminGlobalTheme, setAdminGlobalTheme] = useState(globalTheme || 'system')
+  const [adminGlobalTheme, setAdminGlobalTheme] = useState(() => {
+    return (globalTheme === 'system' || !globalTheme) ? 'none' : globalTheme;
+  })
   const [suggestedTheme, setSuggestedTheme] = useState(null)
   const [holidayName, setHolidayName] = useState(null)
   const [isThemeLoading, setIsThemeLoading] = useState(false)
+
+  // Keep adminGlobalTheme in sync when globalTheme changes in context
+  useEffect(() => {
+    if (globalTheme) {
+      setAdminGlobalTheme(globalTheme === 'system' ? 'none' : globalTheme);
+    }
+  }, [globalTheme]);
 
   // Auth State
   const [authSettings, setAuthSettings] = useState({
@@ -100,18 +109,25 @@ const AdminSettings = () => {
 
   const handleUpdateGlobalTheme = async (newTheme) => {
     setIsThemeLoading(true)
+    const normalized = newTheme === 'system' ? 'none' : newTheme;
+    // Optimistically update theme state immediately
+    setAdminGlobalTheme(normalized);
+    if (setGlobalTheme) setGlobalTheme(normalized);
+
     try {
       const res = await fetch(`${API_BASE}/api/admin/settings/theme`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ globalTheme: newTheme })
+        body: JSON.stringify({ globalTheme: normalized })
       })
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
-          setAdminGlobalTheme(data.globalTheme)
-          if (setGlobalTheme) setGlobalTheme(data.globalTheme)
-          toast.success(`Global theme updated to ${newTheme}!`)
+          const finalTheme = data.globalTheme === 'system' ? 'none' : data.globalTheme;
+          setAdminGlobalTheme(finalTheme)
+          if (setGlobalTheme) setGlobalTheme(finalTheme)
+          const display = finalTheme === 'none' ? 'Default (No Event)' : finalTheme.charAt(0).toUpperCase() + finalTheme.slice(1);
+          toast.success(`Global theme updated to ${display}!`)
         }
       } else {
         toast.error('Failed to update global theme')
@@ -482,84 +498,212 @@ const AdminSettings = () => {
               </button>
             </form>
           ) : activeTab === 'Appearance' ? (
-            <div className="space-y-8">
+            <div className="space-y-8 animate-in fade-in duration-300">
+              {/* Header Info */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/40">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Theme & Appearance</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Customize platform-wide festive themes and personal workspace visual preferences.</p>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary self-start sm:self-auto">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Active Theme: <span className="capitalize">{adminGlobalTheme === 'none' ? 'Default' : adminGlobalTheme}</span></span>
+                </div>
+              </div>
               
               {/* Global Theme Override */}
-              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 sm:p-6">
-                <div className="flex flex-col md:flex-row items-start md:justify-between gap-4 mb-4">
+              <div className="bg-card border border-border/60 rounded-2xl p-5 sm:p-6 shadow-sm">
+                <div className="flex flex-col md:flex-row items-start md:justify-between gap-4 mb-5">
                   <div className="flex-1">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-1 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" /> Global Theme Override
+                      <Globe className="w-4 h-4" /> Global Platform Event Theme
                     </h3>
-                    <p className="text-xs text-muted-foreground">
-                      Enable a festive event theme globally. Users will still retain control of their Light/Dark mode.
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Enable a festive campus event theme for all users across the platform. Users will still retain personal control of their Light/Dark/System mode.
                     </p>
                   </div>
+                  {holidayName && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-medium shrink-0">
+                      <PartyPopper className="w-4 h-4" />
+                      <span>Upcoming: <strong>{holidayName}</strong></span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {['none', 'diwali', 'holi', 'independence'].map((t) => (
-                    <button
-                      key={t}
-                      disabled={isThemeLoading}
-                      onClick={() => handleUpdateGlobalTheme(t)}
-                      className={`py-3 px-4 rounded-xl border-2 transition-all text-sm font-semibold capitalize flex items-center justify-center gap-2 ${
-                        adminGlobalTheme === t
-                          ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                          : 'border-border/50 bg-card hover:border-primary/50 text-muted-foreground hover:text-foreground'
-                      } ${(t === 'diwali' || t === 'holi' || t === 'independence') && adminGlobalTheme !== t ? 'text-amber-600 border-amber-500/20 bg-amber-500/5 hover:border-amber-500/50' : ''}`}
-                    >
-                      {t === 'none' ? 'No Event' : t}
-                      {t === suggestedTheme && adminGlobalTheme !== t && (
-                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                      )}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    {
+                      id: 'none',
+                      title: 'Default Theme',
+                      subtitle: 'Classic CampusBridge palette',
+                      icon: Sparkles,
+                      iconColor: 'text-primary',
+                      iconBg: 'bg-primary/10',
+                      palette: ['#8b5cf6', '#6366f1', '#3b82f6', '#10b981'],
+                      badge: 'Default',
+                    },
+                    {
+                      id: 'diwali',
+                      title: 'Diwali Theme',
+                      subtitle: 'Warm golden amber & diyas',
+                      icon: Flame,
+                      iconColor: 'text-amber-500',
+                      iconBg: 'bg-amber-500/10',
+                      palette: ['#f59e0b', '#d97706', '#ea580c', '#fbbf24'],
+                      badge: 'Festival of Lights',
+                    },
+                    {
+                      id: 'holi',
+                      title: 'Holi Theme',
+                      subtitle: 'Vibrant celebratory colors',
+                      icon: Palette,
+                      iconColor: 'text-pink-500',
+                      iconBg: 'bg-pink-500/10',
+                      palette: ['#ec4899', '#06b6d4', '#f97316', '#a855f7'],
+                      badge: 'Festival of Colors',
+                    },
+                    {
+                      id: 'independence',
+                      title: 'Independence Day',
+                      subtitle: 'Saffron, white & green tricolor',
+                      icon: Flag,
+                      iconColor: 'text-orange-500',
+                      iconBg: 'bg-orange-500/10',
+                      palette: ['#f97316', '#ffffff', '#16a34a', '#1e3a8a'],
+                      badge: 'Patriotic Tricolor',
+                    },
+                  ].map((item) => {
+                    const Icon = item.icon
+                    const isSelected = adminGlobalTheme === item.id || (item.id === 'none' && (adminGlobalTheme === 'none' || adminGlobalTheme === 'system'))
+                    const isRecommended = item.id === suggestedTheme && !isSelected
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        disabled={isThemeLoading}
+                        onClick={() => handleUpdateGlobalTheme(item.id)}
+                        className={`text-left p-4 sm:p-5 rounded-2xl border-2 transition-all relative flex flex-col justify-between group overflow-hidden ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 shadow-md shadow-primary/10 ring-1 ring-primary/30'
+                            : 'border-border/60 bg-muted/20 hover:border-primary/40 hover:bg-muted/40'
+                        } ${isRecommended ? 'border-amber-500/40 bg-amber-500/5' : ''}`}
+                      >
+                        {/* Top Row: Icon + Selection Badge */}
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className={`w-10 h-10 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {isRecommended && (
+                              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 animate-pulse">
+                                Suggested
+                              </span>
+                            )}
+                            {isSelected ? (
+                              <span className="flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                                <Check className="w-3 h-3 stroke-[3]" /> Active
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* Title & Description */}
+                        <div className="space-y-1 mb-4">
+                          <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                            {item.title}
+                          </h4>
+                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {item.subtitle}
+                          </p>
+                        </div>
+
+                        {/* Color Palette Preview Swatches */}
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-border/40">
+                          <span className="text-[10px] text-muted-foreground font-medium mr-1">Palette:</span>
+                          {item.palette.map((color, idx) => (
+                            <span 
+                              key={idx} 
+                              className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/10 shadow-sm shrink-0" 
+                              style={{ backgroundColor: color }} 
+                              title={color}
+                            />
+                          ))}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
-              <div className="border-t border-border/40 pt-8">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Your Local Theme</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <button
-                    onClick={() => setTheme('light')}
-                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${
-                      theme === 'light' 
-                        ? 'border-primary bg-primary/5 shadow-md shadow-primary/10 text-primary' 
-                        : 'border-border/50 bg-muted/20 hover:border-border hover:bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    <Sun className="w-8 h-8 mb-3" />
-                    <span className="font-semibold text-sm">Light Mode</span>
-                  </button>
-
-                  <button
-                    onClick={() => setTheme('dark')}
-                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${
-                      theme === 'dark' 
-                        ? 'border-primary bg-primary/5 shadow-md shadow-primary/10 text-primary' 
-                        : 'border-border/50 bg-muted/20 hover:border-border hover:bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    <Moon className="w-8 h-8 mb-3" />
-                    <span className="font-semibold text-sm">Dark Mode</span>
-                  </button>
-
-                  <button
-                    onClick={() => setTheme('system')}
-                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${
-                      theme === 'system' 
-                        ? 'border-primary bg-primary/5 shadow-md shadow-primary/10 text-primary' 
-                        : 'border-border/50 bg-muted/20 hover:border-border hover:bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    <MonitorSmartphone className="w-8 h-8 mb-3" />
-                    <span className="font-semibold text-sm">System Sync</span>
-                  </button>
+              {/* Local Theme Selector */}
+              <div className="bg-card border border-border/60 rounded-2xl p-5 sm:p-6 shadow-sm">
+                <div className="mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <Sun className="w-4 h-4 text-primary" /> Personal Workspace Theme
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    This preference applies to your current device and account session. Local themes are ALWAYS respected.
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-4">
-                  This only affects your current browser session. Local themes are ALWAYS respected. Global event themes apply festive accents on top of your local mode.
-                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    {
+                      id: 'light',
+                      title: 'Light Mode',
+                      desc: 'Clean & high clarity for bright environments',
+                      icon: Sun,
+                      iconColor: 'text-amber-500',
+                      iconBg: 'bg-amber-500/10',
+                    },
+                    {
+                      id: 'dark',
+                      title: 'Dark Mode',
+                      desc: 'Deep modern aesthetic that is easy on the eyes',
+                      icon: Moon,
+                      iconColor: 'text-indigo-400',
+                      iconBg: 'bg-indigo-500/10',
+                    },
+                    {
+                      id: 'system',
+                      title: 'System Sync',
+                      desc: 'Automatically matches your device OS preference',
+                      icon: MonitorSmartphone,
+                      iconColor: 'text-emerald-500',
+                      iconBg: 'bg-emerald-500/10',
+                    },
+                  ].map((t) => {
+                    const Icon = t.icon
+                    const isSelected = theme === t.id
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTheme(t.id)}
+                        className={`text-left p-5 rounded-2xl border-2 transition-all flex flex-col justify-between group ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 shadow-md shadow-primary/10 ring-1 ring-primary/30'
+                            : 'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div className={`w-10 h-10 rounded-xl ${t.iconBg} ${t.iconColor} flex items-center justify-center shrink-0`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          {isSelected && (
+                            <span className="flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                              <Check className="w-3 h-3 stroke-[3]" /> Active
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-foreground mb-1">{t.title}</h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           ) : activeTab === 'Authentication' ? (

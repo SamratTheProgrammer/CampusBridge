@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { 
   Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2, AtSign, Check, 
   AlertCircle, Laptop, Smartphone, MapPin, Trash2, Plus, Briefcase, GraduationCap, 
-  FileText, ExternalLink, Sparkles, X, UploadCloud, Award, Edit2
+  FileText, ExternalLink, Sparkles, X, UploadCloud, Award, Edit2, Sun, Moon, MonitorSmartphone, Palette
 } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -15,12 +15,14 @@ import { socket } from '../../services/socket'
 
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
 import API_BASE from '../../utils/api'
+import { useTheme } from '../../components/ThemeProvider'
 
 const MentorSettings = () => {
   const { user, isLoaded } = useUser()
   const { sessions } = useSessionList()
   const { session: currentSession } = useSession()
   const currentDeviceInfo = useCurrentDevice()
+  const { theme, setTheme, globalTheme } = useTheme()
   const [activeTab, setActiveTab] = useState('profile')
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [profileVisibility, setProfileVisibility] = useState('public')
@@ -427,6 +429,13 @@ const MentorSettings = () => {
             className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'profile' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
           >
             <User className="w-4 h-4 shrink-0" /> Account Profile
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('appearance')}
+            className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'appearance' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
+          >
+            <Palette className="w-4 h-4 shrink-0" /> Appearance
           </button>
 
           <button 
@@ -1025,6 +1034,99 @@ const MentorSettings = () => {
             <div className="space-y-6 animate-in fade-in duration-300">
               <h2 className="text-xl font-bold text-foreground mb-6">Notification Preferences</h2>
               <p className="text-xs text-muted-foreground">Manage your notification settings.</p>
+            </div>
+          )}
+
+          {/* Appearance Tab */}
+          {activeTab === 'appearance' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div>
+                <h2 className="text-xl font-bold text-foreground border-b border-border/40 pb-4">Theme & Appearance</h2>
+                <p className="text-xs text-muted-foreground mt-2">Personalize how CampusBridge looks on this device and view active platform-wide themes.</p>
+              </div>
+
+              {/* Personal Workspace Theme */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Sun className="w-4 h-4 text-primary" /> Workspace Mode
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    {
+                      id: 'light',
+                      title: 'Light Mode',
+                      desc: 'Clean & high clarity for day use',
+                      icon: Sun,
+                      iconColor: 'text-amber-500',
+                      iconBg: 'bg-amber-500/10',
+                    },
+                    {
+                      id: 'dark',
+                      title: 'Dark Mode',
+                      desc: 'Deep modern aesthetic easy on the eyes',
+                      icon: Moon,
+                      iconColor: 'text-indigo-400',
+                      iconBg: 'bg-indigo-500/10',
+                    },
+                    {
+                      id: 'system',
+                      title: 'System Sync',
+                      desc: 'Follows your operating system preference',
+                      icon: MonitorSmartphone,
+                      iconColor: 'text-emerald-500',
+                      iconBg: 'bg-emerald-500/10',
+                    },
+                  ].map((t) => {
+                    const Icon = t.icon
+                    const isSelected = theme === t.id
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTheme(t.id)}
+                        className={`text-left p-5 rounded-2xl border-2 transition-all flex flex-col justify-between group ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 shadow-md shadow-primary/10 ring-1 ring-primary/30'
+                            : 'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div className={`w-10 h-10 rounded-xl ${t.iconBg} ${t.iconColor} flex items-center justify-center shrink-0`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          {isSelected && (
+                            <span className="flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                              <Check className="w-3 h-3 stroke-[3]" /> Active
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-foreground mb-1">{t.title}</h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Global Platform Event Theme Info Banner */}
+              <div className="bg-muted/30 border border-border/60 rounded-2xl p-5 sm:p-6 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <h4 className="text-sm font-bold text-foreground">Active Campus Event Theme</h4>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 capitalize">
+                    {globalTheme && globalTheme !== 'none' && globalTheme !== 'system' ? globalTheme : 'Default Platform Theme'}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {globalTheme && globalTheme !== 'none' && globalTheme !== 'system'
+                    ? `Campus administrators have currently activated the ${globalTheme.toUpperCase()} festive celebration theme across CampusBridge. Your personal Light/Dark mode choice remains respected.`
+                    : 'The standard CampusBridge purple theme is currently active platform-wide. When college festivals or national holidays occur, special celebrations and festive accents will illuminate the app automatically.'}
+                </p>
+              </div>
             </div>
           )}
 

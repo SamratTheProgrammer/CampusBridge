@@ -20,9 +20,6 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
   // Admin session check via standalone admin login
   const hasAdminToken = allowedRoles.includes('admin') && (!!localStorage.getItem('adminToken') || !!sessionStorage.getItem('adminToken'))
-  if (hasAdminToken) {
-    return <Outlet />
-  }
 
   useEffect(() => {
     let isMounted = true
@@ -92,6 +89,11 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
       clearTimeout(safetyTimeout)
     }
   }, [isLoaded, isSignedIn, user, justAuthenticated])
+
+  // Admin session check via standalone admin login
+  if (hasAdminToken) {
+    return <Outlet />
+  }
 
   // 1. Loading state while checking authentication and role
   if (!isLoaded || (justAuthenticated && isRoleLoading) || (isSignedIn && !userRole)) {

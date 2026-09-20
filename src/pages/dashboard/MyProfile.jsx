@@ -1,6 +1,6 @@
 import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle, Loader2 } from 'lucide-react'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
