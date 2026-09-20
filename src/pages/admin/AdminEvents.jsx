@@ -1,15 +1,19 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Edit3, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Trash2, Edit3, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
 
 const AdminEvents = () => {
+  const navigate = useNavigate()
   const { user } = useUser()
   const [events, setEvents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -238,20 +242,64 @@ const AdminEvents = () => {
     setRemarkModal({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
   }
 
+  const filteredEvents = events.filter(e => {
+    const matchesSearch = e.title?.toLowerCase().includes(search.toLowerCase()) || 
+                          e.description?.toLowerCase().includes(search.toLowerCase()) ||
+                          e.location?.toLowerCase().includes(search.toLowerCase()) ||
+                          (e.organizer?.name && e.organizer.name.toLowerCase().includes(search.toLowerCase()))
+    const currentStatus = e.moderationStatus === 'paused' ? 'Paused' : 'Active'
+    const matchesStatus = statusFilter === 'All' || currentStatus === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Events Management</h1>
-          <p className="text-muted-foreground text-sm mt-1">Create and manage both Online and Offline campus events.</p>
+          <p className="text-muted-foreground text-sm mt-1">Create, pause/hold, and manage campus events and workshops.</p>
         </div>
-        <button 
-          onClick={handleOpenCreateModal}
-          className="bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 flex items-center gap-2 transition-all shadow-md shadow-primary/10 text-sm self-start sm:self-auto"
+        <div className="flex gap-2 self-start sm:self-auto">
+          <button 
+            onClick={fetchEvents}
+            disabled={isLoading}
+            className="text-xs font-bold px-3 py-2 rounded-xl bg-muted border border-border/60 text-foreground hover:bg-muted/80 transition-all flex items-center gap-1.5"
+          >
+            {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Refresh
+          </button>
+          <button 
+            onClick={handleOpenCreateModal}
+            className="bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 flex items-center gap-2 transition-all shadow-md shadow-primary/10 text-sm"
+          >
+            <Plus className="w-4.5 h-4.5" /> Create Event
+          </button>
+        </div>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 w-full relative">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input 
+            type="text" 
+            placeholder="Search events by title, location, or organizer..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+          />
+        </div>
+
+        <select 
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[140px] w-full md:w-auto"
         >
-          <Plus className="w-4.5 h-4.5" /> Create Event
-        </button>
+          <option value="All">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Paused">Paused</option>
+        </select>
       </div>
 
       {/* Events Table */}
@@ -260,101 +308,131 @@ const AdminEvents = () => {
           <AdminSpinner message="Loading events from database..." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="whitespace-nowrap w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse table-auto">
               <thead>
                 <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-6 py-4">Event</th>
-                  <th className="px-6 py-4">Mode &amp; Type</th>
-                  <th className="px-6 py-4">Date &amp; Time</th>
-                  <th className="px-6 py-4">Registrations</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                  <th className="px-4 py-3.5">Event</th>
+                  <th className="px-3 py-3.5 whitespace-nowrap">Mode &amp; Type</th>
+                  <th className="px-3 py-3.5 whitespace-nowrap">Date &amp; Time</th>
+                  <th className="px-3 py-3.5 whitespace-nowrap">Registrations</th>
+                  <th className="px-3 py-3.5 whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 text-sm">
-                {events.map((event) => (
-                  <tr key={event._id} className="hover:bg-muted/10 transition-colors">
-                    <td className="px-6 py-4 font-bold text-foreground">
-                      <div className="flex items-center gap-3">
-                        {event.imageUrl ? (
-                          <img src={event.imageUrl} alt={event.title} className="w-12 h-12 rounded-xl object-cover border border-border/40 shrink-0" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
-                            <Calendar className="w-6 h-6" />
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="font-bold text-foreground truncate">{event.title}</p>
-                          <p className="text-xs text-muted-foreground font-normal line-clamp-1">{event.description || 'No description'}</p>
-                          {event.organizer && (
-                            <span className="text-[10px] text-primary font-semibold block mt-0.5">
-                              Hosted by {event.organizer.firstName || event.organizer.name || 'Mentor'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        <span className={`inline-flex items-center gap-1 w-fit px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          event.mode === 'Offline' || (event.location && !event.mode)
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                            : 'bg-primary/10 text-primary'
-                        }`}>
-                          {event.mode === 'Offline' || (event.location && !event.mode) ? (
-                            <><MapPin className="w-3 h-3" /> Offline ({event.location || 'Campus Venue'})</>
+                {filteredEvents.length > 0 ? (
+                  filteredEvents.map((event) => (
+                    <tr key={event._id} className="hover:bg-muted/10 transition-colors">
+                      <td className="px-4 py-3 font-bold text-foreground">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {event.imageUrl ? (
+                            <img 
+                              src={event.imageUrl} 
+                              alt={event.title} 
+                              className="rounded-xl object-cover border border-border/40 shrink-0" 
+                              style={{ width: '40px', height: '40px', minWidth: '40px', minHeight: '40px' }}
+                            />
                           ) : (
-                            <><Globe className="w-3 h-3" /> Online {event.link ? 'Meeting' : ''}</>
+                            <div 
+                              className="rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0"
+                              style={{ width: '40px', height: '40px', minWidth: '40px', minHeight: '40px' }}
+                            >
+                              <Calendar className="w-5 h-5" />
+                            </div>
                           )}
+                          <div className="min-w-0 max-w-[200px] sm:max-w-[260px]">
+                            <p className="font-bold text-foreground truncate text-sm" title={event.title}>{event.title}</p>
+                            {event.organizer ? (
+                              <span 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const target = event.organizer.username || event.organizer.clerkId || event.organizer._id || event.organizer.id;
+                                  if (target) navigate(`/admin/users/${target}`);
+                                }}
+                                className="text-xs text-primary hover:underline font-semibold block truncate cursor-pointer transition-colors"
+                                title="Click to view organizer profile"
+                              >
+                                Hosted by {event.organizer.firstName || event.organizer.name || 'Mentor'}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground block truncate">
+                                Hosted by CampusBridge
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            event.mode === 'Offline' || (event.location && !event.mode)
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                              : 'bg-primary/10 text-primary'
+                          }`}>
+                            {event.mode === 'Offline' || (event.location && !event.mode) ? (
+                              <><MapPin className="w-3 h-3" /> Offline</>
+                            ) : (
+                              <><Globe className="w-3 h-3" /> Online</>
+                            )}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground font-medium">{event.type || 'Event'}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
+                        <p className="font-medium text-foreground text-xs">{event.date ? new Date(event.date).toLocaleDateString() : 'TBD'}</p>
+                        <p className="text-[11px] text-muted-foreground">{event.time || 'N/A'}</p>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-foreground text-xs font-semibold">
+                        {event.attendees?.length || 0} Registered
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                          event.moderationStatus === 'paused'
+                            ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                            : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                        }`}>
+                          {event.moderationStatus === 'paused' ? 'Paused' : 'Active'}
                         </span>
-                        <span className="text-xs text-muted-foreground font-medium">{event.type || 'Event'}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      <p className="font-medium text-foreground">{event.date ? new Date(event.date).toLocaleDateString() : 'TBD'}</p>
-                      <p className="text-xs">{event.time || 'N/A'}</p>
-                    </td>
-                    <td className="px-6 py-4 text-foreground font-semibold">
-                      {event.attendees?.length || 0} Registered
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-1">
-                      {event.moderationStatus !== 'paused' ? (
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right space-x-1 shrink-0">
+                        {event.moderationStatus !== 'paused' ? (
+                          <button 
+                            onClick={() => handleStatusChange(event._id, 'paused')}
+                            className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                            title="Pause / Hold Event"
+                          >
+                            <Pause className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleStatusChange(event._id, 'approved')}
+                            className="p-1.5 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                            title="Resume Event"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        )}
                         <button 
-                          onClick={() => handleStatusChange(event._id, 'paused')}
-                          className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
-                          title="Pause Event"
+                          onClick={() => handleOpenEditModal(event)}
+                          className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                          title="Edit Event"
                         >
-                          <Pause className="w-4 h-4" />
+                          <Edit3 className="w-4 h-4" />
                         </button>
-                      ) : (
                         <button 
-                          onClick={() => handleStatusChange(event._id, 'approved')}
-                          className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
-                          title="Approve Event"
+                          onClick={() => confirmDelete(event._id, event.title)}
+                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                          title="Delete Event"
                         >
-                          <CheckCircle2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
-                      <button 
-                        onClick={() => handleOpenEditModal(event)}
-                        className="p-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors inline-flex items-center justify-center"
-                        title="Edit Event"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => confirmDelete(event._id, event.title)}
-                        className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
-                        title="Cancel Event"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {events.length === 0 && (
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
-                    <td colSpan="5" className="text-center py-8 text-muted-foreground">
-                      No events found. Create your first event!
+                    <td colSpan="6" className="text-center py-10 text-muted-foreground">
+                      No events found matching current filter.
                     </td>
                   </tr>
                 )}
@@ -366,189 +444,196 @@ const AdminEvents = () => {
 
       {/* Modal for Create / Edit Event */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border/50 rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-border/50 flex justify-between items-center">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-card border border-border/50 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] my-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-border/50 flex justify-between items-center shrink-0 bg-card">
               <h2 className="text-xl font-bold text-foreground">
                 {editingEvent ? 'Edit Event' : 'Create New Event'}
               </h2>
               <button 
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:bg-muted p-1.5 rounded-lg transition-colors"
+                className="text-muted-foreground hover:bg-muted p-1.5 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Image / Banner (Optional)</label>
-                {editingEvent?.imageUrl && (
-                  <div className="mb-2">
-                    <img src={editingEvent.imageUrl} alt="Current event banner" className="h-20 w-auto rounded border border-border/50 object-cover" />
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Scrollable Form Body */}
+              <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Image / Banner (Optional)</label>
+                  {editingEvent?.imageUrl && (
+                    <div className="mb-2">
+                      <img src={editingEvent.imageUrl} alt="Current event banner" className="h-20 w-auto rounded border border-border/50 object-cover" />
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. AI & ML Workshop"
+                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Type</label>
+                    <select
+                      value={type}
+                      onChange={(e) => setType(e.target.value)}
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="Workshop">Workshop</option>
+                      <option value="Masterclass">Masterclass</option>
+                      <option value="Webinar">Webinar</option>
+                      <option value="Career Fair">Career Fair</option>
+                      <option value="Hackathon">Hackathon</option>
+                      <option value="Seminar">Seminar</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Mode</label>
+                    <div className="flex bg-muted p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setMode('Online')}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all ${
+                          mode === 'Online' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
+                        }`}
+                      >
+                        <Globe className="w-3.5 h-3.5" /> Online
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMode('Offline')}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all ${
+                          mode === 'Offline' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
+                        }`}
+                      >
+                        <MapPin className="w-3.5 h-3.5" /> Offline
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Start</label>
+                      <input
+                        type="time"
+                        required
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">End</label>
+                      <input
+                        type="time"
+                        required
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {mode === 'Offline' ? (
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Campus Location / Venue</label>
+                    <input
+                      type="text"
+                      required
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="e.g. Auditorium Hall A, Block 3, Main Campus"
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Meeting Link (Optional)</label>
+                    <input
+                      type="text"
+                      value={link}
+                      onChange={(e) => setLink(e.target.value)}
+                      placeholder="e.g. https://meet.google.com/abc-defg-hij"
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
                   </div>
                 )}
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Title</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. AI & ML Workshop"
-                  className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Type</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="Workshop">Workshop</option>
-                    <option value="Masterclass">Masterclass</option>
-                    <option value="Webinar">Webinar</option>
-                    <option value="Career Fair">Career Fair</option>
-                    <option value="Hackathon">Hackathon</option>
-                    <option value="Seminar">Seminar</option>
-                  </select>
-                </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Mode</label>
-                  <div className="flex bg-muted p-1 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setMode('Online')}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all ${
-                        mode === 'Online' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
-                      }`}
-                    >
-                      <Globe className="w-3.5 h-3.5" /> Online
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode('Offline')}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all ${
-                        mode === 'Offline' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
-                      }`}
-                    >
-                      <MapPin className="w-3.5 h-3.5" /> Offline
-                    </button>
-                  </div>
+                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Description / Agenda</label>
+                  <textarea
+                    rows="3"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe event details, agenda, requirements..."
+                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  ></textarea>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Start</label>
-                    <input
-                      type="time"
-                      required
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                {!editingEvent && (
+                  <div className="bg-muted/30 border border-border/50 p-3 rounded-lg flex items-start gap-3">
+                    <input 
+                      type="checkbox" 
+                      id="postToFeedAdmin" 
+                      checked={postToFeed}
+                      onChange={(e) => setPostToFeed(e.target.checked)}
+                      className="mt-1 w-4 h-4 accent-primary" 
                     />
+                    <div>
+                      <label htmlFor="postToFeedAdmin" className="text-sm font-medium text-foreground cursor-pointer">Post to Feed</label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Share this event on the main feed so everyone can see it.</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">End</label>
-                    <input
-                      type="time"
-                      required
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                </div>
+                )}
               </div>
 
-              {mode === 'Offline' ? (
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Campus Location / Venue</label>
-                  <input
-                    type="text"
-                    required
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Auditorium Hall A, Block 3, Main Campus"
-                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Meeting Link (Optional)</label>
-                  <input
-                    type="text"
-                    value={link}
-                    onChange={(e) => setLink(e.target.value)}
-                    placeholder="e.g. https://meet.google.com/abc-defg-hij"
-                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Description / Agenda</label>
-                <textarea
-                  rows="3"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe event details, agenda, requirements..."
-                  className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                ></textarea>
-              </div>
-
-              {!editingEvent && (
-                <div className="bg-muted/30 border border-border/50 p-3 rounded-lg flex items-start gap-3">
-                  <input 
-                    type="checkbox" 
-                    id="postToFeedAdmin" 
-                    checked={postToFeed}
-                    onChange={(e) => setPostToFeed(e.target.checked)}
-                    className="mt-1 w-4 h-4 accent-primary" 
-                  />
-                  <div>
-                    <label htmlFor="postToFeedAdmin" className="text-sm font-medium text-foreground cursor-pointer">Post to Feed</label>
-                    <p className="text-xs text-muted-foreground mt-0.5">Share this event on the main feed so everyone can see it.</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-3">
+              {/* Modal Footer with Actions */}
+              <div className="px-6 py-4 border-t border-border/50 flex gap-3 shrink-0 bg-card">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2.5 rounded-xl font-medium text-sm transition-colors"
+                  className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2.5 rounded-xl font-medium text-sm transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-medium text-sm transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   {editingEvent ? 'Save Changes' : 'Create Event'}

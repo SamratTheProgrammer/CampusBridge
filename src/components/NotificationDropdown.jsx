@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User, ArrowLeft, Volume2 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,7 +19,24 @@ const NotificationDropdown = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [isPushLoading, setIsPushLoading] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(
+    localStorage.getItem('campusbridge_notification_sound') !== 'false'
+  );
   const dropdownRef = useRef(null);
+
+  const handleToggleSound = () => {
+    const newSound = !soundEnabled;
+    setSoundEnabled(newSound);
+    localStorage.setItem('campusbridge_notification_sound', newSound.toString());
+    if (newSound) {
+      try {
+        ringtoneService.playNotificationSound();
+      } catch (e) {}
+      toast.success('Notification sound enabled');
+    } else {
+      toast.success('Notification sound disabled');
+    }
+  };
 
   const fetchNotifications = async () => {
     const controller = new AbortController();
@@ -123,6 +140,39 @@ const NotificationDropdown = () => {
     }
   };
 
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'connection_request':
+        return <UserPlus className="w-4 h-4 text-blue-500" />;
+      case 'connection_accepted':
+        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+      case 'connection_declined':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      case 'post_like':
+        return <Heart className="w-4 h-4 text-pink-500 fill-current" />;
+      case 'post_comment':
+        return <MessageSquare className="w-4 h-4 text-purple-500" />;
+      case 'session_booked':
+        return <Calendar className="w-4 h-4 text-amber-500" />;
+      case 'admin':
+        return <Bell className="w-4 h-4 text-amber-500" />;
+      default:
+        return <User className="w-4 h-4 text-primary" />;
+    }
+  };
+
+  const navigateNotification = (link) => {
+    if (!link) return;
+    let targetLink = link;
+    const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
+    if ((userRole === 'mentor' || userRole === 'alumni') && targetLink.startsWith('/dashboard')) {
+      targetLink = targetLink.replace('/dashboard', '/mentor-dashboard');
+    } else if (userRole === 'student' && targetLink.startsWith('/mentor-dashboard')) {
+      targetLink = targetLink.replace('/mentor-dashboard', '/dashboard');
+    }
+    navigate(targetLink);
+  };
+
   useEffect(() => {
     const handleNewNotification = (notification) => {
       const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -145,52 +195,66 @@ const NotificationDropdown = () => {
       toast.custom(
         (t) => (
           <div
+            onClick={() => {
+              toast.dismiss(t.id);
+              setIsOpen(false);
+              navigateNotification(notification.link);
+            }}
             className={`${
-              t.visible ? 'animate-in slide-in-from-top-2 fade-in' : 'animate-out slide-out-to-top-2 fade-out'
-            } max-w-md w-full bg-card shadow-lg rounded-2xl pointer-events-auto flex ring-1 ring-black/5 border border-border/50`}
+              t.visible ? 'animate-in slide-in-from-top-3 fade-in duration-300' : 'animate-out slide-out-to-top-3 fade-out duration-200'
+            } max-w-md w-full bg-card/95 backdrop-blur-md shadow-2xl rounded-2xl pointer-events-auto flex items-stretch border border-border/80 ring-1 ring-primary/20 hover:border-primary/50 transition-all cursor-pointer group hover:scale-[1.01]`}
           >
-            <div className="flex-1 w-0 p-4">
-              <div className="flex items-start">
+            <div className="flex-1 min-w-0 p-4">
+              <div className="flex items-start gap-3">
                 {notification.senderImage ? (
-                  <div className="flex-shrink-0 pt-0.5">
+                  <div className="relative shrink-0 pt-0.5">
                     <img
-                      className="h-10 w-10 rounded-full object-cover"
+                      className="h-10 w-10 rounded-full object-cover ring-2 ring-background"
                       src={notification.senderImage}
-                      alt={notification.senderName}
+                      alt={notification.senderName || 'User'}
                     />
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-card border border-border flex items-center justify-center shadow-xs">
+                      {getNotificationIcon(notification.type)}
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex-shrink-0 pt-0.5">
+                  <div className="shrink-0 pt-0.5">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <Bell className="w-5 h-5" />
+                      {getNotificationIcon(notification.type)}
                     </div>
                   </div>
                 )}
-                <div className="ml-3 flex-1">
-                  <p className="text-sm font-semibold text-foreground">
-                    {notification.title}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {notification.title}
+                    </p>
+                    <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Just now</span>
+                  </div>
+                  <p className="mt-1 text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                     {notification.message}
+                  </p>
+                  <p className="mt-1.5 text-[11px] font-medium text-primary flex items-center gap-1 group-hover:underline">
+                    Click to view {notification.type?.includes('comment') ? 'comment' : 'post'} →
                   </p>
                 </div>
               </div>
             </div>
-            <div className="flex border-l border-border/50">
+            <div className="flex items-center border-l border-border/50 px-2 shrink-0">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   toast.dismiss(t.id);
-                  setIsOpen(false);
-                  if (notification.link) navigate(notification.link);
                 }}
-                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-medium text-primary hover:text-primary/80 hover:bg-muted/50 focus:outline-none transition-colors"
+                className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                title="Dismiss"
               >
-                View
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
         ),
-        { duration: 4000, position: 'top-center' }
+        { duration: 6000, position: 'top-center' }
       );
     };
 
@@ -272,29 +336,7 @@ const NotificationDropdown = () => {
     }
     setIsOpen(false);
     if (n.link) {
-      navigate(n.link);
-    }
-  };
-
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'connection_request':
-        return <UserPlus className="w-4 h-4 text-blue-500" />;
-      case 'connection_accepted':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-      case 'connection_declined':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'post_like':
-        return <Heart className="w-4 h-4 text-pink-500 fill-current" />;
-      case 'post_comment':
-        return <MessageSquare className="w-4 h-4 text-purple-500" />;
-      case 'session_booked':
-        return <Calendar className="w-4 h-4 text-amber-500" />;
-      case 'admin':
-        return <Bell className="w-4 h-4 text-amber-500" />;
-      default:
-        return <User className="w-4 h-4 text-primary" />;
+      navigateNotification(n.link);
     }
   };
 
@@ -332,17 +374,28 @@ const NotificationDropdown = () => {
               // Settings View
               <div className="flex flex-col h-full">
                 <div className="p-4 border-b border-border/40 flex items-center justify-between bg-muted/20">
-                  <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-primary" /> Settings
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsSettingsOpen(false)}
+                      className="p-1 -ml-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
+                      title="Back to notifications"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-primary" /> Settings
+                    </h3>
+                  </div>
                   <button 
-                    onClick={() => setIsSettingsOpen(false)}
-                    className="p-1.5 text-xs text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+                    onClick={() => { setIsSettingsOpen(false); setIsOpen(false); }}
+                    className="p-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
+                    title="Close"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
                 <div className="p-5 space-y-4">
+                  {/* Push Notifications */}
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h4 className="text-sm font-semibold text-foreground">Push Notifications</h4>
@@ -358,6 +411,28 @@ const NotificationDropdown = () => {
                       <span
                         className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                           pushEnabled ? 'translate-x-2' : '-translate-x-2'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Notification Sound */}
+                  <div className="flex items-start justify-between gap-4 pt-4 border-t border-border/40">
+                    <div>
+                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                        <Volume2 className="w-4 h-4 text-primary" /> Notification Sound
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1">Play sound alert when new notifications arrive.</p>
+                    </div>
+                    <button
+                      onClick={handleToggleSound}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none transition-colors ${
+                        soundEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          soundEnabled ? 'translate-x-2' : '-translate-x-2'
                         }`}
                       />
                     </button>

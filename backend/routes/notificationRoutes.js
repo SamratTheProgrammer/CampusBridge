@@ -30,6 +30,11 @@ const resolveUserIdentifiers = async (identifier) => {
   return { primaryClerkId: identifier, allIds: [identifier], user: null };
 };
 
+let globalIoInstance = null;
+export const setNotificationIo = (io) => {
+  globalIoInstance = io;
+};
+
 // Helper to create notification internally
 export const createNotificationHelper = async ({ recipientClerkId, senderClerkId, type, title, message, link, io }) => {
   try {
@@ -66,8 +71,9 @@ export const createNotificationHelper = async ({ recipientClerkId, senderClerkId
 
     await notification.save();
 
-    if (io) {
-      io.emit('new_notification', notification);
+    const activeIo = io || globalIoInstance;
+    if (activeIo) {
+      activeIo.emit('new_notification', notification);
     }
 
     // Web Push Logic

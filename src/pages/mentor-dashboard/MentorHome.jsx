@@ -14,6 +14,7 @@ import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
+import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import { 
   Users, 
   FileText, 
@@ -177,6 +178,9 @@ const MentorHome = () => {
     }
   }
 
+  // Real-time synchronization of posts, comments, likes, edits, and deletions
+  useRealtimePosts({ setPosts })
+
   // Fetch Posts
   const fetchPosts = async () => {
     try {
@@ -309,6 +313,7 @@ const MentorHome = () => {
       })
 
       if (res.ok) {
+        const createdPost = await res.json()
         toast.success('Post created!')
         setNewPostContent('')
         setNewPostMedia([])
@@ -319,7 +324,13 @@ const MentorHome = () => {
           source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: ''
         })
         setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' })
-        fetchPosts() // refresh feed
+        if (createdPost && (createdPost._id || createdPost.id)) {
+          setPosts(prev => {
+            const id = createdPost._id || createdPost.id
+            if (prev.some(p => (p._id || p.id) === id)) return prev
+            return [createdPost, ...prev]
+          })
+        }
       } else {
         toast.error('Failed to create post')
       }
@@ -422,8 +433,11 @@ const MentorHome = () => {
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
       })
       if (res.ok) {
+        const updatedComments = await res.json()
         setCommentText('')
-        fetchPosts() // refresh to get enriched comments
+        if (Array.isArray(updatedComments)) {
+          setPosts(prev => prev.map(p => (p._id || p.id) === postId ? { ...p, comments: updatedComments } : p))
+        }
       } else {
         toast.error('Failed to post comment')
       }

@@ -16,6 +16,7 @@ import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
+import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 
 const MyProfile = () => {
   const navigate = useNavigate()
@@ -28,6 +29,9 @@ const MyProfile = () => {
   const [connectionsCount, setConnectionsCount] = useState(0)
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
   const [commentText, setCommentText] = useState('')
+
+  // Live real-time synchronization for user's profile posts
+  useRealtimePosts({ setPosts, userFilterId: user?.id })
   const [isCommenting, setIsCommenting] = useState(false)
   
   const [activeDropdownId, setActiveDropdownId] = useState(null)
@@ -367,8 +371,11 @@ const MyProfile = () => {
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
       })
       if (res.ok) {
+        const updatedComments = await res.json()
         setCommentText('')
-        fetchUserPosts()
+        if (Array.isArray(updatedComments)) {
+          setPosts(prev => prev.map(p => (p._id || p.id) === postId ? { ...p, comments: updatedComments } : p))
+        }
       }
     } catch (err) {
       toast.error('Failed to post comment')

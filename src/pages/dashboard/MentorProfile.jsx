@@ -17,6 +17,7 @@ import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ReviewModal from '../../components/modals/ReviewModal'
+import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 const MentorProfile = ({ initialUser }) => {
   const navigate = useNavigate();
   const { id, username } = useParams();
@@ -35,6 +36,10 @@ const MentorProfile = ({ initialUser }) => {
   // Post states
   const [posts, setPosts] = useState([])
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+
+  // Real-time synchronization of posts, comments, likes for this mentor
+  useRealtimePosts({ setPosts, userFilterId: mentor?.clerkId })
+
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
   const [commentText, setCommentText] = useState('')
   const [isCommenting, setIsCommenting] = useState(false)
@@ -60,7 +65,7 @@ const MentorProfile = ({ initialUser }) => {
       try {
         let currentMentor = initialUser;
         if (identifier) {
-          const res = await fetch(`${API_BASE}/api/users/${identifier}`)
+          const res = await fetch(`${API_BASE}/api/users/${identifier}?viewerId=${user?.id || ''}`)
           if (res.ok) {
             currentMentor = await res.json()
             setMentor(currentMentor)
@@ -239,10 +244,11 @@ const MentorProfile = ({ initialUser }) => {
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
       })
       if (res.ok) {
+        const updatedComments = await res.json()
         setCommentText('')
-        // Refresh posts
-        const postsRes = await fetch(`${API_BASE}/api/posts/user/${id}?requestingUserId=${user?.id}`);
-        if (postsRes.ok) setPosts(await postsRes.json());
+        if (Array.isArray(updatedComments)) {
+          setPosts(prev => prev.map(p => (p._id || p.id) === postId ? { ...p, comments: updatedComments } : p))
+        }
       }
     } catch (err) {
       toast.error('Failed to post comment')

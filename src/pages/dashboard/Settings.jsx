@@ -565,7 +565,7 @@ const Settings = () => {
         </div>
 
         {/* Right Content Area (Forms) */}
-        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm h-[calc(100vh-260px)] min-h-[350px] overflow-y-auto">
+        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm min-h-[500px]">
           
           {/* --- BASIC INFO --- */}
           {activeTab === 'basic' && (

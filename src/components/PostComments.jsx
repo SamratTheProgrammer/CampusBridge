@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Loader2, CornerDownRight, Heart, Smile } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../utils/api';
@@ -6,21 +6,57 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import EmojiPicker from 'emoji-picker-react';
 import { useTheme } from './ThemeProvider';
+import { socket } from '../services/socket';
 
-const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallback, fullHeight = false, postCaptionNode, showCommentInput = true, beforeInputNode }) => {
+const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallback, fullHeight = false, postCaptionNode, showCommentInput = true, beforeInputNode, highlightCommentId, highlightReplyId }) => {
   const { theme } = useTheme();
   const [commentText, setCommentText] = useState('');
   const [isCommenting, setIsCommenting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Live real-time synchronization for comments
+  useEffect(() => {
+    const postId = post?._id || post?.id;
+    if (!socket || !postId) return;
+
+    const handleCommentsUpdated = (payload) => {
+      if (payload?.postId === postId && onRefresh) {
+        onRefresh();
+      }
+    };
+
+    socket.on('post_comments_updated', handleCommentsUpdated);
+    return () => {
+      socket.off('post_comments_updated', handleCommentsUpdated);
+    };
+  }, [post?._id, post?.id, onRefresh]);
 
   const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
 
   const [replyingCommentId, setReplyingCommentId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const [highlightedId, setHighlightedId] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const emojiPickerRef = React.useRef(null);
+  const commentsContainerRef = useRef(null);
+
+  // Auto-scroll to highlighted comment/reply from notification deep link
+  useEffect(() => {
+    const targetId = highlightReplyId || highlightCommentId;
+    if (!targetId) return;
+    setHighlightedId(targetId);
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`comment-${targetId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 400);
+    // Clear highlight after 4 seconds
+    const clearTimer = setTimeout(() => setHighlightedId(null), 5000);
+    return () => { clearTimeout(timer); clearTimeout(clearTimer); };
+  }, [highlightCommentId, highlightReplyId]);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -168,13 +204,13 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
       )}
       
       {/* Existing Comments List */}
-      <div className={`space-y-4 overflow-y-auto pr-2 custom-scrollbar ${fullHeight ? 'flex-1' : 'max-h-[380px]'}`}>
+      <div ref={commentsContainerRef} className={`space-y-4 overflow-y-auto pr-2 custom-scrollbar ${fullHeight ? 'flex-1' : 'max-h-[380px]'}`}>
         {commentsArray.map((comment) => {
           const replies = comment.replies || [];
           const isReplyingThis = replyingCommentId === comment._id;
 
           return (
-            <div key={comment._id} className="space-y-2">
+            <div key={comment._id} id={`comment-${comment._id}`} className={`space-y-2 transition-all duration-700 rounded-xl ${highlightedId === comment._id ? 'bg-primary/10 ring-2 ring-primary/30 p-2 -m-2' : ''}`}>
               {/* Main Comment */}
               <div className="flex gap-3">
                 <img
@@ -231,7 +267,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                   {replies.length > 0 && (
                     <div className="mt-2.5 ml-2 pl-3 border-l-2 border-primary/20 space-y-2.5">
                       {replies.map((reply) => (
-                        <div key={reply._id} className="mb-2">
+                        <div key={reply._id} id={`comment-${reply._id}`} className={`mb-2 transition-all duration-700 rounded-lg ${highlightedId === reply._id ? 'bg-primary/10 ring-2 ring-primary/30 p-1.5 -m-1.5' : ''}`}>
                           <div className="flex gap-2.5 items-start">
                           <img
                             src={reply.author?.image || getAvatarFallback(reply.author?.name)}

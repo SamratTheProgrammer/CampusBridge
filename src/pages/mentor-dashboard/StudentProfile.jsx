@@ -14,6 +14,7 @@ import defaultPP from '../../assets/default_pp.png'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
+import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 
 const StudentProfile = ({ initialUser }) => {
   const navigate = useNavigate();
@@ -33,10 +34,12 @@ const StudentProfile = ({ initialUser }) => {
   // Post states
   const [posts, setPosts] = useState([])
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
-  const [activeCommentPostId, setActiveCommentPostId] = useState(null)
+  const [connectionsCount, setConnectionsCount] = useState(0)
+
+  // Real-time synchronization of posts, comments, likes for this student
+  useRealtimePosts({ setPosts, userFilterId: student?.clerkId })
   const [commentText, setCommentText] = useState('')
   const [isCommenting, setIsCommenting] = useState(false)
-  const [connectionsCount, setConnectionsCount] = useState(0)
 
   useEffect(() => {
     if (initialUser) {
@@ -49,7 +52,7 @@ const StudentProfile = ({ initialUser }) => {
       try {
         let currentStudent = initialUser;
         if (identifier) {
-          const res = await fetch(`${API_BASE}/api/users/${identifier}`)
+          const res = await fetch(`${API_BASE}/api/users/${identifier}?viewerId=${user?.id || ''}`)
           if (res.ok) {
             currentStudent = await res.json()
             setStudent(currentStudent)
@@ -164,9 +167,11 @@ const StudentProfile = ({ initialUser }) => {
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
       })
       if (res.ok) {
+        const updatedComments = await res.json()
         setCommentText('')
-        const postsRes = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}?requestingUserId=${user?.id}`);
-        if (postsRes.ok) setPosts(await postsRes.json());
+        if (Array.isArray(updatedComments)) {
+          setPosts(prev => prev.map(p => (p._id || p.id) === postId ? { ...p, comments: updatedComments } : p))
+        }
       }
     } catch (err) {
       toast.error('Failed to post comment')

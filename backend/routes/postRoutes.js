@@ -95,11 +95,13 @@ router.get('/', async (req, res) => {
         return {
           ...post.toObject(),
           author: user ? {
+            clerkId: user.clerkId,
             name: user.firstName + (user.lastName ? ' ' + user.lastName : ''),
             role: user.headline || user.role,
             image: user.imageUrl,
-            username: user.username,
+            username: user.username || user.clerkId,
           } : {
+            clerkId: post.authorClerkId,
             name: 'Unknown User',
             role: 'Member',
             image: null
@@ -226,11 +228,13 @@ router.post('/', async (req, res) => {
       likes: []
     };
 
-    if (req.io) {
-      req.io.emit('new_post', enrichedPost);
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('new_post', enrichedPost);
+      io.emit('post_created', enrichedPost);
     }
 
-    res.status(201).json(post);
+    res.status(201).json(enrichedPost);
   } catch (error) {
     console.error('Error creating post:', error);
     res.status(500).json({ message: 'Server error' });
@@ -256,20 +260,45 @@ router.put('/:id/like', async (req, res) => {
       // Trigger notification to post author if not liking own post
       const liker = await User.findOne({ clerkId });
       const likerName = liker ? `${liker.firstName} ${liker.lastName || ''}`.trim() : 'Someone';
+      const postAuthor = await User.findOne({ clerkId: post.authorClerkId });
+      const basePath = (postAuthor?.role === 'mentor' || postAuthor?.role === 'alumni') ? '/mentor-dashboard' : '/dashboard';
+      const io = req.app?.get('io') || req.io;
       await createNotificationHelper({
         recipientClerkId: post.authorClerkId,
         senderClerkId: clerkId,
         type: 'post_like',
         title: 'New Post Like',
         message: `${likerName} liked your post.`,
-        link: '/dashboard'
+        link: `${basePath}?post=${post._id}`,
+        io
       });
     } else {
       post.likes.splice(likeIndex, 1);
     }
 
     await post.save();
-    res.status(200).json(post.likes);
+
+    const enrichedLikes = await Promise.all(
+      post.likes.map(async (likeItem) => {
+        const likeClerkId = getLikeClerkId(likeItem);
+        if (!likeClerkId) return { clerkId: 'unknown', name: 'Unknown User', image: null };
+        const likeUser = await User.findOne({ clerkId: likeClerkId });
+        return likeUser ? {
+          clerkId: likeClerkId,
+          name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
+          image: likeUser.imageUrl,
+          role: likeUser.headline || likeUser.role,
+          username: likeUser.username
+        } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
+      })
+    );
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_liked', { postId: post._id.toString(), likes: enrichedLikes });
+    }
+
+    res.status(200).json(enrichedLikes);
   } catch (error) {
     console.error('Error toggling like:', error);
     res.status(500).json({ message: 'Server error' });
@@ -341,19 +370,32 @@ router.post('/:id/comment', async (req, res) => {
     post.comments.push({ authorClerkId, content });
     await post.save();
 
+    const addedComment = post.comments[post.comments.length - 1];
+    const commentId = addedComment ? addedComment._id : '';
+
     // Trigger notification to post author
     const commenter = await User.findOne({ clerkId: authorClerkId });
     const commenterName = commenter ? `${commenter.firstName} ${commenter.lastName || ''}`.trim() : 'Someone';
+    const postAuthor = await User.findOne({ clerkId: post.authorClerkId });
+    const basePath = (postAuthor?.role === 'mentor' || postAuthor?.role === 'alumni') ? '/mentor-dashboard' : '/dashboard';
+    const io = req.app?.get('io') || req.io;
+
     await createNotificationHelper({
       recipientClerkId: post.authorClerkId,
       senderClerkId: authorClerkId,
       type: 'post_comment',
       title: 'New Comment',
       message: `${commenterName} commented: "${content.substring(0, 35)}${content.length > 35 ? '...' : ''}"`,
-      link: '/dashboard'
+      link: `${basePath}?post=${post._id}&comment=${commentId}`,
+      io
     });
 
-    res.status(201).json(post.comments);
+    const enrichedComments = await enrichCommentsList(post.comments);
+    if (io) {
+      io.emit('post_comments_updated', { postId: post._id.toString(), comments: enrichedComments });
+    }
+
+    res.status(201).json(enrichedComments);
 
     // After response, check for mentions
     try {
@@ -367,13 +409,15 @@ router.post('/:id/comment', async (req, res) => {
         });
         
         if (mentionedUser && mentionedUser.clerkId !== authorClerkId) {
+          const mentionBasePath = (mentionedUser?.role === 'mentor' || mentionedUser?.role === 'alumni') ? '/mentor-dashboard' : '/dashboard';
           await createNotificationHelper({
             recipientClerkId: mentionedUser.clerkId,
             senderClerkId: authorClerkId,
             type: 'post_comment',
             title: 'You were mentioned',
             message: `${commenterName} mentioned you in a comment.`,
-            link: '/dashboard'
+            link: `${mentionBasePath}?post=${post._id}&comment=${commentId}`,
+            io
           });
         }
       }
@@ -406,17 +450,30 @@ router.post('/:id/comment/:commentId/reply', async (req, res) => {
     comment.replies.push({ authorClerkId, content });
     await post.save();
 
+    const addedReply = comment.replies[comment.replies.length - 1];
+    const replyId = addedReply ? addedReply._id : '';
+
     // Trigger notification to comment author
     const replier = await User.findOne({ clerkId: authorClerkId });
     const replierName = replier ? `${replier.firstName} ${replier.lastName || ''}`.trim() : 'Someone';
+    const commentAuthor = await User.findOne({ clerkId: comment.authorClerkId });
+    const basePath = (commentAuthor?.role === 'mentor' || commentAuthor?.role === 'alumni') ? '/mentor-dashboard' : '/dashboard';
+    const io = req.app?.get('io') || req.io;
+
     await createNotificationHelper({
       recipientClerkId: comment.authorClerkId,
       senderClerkId: authorClerkId,
       type: 'post_comment',
       title: 'New Reply to your comment',
       message: `${replierName} replied: "${content.substring(0, 35)}${content.length > 35 ? '...' : ''}"`,
-      link: '/dashboard'
+      link: `${basePath}?post=${post._id}&comment=${comment._id}&reply=${replyId}`,
+      io
     });
+
+    const enrichedComments = await enrichCommentsList(post.comments);
+    if (io) {
+      io.emit('post_comments_updated', { postId: post._id.toString(), comments: enrichedComments });
+    }
 
     res.status(201).json(comment.replies);
 
@@ -432,6 +489,7 @@ router.post('/:id/comment/:commentId/reply', async (req, res) => {
         });
         
         if (mentionedUser && mentionedUser.clerkId !== authorClerkId) {
+          const mentionBasePath = (mentionedUser?.role === 'mentor' || mentionedUser?.role === 'alumni') ? '/mentor-dashboard' : '/dashboard';
           // Trigger notification to tagged user
           await createNotificationHelper({
             recipientClerkId: mentionedUser.clerkId,
@@ -439,7 +497,8 @@ router.post('/:id/comment/:commentId/reply', async (req, res) => {
             type: 'post_comment',
             title: 'You were mentioned',
             message: `${replierName} mentioned you in a reply.`,
-            link: '/dashboard'
+            link: `${mentionBasePath}?post=${post._id}&comment=${comment._id}&reply=${replyId}`,
+            io
           });
         }
       }
@@ -476,13 +535,17 @@ router.put('/:id/comment/:commentId/like', async (req, res) => {
       if (comment.authorClerkId !== clerkId) {
         const liker = await User.findOne({ clerkId });
         const likerName = liker ? `${liker.firstName} ${liker.lastName || ''}`.trim() : 'Someone';
+        const commentAuthor = await User.findOne({ clerkId: comment.authorClerkId });
+        const basePath = (commentAuthor?.role === 'mentor' || commentAuthor?.role === 'alumni') ? '/mentor-dashboard' : '/dashboard';
+        const io = req.app?.get('io') || req.io;
         await createNotificationHelper({
           recipientClerkId: comment.authorClerkId,
           senderClerkId: clerkId,
           type: 'post_like',
           title: 'New Comment Like',
           message: `${likerName} liked your comment.`,
-          link: '/dashboard'
+          link: `${basePath}?post=${post._id}&comment=${comment._id}`,
+          io
         });
       }
     } else {
@@ -490,6 +553,13 @@ router.put('/:id/comment/:commentId/like', async (req, res) => {
     }
 
     await post.save();
+
+    const enrichedComments = await enrichCommentsList(post.comments);
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_comments_updated', { postId: post._id.toString(), comments: enrichedComments });
+    }
+
     res.status(200).json(comment.likes);
   } catch (error) {
     console.error('Error toggling comment like:', error);
@@ -523,13 +593,17 @@ router.put('/:id/comment/:commentId/reply/:replyId/like', async (req, res) => {
       if (reply.authorClerkId !== clerkId) {
         const liker = await User.findOne({ clerkId });
         const likerName = liker ? `${liker.firstName} ${liker.lastName || ''}`.trim() : 'Someone';
+        const replyAuthor = await User.findOne({ clerkId: reply.authorClerkId });
+        const basePath = (replyAuthor?.role === 'mentor' || replyAuthor?.role === 'alumni') ? '/mentor-dashboard' : '/dashboard';
+        const io = req.app?.get('io') || req.io;
         await createNotificationHelper({
           recipientClerkId: reply.authorClerkId,
           senderClerkId: clerkId,
           type: 'post_like',
           title: 'New Reply Like',
           message: `${likerName} liked your reply.`,
-          link: '/dashboard'
+          link: `${basePath}?post=${post._id}&comment=${comment._id}&reply=${reply._id}`,
+          io
         });
       }
     } else {
@@ -537,6 +611,13 @@ router.put('/:id/comment/:commentId/reply/:replyId/like', async (req, res) => {
     }
 
     await post.save();
+
+    const enrichedComments = await enrichCommentsList(post.comments);
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_comments_updated', { postId: post._id.toString(), comments: enrichedComments });
+    }
+
     res.status(200).json(reply.likes);
   } catch (error) {
     console.error('Error toggling reply like:', error);
@@ -563,6 +644,12 @@ router.put('/:id', async (req, res) => {
 
     post.content = content;
     await post.save();
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_updated', { postId: post._id.toString(), content: post.content });
+    }
+
     res.status(200).json(post);
   } catch (error) {
     console.error('Error updating post:', error);
@@ -586,6 +673,12 @@ router.delete('/:id', async (req, res) => {
     }
 
     await Post.findByIdAndDelete(req.params.id);
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_deleted', { postId: req.params.id.toString() });
+    }
+
     res.status(200).json({ message: 'Post deleted' });
   } catch (error) {
     console.error('Error deleting post:', error);

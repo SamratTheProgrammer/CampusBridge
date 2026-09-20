@@ -10,6 +10,7 @@ import AutoPlayVideo from './AutoPlayVideo';
 import PostComments from './PostComments';
 import ShareModal from './modals/ShareModal';
 import ImageViewerModal from './ImageViewerModal';
+import { socket } from '../services/socket';
 
 const optimizeUrl = (url) => {
   if (url && url.includes('cloudinary.com') && url.includes('/upload/')) {
@@ -28,6 +29,8 @@ const SharedItemViewer = () => {
   const postId = searchParams.get('post');
   const jobId = searchParams.get('job');
   const eventId = searchParams.get('event');
+  const commentId = searchParams.get('comment');
+  const replyId = searchParams.get('reply');
 
   const [itemType, setItemType] = useState(null);
   const [itemId, setItemId] = useState(null);
@@ -109,6 +112,48 @@ const SharedItemViewer = () => {
     const hasInitialData = !!location.state?.postData;
     fetchData(hasInitialData);
     setCurrentMediaIndex(0);
+  }, [itemType, itemId]);
+
+  // Real-time synchronization for the currently open shared item/modal
+  useEffect(() => {
+    if (!socket || itemType !== 'post' || !itemId) return;
+
+    const handleCommentsUpdated = ({ postId, comments }) => {
+      if (postId === itemId) {
+        setData(prev => (prev ? { ...prev, comments } : prev));
+      }
+    };
+
+    const handlePostLiked = ({ postId, likes }) => {
+      if (postId === itemId) {
+        setData(prev => (prev ? { ...prev, likes } : prev));
+      }
+    };
+
+    const handlePostUpdated = ({ postId, content }) => {
+      if (postId === itemId) {
+        setData(prev => (prev ? { ...prev, content } : prev));
+      }
+    };
+
+    const handlePostDeleted = ({ postId }) => {
+      if (postId === itemId) {
+        toast('This post was deleted.');
+        closeModal();
+      }
+    };
+
+    socket.on('post_comments_updated', handleCommentsUpdated);
+    socket.on('post_liked', handlePostLiked);
+    socket.on('post_updated', handlePostUpdated);
+    socket.on('post_deleted', handlePostDeleted);
+
+    return () => {
+      socket.off('post_comments_updated', handleCommentsUpdated);
+      socket.off('post_liked', handlePostLiked);
+      socket.off('post_updated', handlePostUpdated);
+      socket.off('post_deleted', handlePostDeleted);
+    };
   }, [itemType, itemId]);
 
   const handleLike = async () => {
@@ -265,6 +310,8 @@ const SharedItemViewer = () => {
     // Remove the query parameter from the URL, keeping the path intact
     const params = new URLSearchParams(searchParams);
     if (itemType) params.delete(itemType);
+    params.delete('comment');
+    params.delete('reply');
     const newSearch = params.toString() ? `?${params.toString()}` : '';
     navigate(`${location.pathname}${newSearch}`, { replace: true });
   };
@@ -749,6 +796,8 @@ const SharedItemViewer = () => {
                         getAvatarFallback={(name) => `https://ui-avatars.com/api/?name=${name || 'User'}`}
                         fullHeight={true}
                         showCommentInput={showCommentInput || isMobileCommentsOpen}
+                        highlightCommentId={commentId}
+                        highlightReplyId={replyId}
                         beforeInputNode={
                           <div className="hidden md:flex items-center gap-4 px-1 py-2">
                             <button

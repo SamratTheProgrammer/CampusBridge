@@ -8,6 +8,8 @@ import Session from '../models/Session.js';
 import Company from '../models/Company.js';
 import PlatformSetting from '../models/PlatformSetting.js';
 import SupportMessage from '../models/SupportMessage.js';
+import Review from '../models/Review.js';
+import { Resend } from 'resend';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 import { createNotificationHelper } from './notificationRoutes.js';
 
@@ -152,6 +154,7 @@ const formatMentorVerification = (u) => {
   return {
     id: u._id,
     clerkId: u.clerkId,
+    username: u.username || u.clerkId || String(u._id),
     name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
     email: u.email,
     company: company,
@@ -167,6 +170,8 @@ const formatMentorVerification = (u) => {
     resumeUrl: u.resumeUrl || '',
     experienceList: u.experience || [],
     educationList: u.education || [],
+    isBlocked: !!u.isBlocked,
+    blockReason: u.blockReason || '',
     createdAt: u.createdAt
   };
 };
@@ -211,6 +216,58 @@ router.get('/stats', async (req, res) => {
       type: u.role || 'student'
     }));
 
+    // Dynamic User Growth based on real user registration timestamps
+    const allUsers = await User.find().select('createdAt').sort({ createdAt: 1 });
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const curMonthName = monthNames[currentMonth];
+
+    // 1. "This Month" - 4 checkpoints across the current month
+    const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const thisMonthCheckpoints = [7, 14, 21, totalDaysInMonth];
+    const thisMonthData = thisMonthCheckpoints.map(day => {
+      const cutoff = new Date(currentYear, currentMonth, day, 23, 59, 59);
+      const count = allUsers.filter(u => new Date(u.createdAt) <= cutoff).length;
+      return { name: `${curMonthName} ${day}`, users: count };
+    });
+
+    // 2. "Last 6 Months"
+    const last6MonthsData = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(currentYear, currentMonth - i + 1, 0, 23, 59, 59);
+      const mName = monthNames[d.getMonth()];
+      const count = allUsers.filter(u => new Date(u.createdAt) <= d).length;
+      last6MonthsData.push({ name: mName, users: count });
+    }
+
+    // 3. "This Year"
+    const thisYearData = [];
+    for (let m = 0; m <= currentMonth; m++) {
+      const d = new Date(currentYear, m + 1, 0, 23, 59, 59);
+      const mName = monthNames[m];
+      const count = allUsers.filter(u => new Date(u.createdAt) <= d).length;
+      thisYearData.push({ name: mName, users: count });
+    }
+
+    // Month-over-month growth percentage
+    const startOfThisMonth = new Date(currentYear, currentMonth, 1);
+    const startOfLastMonth = new Date(currentYear, currentMonth - 1, 1);
+    const usersThisMonth = allUsers.filter(u => new Date(u.createdAt) >= startOfThisMonth).length;
+    const usersLastMonth = allUsers.filter(u => new Date(u.createdAt) >= startOfLastMonth && new Date(u.createdAt) < startOfThisMonth).length;
+
+    let growthPercentage = '+0.0%';
+    let isGrowthPositive = true;
+    if (usersLastMonth === 0) {
+      growthPercentage = usersThisMonth > 0 ? `+${usersThisMonth * 100}%` : '+0.0%';
+      isGrowthPositive = true;
+    } else {
+      const pct = ((usersThisMonth - usersLastMonth) / usersLastMonth) * 100;
+      isGrowthPositive = pct >= 0;
+      growthPercentage = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+    }
+
     return res.status(200).json({
       success: true,
       stats: {
@@ -225,7 +282,14 @@ router.get('/stats', async (req, res) => {
         messagesCount,
         pendingApprovals
       },
-      recentActivity: formattedRecentActivity
+      recentActivity: formattedRecentActivity,
+      userGrowth: {
+        'This Month': thisMonthData,
+        'Last 6 Months': last6MonthsData,
+        'This Year': thisYearData,
+        growthPercentage,
+        isGrowthPositive
+      }
     });
   } catch (error) {
     console.error('Admin Stats Error:', error);
@@ -248,7 +312,25 @@ router.get('/verifications', async (req, res) => {
       }
     }
 
-    const formattedList = mentors.map(formatMentorVerification);
+    const formattedList = await Promise.all(mentors.map(async (u) => {
+      const base = formatMentorVerification(u);
+      const reviews = await Review.find({ 
+        $or: [{ mentor: u._id }, { referenceId: u._id }], 
+        mentorRating: { $exists: true, $ne: null } 
+      });
+      const totalRatings = reviews.length;
+      const rating = totalRatings > 0 
+        ? Number((reviews.reduce((acc, curr) => acc + curr.mentorRating, 0) / totalRatings).toFixed(1))
+        : 0;
+      const activeMenteesCount = await Session.countDocuments({ mentor: u._id, status: { $in: ['pending', 'accepted'] } });
+
+      return {
+        ...base,
+        rating,
+        totalRatings,
+        activeMentees: activeMenteesCount
+      };
+    }));
 
     return res.status(200).json({
       success: true,
@@ -273,16 +355,26 @@ router.get('/mentors', async (req, res) => {
       const company = m.experience?.[0]?.company || (m.headline?.includes(' at ') ? m.headline.split(' at ')[1] : 'CampusBridge');
       const role = m.experience?.[0]?.title || (m.headline?.includes(' at ') ? m.headline.split(' at ')[0] : (m.headline || 'Mentor'));
       
-      // Compute a deterministic rating between 4.5 and 5.0 based on their ID string length and characters
-      const charSum = String(m._id).split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-      const rating = (4.5 + (charSum % 6) * 0.1).toFixed(1);
+      // Calculate dynamic rating from actual Review records in MongoDB
+      const reviews = await Review.find({ 
+        $or: [{ mentor: m._id }, { referenceId: m._id }], 
+        mentorRating: { $exists: true, $ne: null } 
+      });
+      const totalRatings = reviews.length;
+      const rating = totalRatings > 0 
+        ? Number((reviews.reduce((acc, curr) => acc + curr.mentorRating, 0) / totalRatings).toFixed(1))
+        : 0;
       
       return {
         id: m._id,
-        name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email,
+        clerkId: m.clerkId,
+        username: m.username || m.clerkId || String(m._id),
+        name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.username || m.email,
+        imageUrl: m.imageUrl || m.avatar || '',
         company: company.trim(),
         role: role.trim(),
-        rating: Number(rating),
+        rating: rating,
+        totalRatings: totalRatings,
         activeMentees: activeMenteesCount
       };
     }));
@@ -445,6 +537,7 @@ router.get('/jobs', async (req, res) => {
       id: j._id,
       title: j.title,
       company: j.company,
+      companyLogo: j.companyLogo || '',
       location: j.location || 'Remote',
       type: j.type || 'Full-time',
       salary: j.salary || 'Competitive',
@@ -452,6 +545,7 @@ router.get('/jobs', async (req, res) => {
       posted: new Date(j.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       applications: j.applicants ? j.applicants.length : 0,
       status: j.status || 'Approved',
+      moderationStatus: j.moderationStatus || (j.active === false ? 'paused' : 'approved'),
       active: !!j.active
     }));
 
@@ -547,6 +641,152 @@ router.put('/jobs/:id/status', async (req, res) => {
   } catch (error) {
     console.error('Admin Update Job Status Error:', error);
     return res.status(500).json({ success: false, message: 'Failed to update job status' });
+  }
+});
+
+// Moderate Job Status (Pause / Resume)
+router.put('/moderate/job/:id/status', async (req, res) => {
+  try {
+    const { status, remark } = req.body;
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+
+    job.moderationStatus = status;
+    job.active = (status === 'approved' || status === 'Approved');
+    if (remark) job.moderationRemark = remark;
+    await job.save();
+
+    return res.status(200).json({ success: true, message: `Job moderation status set to ${status}`, job });
+  } catch (error) {
+    console.error('Moderate Job Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update job status' });
+  }
+});
+
+// Moderate Job Delete
+router.delete('/moderate/job/:id', async (req, res) => {
+  try {
+    const job = await Job.findByIdAndDelete(req.params.id);
+    if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+    return res.status(200).json({ success: true, message: 'Job deleted successfully' });
+  } catch (error) {
+    console.error('Delete Job Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete job' });
+  }
+});
+
+// Moderate Event Status (Pause / Resume)
+router.put('/moderate/event/:id/status', async (req, res) => {
+  try {
+    const { status, remark } = req.body;
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    event.moderationStatus = status;
+    event.active = (status === 'approved' || status === 'Approved');
+    if (remark) event.moderationRemark = remark;
+    await event.save();
+
+    return res.status(200).json({ success: true, message: `Event moderation status set to ${status}`, event });
+  } catch (error) {
+    console.error('Moderate Event Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update event status' });
+  }
+});
+
+// Moderate Event Delete
+router.delete('/moderate/event/:id', async (req, res) => {
+  try {
+    const event = await Event.findByIdAndDelete(req.params.id);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+    return res.status(200).json({ success: true, message: 'Event deleted successfully' });
+  } catch (error) {
+    console.error('Delete Event Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete event' });
+  }
+});
+
+// Moderate Post Status
+router.put('/moderate/post/:id/status', async (req, res) => {
+  try {
+    const { status, remark } = req.body;
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+
+    post.moderationStatus = status;
+    if (remark) post.moderationRemark = remark;
+    await post.save();
+
+    return res.status(200).json({ success: true, message: `Post moderation status set to ${status}`, post });
+  } catch (error) {
+    console.error('Moderate Post Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update post status' });
+  }
+});
+
+// Moderate Post Delete
+router.delete('/moderate/post/:id', async (req, res) => {
+  try {
+    const post = await Post.findByIdAndDelete(req.params.id);
+    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+    return res.status(200).json({ success: true, message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Delete Post Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete post' });
+  }
+});
+
+// Admin Warn User (Notification + Email)
+router.post('/users/:id/warn', async (req, res) => {
+  try {
+    const { warningSubject, warningMessage } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.clerkId) {
+      await createNotificationHelper({
+        recipientClerkId: user.clerkId,
+        senderClerkId: 'admin',
+        type: 'system',
+        title: `Official Warning: ${warningSubject || 'Notice from Administration'}`,
+        message: warningMessage || 'You have received an administrative warning regarding platform policy.',
+        link: '/dashboard/settings'
+      });
+    }
+
+    if (process.env.RESEND_API_KEY && user.email) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'CampusBridge <onboarding@resend.dev>',
+          to: user.email,
+          subject: `[CampusBridge Admin Warning] ${warningSubject || 'Important Notice'}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #111;">
+              <h2 style="color: #e11d48;">CampusBridge Official Notice</h2>
+              <p>Dear ${user.firstName || 'Member'},</p>
+              <p>This is an official administrative warning regarding your account on CampusBridge.</p>
+              <div style="background: #f8fafc; border-left: 4px solid #e11d48; padding: 12px 16px; margin: 16px 0;">
+                <p style="margin: 0; font-weight: bold;">${warningSubject || 'Warning Notice'}</p>
+                <p style="margin: 8px 0 0 0;">${warningMessage}</p>
+              </div>
+              <p>Please ensure adherence to platform community guidelines to avoid further account restrictions.</p>
+              <br/>
+              <p>Best regards,<br/><strong>CampusBridge Administration</strong></p>
+            </div>
+          `
+        });
+      } catch (emailErr) {
+        console.error('Failed to send warning email:', emailErr);
+      }
+    }
+
+    return res.status(200).json({ success: true, message: `Warning sent to ${user.firstName || 'user'}` });
+  } catch (error) {
+    console.error('Admin Warn User Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to send warning' });
   }
 });
 
@@ -1076,6 +1316,14 @@ router.put('/moderate/:type/:id/status', async (req, res) => {
       }
     }
 
+    const io = req.app.get('io') || req.io;
+    if (io && type === 'post') {
+      if (status === 'paused') {
+        io.emit('post_deleted', { postId: id.toString() });
+      }
+      io.emit('post_status_updated', { postId: id.toString(), status });
+    }
+
     return res.status(200).json({ success: true, message: `${type} status updated`, item });
   } catch (error) {
     console.error(`Moderation Status Error:`, error);
@@ -1097,6 +1345,11 @@ router.delete('/moderate/:type/:id', async (req, res) => {
     const item = await Model.findByIdAndDelete(id);
     if (!item) {
       return res.status(404).json({ success: false, message: 'Item not found' });
+    }
+
+    const io = req.app.get('io') || req.io;
+    if (io && type === 'post') {
+      io.emit('post_deleted', { postId: id.toString() });
     }
 
     if (remark) {

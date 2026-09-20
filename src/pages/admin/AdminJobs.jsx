@@ -4,6 +4,7 @@ import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase,
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import API_BASE from '../../utils/api'
+import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 
 const AdminJobs = () => {
   const [jobs, setJobs] = useState([])
@@ -185,8 +186,9 @@ const AdminJobs = () => {
   }
 
   const filteredJobs = jobs.filter(j => {
-    const matchesSearch = j.title.toLowerCase().includes(search.toLowerCase()) || j.company.toLowerCase().includes(search.toLowerCase())
-    const matchesStatus = statusFilter === 'All' || j.status === statusFilter
+    const matchesSearch = j.title?.toLowerCase().includes(search.toLowerCase()) || j.company?.toLowerCase().includes(search.toLowerCase())
+    const currentStatus = j.moderationStatus === 'paused' ? 'Paused' : 'Active'
+    const matchesStatus = statusFilter === 'All' || currentStatus === statusFilter
     return matchesSearch && matchesStatus
   })
 
@@ -236,9 +238,8 @@ const AdminJobs = () => {
           className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[140px] w-full md:w-auto"
         >
           <option value="All">All Status</option>
-          <option value="Approved">Approved</option>
-          <option value="Pending">Pending</option>
-          <option value="Rejected">Rejected</option>
+          <option value="Active">Active</option>
+          <option value="Paused">Paused</option>
         </select>
       </div>
 
@@ -262,27 +263,33 @@ const AdminJobs = () => {
               <tbody className="divide-y divide-border/40 text-sm">
                 {filteredJobs.length > 0 ? (
                   filteredJobs.map((job) => (
-                    <tr key={job.id} className="hover:bg-muted/10 transition-colors">
+                    <tr key={job.id || job._id} className="hover:bg-muted/10 transition-colors">
                       <td className="px-6 py-4 font-bold text-foreground">
                         <div>
                           <span className="block text-foreground font-bold">{job.title}</span>
                           <span className="text-[11px] text-muted-foreground font-normal">{job.type} • {job.location}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-muted-foreground font-medium">{job.company}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2.5">
+                          <img 
+                            src={getCompanyLogo(job.company, job.companyLogo)} 
+                            alt={job.company} 
+                            onError={(e) => handleImageError(e, job.company)}
+                            className="w-7 h-7 rounded-lg object-contain bg-muted/60 p-1 border border-border/40 shrink-0"
+                          />
+                          <span className="text-foreground font-medium text-sm truncate max-w-[160px]">{job.company}</span>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-muted-foreground text-xs">{job.posted}</td>
                       <td className="px-6 py-4 text-foreground font-semibold">{job.applications}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                           job.moderationStatus === 'paused'
                             ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                            : job.status === 'Approved' 
-                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
-                            : job.status === 'Pending' 
-                            ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
-                            : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                            : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                         }`}>
-                          {job.moderationStatus === 'paused' ? 'Paused' : job.status}
+                          {job.moderationStatus === 'paused' ? 'Paused' : 'Active'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right space-x-1">
@@ -298,27 +305,9 @@ const AdminJobs = () => {
                           <button 
                             onClick={() => handleStatusChange(job.id || job._id, 'approved')}
                             className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
-                            title="Approve Job"
+                            title="Resume Job"
                           >
                             <CheckCircle2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        {job.status !== 'Approved' && job.moderationStatus !== 'paused' && (
-                          <button 
-                            onClick={() => handleStatusChange(job.id || job._id, 'Approved')}
-                            className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
-                            title="Approve Post"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        {job.status === 'Approved' && job.moderationStatus !== 'paused' && (
-                          <button 
-                            onClick={() => handleStatusChange(job.id || job._id, 'Pending')}
-                            className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
-                            title="Set Pending"
-                          >
-                            <AlertCircle className="w-4 h-4" />
                           </button>
                         )}
                         <button 

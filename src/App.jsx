@@ -190,8 +190,9 @@ function AnimatedRoutes() {
           <Route path="/admin" element={<PageTransition><AdminLayout /></PageTransition>}>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUserManagement />} />
+            <Route path="users/:username" element={<ProfileDispatcher />} />
             <Route path="verification" element={<AdminVerification />} />
-            <Route path="mentorship" element={<AdminMentorship />} />
+            <Route path="mentorship" element={<Navigate to="/admin/verification" replace />} />
             <Route path="jobs" element={<AdminJobs />} />
             <Route path="companies" element={<AdminCompanies />} />
             <Route path="events" element={<AdminEvents />} />

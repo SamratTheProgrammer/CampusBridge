@@ -1,11 +1,13 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, HelpingHand, Star, Loader2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Trash2, Star, Loader2, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import API_BASE from '../../utils/api'
 
 const AdminMentorship = () => {
+  const navigate = useNavigate()
   const [mentors, setMentors] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -79,26 +81,57 @@ const AdminMentorship = () => {
           {mentors.map((mentor) => (
             <div key={mentor.id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
               <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-primary/10 rounded-xl text-primary">
-                    <HelpingHand className="w-6 h-6" />
-                  </div>
+                <div className="flex justify-between items-start mb-3">
+                  {mentor.imageUrl ? (
+                    <img 
+                      src={mentor.imageUrl} 
+                      alt={mentor.name} 
+                      onClick={() => navigate(`/admin/users/${mentor.username || mentor.clerkId || mentor.id}`)}
+                      className="w-13 h-13 rounded-2xl object-cover border border-border/50 cursor-pointer hover:ring-2 hover:ring-primary/40 hover:opacity-90 transition-all shadow-sm" 
+                      title="View Profile"
+                    />
+                  ) : (
+                    <div 
+                      onClick={() => navigate(`/admin/users/${mentor.username || mentor.clerkId || mentor.id}`)}
+                      className="w-13 h-13 rounded-2xl bg-primary/10 text-primary font-extrabold flex items-center justify-center text-lg cursor-pointer hover:bg-primary/20 transition-all border border-primary/20 shadow-sm"
+                      title="View Profile"
+                    >
+                      {mentor.name?.charAt(0)?.toUpperCase() || 'M'}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
-                    <button onClick={() => confirmDelete(mentor.id, mentor.name)} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors">
+                    <button 
+                      onClick={() => confirmDelete(mentor.id, mentor.name)} 
+                      className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                      title="Remove Mentor"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <div className="flex items-center gap-1 text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                      <Star className="w-3.5 h-3.5 fill-current" /> {mentor.rating}
+                    <div 
+                      className="flex items-center gap-1 text-xs font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20"
+                      title={mentor.totalRatings > 0 ? `${mentor.totalRatings} review(s)` : 'No ratings yet'}
+                    >
+                      <Star className="w-3.5 h-3.5 fill-current" /> 
+                      {mentor.rating > 0 ? mentor.rating.toFixed(1) : 'New'}
+                      {mentor.totalRatings > 0 && (
+                        <span className="text-[10px] text-amber-500/80 font-normal">({mentor.totalRatings})</span>
+                      )}
                     </div>
                   </div>
                 </div>
-                <h3 className="font-extrabold text-foreground text-lg">{mentor.name}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{mentor.role} at {mentor.company}</p>
+                <h3 
+                  onClick={() => navigate(`/admin/users/${mentor.username || mentor.clerkId || mentor.id}`)}
+                  className="font-extrabold text-foreground text-lg cursor-pointer hover:text-primary transition-colors mt-2 truncate"
+                  title="View Profile"
+                >
+                  {mentor.name}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{mentor.role} at {mentor.company}</p>
                 <p className="text-sm font-semibold text-foreground mt-4">Mentees: <span className="text-primary">{mentor.activeMentees} active</span></p>
               </div>
               <button 
                 onClick={() => confirmDelete(mentor.id, mentor.name)}
-                className="mt-6 w-full py-2 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl transition-all shadow-sm shadow-rose-500/10"
+                className="mt-6 w-full py-2 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl transition-all shadow-sm shadow-rose-500/10 cursor-pointer"
               >
                 Remove Mentor
               </button>

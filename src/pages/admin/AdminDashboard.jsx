@@ -22,6 +22,7 @@ const AdminDashboard = () => {
     recentActivity: []
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [growthTimeframe, setGrowthTimeframe] = useState('This Month')
 
   useEffect(() => {
     const fetchAdminStats = async () => {
@@ -106,28 +107,38 @@ const AdminDashboard = () => {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="font-bold text-foreground text-lg">User Growth</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5"><span className="text-emerald-500 font-semibold">+16.5%</span> from last month</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    <span className={`${(data.userGrowth?.isGrowthPositive ?? true) ? 'text-emerald-500' : 'text-rose-500'} font-semibold`}>
+                      {data.userGrowth?.growthPercentage || '+0.0%'}
+                    </span> from last month
+                  </p>
                 </div>
-                <select className="bg-muted/50 border border-border/50 text-xs font-semibold px-3 py-1.5 rounded-lg text-foreground focus:outline-none cursor-pointer">
-                  <option>This Month</option>
-                  <option>Last 6 Months</option>
-                  <option>This Year</option>
+                <select 
+                  value={growthTimeframe}
+                  onChange={(e) => setGrowthTimeframe(e.target.value)}
+                  className="bg-muted/50 border border-border/50 text-xs font-semibold px-3 py-1.5 rounded-lg text-foreground focus:outline-none cursor-pointer"
+                >
+                  <option value="This Month">This Month</option>
+                  <option value="Last 6 Months">Last 6 Months</option>
+                  <option value="This Year">This Year</option>
                 </select>
               </div>
 
               {/* Recharts Area Chart */}
               <div className="h-64 mt-6">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={[
-                    { name: 'May 1', users: 120 },
-                    { name: 'May 8', users: 210 },
-                    { name: 'May 15', users: 180 },
-                    { name: 'May 22', users: 300 },
-                    { name: 'May 31', users: 400 },
-                  ]} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                  <AreaChart 
+                    data={data.userGrowth?.[growthTimeframe] || [
+                      { name: 'Week 1', users: data.stats?.totalUsers || 0 },
+                      { name: 'Week 2', users: data.stats?.totalUsers || 0 },
+                      { name: 'Week 3', users: data.stats?.totalUsers || 0 },
+                      { name: 'Week 4', users: data.stats?.totalUsers || 0 },
+                    ]} 
+                    margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
+                  >
                     <defs>
                       <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.25}/>
                         <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                       </linearGradient>
                     </defs>

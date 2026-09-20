@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
     }
 
     let events = await Event.find(filter)
-      .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company')
+      .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company username')
       .sort({ createdAt: -1 });
 
     // Seed sample events if none exist in database
@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
         ];
         await Event.insertMany(SAMPLE_EVENTS);
         events = await Event.find(filter)
-          .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company')
+          .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company username')
           .sort({ createdAt: -1 });
       } catch (seedErr) {
         console.error('Error seeding initial events:', seedErr);

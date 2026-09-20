@@ -15,7 +15,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import hpp from 'hpp';
 import rateLimit from 'express-rate-limit';
-import notificationRoutes, { createNotificationHelper } from './routes/notificationRoutes.js';
+import notificationRoutes, { createNotificationHelper, setNotificationIo } from './routes/notificationRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
@@ -56,6 +56,8 @@ const io = new Server(server, {
     credentials: true
   }
 });
+app.set('io', io);
+setNotificationIo(io);
 
 // Map of clerkId -> Set of active socket.ids to support multiple devices/tabs per user
 const onlineUsers = new Map();

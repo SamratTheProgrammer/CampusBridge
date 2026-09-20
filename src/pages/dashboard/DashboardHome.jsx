@@ -38,6 +38,7 @@ import defaultPP from '../../assets/default_pp.png'
 import ShareModal from '../../components/modals/ShareModal'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
+import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 
 const indianCities = [
   "Agra", "Ahmedabad", "Ajmer", "Aligarh", "Allahabad", "Amritsar", "Aurangabad",
@@ -136,6 +137,9 @@ const DashboardHome = () => {
   const [showAllJobs, setShowAllJobs] = useState(false)
 
   const fileInputRef = useRef(null)
+
+  // Real-time synchronization of posts, comments, likes, edits, and deletions
+  useRealtimePosts({ setPosts })
 
   const fetchPosts = async () => {
     try {
@@ -396,6 +400,7 @@ const DashboardHome = () => {
       })
 
       if (res.ok) {
+        const createdPost = await res.json()
         toast.success('Post created!')
         setNewPostContent('')
         setNewPostMedia([])
@@ -407,7 +412,13 @@ const DashboardHome = () => {
           source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: '' 
         })
         setMediaType('image')
-        fetchPosts() // refresh feed
+        if (createdPost && (createdPost._id || createdPost.id)) {
+          setPosts(prev => {
+            const id = createdPost._id || createdPost.id
+            if (prev.some(p => (p._id || p.id) === id)) return prev
+            return [createdPost, ...prev]
+          })
+        }
       } else {
         toast.error('Failed to create post')
       }
@@ -511,8 +522,11 @@ const DashboardHome = () => {
         body: JSON.stringify({ authorClerkId: user.id, content: commentText })
       })
       if (res.ok) {
+        const updatedComments = await res.json()
         setCommentText('')
-        fetchPosts() // refresh to get enriched comments
+        if (Array.isArray(updatedComments)) {
+          setPosts(prev => prev.map(p => (p._id || p.id) === postId ? { ...p, comments: updatedComments } : p))
+        }
       } else {
         toast.error('Failed to post comment')
       }

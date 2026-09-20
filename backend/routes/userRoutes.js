@@ -206,6 +206,13 @@ router.get('/:clerkId', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Auto-increment profileViews if a viewer other than the user themselves viewed it
+    const { viewerId } = req.query;
+    if (viewerId && viewerId !== user.clerkId && viewerId !== user._id.toString()) {
+      user.profileViews = (user.profileViews || 0) + 1;
+      await user.save();
+    }
+
     // Auto-sync coverPhoto from Clerk if different or missing in DB
     if (user.clerkId) {
       try {
@@ -226,6 +233,27 @@ router.get('/:clerkId', async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Record profile view explicitly
+router.post('/:clerkId/view', async (req, res) => {
+  try {
+    const { viewerId } = req.body;
+    const targetUser = await findUserByIdentifier(req.params.clerkId);
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!viewerId || (viewerId !== targetUser.clerkId && viewerId !== targetUser._id.toString())) {
+      targetUser.profileViews = (targetUser.profileViews || 0) + 1;
+      await targetUser.save();
+    }
+
+    res.status(200).json({ success: true, profileViews: targetUser.profileViews });
+  } catch (error) {
+    console.error('Error recording profile view:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

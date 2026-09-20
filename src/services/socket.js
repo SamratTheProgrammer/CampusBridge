@@ -8,14 +8,9 @@ const getSocketUrl = () => {
     return import.meta.env.VITE_BACKEND_URL;
   }
   if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    const hostname = window.location.hostname;
-    if (window.location.port && window.location.port !== '5000' && window.location.port !== '80' && window.location.port !== '443') {
-      return `${protocol}//${hostname}:5000`;
-    }
     return window.location.origin;
   }
-  return 'http://localhost:5000';
+  return 'http://localhost:5001';
 };
 
 export const socket = io(getSocketUrl(), {

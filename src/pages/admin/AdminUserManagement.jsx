@@ -1,5 +1,6 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   Search, 
   Filter, 
@@ -19,6 +20,7 @@ import ConfirmModal from '../../components/modals/ConfirmModal'
 import API_BASE from '../../utils/api'
 
 const AdminUserManagement = () => {
+  const navigate = useNavigate()
   const [students, setStudents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -32,6 +34,8 @@ const AdminUserManagement = () => {
           const formatted = data.users.map(u => ({
             id: u._id,
             clerkId: u.clerkId,
+            username: u.username || u.clerkId || u._id,
+            imageUrl: u.imageUrl || u.avatar || '',
             name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
             email: u.email,
             dept: u.headline || 'General',
@@ -284,8 +288,34 @@ const AdminUserManagement = () => {
               <tbody className="divide-y divide-border/40 text-sm">
                 {filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-muted/10 transition-colors">
-                      <td className="px-6 py-4 font-bold text-foreground">{student.name}</td>
+                    <tr 
+                      key={student.id} 
+                      onClick={() => navigate(`/admin/users/${student.username || student.clerkId || student.id}`)}
+                      className="hover:bg-muted/30 transition-colors cursor-pointer group"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {student.imageUrl ? (
+                            <img 
+                              src={student.imageUrl} 
+                              alt={student.name} 
+                              className="w-9 h-9 rounded-full object-cover border border-border/50 shrink-0" 
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0 border border-primary/20">
+                              {student.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-bold text-foreground group-hover:text-primary transition-colors">
+                              {student.name}
+                            </div>
+                            {student.username && (
+                              <div className="text-[11px] text-muted-foreground">@{student.username}</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-muted-foreground text-xs">{student.email}</td>
                       <td className="px-6 py-4 text-foreground text-xs">{student.dept}</td>
                       <td className="px-6 py-4 text-muted-foreground font-semibold text-xs">{student.year}</td>
@@ -298,10 +328,10 @@ const AdminUserManagement = () => {
                           {student.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right space-x-1">
+                      <td className="px-6 py-4 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                         {student.isBlocked ? (
                           <button 
-                            onClick={() => handleUnblockUser(student)}
+                            onClick={(e) => { e.stopPropagation(); handleUnblockUser(student); }}
                             className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Unblock User Account"
                           >
@@ -309,7 +339,7 @@ const AdminUserManagement = () => {
                           </button>
                         ) : (
                           <button 
-                            onClick={() => openBlockModal(student)}
+                            onClick={(e) => { e.stopPropagation(); openBlockModal(student); }}
                             className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Block User Account"
                           >
@@ -317,7 +347,7 @@ const AdminUserManagement = () => {
                           </button>
                         )}
                         <button 
-                          onClick={() => confirmDelete(student.id, student.name)}
+                          onClick={(e) => { e.stopPropagation(); confirmDelete(student.id, student.name); }}
                           className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                           title="Delete User (MongoDB & Clerk)"
                         >
