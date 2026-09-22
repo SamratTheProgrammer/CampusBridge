@@ -36,19 +36,38 @@ const ALLOWED_IMAGE_MIMES = [
   'image/gif'
 ];
 
-const ALLOWED_GENERAL_MIMES = [
-  ...ALLOWED_IMAGE_MIMES,
-  ...ALLOWED_RESUME_MIMES,
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/plain',
+const ALLOWED_AUDIO_MIMES = [
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/wave',
+  'audio/x-wav',
+  'audio/ogg',
+  'audio/webm',
+  'audio/m4a',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/mp4'
+];
+
+const ALLOWED_VIDEO_MIMES = [
   'video/mp4',
   'video/webm',
   'video/quicktime',
-  'audio/mpeg',
-  'audio/wav',
-  'audio/ogg',
-  'audio/webm'
+  'video/ogg',
+  'video/x-matroska',
+  'video/avi',
+  'video/mov'
+];
+
+const ALLOWED_GENERAL_MIMES = [
+  ...ALLOWED_IMAGE_MIMES,
+  ...ALLOWED_RESUME_MIMES,
+  ...ALLOWED_AUDIO_MIMES,
+  ...ALLOWED_VIDEO_MIMES,
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain'
 ];
 
 const createMulter = (allowedMimes) => {
@@ -56,7 +75,9 @@ const createMulter = (allowedMimes) => {
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_FILE_SIZE, files: 1 },
     fileFilter: (req, file, cb) => {
-      if (!allowedMimes.includes(file.mimetype.toLowerCase())) {
+      const rawMime = (file.mimetype || '').toLowerCase();
+      const baseMime = rawMime.split(';')[0].trim();
+      if (!allowedMimes.includes(rawMime) && !allowedMimes.includes(baseMime)) {
         return cb(new Error(`Invalid file type (${file.mimetype}). Permitted types: ${allowedMimes.join(', ')}`));
       }
       cb(null, true);
@@ -65,7 +86,7 @@ const createMulter = (allowedMimes) => {
 };
 
 const uploadResume = createMulter(ALLOWED_RESUME_MIMES);
-const uploadImage = createMulter(ALLOWED_IMAGE_MIMES);
+const uploadImage = createMulter(ALLOWED_GENERAL_MIMES); // Supports all post media (images, videos, audio)
 const uploadGeneral = createMulter(ALLOWED_GENERAL_MIMES);
 
 const sanitizeExtension = (filename) => {

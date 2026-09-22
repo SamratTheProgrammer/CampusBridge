@@ -9,7 +9,8 @@ const optimizeUrl = (url) => {
 };
 
 const FeedMediaGrid = ({ mediaFiles, imageUrl, mediaType, onImageClick, onContainerClick }) => {
-  const files = mediaFiles?.length > 0 ? mediaFiles : (imageUrl ? [{ url: imageUrl, mediaType: mediaType }] : []);
+  const rawFiles = mediaFiles?.length > 0 ? mediaFiles : (imageUrl ? [{ url: imageUrl, mediaType: mediaType }] : []);
+  const files = rawFiles.filter(f => f && f.mediaType !== 'audio' && !f.url?.match(/\.(mp3|wav|ogg|m4a|aac)$/i));
   if (files.length === 0) return null;
 
   // Render a single media item

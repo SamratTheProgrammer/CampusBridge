@@ -159,7 +159,7 @@ const AnnouncementModal = ({ role = 'student' }) => {
               {hasMultiple && (
                 <button
                   onClick={handleDismissAll}
-                  className="hidden sm:inline-flex px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-full border border-border/60 transition-all shadow-xs cursor-pointer"
+                  className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-full border border-border/60 transition-all shadow-xs cursor-pointer whitespace-nowrap"
                   title="Skip all remaining announcements"
                 >
                   Skip all
@@ -266,15 +266,6 @@ const AnnouncementModal = ({ role = 'student' }) => {
 
             {/* Primary Action Button */}
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              {hasMultiple && (
-                <button
-                  onClick={handleDismissAll}
-                  className="sm:hidden flex-1 px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-xl text-xs transition-all"
-                >
-                  Skip all
-                </button>
-              )}
-
               <button
                 onClick={handleNext}
                 className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl text-sm transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer"

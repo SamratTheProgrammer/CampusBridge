@@ -1,7 +1,7 @@
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import React, { useState, useEffect, useCallback } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy } from 'lucide-react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -12,9 +12,13 @@ import PostComments from '../../components/PostComments'
 import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import ModalPortal from '../../components/modals/ModalPortal'
+import ShareModal from '../../components/modals/ShareModal'
 import defaultPP from '../../assets/default_pp.png'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
+import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
+import FormattedPostText from '../../components/common/FormattedPostText'
+import { downloadMediaFile } from '../../utils/downloadHelper'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
 import ReviewListModal from '../../components/modals/ReviewListModal'
@@ -40,6 +44,13 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   // Post states
   const [posts, setPosts] = useState([])
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+  const [activeDropdownId, setActiveDropdownId] = useState(null)
+  const [editingPostId, setEditingPostId] = useState(null)
+  const [editContent, setEditContent] = useState('')
+  const [postToDelete, setPostToDelete] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [shareConfig, setShareConfig] = useState(null)
 
   // Real-time synchronization of posts, comments, likes for this mentor
   useRealtimePosts({ setPosts, userFilterId: mentor?.clerkId })
@@ -194,23 +205,15 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!mentor) return;
-    const profileUrl = `${window.location.origin}/profile/${mentor.username || mentor.clerkId}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${mentor.firstName}'s Profile`,
-          url: profileUrl
-        });
-      } catch (err) {
-        console.log('Error sharing:', err);
-      }
-    } else {
-      navigator.clipboard.writeText(profileUrl);
-      toast.success('Profile link copied to clipboard!');
-    }
-  }
+    setShareConfig({
+      shareUrl: `${window.location.origin}/profile/${mentor.username || mentor.clerkId || identifier}`,
+      shareType: 'profile',
+      itemId: mentor.username || mentor.clerkId || identifier
+    });
+    setIsShareModalOpen(true);
+  };
 
   const handleLike = async (postId) => {
     if (!user) return;
@@ -263,10 +266,16 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   }
 
 
-  const renderLikesText = (likes) => {
-    if (!likes || likes.length === 0) return '0 likes'
+  const renderLikesText = (likes, hideLikes = false) => {
+    if (!likes || likes.length === 0) {
+      if (hideLikes) return 'Liked by others'
+      return '0 likes'
+    }
     const hasLiked = user ? likes.some(like => (like.clerkId || like) === user.id) : false
     const count = likes.length
+    if (hideLikes) {
+      return hasLiked ? 'Liked by you and others' : 'Liked by others'
+    }
     if (count === 1) {
       if (hasLiked) return 'You liked this'
       return `${likes[0].name || 'Someone'} liked this`
@@ -278,6 +287,121 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   const getAvatarFallback = (name) => {
     return defaultPP
   }
+
+  const handleCopyPostLink = (postId) => {
+    const postUrl = `${window.location.origin}/?post=${postId}`;
+    navigator.clipboard.writeText(postUrl);
+    toast.success('Post link copied to clipboard!');
+  };
+
+  const handleDownloadPostMedia = (post) => {
+    if (post.mediaFiles && post.mediaFiles.length > 0) {
+      post.mediaFiles.forEach((m, idx) => {
+        const ext = m.mediaType === 'audio' ? 'mp3' : m.mediaType === 'video' ? 'mp4' : 'jpg';
+        downloadMediaFile(m.url, `${post.author?.name || fullName || 'post'}_media_${idx + 1}.${ext}`);
+      });
+    } else if (post.imageUrl) {
+      downloadMediaFile(post.imageUrl, `${post.author?.name || fullName || 'post'}_media.jpg`);
+    } else if (post.eventDetails?.imageUrl) {
+      downloadMediaFile(post.eventDetails.imageUrl, `${post.author?.name || fullName || 'event'}_poster.jpg`);
+    } else {
+      toast.error('No downloadable media found');
+    }
+  };
+
+  const handleSharePost = (postId) => {
+    setShareConfig({
+      shareUrl: `${window.location.origin}/?post=${postId}`,
+      shareType: 'post',
+      itemId: postId
+    });
+    setIsShareModalOpen(true);
+  };
+
+  const handleSaveEdit = async (postId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorClerkId: user?.id, content: editContent })
+      });
+      if (res.ok) {
+        toast.success('Post updated');
+        setPosts(prev => prev.map(p => p._id === postId ? { ...p, content: editContent } : p));
+        setEditingPostId(null);
+        setEditContent('');
+      } else {
+        toast.error('Failed to update post');
+      }
+    } catch (err) {
+      toast.error('Failed to update post');
+    }
+  };
+
+  const handleToggleComments = async (post) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${post._id}/toggle-comments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to toggle comments');
+      setPosts(prev => prev.map(p => p._id === post._id ? { ...p, commentsDisabled: data.commentsDisabled } : p));
+      toast.success(data.commentsDisabled ? 'Commenting turned off' : 'Commenting turned on');
+    } catch (err) {
+      toast.error(err.message || 'Failed to toggle comments');
+    }
+  };
+
+  const handleToggleLikesVisibility = async (post) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${post._id}/toggle-likes-visibility`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update like count visibility');
+      setPosts(prev => prev.map(p => p._id === post._id ? { ...p, hideLikes: data.hideLikes } : p));
+      toast.success(data.hideLikes ? 'Like count hidden' : 'Like count visible');
+    } catch (err) {
+      toast.error(err.message || 'Failed to update like count visibility');
+    }
+  };
+
+  const confirmDeletePost = async () => {
+    if (!postToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${postToDelete}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorClerkId: user?.id })
+      });
+      if (res.ok) {
+        toast.success('Post deleted');
+        setPosts(prev => prev.filter(p => p._id !== postToDelete));
+      } else {
+        toast.error('Failed to delete post');
+      }
+    } catch (err) {
+      toast.error('Failed to delete post');
+    } finally {
+      setIsDeleting(false);
+      setPostToDelete(null);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (activeDropdownId && !e.target.closest('.post-dropdown-container')) {
+        setActiveDropdownId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeDropdownId]);
 
   const handleConnect = async () => {
     if (!user || !mentor) return;
@@ -525,18 +649,29 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                         
                         <button 
                           onClick={() => {
-                            window.dispatchEvent(new CustomEvent('open-video-call', { 
+                            if (!user) {
+                              toast.error('Please login to make a video call');
+                              navigate('/login');
+                              return;
+                            }
+                            const targetClerkId = mentor?.clerkId || mentor?._id || mentor?.id;
+                            if (!targetClerkId) {
+                              toast.error('Recipient information missing');
+                              return;
+                            }
+                            window.dispatchEvent(new CustomEvent('initiate_call', { 
                               detail: { 
-                                userToCall: {
-                                  id: mentor.clerkId,
-                                  name: `${mentor.firstName} ${mentor.lastName}`,
+                                targetPartner: {
+                                  clerkId: targetClerkId,
+                                  id: targetClerkId,
+                                  name: fullName || `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim() || mentor.name || 'Mentor',
                                   image: mentor.imageUrl || mentor.image 
                                 }, 
                                 type: 'video' 
                               }
-                            }))
+                            }));
                           }}
-                          className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm flex-1 sm:flex-none justify-center"
+                          className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm flex-1 sm:flex-none justify-center cursor-pointer active:scale-95"
                         >
                           <Video className="w-4 h-4" /> Video Call
                         </button>
@@ -1029,17 +1164,133 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                         <p className="text-[10px] text-muted-foreground mt-1">{formatTime(post.createdAt)}</p>
                       </div>
                     </div>
+
+                    {(() => {
+                      const isAuthor = Boolean(user && (
+                        post.authorClerkId === user.id ||
+                        post.author?._id === user.id ||
+                        post.author?.clerkId === user.id ||
+                        mentor?.clerkId === user.id
+                      )) || isAdminView;
+                      const hasMedia = (post.mediaFiles && post.mediaFiles.length > 0) || Boolean(post.imageUrl) || Boolean(post.eventDetails?.imageUrl);
+
+                      return (
+                        <div className="relative post-dropdown-container">
+                          <button 
+                            onClick={() => setActiveDropdownId(activeDropdownId === post._id ? null : post._id)}
+                            className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors"
+                          >
+                            <MoreHorizontal className="w-5 h-5" />
+                          </button>
+
+                          <AnimatePresence>
+                            {activeDropdownId === post._id && (
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="absolute right-0 mt-1 w-52 bg-card border border-border/50 rounded-xl shadow-xl overflow-hidden z-20 py-1"
+                              >
+                                {isAuthor && (
+                                  <>
+                                    <button 
+                                      onClick={() => { setEditingPostId(post._id); setEditContent(post.content); setActiveDropdownId(null); }}
+                                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2 text-foreground"
+                                    >
+                                      <Edit3 className="w-4 h-4" /> Edit
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        setActiveDropdownId(null);
+                                        handleToggleComments(post);
+                                      }}
+                                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2 border-t border-border/50 text-foreground"
+                                    >
+                                      {post.commentsDisabled ? (
+                                        <>
+                                          <MessageCircle className="w-4 h-4 text-primary" /> Turn on commenting
+                                        </>
+                                      ) : (
+                                        <>
+                                          <MessageSquareOff className="w-4 h-4 text-muted-foreground" /> Turn off commenting
+                                        </>
+                                      )}
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        setActiveDropdownId(null);
+                                        handleToggleLikesVisibility(post);
+                                      }}
+                                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2 border-t border-border/50 text-foreground"
+                                    >
+                                      {post.hideLikes ? (
+                                        <>
+                                          <Eye className="w-4 h-4 text-primary" /> Unhide like count
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="w-4 h-4 text-muted-foreground" /> Hide like count
+                                        </>
+                                      )}
+                                    </button>
+                                    <button 
+                                      onClick={() => { setPostToDelete(post._id); setActiveDropdownId(null); }}
+                                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-destructive/10 text-destructive transition-colors flex items-center gap-2 border-t border-border/50"
+                                    >
+                                      <Trash2 className="w-4 h-4" /> Delete
+                                    </button>
+                                  </>
+                                )}
+                                {hasMedia && (
+                                  <button 
+                                    onClick={() => {
+                                      setActiveDropdownId(null);
+                                      handleDownloadPostMedia(post);
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2 text-foreground ${isAuthor ? 'border-t border-border/50' : ''}`}
+                                  >
+                                    <Download className="w-4 h-4 text-primary" /> Download Media
+                                  </button>
+                                )}
+                                <button 
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    handleCopyPostLink(post._id);
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2 border-t border-border/50 text-foreground"
+                                >
+                                  <Copy className="w-4 h-4 text-primary" /> Copy Link
+                                </button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  {post.bgGradient ? (
+                  {editingPostId === post._id ? (
+                    <div className="mb-4">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="w-full bg-background border border-border/50 rounded-xl p-3 text-sm focus:outline-none focus:border-primary resize-none"
+                        rows="3"
+                      />
+                      <div className="flex justify-end gap-2 mt-2">
+                        <button onClick={() => setEditingPostId(null)} className="px-3 py-1.5 text-xs font-medium hover:bg-muted rounded-lg transition-colors">Cancel</button>
+                        <button onClick={() => handleSaveEdit(post._id)} className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg transition-colors">Save</button>
+                      </div>
+                    </div>
+                  ) : post.bgGradient ? (
                     <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
                       <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
-                        {post.content}
+                        <FormattedPostText text={post.content} isGradient={true} />
                       </h2>
                     </div>
                   ) : (
                     <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                      {post.content}
+                      <FormattedPostText text={post.content} />
                     </p>
                   )}
 
@@ -1166,24 +1417,61 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                     </div>
                   )}
 
-                  {((post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
-                    <FeedMediaGrid 
-                      mediaFiles={post.mediaFiles} 
-                      imageUrl={post.imageUrl} 
-                      mediaType={post.mediaType}
-                      onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
-                      onImageClick={(files, idx) => setViewerData({ files, index: idx })}
-                    />
-                  )}
+                  {/* Media Rendering: Visual Media + Audio Media */}
+                  {(() => {
+                    const allMedia = post.mediaFiles && post.mediaFiles.length > 0 
+                      ? post.mediaFiles 
+                      : (post.imageUrl ? [{ url: post.imageUrl, mediaType: post.mediaType || 'image' }] : []);
+
+                    const visualFiles = allMedia.filter(m => m.mediaType !== 'audio' && !m.url?.match(/\.(mp3|wav|ogg|m4a|aac|webm)(\?.*)?$/i));
+                    const audioFiles = allMedia.filter(m => m.mediaType === 'audio' || m.url?.match(/\.(mp3|wav|ogg|m4a|aac|webm)(\?.*)?$/i));
+
+                    return (
+                      <>
+                        {visualFiles.length > 0 && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                          <FeedMediaGrid 
+                            mediaFiles={visualFiles} 
+                            imageUrl={visualFiles[0]?.url} 
+                            mediaType={visualFiles[0]?.mediaType}
+                            onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
+                            onImageClick={(files, idx) => setViewerData({ files, index: idx })}
+                          />
+                        )}
+
+                        {audioFiles.map((audioItem, aIdx) => (
+                          <div key={aIdx} className="pt-2 pb-1">
+                            <AudioPlayerWidget 
+                              src={audioItem.url} 
+                              duration={audioItem.duration}
+                              title={`${fullName || 'Mentor'}'s Audio`} 
+                              userAvatar={avatarUrl}
+                              senderName={fullName || 'Mentor'}
+                            />
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div className="px-4 sm:px-5 py-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
                     <div className="flex items-center gap-2">
                       <span className="bg-rose-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
-                      <span className="font-medium text-foreground/80">{renderLikesText(post.likes)}</span>
+                      <span className="font-medium text-foreground/80">{renderLikesText(post.likes, post.hideLikes)}</span>
                     </div>
-                    <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
+                    <span 
+                      className="cursor-pointer hover:underline flex items-center gap-1.5" 
+                      onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
+                    >
+                      {post.commentsDisabled ? (
+                        <span className="italic text-muted-foreground/80 flex items-center gap-1">
+                          <MessageSquareOff className="w-3.5 h-3.5" /> Comments off
+                        </span>
+                      ) : (
+                        `${commentsArray.length} comments`
+                      )}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
                     <button 
@@ -1192,14 +1480,25 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                         ${hasLiked ? 'text-rose-500 hover:bg-rose-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                     >
                       <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
-                      <span className="hidden sm:inline">{hasLiked ? 'Liked' : 'Like'}</span>
+                      <span>{hasLiked ? 'Liked' : 'Like'}{!post.hideLikes && (post.likes?.length || 0) > 0 ? ` (${post.likes.length})` : ''}</span>
                     </button>
                     <button 
                       onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1 sm:flex-none justify-center ${
+                        post.commentsDisabled 
+                          ? 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/50' 
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      {post.commentsDisabled ? <MessageSquareOff className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
+                      <span className="hidden sm:inline">Comment</span>
+                    </button>
+                    <button 
+                      onClick={() => handleSharePost(post._id)}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 flex-1 sm:flex-none justify-center"
                     >
-                      <MessageSquare className="w-5 h-5" />
-                      <span className="hidden sm:inline">Comment</span>
+                      <Share2 className="w-5 h-5" />
+                      <span className="hidden sm:inline">Share</span>
                     </button>
                   </div>
                 </div>
@@ -1311,6 +1610,52 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
         message={`Are you sure you want to remove ${mentor?.name} from your connections?`}
         confirmText="Remove"
         isDestructive={true}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {postToDelete && (
+          <ModalPortal>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card border border-border/50 rounded-2xl p-6 shadow-xl w-full max-w-sm"
+            >
+              <h3 className="text-xl font-bold text-foreground mb-2">Delete Post?</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Are you sure you want to delete this post? This action cannot be undone.
+              </p>
+              <div className="flex items-center gap-3 justify-end">
+                <button 
+                  onClick={() => setPostToDelete(null)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDeletePost}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+          </ModalPortal>
+        )}
+      </AnimatePresence>
+
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        shareUrl={shareConfig?.shareUrl} 
+        shareType={shareConfig?.shareType} 
+        itemId={shareConfig?.itemId} 
       />
     </div>
   )

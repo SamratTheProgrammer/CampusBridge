@@ -8,6 +8,7 @@ import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
 import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
+import FormattedPostText from '../../components/common/FormattedPostText'
 import { formatTime } from '../../utils/dateFormatter'
 import { formatMentorSubtitle } from '../../utils/textFormatters'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
@@ -34,14 +35,28 @@ import {
   MapPin,
   AlertCircle,
   ArrowRight,
-  RotateCw
+  RotateCw,
+  Link as LinkIcon,
+  Smile,
+  Mic,
+  Download,
+  Copy,
+  Upload,
+  ChevronDown,
+  MessageSquareOff,
+  Eye,
+  EyeOff
 } from 'lucide-react'
+import EmojiPicker from 'emoji-picker-react'
 import API_BASE from '../../utils/api'
 import defaultPP from '../../assets/default_pp.png'
 import ShareModal from '../../components/modals/ShareModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
+import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
+import VoiceRecorderModal from '../../components/modals/VoiceRecorderModal'
+import { downloadMediaFile } from '../../utils/downloadHelper'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 
 const indianCities = [
@@ -77,6 +92,9 @@ const DashboardHome = () => {
   // Post Creation State
   const [newPostContent, setNewPostContent] = useState('')
   const [newPostMedia, setNewPostMedia] = useState([]) // Array of { file, type, previewUrl }
+  const [showMediaUrlInput, setShowMediaUrlInput] = useState(false)
+  const [mediaUrlText, setMediaUrlText] = useState('')
+  const [mediaUrlType, setMediaUrlType] = useState('auto') // 'auto' | 'image' | 'video'
   const [selectedGradient, setSelectedGradient] = useState('')
   const [showGradients, setShowGradients] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
@@ -85,6 +103,13 @@ const DashboardHome = () => {
   // Event Post State
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
   const [registeredEvents, setRegisteredEvents] = useState([])
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false)
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false)
+  const [showMediaDropdown, setShowMediaDropdown] = useState(false)
+  const mediaDropdownRef = useRef(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiPickerRef = useRef(null)
+  const [isDragging, setIsDragging] = useState(false)
   const [newEventDetails, setNewEventDetails] = useState({
     title: '',
     type: 'Study Group',
@@ -99,7 +124,6 @@ const DashboardHome = () => {
   const [isSharedEventPreFilled, setIsSharedEventPreFilled] = useState(false)
 
   // Job Post State
-  const [isJobModalOpen, setIsJobModalOpen] = useState(false)
   const [acceptedJobs, setAcceptedJobs] = useState([])
   const [newJobDetails, setNewJobDetails] = useState({ 
     title: '', 
@@ -129,9 +153,23 @@ const DashboardHome = () => {
   const [activeDropdownId, setActiveDropdownId] = useState(null)
   const [editingPostId, setEditingPostId] = useState(null)
   const [editContent, setEditContent] = useState('')
+  const [showEditEmojiPicker, setShowEditEmojiPicker] = useState(false)
+  const editEmojiRef = useRef(null)
   const [postToDelete, setPostToDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [likesModalPost, setLikesModalPost] = useState(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (editEmojiRef.current && !editEmojiRef.current.contains(e.target)) {
+        setShowEditEmojiPicker(false)
+      }
+    }
+    if (showEditEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showEditEmojiPicker])
   
   // Image states
   const [cropModalData, setCropModalData] = useState(null)
@@ -348,13 +386,21 @@ const DashboardHome = () => {
       return
     }
 
-    const processedFiles = files.map(file => ({
-      file,
-      type: file.type.startsWith('video/') ? 'video' : 'image',
-      previewUrl: URL.createObjectURL(file)
-    }))
+    const newMedia = files.map(file => {
+      let type = 'image';
+      if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type.startsWith('audio/')) type = 'audio';
+      
+      return {
+        file,
+        previewUrl: URL.createObjectURL(file),
+        type,
+        name: file.name
+      };
+    })
 
-    setNewPostMedia(prev => [...prev, ...processedFiles])
+    setNewPostMedia(prev => [...prev, ...newMedia])
+    setSelectedGradient('')
     e.target.value = ''
   }
 
@@ -429,99 +475,221 @@ const DashboardHome = () => {
     }
   }
 
-  const handleCreatePost = async () => {
+  const detectMediaTypeFromUrl = (url) => {
+    if (!url) return 'image'
+    const cleanUrl = url.split('?')[0].toLowerCase()
+    const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.webm', '.aac']
+    if (audioExtensions.some(ext => cleanUrl.endsWith(ext)) || cleanUrl.includes('/audio/')) {
+      return 'audio'
+    }
+    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.m4v', '.mkv']
+    if (videoExtensions.some(ext => cleanUrl.endsWith(ext))) {
+      return 'video'
+    }
+    if (cleanUrl.includes('/video/') || cleanUrl.includes('/videos/') || cleanUrl.includes('video/upload')) {
+      return 'video'
+    }
+    return 'image'
+  }
+
+  const handleDownloadPostMedia = (post) => {
+    if (post.mediaFiles && post.mediaFiles.length > 0) {
+      post.mediaFiles.forEach((m, idx) => {
+        const ext = m.mediaType === 'audio' ? 'mp3' : m.mediaType === 'video' ? 'mp4' : 'jpg';
+        downloadMediaFile(m.url, `${post.author?.name || 'post'}_media_${idx + 1}.${ext}`);
+      });
+    } else if (post.imageUrl) {
+      downloadMediaFile(post.imageUrl, `${post.author?.name || 'post'}_media.jpg`);
+    }
+  }
+
+  const handleAudioReady = (audioItem) => {
+    setNewPostMedia(prev => [...prev, audioItem]);
+    setSelectedGradient('');
+  }
+
+  const handleAddMediaUrl = () => {
+    const trimmed = mediaUrlText.trim()
+    if (!trimmed) return
+    const determinedType = mediaUrlType === 'auto' ? detectMediaTypeFromUrl(trimmed) : mediaUrlType
+    setNewPostMedia(prev => [
+      ...prev,
+      { url: trimmed, previewUrl: trimmed, type: determinedType }
+    ])
+    setMediaUrlText('')
+    setShowMediaUrlInput(false)
+  }
+
+  const handleEmojiClick = (emojiData) => {
+    setNewPostContent(prev => prev + (emojiData.emoji || ''))
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = Array.from(e.dataTransfer?.files || [])
+    if (files.length === 0) return
+
+    if (newPostMedia.length + files.length > 10) {
+      toast.error('You can only attach up to 10 media files.')
+      return
+    }
+
+    const processedFiles = files.map(file => {
+      let type = 'image'
+      if (file.type.startsWith('audio/') || ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.webm'].some(ext => file.name.toLowerCase().endsWith(ext))) {
+        type = 'audio'
+      } else if (file.type.startsWith('video/') || ['.mp4', '.mov', '.webm', '.mkv'].some(ext => file.name.toLowerCase().endsWith(ext))) {
+        type = 'video'
+      }
+      return {
+        file,
+        type,
+        previewUrl: URL.createObjectURL(file),
+        name: file.name
+      }
+    })
+
+    setNewPostMedia(prev => [...prev, ...processedFiles])
+    setSelectedGradient('')
+    toast.success(`Attached ${files.length} file${files.length > 1 ? 's' : ''}`)
+  }
+
+  // Close emoji picker on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleCreatePost = () => {
     if (!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title) {
       toast.error('Post cannot be empty')
       return
     }
 
-    setIsPosting(true)
-    try {
-      let uploadedMediaFiles = []
+    // 1. Snapshot all post payload data immediately
+    const contentToSubmit = newPostContent
+    const mediaToSubmit = [...newPostMedia]
+    const gradientToSubmit = selectedGradient
+    const eventToSubmit = newEventDetails.title ? { ...newEventDetails } : null
+    const jobToSubmit = newJobDetails.title ? { ...newJobDetails } : null
 
-      if (newPostMedia.length > 0) {
-        for (const item of newPostMedia) {
-          const formData = new FormData()
-          formData.append('file', item.file)
-          
-          const uploadRes = await fetch(`${API_BASE}/api/upload/image`, {
-            method: 'POST',
-            body: formData
-          })
-          const uploadData = await uploadRes.json()
-          
-          if (uploadData.success) {
-            uploadedMediaFiles.push({ url: uploadData.url, mediaType: item.type })
-          } else {
-            toast.error('Failed to upload a media file')
-            setIsPosting(false)
-            return
+    // 2. Clear post creation box instantly so user can do other work (Facebook / Instagram style)
+    setNewPostContent('')
+    setNewPostMedia([])
+    setMediaUrlText('')
+    setShowMediaUrlInput(false)
+    setSelectedGradient('')
+    setShowGradients(false)
+    setShowEmojiPicker(false)
+    setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' })
+    setNewJobDetails({ 
+      title: '', company: '', location: '', role: 'Full-time', 
+      source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: '' 
+    })
+    setMediaType('image')
+
+    // 3. Show non-blocking active publishing notification
+    const toastId = toast.loading('Publishing your post...')
+
+    // 4. Asynchronously perform upload and post creation in background
+    ;(async () => {
+      try {
+        let uploadedMediaFiles = []
+
+        if (mediaToSubmit.length > 0) {
+          for (const item of mediaToSubmit) {
+            if (item.file) {
+              const formData = new FormData()
+              formData.append('file', item.file)
+              
+              const uploadRes = await fetch(`${API_BASE}/api/upload/image`, {
+                method: 'POST',
+                body: formData
+              })
+              const uploadData = await uploadRes.json()
+              
+              if (uploadData.success) {
+                uploadedMediaFiles.push({ url: uploadData.url, mediaType: item.type, duration: item.duration || 0 })
+              } else {
+                toast.error('Failed to upload a media file', { id: toastId })
+                return
+              }
+            } else if (item.url) {
+              uploadedMediaFiles.push({ url: item.url, mediaType: item.type || 'image', duration: item.duration || 0 })
+            }
           }
         }
-      }
 
-      let finalLocation = newJobDetails.location
-      if (newJobDetails.locationType === 'india' && newJobDetails.city) {
-        finalLocation = `${newJobDetails.city}, India`
-      } else if (newJobDetails.locationType === 'outside' && newJobDetails.country) {
-        finalLocation = newJobDetails.country
-      }
-
-      const jobPayload = newJobDetails.title ? {
-        title: newJobDetails.title,
-        company: newJobDetails.company,
-        location: finalLocation,
-        role: newJobDetails.role,
-        source: newJobDetails.source,
-        campusBridgeJobId: newJobDetails.campusBridgeJobId,
-        companyLogo: newJobDetails.companyLogo
-      } : undefined
-
-      // Create the post
-      const res = await fetch(`${API_BASE}/api/posts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          authorClerkId: user.id,
-          content: newPostContent,
-          imageUrl: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].url : null,
-          mediaFiles: uploadedMediaFiles,
-          bgGradient: selectedGradient,
-          eventDetails: newEventDetails.title ? newEventDetails : undefined,
-          jobDetails: jobPayload,
-          mediaType: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].mediaType : null
-        })
-      })
-
-      if (res.ok) {
-        const createdPost = await res.json()
-        toast.success('Post created!')
-        setNewPostContent('')
-        setNewPostMedia([])
-        setSelectedGradient('')
-        setShowGradients(false)
-        setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '' })
-        setNewJobDetails({ 
-          title: '', company: '', location: '', role: 'Full-time', 
-          source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: '' 
-        })
-        setMediaType('image')
-        if (createdPost && (createdPost._id || createdPost.id)) {
-          setPosts(prev => {
-            const id = createdPost._id || createdPost.id
-            if (prev.some(p => (p._id || p.id) === id)) return prev
-            return [createdPost, ...prev]
-          })
+        let finalLocation = jobToSubmit?.location
+        if (jobToSubmit?.locationType === 'india' && jobToSubmit?.city) {
+          finalLocation = `${jobToSubmit.city}, India`
+        } else if (jobToSubmit?.locationType === 'outside' && jobToSubmit?.country) {
+          finalLocation = jobToSubmit.country
         }
-      } else {
-        toast.error('Failed to create post')
+
+        const jobPayload = jobToSubmit?.title ? {
+          title: jobToSubmit.title,
+          company: jobToSubmit.company,
+          location: finalLocation,
+          role: jobToSubmit.role,
+          source: jobToSubmit.source,
+          campusBridgeJobId: jobToSubmit.campusBridgeJobId,
+          companyLogo: jobToSubmit.companyLogo
+        } : undefined
+
+        const res = await fetch(`${API_BASE}/api/posts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            authorClerkId: user.id,
+            content: contentToSubmit,
+            imageUrl: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].url : null,
+            mediaFiles: uploadedMediaFiles,
+            bgGradient: gradientToSubmit,
+            eventDetails: eventToSubmit || undefined,
+            jobDetails: jobPayload,
+            mediaType: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].mediaType : null
+          })
+        })
+
+        if (res.ok) {
+          const createdPost = await res.json()
+          toast.success('Post published successfully!', { id: toastId })
+          if (createdPost && (createdPost._id || createdPost.id)) {
+            setPosts(prev => {
+              const id = createdPost._id || createdPost.id
+              if (prev.some(p => (p._id || p.id) === id)) return prev
+              return [createdPost, ...prev]
+            })
+          }
+        } else {
+          toast.error('Failed to publish post', { id: toastId })
+        }
+      } catch (err) {
+        console.error(err)
+        toast.error('Failed to publish post', { id: toastId })
       }
-    } catch (err) {
-      console.error(err)
-      toast.error('An error occurred')
-    } finally {
-      setIsPosting(false)
-    }
+    })()
   }
 
   const handleDeletePost = (postId) => {
@@ -573,6 +741,40 @@ const DashboardHome = () => {
       toast.error('Failed to update post')
     }
   }
+
+  const handleToggleComments = async (post) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${post._id}/toggle-comments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to toggle comments');
+      
+      setPosts(prev => prev.map(p => p._id === post._id ? { ...p, commentsDisabled: data.commentsDisabled } : p));
+      toast.success(data.commentsDisabled ? 'Commenting turned off' : 'Commenting turned on');
+    } catch (err) {
+      toast.error(err.message || 'Failed to toggle comments');
+    }
+  };
+
+  const handleToggleLikesVisibility = async (post) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${post._id}/toggle-likes-visibility`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update like count visibility');
+      
+      setPosts(prev => prev.map(p => p._id === post._id ? { ...p, hideLikes: data.hideLikes } : p));
+      toast.success(data.hideLikes ? 'Like count hidden' : 'Like count visible');
+    } catch (err) {
+      toast.error(err.message || 'Failed to update like count visibility');
+    }
+  };
 
   const handleLike = async (postId) => {
     if (!user) return;
@@ -649,11 +851,18 @@ const DashboardHome = () => {
 
 
 
-  const renderLikesText = (likes) => {
-    if (!likes || likes.length === 0) return '0 likes'
+  const renderLikesText = (likes, hideLikes = false) => {
+    if (!likes || likes.length === 0) {
+      if (hideLikes) return 'Liked by others'
+      return '0 likes'
+    }
     
     const hasLiked = user ? likes.some(like => (like.clerkId || like) === user.id) : false
     const count = likes.length
+    
+    if (hideLikes) {
+      return hasLiked ? 'Liked by you and others' : 'Liked by others'
+    }
     
     if (count === 1) {
       if (hasLiked) return 'You liked this'
@@ -790,8 +999,22 @@ const DashboardHome = () => {
         </div>
         )}
 
-        {/* Create Post */}
-        <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">
+        {/* Create Post with Drag & Drop */}
+        <div 
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm relative transition-all ${
+            isDragging ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''
+          }`}
+        >
+          {isDragging && (
+            <div className="absolute inset-0 bg-primary/10 backdrop-blur-xs border-2 border-dashed border-primary rounded-2xl flex flex-col items-center justify-center z-30 pointer-events-none animate-in fade-in duration-150">
+              <Upload className="w-10 h-10 text-primary animate-bounce mb-2" />
+              <p className="text-sm font-bold text-primary">Drop media here to attach</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Images, videos, or audio files</p>
+            </div>
+          )}
           <div className="flex gap-4 mb-4">
             <img
               src={user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)}
@@ -802,18 +1025,50 @@ const DashboardHome = () => {
                 navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
               }}
             />
-            <div className={`flex-1 rounded-xl overflow-hidden ${selectedGradient || 'bg-background border border-border/50'}`}>
+            <div className={`flex-1 rounded-xl relative ${selectedGradient || 'bg-background border border-border/50'}`}>
               <textarea 
                 value={newPostContent}
                 onChange={e => setNewPostContent(e.target.value)}
                 placeholder="Start a post..."
                 className={`w-full px-4 py-3 text-sm focus:outline-none resize-none min-h-[80px] ${
+                  newPostContent.length > 0 ? 'pr-11' : ''
+                } ${
                   selectedGradient 
                     ? 'bg-transparent text-white placeholder:text-white/70 text-xl md:text-2xl font-bold text-center flex items-center justify-center min-h-[200px]' 
                     : 'text-foreground bg-transparent'
                 }`}
                 style={selectedGradient ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : {}}
               ></textarea>
+
+              {/* Show emoji trigger inside Start a post textarea when user begins typing */}
+              {newPostContent.length > 0 && (
+                <div className="absolute right-2.5 bottom-2.5 z-20" ref={emojiPickerRef}>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                      showEmojiPicker 
+                        ? 'bg-amber-500/20 text-amber-500 ring-1 ring-amber-500/30' 
+                        : selectedGradient 
+                          ? 'text-white/80 hover:text-white hover:bg-white/10' 
+                          : 'text-muted-foreground hover:text-amber-500 hover:bg-muted'
+                    }`}
+                    title="Insert emoji"
+                  >
+                    <Smile className="w-5 h-5" />
+                  </button>
+
+                  {showEmojiPicker && (
+                    <div className="absolute right-0 bottom-full mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95">
+                      <EmojiPicker
+                        onEmojiClick={handleEmojiClick}
+                        theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                        lazyLoadEmojis={true}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           
@@ -834,59 +1089,227 @@ const DashboardHome = () => {
           )}
 
           {newPostMedia.length > 0 && !selectedGradient && (
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {newPostMedia.map((media, index) => (
-                <div key={index} className="relative group">
+            <div className="mt-4 space-y-3">
+              {/* Images and Videos Grid */}
+              {newPostMedia.filter(m => m.type !== 'audio').length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {newPostMedia.filter(m => m.type !== 'audio').map((media, index) => (
+                    <div key={index} className="relative group">
+                      <button 
+                        onClick={() => {
+                          setNewPostMedia(prev => prev.filter(item => item !== media))
+                        }}
+                        className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                      {media.type === 'video' ? (
+                        <video src={media.previewUrl} controls className="w-full h-32 object-cover rounded-lg bg-black" />
+                      ) : (
+                        <img src={media.previewUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Audio Attachments */}
+              {newPostMedia.filter(m => m.type === 'audio').map((audioItem, idx) => (
+                <div key={idx} className="relative group">
                   <button 
                     onClick={() => {
-                      setNewPostMedia(prev => prev.filter((_, i) => i !== index))
+                      setNewPostMedia(prev => prev.filter(item => item !== audioItem))
                     }}
-                    className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100"
+                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white p-1 rounded-full transition-colors z-20"
+                    title="Remove audio"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                  {media.type === 'video' ? (
-                    <video src={media.previewUrl} className="w-full h-32 object-cover rounded-lg" />
-                  ) : (
-                    <img src={media.previewUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
-                  )}
+                  <AudioPlayerWidget 
+                    src={audioItem.previewUrl} 
+                    title={audioItem.name || 'Attached Audio'} 
+                    duration={audioItem.duration}
+                    allowDownload={false}
+                  />
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex gap-1 sm:gap-2">
+          <div className="flex items-center justify-between pt-2 gap-2 flex-nowrap">
+            <div className="flex items-center gap-1 sm:gap-1.5 relative overflow-x-auto scrollbar-none flex-nowrap shrink min-w-0 py-0.5">
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 onChange={handleMediaSelect} 
-                accept="image/*,video/*" 
+                accept="image/*,video/*,audio/*" 
                 multiple
                 className="hidden" 
               />
-              <button onClick={() => { fileInputRef.current?.click(); setSelectedGradient(''); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-blue-500 font-medium text-sm">
-                <ImageIcon className="w-5 h-5" /> <span className="hidden sm:inline">Media</span>
+
+              {/* Merged Media Button (Upload Media or Media URL) */}
+              <div className="relative" ref={mediaDropdownRef}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowMediaDropdown(!showMediaDropdown)} 
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
+                    showMediaDropdown ? 'bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/30' : 'text-blue-500'
+                  }`}
+                  title="Attach media (upload file or paste URL)"
+                >
+                  <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
+                  <span>Media</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showMediaDropdown ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showMediaDropdown && (
+                  <>
+                    {/* Invisible backdrop to close dropdown when clicking outside */}
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowMediaDropdown(false);
+                      }} 
+                    />
+                    <div className="absolute left-0 bottom-full mb-2 w-56 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95">
+                      <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/40 mb-1">
+                        Select Media Option
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMediaDropdown(false);
+                          fileInputRef.current?.click();
+                          setSelectedGradient('');
+                        }}
+                        className="w-full px-2.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted/80 rounded-lg flex items-center gap-2.5 transition-colors cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                          <Upload className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">Upload File</div>
+                          <div className="text-[10px] text-muted-foreground">From this device</div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMediaDropdown(false);
+                          setShowMediaUrlInput(true);
+                        }}
+                        className="w-full px-2.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted/80 rounded-lg flex items-center gap-2.5 transition-colors cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                          <LinkIcon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">Media URL</div>
+                          <div className="text-[10px] text-muted-foreground">Image or video link</div>
+                        </div>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Audio Button */}
+              <button 
+                type="button" 
+                onClick={() => setIsVoiceModalOpen(true)} 
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
+                  newPostMedia.some(m => m.type === 'audio') ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 ring-1 ring-purple-500/30' : 'text-purple-600 dark:text-purple-400 hover:text-purple-700'
+                }`}
+                title="Record voice or upload audio"
+              >
+                <Mic className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
+                <span className="whitespace-nowrap">Audio</span>
               </button>
-              <button onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-sm">
-                <Palette className="w-5 h-5" /> <span className="hidden sm:inline">Background</span>
+
+              <button onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-xs sm:text-sm whitespace-nowrap shrink-0">
+                <Palette className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> <span className="hidden sm:inline">Background</span>
               </button>
-              <button onClick={() => setIsEventModalOpen(true)} className={`flex items-center gap-2 p-2 rounded-lg transition-colors font-medium text-sm ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600' : 'hover:bg-muted text-orange-500'}`}>
-                <CalendarIcon className="w-5 h-5" /> <span className="hidden sm:inline">{newEventDetails.title ? 'Event Attached' : 'Event'}</span>
+              <button onClick={() => setIsEventModalOpen(true)} className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600' : 'hover:bg-muted text-orange-500'}`}>
+                <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> <span className="hidden sm:inline">{newEventDetails.title ? 'Event Attached' : 'Event'}</span>
               </button>
-              <button onClick={() => setIsJobModalOpen(true)} className={`flex items-center gap-2 p-2 rounded-lg transition-colors font-medium text-sm ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}>
-                <Briefcase className="w-5 h-5" /> <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
+              <button onClick={() => setIsJobModalOpen(true)} className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}>
+                <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
               </button>
             </div>
             <button 
               onClick={handleCreatePost}
-              disabled={isPosting || (!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title)}
-              className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+              disabled={!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title}
+              className="bg-primary text-primary-foreground px-4 sm:px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 shrink-0 ml-2 cursor-pointer active:scale-95"
             >
-              {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
               Post
             </button>
           </div>
+
+          {/* Direct Media (Image or Video) URL input bar */}
+          {showMediaUrlInput && (
+            <div className="flex flex-col gap-2 p-3 mt-3 bg-muted/40 rounded-xl border border-purple-500/20 shadow-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="w-4 h-4 text-purple-500 shrink-0" />
+                <input
+                  type="url"
+                  value={mediaUrlText}
+                  onChange={(e) => setMediaUrlText(e.target.value)}
+                  placeholder="Paste image or video URL (https://...)"
+                  className="flex-1 bg-transparent text-xs focus:outline-none text-foreground placeholder:text-muted-foreground"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddMediaUrl();
+                    }
+                  }}
+                />
+
+                {/* Type Selection Pills */}
+                <div className="flex items-center gap-0.5 bg-background/80 p-0.5 rounded-lg border border-border/60 text-[11px] font-medium shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setMediaUrlType('auto')}
+                    className={`px-2 py-0.5 rounded-md transition-all ${mediaUrlType === 'auto' ? 'bg-purple-600 text-white shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Auto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMediaUrlType('image')}
+                    className={`px-2 py-0.5 rounded-md transition-all ${mediaUrlType === 'image' ? 'bg-purple-600 text-white shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMediaUrlType('video')}
+                    className={`px-2 py-0.5 rounded-md transition-all ${mediaUrlType === 'video' ? 'bg-purple-600 text-white shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Video
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddMediaUrl}
+                  disabled={!mediaUrlText.trim()}
+                  className="px-3.5 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 shadow-xs"
+                >
+                  Attach
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+                <span>Supports direct links to images (.jpg, .png, etc.) and videos (.mp4, .webm, etc.)</span>
+                {mediaUrlText.trim() && (
+                  <span className="font-semibold text-purple-600 dark:text-purple-400 capitalize">
+                    Will attach as: {mediaUrlType === 'auto' ? detectMediaTypeFromUrl(mediaUrlText.trim()) : mediaUrlType}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Suggested Connections Widget */}
@@ -987,59 +1410,154 @@ const DashboardHome = () => {
                           <p className="text-[10px] text-muted-foreground">{formatTime(post.createdAt)}</p>
                         </div>
                       </div>
-                      {post.authorClerkId === user?.id && (
-                        <div className="relative">
-                          <button 
-                            onClick={() => setActiveDropdownId(activeDropdownId === post._id ? null : post._id)}
-                            className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors"
-                          >
-                            <MoreHorizontal className="w-5 h-5" />
-                          </button>
-                          {activeDropdownId === post._id && (
-                            <div className="absolute right-0 mt-2 w-36 bg-background border border-border/50 rounded-xl shadow-lg z-10 overflow-hidden">
-                              <button 
-                                onClick={() => {
-                                  setEditingPostId(post._id)
-                                  setEditContent(post.content)
-                                  setActiveDropdownId(null)
-                                }}
-                                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors"
-                              >
-                                <Edit3 className="w-4 h-4" /> Edit
-                              </button>
-                              <button 
-                                onClick={() => handleDeletePost(post._id)}
-                                className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors border-t border-border/50"
-                              >
-                                <Trash2 className="w-4 h-4" /> Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {(() => {
+                        const isAuthor = post.authorClerkId === user?.id;
+                        const hasMedia = (post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl;
+                        if (!isAuthor && !hasMedia) return null;
+
+                        return (
+                          <div className="relative">
+                            <button 
+                              onClick={() => setActiveDropdownId(activeDropdownId === post._id ? null : post._id)}
+                              className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors"
+                            >
+                              <MoreHorizontal className="w-5 h-5" />
+                            </button>
+                            {activeDropdownId === post._id && (
+                              <div className="absolute right-0 mt-2 w-52 bg-background border border-border/50 rounded-xl shadow-lg z-10 overflow-hidden py-1">
+                                {isAuthor && (
+                                  <>
+                                    <button 
+                                      onClick={() => {
+                                        setEditingPostId(post._id)
+                                        setEditContent(post.content)
+                                        setActiveDropdownId(null)
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors"
+                                    >
+                                      <Edit3 className="w-4 h-4" /> Edit
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        setActiveDropdownId(null)
+                                        handleToggleComments(post)
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors border-t border-border/50"
+                                    >
+                                      {post.commentsDisabled ? (
+                                        <>
+                                          <MessageCircle className="w-4 h-4 text-primary" /> Turn on commenting
+                                        </>
+                                      ) : (
+                                        <>
+                                          <MessageSquareOff className="w-4 h-4 text-muted-foreground" /> Turn off commenting
+                                        </>
+                                      )}
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        setActiveDropdownId(null)
+                                        handleToggleLikesVisibility(post)
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors border-t border-border/50"
+                                    >
+                                      {post.hideLikes ? (
+                                        <>
+                                          <Eye className="w-4 h-4 text-primary" /> Unhide like count
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="w-4 h-4 text-muted-foreground" /> Hide like count
+                                        </>
+                                      )}
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeletePost(post._id)}
+                                      className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors border-t border-border/50"
+                                    >
+                                      <Trash2 className="w-4 h-4" /> Delete
+                                    </button>
+                                  </>
+                                )}
+                                {hasMedia && (
+                                  <button 
+                                    onClick={() => {
+                                      setActiveDropdownId(null);
+                                      handleDownloadPostMedia(post);
+                                    }}
+                                    className={`w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors ${isAuthor ? 'border-t border-border/50' : ''}`}
+                                  >
+                                    <Download className="w-4 h-4 text-primary" /> Download Media
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {editingPostId === post._id ? (
-                      <div className="mb-4">
+                      <div className="mb-4 relative">
                         <textarea 
                           value={editContent}
                           onChange={(e) => setEditContent(e.target.value)}
                           className="w-full bg-background border border-primary/50 rounded-xl px-4 py-3 text-sm focus:outline-none resize-none min-h-[100px]"
                         ></textarea>
-                        <div className="flex justify-end gap-2 mt-2">
-                          <button onClick={() => setEditingPostId(null)} className="px-3 py-1.5 text-xs font-medium bg-muted text-foreground rounded-lg hover:bg-muted/80">Cancel</button>
-                          <button onClick={() => handleSaveEdit(post._id)} className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">Save Changes</button>
+                        
+                        <div className="flex items-center justify-between gap-2 mt-2">
+                          <div className="relative" ref={editEmojiRef}>
+                            <button
+                              type="button"
+                              onClick={() => setShowEditEmojiPicker(!showEditEmojiPicker)}
+                              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+                              title="Add emoji"
+                            >
+                              <Smile className="w-4 h-4 text-primary" />
+                              <span className="hidden sm:inline text-xs">Emoji</span>
+                            </button>
+
+                            {showEditEmojiPicker && (
+                              <div className="absolute left-0 bottom-full mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/50 animate-in fade-in zoom-in-95 duration-150">
+                                <EmojiPicker
+                                  onEmojiClick={(emojiData) => {
+                                    setEditContent(prev => prev + emojiData.emoji)
+                                    setShowEditEmojiPicker(false)
+                                  }}
+                                  lazyLoadEmojis={true}
+                                  searchPlaceHolder="Search emoji..."
+                                  width={300}
+                                  height={380}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => { setEditingPostId(null); setShowEditEmojiPicker(false); }} 
+                              className="px-3 py-1.5 text-xs font-medium bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              onClick={() => { handleSaveEdit(post._id); setShowEditEmojiPicker(false); }} 
+                              className="px-3.5 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-xs"
+                            >
+                              Save Changes
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : post.bgGradient ? (
                       <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
                         <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
-                          {post.content}
+                          <FormattedPostText text={post.content} isGradient={true} />
                         </h2>
                       </div>
                     ) : (
                       <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                        {post.content}
+                        <FormattedPostText text={post.content} />
                       </p>
                     )}
 
@@ -1167,15 +1685,41 @@ const DashboardHome = () => {
                     )}
                   </div>
 
-                  {((post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
-                    <FeedMediaGrid 
-                      mediaFiles={post.mediaFiles} 
-                      imageUrl={post.imageUrl} 
-                      mediaType={post.mediaType}
-                      onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
-                      onImageClick={(files, idx) => setViewerData({ files, index: idx })}
-                    />
-                  )}
+                  {/* Media Rendering: Visual Media + Audio Media */}
+                  {(() => {
+                    const allMedia = post.mediaFiles && post.mediaFiles.length > 0 
+                      ? post.mediaFiles 
+                      : (post.imageUrl ? [{ url: post.imageUrl, mediaType: post.mediaType || 'image' }] : []);
+
+                    const visualFiles = allMedia.filter(m => m.mediaType !== 'audio' && !m.url?.match(/\.(mp3|wav|ogg|m4a|aac)$/i));
+                    const audioFiles = allMedia.filter(m => m.mediaType === 'audio' || m.url?.match(/\.(mp3|wav|ogg|m4a|aac)$/i));
+
+                    return (
+                      <>
+                        {visualFiles.length > 0 && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                          <FeedMediaGrid 
+                            mediaFiles={visualFiles} 
+                            imageUrl={visualFiles[0]?.url} 
+                            mediaType={visualFiles[0]?.mediaType}
+                            onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
+                            onImageClick={(files, idx) => setViewerData({ files, index: idx })}
+                          />
+                        )}
+
+                        {audioFiles.map((audioItem, aIdx) => (
+                          <div key={aIdx} className="px-4 sm:px-5 pb-3">
+                            <AudioPlayerWidget 
+                              src={audioItem.url} 
+                              duration={audioItem.duration}
+                              title={`${post.author?.name || 'Author'}'s Audio`} 
+                              userAvatar={post.author?.imageUrl}
+                              senderName={post.author?.name}
+                            />
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()}
 
                   <div className="px-4 sm:px-5 py-3">
                     <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
@@ -1184,22 +1728,38 @@ const DashboardHome = () => {
                         onClick={() => post.likes?.length > 0 && setLikesModalPost(post)}
                       >
                         <span className="bg-rose-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
-                        <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes)}</span>
+                        <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes, post.hideLikes)}</span>
                       </div>
-                      <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
+                      <span 
+                        className="cursor-pointer hover:underline flex items-center gap-1.5" 
+                        onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
+                      >
+                        {post.commentsDisabled ? (
+                          <span className="italic text-muted-foreground/80 flex items-center gap-1">
+                            <MessageSquareOff className="w-3.5 h-3.5" /> Comments off
+                          </span>
+                        ) : (
+                          `${commentsArray.length} comments`
+                        )}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
                       <button 
                         onClick={() => handleLike(post._id)}
                         className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors font-medium text-sm ${hasLiked ? 'text-red-500' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                       >
-                        <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} /> Like
+                        <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
+                        <span>Like{!post.hideLikes && (post.likes?.length || 0) > 0 ? ` (${post.likes.length})` : ''}</span>
                       </button>
                       <button 
                         onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
-                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted py-2 px-3 rounded-lg transition-colors font-medium text-sm"
+                        className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors font-medium text-sm ${
+                          post.commentsDisabled 
+                            ? 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/50' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
                       >
-                        <MessageCircle className="w-5 h-5" /> Comment
+                        {post.commentsDisabled ? <MessageSquareOff className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />} Comment
                       </button>
                       <button onClick={() => handleShare(post._id)} className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted py-2 px-3 rounded-lg transition-colors font-medium text-sm">
                         <Share2 className="w-5 h-5" /> Share
@@ -1238,8 +1798,7 @@ const DashboardHome = () => {
       </div>
 
       {/* Right Column (Widgets) */}
-      <div className="right-widget-col hidden lg:block md:col-span-3 space-y-6 md:h-full md:overflow-y-auto scrollbar-none pb-8 shrink-0">
-        {/* Recommended Mentors */}
+      <div className="right-widget-col hidden lg:block md:col-span-3 space-y-6 md:h-full md:overflow-y-auto scrollbar-none pb-8 shrink-0 overscroll-contain">
         {/* Recommended Mentors */}
         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -1250,16 +1809,7 @@ const DashboardHome = () => {
               </span>
             )}
           </div>
-          <div 
-            className={`flex flex-col gap-4 overscroll-contain custom-scrollbar ${
-              showAllMentors ? 'max-h-[340px] overflow-y-auto pr-1.5' : ''
-            }`}
-            onWheel={(e) => {
-              if (showAllMentors) {
-                e.stopPropagation();
-              }
-            }}
-          >
+          <div className={`flex flex-col gap-4 overflow-y-auto scrollbar-none pr-1 transition-all ${showAllMentors ? 'max-h-[360px]' : ''}`}>
             {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 0 ? (
               (showAllMentors
                 ? recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
@@ -1322,16 +1872,7 @@ const DashboardHome = () => {
               </span>
             )}
           </div>
-          <div 
-            className={`flex flex-col gap-3.5 overscroll-contain custom-scrollbar ${
-              showAllJobs ? 'max-h-[340px] overflow-y-auto pr-1.5' : ''
-            }`}
-            onWheel={(e) => {
-              if (showAllJobs) {
-                e.stopPropagation();
-              }
-            }}
-          >
+          <div className={`flex flex-col gap-3.5 overflow-y-auto scrollbar-none pr-1 transition-all ${showAllJobs ? 'max-h-[340px]' : ''}`}>
             {recentJobs.length > 0 ? (
               (showAllJobs ? recentJobs : recentJobs.slice(0, 2)).map(job => {
                 const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
@@ -2105,6 +2646,13 @@ const DashboardHome = () => {
         shareUrl={shareConfig?.shareUrl} 
         shareType={shareConfig?.shareType} 
         itemId={shareConfig?.itemId} 
+      />
+
+      {/* Voice Recorder Modal */}
+      <VoiceRecorderModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        onAudioReady={handleAudioReady}
       />
     </div>
   )

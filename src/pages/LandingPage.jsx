@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
 import HeroSection from '../components/sections/HeroSection'
 import TrustedBy from '../components/sections/TrustedBy'
 import Statistics from '../components/sections/Statistics'
@@ -17,10 +18,67 @@ import PlatformPreview from '../components/sections/PlatformPreview'
 import FAQ from '../components/sections/FAQ'
 import Newsletter from '../components/sections/Newsletter'
 import ContactSection from '../components/sections/ContactSection'
-import FinalCTA from '../components/sections/FinalCTA'
+import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
+import API_BASE from '../utils/api'
 
 const LandingPage = () => {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { isLoaded, isSignedIn, user } = useUser()
+
+  useEffect(() => {
+    if (!isLoaded) return
+
+    const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken')
+    if (adminToken) {
+      navigate('/admin', { replace: true })
+      return
+    }
+
+    if (isSignedIn && user) {
+      const cachedRole = localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || user.unsafeMetadata?.role
+      if (cachedRole) {
+        if (cachedRole === 'mentor') {
+          navigate('/mentor-dashboard', { replace: true })
+        } else if (cachedRole === 'admin') {
+          navigate('/admin', { replace: true })
+        } else {
+          navigate('/dashboard', { replace: true })
+        }
+        return
+      }
+
+      // If role is undetermined, fetch from backend before navigating so mentors never flicker to /dashboard
+      let isMounted = true
+      const resolveRole = async () => {
+        let role = 'student'
+        try {
+          const res = await fetch(`${API_BASE}/api/users/${user.id}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data?.role) role = data.role
+          }
+        } catch (err) {
+          console.error('Failed to resolve role on landing page:', err)
+        }
+
+        if (isMounted) {
+          localStorage.setItem('campusbridge_user_role', role)
+          sessionStorage.setItem('campusbridge_user_role', role)
+          if (role === 'mentor') {
+            navigate('/mentor-dashboard', { replace: true })
+          } else if (role === 'admin') {
+            navigate('/admin', { replace: true })
+          } else {
+            navigate('/dashboard', { replace: true })
+          }
+        }
+      }
+
+      resolveRole()
+      return () => { isMounted = false }
+    }
+  }, [isLoaded, isSignedIn, user, navigate])
 
   useEffect(() => {
     if (location.hash) {
@@ -37,6 +95,11 @@ const LandingPage = () => {
       }
     }
   }, [location.hash])
+  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken')
+  if (isLoaded && (isSignedIn || adminToken)) {
+    return <RouteIntegrityLoader />
+  }
+
   return (
     <div className="w-full overflow-hidden">
       <div id="home"><HeroSection /></div>

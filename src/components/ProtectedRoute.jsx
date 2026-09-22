@@ -9,12 +9,12 @@ import DashboardSkeleton from './skeletons/DashboardSkeleton'
 const ProtectedRoute = ({ allowedRoles = [] }) => {
   const { user, isLoaded, isSignedIn } = useUser()
   const justAuthenticated = sessionStorage.getItem('campusbridge_just_authenticated') === 'true'
-  const cachedRole = sessionStorage.getItem('campusbridge_user_role')
-  const initialRole = cachedRole || user?.publicMetadata?.role || user?.unsafeMetadata?.role || (isSignedIn && user ? 'student' : null)
+  const cachedRole = localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role')
+  const initialRole = cachedRole || user?.publicMetadata?.role || user?.unsafeMetadata?.role || null
   const [userRole, setUserRole] = useState(initialRole)
   const [isBlockedUser, setIsBlockedUser] = useState(false)
   const [blockReason, setBlockReason] = useState('')
-  // Only show integrity loading if explicitly coming from authentication or "Go to Dashboard"
+  // Show integrity loading if role is not yet known or just authenticated
   const [isRoleLoading, setIsRoleLoading] = useState(justAuthenticated || (isSignedIn && !initialRole))
   const location = useLocation()
 
@@ -31,13 +31,14 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
         if (isMounted) {
           setUserRole(null)
           sessionStorage.removeItem('campusbridge_user_role')
+          localStorage.removeItem('campusbridge_user_role')
           sessionStorage.removeItem('campusbridge_just_authenticated')
           setIsRoleLoading(false)
         }
         return
       }
 
-      let role = user.publicMetadata?.role || user.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role')
+      let role = user.publicMetadata?.role || user.unsafeMetadata?.role || localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role')
 
       // Fetch user profile from MongoDB API to check role and block status
       try {
@@ -56,7 +57,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
         console.error('Failed to fetch user status:', err)
       }
 
-      // Fallback default
+      // Fallback default only if completely undetermined
       role = role || 'student'
 
       // If just authenticated or clicked "Go to Dashboard", ensure a smooth transition (~600ms)
@@ -66,6 +67,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
       if (isMounted) {
         setUserRole(role)
+        localStorage.setItem('campusbridge_user_role', role)
         sessionStorage.setItem('campusbridge_user_role', role)
         sessionStorage.removeItem('campusbridge_just_authenticated')
         setIsRoleLoading(false)
@@ -74,8 +76,9 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
     const safetyTimeout = setTimeout(() => {
       if (isMounted && isRoleLoading) {
-        const fallbackRole = user?.publicMetadata?.role || user?.unsafeMetadata?.role || sessionStorage.getItem('campusbridge_user_role') || 'student'
+        const fallbackRole = user?.publicMetadata?.role || user?.unsafeMetadata?.role || localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || 'student'
         setUserRole(fallbackRole)
+        localStorage.setItem('campusbridge_user_role', fallbackRole)
         sessionStorage.setItem('campusbridge_user_role', fallbackRole)
         sessionStorage.removeItem('campusbridge_just_authenticated')
         setIsRoleLoading(false)
@@ -95,12 +98,9 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
     return <Outlet />
   }
 
-  // 1. Loading state while checking authentication and role
+  // 1. Loading state while checking authentication and role - show RouteIntegrityLoader to avoid UI flash
   if (!isLoaded || (justAuthenticated && isRoleLoading) || (isSignedIn && !userRole)) {
-    if (justAuthenticated) {
-      return <RouteIntegrityLoader />
-    }
-    return <DashboardSkeleton />
+    return <RouteIntegrityLoader />
   }
 
   // 1.5. Blocked User Check -> Show Blocked User Screen

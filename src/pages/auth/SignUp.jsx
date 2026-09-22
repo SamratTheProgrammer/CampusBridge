@@ -3,14 +3,28 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, User, AtSign, Loader2 } from 'lucide-react'
-import { useSignUp } from '@clerk/clerk-react'
+import { useSignUp, useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
 
 const SignUp = () => {
   const location = useLocation()
   const { isLoaded, signUp, setActive } = useSignUp()
+  const { user, isLoaded: isUserLoaded, isSignedIn } = useUser()
   const [selectedRole, setSelectedRole] = useState(location.state?.role || null)
   const navigate = useNavigate()
+
+  React.useEffect(() => {
+    if (isUserLoaded && isSignedIn && user) {
+      const role = user.publicMetadata?.role || user.unsafeMetadata?.role || selectedRole || sessionStorage.getItem('campusbridge_user_role') || 'student'
+      if (role === 'mentor') {
+        navigate('/mentor-dashboard', { replace: true })
+      } else if (role === 'admin') {
+        navigate('/admin', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
+    }
+  }, [isUserLoaded, isSignedIn, user, selectedRole, navigate])
 
   // Form State
   const [fullName, setFullName] = useState('')
@@ -124,6 +138,7 @@ const SignUp = () => {
         if (completeSignUp.status === 'complete') {
           sessionStorage.setItem('campusbridge_just_authenticated', 'true')
           sessionStorage.setItem('campusbridge_user_role', selectedRole || 'student')
+          localStorage.setItem('campusbridge_user_role', selectedRole || 'student')
           await setActive({ session: completeSignUp.createdSessionId })
           toast.success('Account created successfully!')
           navigate(selectedRole === 'mentor' ? '/mentor-dashboard' : '/dashboard')
@@ -194,6 +209,7 @@ const SignUp = () => {
       sessionStorage.setItem('campusbridge_just_authenticated', 'true')
       await setActive({ session: completeSignUp.createdSessionId })
       sessionStorage.setItem('campusbridge_user_role', selectedRole || 'student')
+      localStorage.setItem('campusbridge_user_role', selectedRole || 'student')
       toast.success('Account created successfully!')
       
       if (selectedRole === 'mentor') {

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
+import ImageInputWithUrl from '../../components/common/ImageInputWithUrl'
 
 const MentorEvents = () => {
   const { user } = useUser()
@@ -52,7 +53,7 @@ const MentorEvents = () => {
     setIsSubmitting(true)
     
     const formData = new FormData(e.target)
-    let imageUrl = null
+    let imageUrl = formData.get('imageUrl')?.trim() || null
     const file = formData.get('imageFile')
     if (file && file.size > 0) {
       toast.loading('Uploading image...', { id: 'img-upload' })
@@ -111,7 +112,7 @@ const MentorEvents = () => {
     setIsSubmitting(true)
     
     const formData = new FormData(e.target)
-    let imageUrl = selectedEvent.imageUrl
+    let imageUrl = formData.get('imageUrl')?.trim() || selectedEvent.imageUrl || null
     const file = formData.get('imageFile')
     if (file && file.size > 0) {
       toast.loading('Uploading new image...', { id: 'img-upload' })
@@ -347,8 +348,12 @@ const MentorEvents = () => {
               
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-3">
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Event Image / Banner (Optional)</label>
-                  <input name="imageFile" type="file" accept="image/*" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                  <ImageInputWithUrl
+                    label="Event Image / Banner (Optional)"
+                    fileInputName="imageFile"
+                    urlInputName="imageUrl"
+                    placeholder="https://images.unsplash.com/..."
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Event Type</label>
@@ -444,13 +449,13 @@ const MentorEvents = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Event Image / Banner (Optional)</label>
-                  {selectedEvent.imageUrl && (
-                    <div className="mb-2">
-                      <img src={selectedEvent.imageUrl} alt="Current event banner" className="h-20 w-auto rounded border border-border/50 object-cover" />
-                    </div>
-                  )}
-                  <input name="imageFile" type="file" accept="image/*" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                  <ImageInputWithUrl
+                    label="Event Image / Banner (Optional)"
+                    initialUrl={selectedEvent.imageUrl || ''}
+                    fileInputName="imageFile"
+                    urlInputName="imageUrl"
+                    placeholder="https://images.unsplash.com/..."
+                  />
                 </div>
               </div>
 
@@ -557,25 +562,38 @@ const MentorEvents = () => {
                   <div className="space-y-4">
                     {applications.map(app => (
                       <div key={app._id} className="border border-border/50 rounded-xl p-4 bg-background flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <img 
-                            src={app.applicant?.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'User')}`} 
-                            alt="Applicant" 
-                            className="w-12 h-12 rounded-full border border-border/50 object-cover"
-                          />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold text-foreground">{app.applicant?.name || 'Unknown User'}</h4>
-                              <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded">
-                                {app.applicantRole}
-                              </span>
+                        {(() => {
+                          const applicantName = app.applicant?.name || 
+                            `${app.applicant?.firstName || ''} ${app.applicant?.lastName || ''}`.trim() || 
+                            app.applicantDetails?.name || 
+                            app.applicant?.username || 
+                            app.applicant?.email?.split('@')[0] || 
+                            'Applicant';
+                          const applicantImg = app.applicant?.imageUrl || 
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(applicantName)}&background=7c3aed&color=fff&bold=true`;
+
+                          return (
+                            <div className="flex items-center gap-4">
+                              <img 
+                                src={applicantImg} 
+                                alt={applicantName} 
+                                className="w-12 h-12 rounded-full border border-border/50 object-cover"
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold text-foreground">{applicantName}</h4>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                    {app.applicantRole}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">{app.applicant?.email || app.applicantDetails?.email}</p>
+                                {(app.applicant?.phone || app.applicantDetails?.phone) && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">Phone: {app.applicant?.phone || app.applicantDetails?.phone}</p>
+                                )}
+                              </div>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{app.applicant?.email}</p>
-                            {app.applicant?.phone && (
-                              <p className="text-xs text-muted-foreground mt-0.5">Phone: {app.applicant.phone}</p>
-                            )}
-                          </div>
-                        </div>
+                          );
+                        })()}
                         <span className="text-xs text-muted-foreground">
                           {formatPendingRequestTime(app.createdAt)}
                         </span>

@@ -7,6 +7,7 @@ import RemarkModal from '../../components/modals/RemarkModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
+import ImageInputWithUrl from '../../components/common/ImageInputWithUrl'
 
 const AdminEvents = () => {
   const navigate = useNavigate()
@@ -36,6 +37,7 @@ const AdminEvents = () => {
   const [description, setDescription] = useState('')
   const [postToFeed, setPostToFeed] = useState(false)
   const [imageFile, setImageFile] = useState(null)
+  const [imageUrl, setImageUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fetchEvents = async () => {
@@ -72,6 +74,7 @@ const AdminEvents = () => {
     setDescription('')
     setPostToFeed(false)
     setImageFile(null)
+    setImageUrl('')
     setEditingEvent(null)
   }
 
@@ -101,6 +104,8 @@ const AdminEvents = () => {
     setLocation(event.location || '')
     setLink(event.link || '')
     setDescription(event.description || '')
+    setImageUrl(event.imageUrl || '')
+    setImageFile(null)
     setIsModalOpen(true)
   }
 
@@ -113,7 +118,7 @@ const AdminEvents = () => {
 
     setIsSubmitting(true)
     try {
-      let uploadedImageUrl = editingEvent?.imageUrl || null;
+      let uploadedImageUrl = imageUrl.trim() || editingEvent?.imageUrl || null;
       
       if (imageFile) {
         toast.loading('Uploading image...', { id: 'img-upload' })
@@ -475,17 +480,13 @@ const AdminEvents = () => {
               {/* Scrollable Form Body */}
               <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Image / Banner (Optional)</label>
-                  {editingEvent?.imageUrl && (
-                    <div className="mb-2">
-                      <img src={editingEvent.imageUrl} alt="Current event banner" className="h-20 w-auto rounded border border-border/50 object-cover" />
-                    </div>
-                  )}
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                    className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                  <ImageInputWithUrl
+                    label="Event Image / Banner (Optional)"
+                    value={imageUrl}
+                    onChangeUrl={(val) => setImageUrl(val)}
+                    onChangeFile={(file) => setImageFile(file)}
+                    onClear={() => { setImageUrl(''); setImageFile(null); }}
+                    placeholder="https://images.unsplash.com/..."
                   />
                 </div>
 

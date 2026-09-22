@@ -58,16 +58,17 @@ export const useRealtimePosts = ({
       if (onPostDeleted) onPostDeleted(postId);
     };
 
-    const handlePostUpdated = ({ postId, content }) => {
+    const handlePostUpdated = (data) => {
+      const { postId, ...rest } = data || {};
       if (!postId) return;
       if (setPosts) {
         setPosts((prev) =>
           Array.isArray(prev)
-            ? prev.map((p) => ((p._id || p.id) === postId ? { ...p, content } : p))
+            ? prev.map((p) => ((p._id || p.id) === postId ? { ...p, ...rest } : p))
             : prev
         );
       }
-      if (onPostUpdated) onPostUpdated({ postId, content });
+      if (onPostUpdated) onPostUpdated(data);
     };
 
     const handlePostLiked = ({ postId, likes }) => {

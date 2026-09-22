@@ -42,6 +42,7 @@ const SessionManager = () => {
     if (isSignedIn) {
       toast.error('Session expired due to inactivity.');
       sessionStorage.removeItem('campusbridge_user_role');
+      localStorage.removeItem('campusbridge_user_role');
       localStorage.removeItem('lastActivity');
       await signOut();
       navigate('/login');

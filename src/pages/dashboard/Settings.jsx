@@ -4,6 +4,7 @@ import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import SettingsSkeleton from '../../components/skeletons/SettingsSkeleton'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import DeleteAccountModal from '../../components/modals/DeleteAccountModal'
 import { AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
@@ -1710,12 +1711,11 @@ const Settings = () => {
         </div>
       </div>
 
-      <ConfirmModal
+      <DeleteAccountModal
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleDeleteAccount}
-        title="Delete Account"
-        message="Are you absolutely sure you want to delete your account? This action cannot be undone."
+        userRole="student"
       />
 
       {/* Render Image Crop Modal if active */}

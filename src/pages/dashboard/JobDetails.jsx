@@ -1,6 +1,6 @@
 import { Skeleton } from '../../components/ui/Skeleton'
 import React, { useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Bookmark, Share2, Loader2, MapPin, Briefcase, Calendar, Bell, BellRing, IndianRupee } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -11,12 +11,17 @@ import emailjs from '@emailjs/browser'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import API_BASE from '../../utils/api'
 import ModalPortal from '../../components/modals/ModalPortal'
+import ShareModal from '../../components/modals/ShareModal'
 
 const JobDetails = () => {
   const { id } = useParams()
+  const location = useLocation()
   const [job, setJob] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useUser()
+
+  const isMentor = location.pathname.startsWith('/mentor-dashboard') || user?.publicMetadata?.role === 'mentor'
+  const backLink = isMentor ? '/mentor-dashboard/jobs' : '/dashboard/jobs'
 
   const [hasApplied, setHasApplied] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
@@ -24,6 +29,8 @@ const JobDetails = () => {
   const [isNotified, setIsNotified] = useState(false)
   const [isNotifying, setIsNotifying] = useState(false)
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [shareConfig, setShareConfig] = useState(null)
   const [resumeLink, setResumeLink] = useState('')
   const [resumeFile, setResumeFile] = useState(null)
   const [inputType, setInputType] = useState('upload') // 'upload' or 'link'
@@ -150,13 +157,13 @@ const JobDetails = () => {
     }
   }
 
-  const handleShare = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      toast.success('Link copied to clipboard!')
-    } catch (err) {
-      toast.error('Failed to copy link')
-    }
+  const handleShare = () => {
+    setShareConfig({
+      shareUrl: `${window.location.origin}/dashboard/jobs/${id}`,
+      shareType: 'job',
+      itemId: id
+    })
+    setIsShareModalOpen(true)
   }
 
   const handleSave = async () => {
@@ -265,7 +272,7 @@ const JobDetails = () => {
           <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
           <h3 className="text-lg font-bold text-foreground mb-2">Job not found</h3>
           <p className="text-muted-foreground text-sm mb-6">The job you are looking for does not exist or has been removed.</p>
-          <Link to="/dashboard/jobs" className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2 rounded-lg font-medium text-sm transition-colors">
+          <Link to={backLink} className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2 rounded-lg font-medium text-sm transition-colors">
             Back to Jobs
           </Link>
         </div>
@@ -279,7 +286,7 @@ const JobDetails = () => {
     <div className="w-full max-w-3xl mx-auto space-y-6 pb-8">
       {/* Top Nav */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <Link to="/dashboard/jobs" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+        <Link to={backLink} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Jobs
         </Link>
         <div className="flex flex-wrap items-center gap-3">
@@ -360,7 +367,14 @@ const JobDetails = () => {
               </div>
             )}
           </div>
-          {(() => {
+          {isMentor ? (
+            <button 
+              onClick={handleShare}
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2"
+            >
+              <Share2 className="w-4 h-4" /> Share with Students
+            </button>
+          ) : (() => {
             const isDeadlinePassed = job.deadline ? new Date() > new Date(job.deadline) : false;
             return (
               <button 
@@ -528,6 +542,14 @@ const JobDetails = () => {
           </ModalPortal>
         )}
       </AnimatePresence>
+
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        shareUrl={shareConfig?.shareUrl} 
+        shareType={shareConfig?.shareType} 
+        itemId={shareConfig?.itemId} 
+      />
     </div>
   )
 }

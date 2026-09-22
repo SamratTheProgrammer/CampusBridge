@@ -3,41 +3,62 @@ import { Skeleton } from '../ui/Skeleton'
 
 const EventSkeleton = () => {
   return (
-    <div className="animate-pulse bg-card border border-border/50 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-sm overflow-hidden relative">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-5 w-full">
-        {/* Image Placeholder */}
-        <Skeleton className="w-full sm:w-32 h-40 sm:h-28 rounded-xl shrink-0" />
+    <div className="animate-pulse bg-card border border-border/50 rounded-3xl p-3 sm:p-3.5 flex flex-col justify-between shadow-sm overflow-hidden relative">
+      {/* Banner Cover Skeleton */}
+      <Skeleton className="w-full h-44 sm:h-48 rounded-2xl mb-4 shrink-0" />
+      
+      {/* Body Content Skeleton */}
+      <div className="flex-1 flex flex-col justify-between px-1">
+        {/* Title & Chevron Row */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <Skeleton className="h-6 w-3/4 rounded-md" />
+          <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+        </div>
         
-        {/* Content Placeholder */}
-        <div className="flex-1 space-y-3">
-          {/* Badges */}
-          <div className="flex items-center gap-2 mb-1">
-            <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="h-5 w-20 rounded-full" />
-          </div>
-          
-          {/* Title */}
+        {/* Subtitle / Description */}
+        <div className="space-y-1.5 mb-4">
+          <Skeleton className="h-3.5 w-full rounded" />
+          <Skeleton className="h-3.5 w-4/5 rounded" />
+        </div>
+        
+        {/* 3-Column Info Matrix Skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4 p-3 bg-muted/20 border border-border/30 rounded-2xl">
           <div className="flex items-center gap-2">
-            <Skeleton className="h-6 w-3/4 sm:w-64 rounded-md" />
-            <Skeleton className="h-5 w-5 rounded-md" />
+            <Skeleton className="w-8 h-8 rounded-xl shrink-0" />
+            <div className="space-y-1 flex-1">
+              <Skeleton className="h-3 w-14 rounded" />
+              <Skeleton className="h-2.5 w-10 rounded" />
+            </div>
           </div>
-          
-          {/* Date & Time */}
-          <Skeleton className="h-4 w-48 rounded-md" />
-          
-          {/* Location */}
-          <Skeleton className="h-3.5 w-32 rounded-md" />
-          
-          {/* Stats Badges */}
-          <div className="flex items-center gap-2 pt-1">
-            <Skeleton className="h-6 w-24 rounded-md" />
-            <Skeleton className="h-6 w-20 rounded-md" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-8 h-8 rounded-xl shrink-0" />
+            <div className="space-y-1 flex-1">
+              <Skeleton className="h-3 w-14 rounded" />
+              <Skeleton className="h-2.5 w-10 rounded" />
+            </div>
+          </div>
+          <div className="col-span-2 sm:col-span-1 flex items-center gap-2">
+            <Skeleton className="w-8 h-8 rounded-xl shrink-0" />
+            <div className="space-y-1 flex-1">
+              <Skeleton className="h-3 w-14 rounded" />
+              <Skeleton className="h-2.5 w-10 rounded" />
+            </div>
           </div>
         </div>
       </div>
       
-      {/* Action Button */}
-      <Skeleton className="h-10 w-full sm:w-28 rounded-xl shrink-0 mt-2 sm:mt-0" />
+      {/* Bottom Action Row Skeleton */}
+      <div className="pt-3 border-t border-border/40 flex items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-2">
+            <Skeleton className="w-7 h-7 rounded-full" />
+            <Skeleton className="w-7 h-7 rounded-full" />
+            <Skeleton className="w-7 h-7 rounded-full" />
+          </div>
+          <Skeleton className="h-3 w-16 rounded" />
+        </div>
+        <Skeleton className="h-9 w-24 rounded-full shrink-0" />
+      </div>
     </div>
   )
 }

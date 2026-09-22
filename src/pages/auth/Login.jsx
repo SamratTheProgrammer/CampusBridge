@@ -18,10 +18,11 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
-  // Clear any stale role from sessionStorage on mount if they are not signed in
+  // Clear any stale role from storage on mount if they are not signed in
   useEffect(() => {
     if (isUserLoaded && !isSignedIn) {
       sessionStorage.removeItem('campusbridge_user_role')
+      localStorage.removeItem('campusbridge_user_role')
     }
   }, [isUserLoaded, isSignedIn])
 
@@ -49,9 +50,10 @@ const Login = () => {
   // Redirect logged in user automatically
   useEffect(() => {
     if (isUserLoaded && isSignedIn && user) {
-      const role = user.publicMetadata?.role || user.unsafeMetadata?.role || selectedRole
+      const cachedRole = localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role')
+      const role = cachedRole || user.publicMetadata?.role || user.unsafeMetadata?.role || selectedRole
       const fromPath = location.state?.from?.pathname || (typeof location.state?.from === 'string' ? location.state.from : null)
-      if (fromPath) {
+      if (fromPath && !(role === 'mentor' && fromPath.startsWith('/dashboard'))) {
         navigate(fromPath, { replace: true })
       } else if (role === 'mentor') {
         navigate('/mentor-dashboard', { replace: true })
@@ -116,11 +118,12 @@ const Login = () => {
         
         if (finalRole) {
           sessionStorage.setItem('campusbridge_user_role', finalRole)
+          localStorage.setItem('campusbridge_user_role', finalRole)
         }
         
         // Navigation will be automatically handled by the useEffect or fallback below
         const fromPath = location.state?.from?.pathname || (typeof location.state?.from === 'string' ? location.state.from : null)
-        if (fromPath) {
+        if (fromPath && !(finalRole === 'mentor' && fromPath.startsWith('/dashboard'))) {
           navigate(fromPath)
         } else if (finalRole === 'mentor') {
           navigate('/mentor-dashboard')

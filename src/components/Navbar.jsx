@@ -184,7 +184,7 @@ const Navbar = () => {
                           <p className="text-xs text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</p>
                         </div>
                         <Link 
-                          to={(sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
+                          to={(localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
                           className="px-4 py-2 text-sm hover:bg-muted transition-colors font-medium text-primary"
                           onClick={() => {
                             sessionStorage.setItem('campusbridge_just_authenticated', 'true')
@@ -196,6 +196,7 @@ const Navbar = () => {
                         <button 
                           onClick={() => {
                             sessionStorage.removeItem('campusbridge_user_role')
+                            localStorage.removeItem('campusbridge_user_role')
                             signOut({ redirectUrl: '/login' })
                           }}
                           className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors mt-1"
@@ -266,7 +267,7 @@ const Navbar = () => {
                   {!isLoaded ? null : isSignedIn ? (
                     <>
                       <Link 
-                        to={(sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
+                        to={(localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
                         className="w-full text-center py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-colors"
                         onClick={() => {
                           sessionStorage.setItem('campusbridge_just_authenticated', 'true')
@@ -279,6 +280,7 @@ const Navbar = () => {
                         onClick={() => {
                           setIsMobileMenuOpen(false)
                           sessionStorage.removeItem('campusbridge_user_role')
+                          localStorage.removeItem('campusbridge_user_role')
                           signOut({ redirectUrl: '/login' })
                         }}
                         className="w-full text-center py-2 text-sm font-medium text-destructive border border-destructive/20 rounded-md hover:bg-destructive/10 transition-colors"

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Heart, MessageCircle, Share2, MoreHorizontal, Image as ImageIcon, Briefcase, Calendar as CalendarIcon, FileText } from 'lucide-react'
+import FormattedPostText from '../../components/common/FormattedPostText'
 
 const MentorPosts = () => {
   const [posts, setPosts] = useState([])
@@ -70,7 +71,7 @@ const MentorPosts = () => {
                 </div>
                 
                 <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                  {post.content}
+                  <FormattedPostText text={post.content} />
                 </p>
               </div>
               

@@ -1,6 +1,7 @@
 import JobSkeleton from '../../components/skeletons/JobSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Briefcase, MapPin, DollarSign, Building2, Users, Search, Loader2, Clock, ChevronDown, X, Edit2 } from 'lucide-react'
+import { Plus, Briefcase, MapPin, DollarSign, Building2, Users, Search, Loader2, Clock, ChevronDown, X, Edit2, Filter, Calendar, ExternalLink, Share2 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
 import { format } from 'date-fns'
@@ -8,6 +9,7 @@ import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import ModalPortal from '../../components/modals/ModalPortal'
+import ShareModal from '../../components/modals/ShareModal'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
 import API_BASE from '../../utils/api'
 
@@ -188,10 +190,28 @@ const CompanySelector = ({ value, onChange }) => {
 // ─── Main Component ─────────────────────────────────────────────────────────
 const MentorJobs = () => {
   const { user } = useUser()
+  const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState('my-jobs') // 'my-jobs' | 'available-jobs'
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [shareConfig, setShareConfig] = useState(null)
+
+  const handleShare = (e, job) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShareConfig({
+      shareUrl: `${window.location.origin}/dashboard/jobs/${job._id}`,
+      shareType: 'job',
+      itemId: job._id
+    });
+    setIsShareModalOpen(true);
+  };
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [jobTypeFilter, setJobTypeFilter] = useState('All')
   const [jobs, setJobs] = useState([])
+  const [availableJobs, setAvailableJobs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingAvailable, setIsLoadingAvailable] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState('')
   const [selectedCompanyLogo, setSelectedCompanyLogo] = useState('')
@@ -219,8 +239,23 @@ const MentorJobs = () => {
     }
   }
 
+  const fetchAvailableJobs = async () => {
+    try {
+      setIsLoadingAvailable(true)
+      const res = await fetch(`${API_BASE}/api/jobs`)
+      if (!res.ok) throw new Error('Failed to fetch available jobs')
+      const data = await res.json()
+      setAvailableJobs(data)
+    } catch (err) {
+      console.error('Failed to load available jobs:', err)
+    } finally {
+      setIsLoadingAvailable(false)
+    }
+  }
+
   useEffect(() => {
     fetchJobs()
+    fetchAvailableJobs()
   }, [user])
 
   const handleAddJob = async (e) => {
@@ -340,6 +375,14 @@ const MentorJobs = () => {
     job.company.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const filteredAvailableJobs = availableJobs.filter(job => {
+    const matchesSearch = job.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          job.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          job.location?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesType = jobTypeFilter === 'All' || job.type === jobTypeFilter
+    return matchesSearch && matchesType
+  })
+
   // Helper to get logo for a job
   const getJobLogo = (job) => {
     let logo = job.companyLogo;
@@ -358,8 +401,14 @@ const MentorJobs = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">My Job Posts</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage jobs and internships you've shared with students.</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {activeTab === 'my-jobs' ? 'My Job Posts' : 'Available Opportunities'}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {activeTab === 'my-jobs' 
+              ? "Manage jobs and internships you've shared with students." 
+              : "Explore all active jobs and internships available across CampusBridge."}
+          </p>
         </div>
         <button 
           onClick={() => {
@@ -368,117 +417,275 @@ const MentorJobs = () => {
             setSelectedCompanyLogo('')
             setIsModalOpen(true)
           }}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-sm"
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-sm shrink-0"
         >
           <Plus className="w-4 h-4" /> Add New Job
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search jobs..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-        />
-      </div>
+      {/* Tabs & Filters */}
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+        {/* Tab Switcher */}
+        <div className="flex bg-muted p-1 rounded-xl w-fit">
+          <button
+            onClick={() => setActiveTab('my-jobs')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              activeTab === 'my-jobs' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            My Posted Jobs ({jobs.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('available-jobs')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              activeTab === 'available-jobs' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Available Jobs ({availableJobs.length})
+          </button>
+        </div>
 
-      {/* Job Grid */}
-      {isLoading ? (
-        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <JobSkeleton key={i}  />
-              ))}
-            </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredJobs.map((job) => (
-            <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex gap-3 items-center">
-                    <div className="w-12 h-12 rounded-xl bg-white border border-border/30 flex items-center justify-center shrink-0 p-1.5 overflow-hidden">
-                      <img 
-                        src={getJobLogo(job)} 
-                        alt={job.company} 
-                        className="w-full h-full object-contain"
-                        onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
-                      />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-foreground group-hover:text-primary transition-colors text-lg leading-tight">{job.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                        <Building2 className="w-3.5 h-3.5" /> {job.company}
-                      </p>
-                    </div>
-                  </div>
-                  {job.active ? (
-                    <span className="bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Active</span>
-                  ) : (
-                    <span className="bg-muted text-muted-foreground text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Closed</span>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <span className="truncate">{job.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Briefcase className="w-4 h-4 text-primary" />
-                    <span>{job.type}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <DollarSign className="w-4 h-4 text-primary" />
-                    <span className="truncate">{job.salary || 'Not specified'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span>{job.applicants?.length || 0} applied</span>
-                  </div>
-                </div>
-              </div>
+        {/* Search & Type Filters */}
+        <div className="flex items-center gap-2.5 flex-1 max-w-md ml-auto">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by title, company, or city..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+            />
+          </div>
 
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
-                <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> 
-                  Posted {formatPendingRequestTime(job.createdAt)}
-                </span>
-                <div className="flex gap-3 items-center">
-                  <button 
-                    onClick={() => openEditModal(job)}
-                    className="text-blue-500 hover:bg-blue-500/10 p-1.5 rounded-lg transition-colors"
-                    title="Edit Job"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => confirmDeleteJob(job._id)}
-                    className="text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition-colors"
-                    title="Delete Job"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleViewApplications(job)}
-                    className="text-primary text-sm font-medium hover:underline flex items-center gap-1"
-                  >
-                    View Applications
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {filteredJobs.length === 0 && (
-            <div className="col-span-full py-12 text-center text-muted-foreground">
-              No jobs found.
+          {activeTab === 'available-jobs' && (
+            <div className="relative shrink-0">
+              <select
+                value={jobTypeFilter}
+                onChange={(e) => setJobTypeFilter(e.target.value)}
+                className="bg-background border border-border/50 rounded-lg px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="All">All Types</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Internship">Internship</option>
+                <option value="Contract">Contract</option>
+              </select>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Main Content */}
+      {activeTab === 'my-jobs' ? (
+        isLoading ? (
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <JobSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredJobs.map((job) => (
+              <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                <div>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex gap-3 items-center">
+                      <div className="w-12 h-12 rounded-xl bg-white border border-border/30 flex items-center justify-center shrink-0 p-1.5 overflow-hidden">
+                        <img 
+                          src={getJobLogo(job)} 
+                          alt={job.company} 
+                          className="w-full h-full object-contain"
+                          onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
+                        />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-foreground group-hover:text-primary transition-colors text-lg leading-tight">{job.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                          <Building2 className="w-3.5 h-3.5" /> {job.company}
+                        </p>
+                      </div>
+                    </div>
+                    {job.active ? (
+                      <span className="bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Active</span>
+                    ) : (
+                      <span className="bg-muted text-muted-foreground text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Closed</span>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <span className="truncate">{job.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Briefcase className="w-4 h-4 text-primary" />
+                      <span>{job.type}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <DollarSign className="w-4 h-4 text-primary" />
+                      <span className="truncate">{job.salary || 'Not specified'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Users className="w-4 h-4 text-primary" />
+                      <span>{job.applicants?.length || 0} applied</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
+                  <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> 
+                    Posted {formatPendingRequestTime(job.createdAt)}
+                  </span>
+                  <div className="flex gap-2.5 items-center">
+                    <button 
+                      onClick={(e) => handleShare(e, job)}
+                      className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors cursor-pointer"
+                      title="Share Job"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => openEditModal(job)}
+                      className="text-blue-500 hover:bg-blue-500/10 p-1.5 rounded-lg transition-colors cursor-pointer"
+                      title="Edit Job"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => confirmDeleteJob(job._id)}
+                      className="text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition-colors cursor-pointer"
+                      title="Delete Job"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleViewApplications(job)}
+                      className="text-primary text-sm font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      View Applications
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {filteredJobs.length === 0 && (
+              <div className="col-span-full py-12 text-center text-muted-foreground bg-card border border-border/40 rounded-2xl">
+                No jobs found in your posts.
+              </div>
+            )}
+          </div>
+        )
+      ) : (
+        /* Available Jobs Tab */
+        isLoadingAvailable ? (
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <JobSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredAvailableJobs.map((job) => {
+              const isMine = job.clerkId === user?.id;
+              const isDeadlinePassed = job.deadline && new Date() > new Date(job.deadline);
+
+              return (
+                <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+                  <div>
+                    <div className="flex justify-between items-start gap-2 mb-3.5">
+                      <div className="flex gap-2.5 items-center min-w-0">
+                        <div className="w-11 h-11 rounded-xl bg-white border border-border/30 flex items-center justify-center shrink-0 p-1.5 overflow-hidden shadow-xs">
+                          <img 
+                            src={getJobLogo(job)} 
+                            alt={job.company} 
+                            className="w-full h-full object-contain"
+                            onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-foreground group-hover:text-primary transition-colors text-base leading-tight truncate">{job.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 truncate">
+                            <Building2 className="w-3 h-3 shrink-0" /> {job.company}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          job.type === 'Internship' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                        }`}>
+                          {job.type}
+                        </span>
+                        {isMine && (
+                          <span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.2 rounded">
+                            Yours
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 mb-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="truncate">{job.location || 'Remote'}</span>
+                      </div>
+                      {job.salary && (
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="truncate">{job.salary}</span>
+                        </div>
+                      )}
+                      {job.deadline && (
+                        <div className={`flex items-center gap-2 ${isDeadlinePassed ? 'text-destructive font-medium' : 'text-primary'}`}>
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">
+                            {isDeadlinePassed ? 'Deadline Passed' : `Apply by ${new Date(job.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {job.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
+                        {job.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-border/40 mt-auto">
+                    <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> 
+                      {formatPendingRequestTime(job.createdAt)}
+                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <button 
+                        onClick={(e) => handleShare(e, job)}
+                        className="text-muted-foreground hover:text-primary transition-colors p-1"
+                        title="Share Job"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <Link 
+                        to={`/mentor-dashboard/jobs/${job._id}`}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+                      >
+                        View Details <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredAvailableJobs.length === 0 && (
+              <div className="col-span-full py-12 text-center text-muted-foreground bg-card border border-border/40 rounded-2xl">
+                No available jobs found matching your criteria.
+              </div>
+            )}
+          </div>
+        )
       )}
 
       {/* Add Job Modal */}
@@ -593,20 +800,38 @@ const MentorJobs = () => {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {applications.map(app => (
-                      <div key={app._id} className="border border-border/50 rounded-xl p-5 bg-background">
-                        <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
-                          <div className="flex items-center gap-4">
-                            <img 
-                              src={app.applicant?.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'User')}`} 
-                              alt="Applicant" 
-                              className="w-12 h-12 rounded-full border border-border/50 object-cover"
-                            />
-                            <div>
-                              <h4 className="font-semibold text-foreground">{app.applicant?.name || 'Unknown User'}</h4>
-                              <p className="text-xs text-muted-foreground">{app.applicant?.email}</p>
+                    {applications.map(app => {
+                      const applicantName = app.applicant?.name || 
+                        `${app.applicant?.firstName || ''} ${app.applicant?.lastName || ''}`.trim() || 
+                        app.applicant?.username || 
+                        app.applicant?.email?.split('@')[0] || 
+                        'Applicant';
+                      const applicantProfileUrl = app.applicant?.username || app.applicant?.clerkId 
+                        ? `/profile/${app.applicant.username || app.applicant.clerkId}` 
+                        : null;
+                      const applicantImg = app.applicant?.imageUrl || 
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(applicantName)}&background=7c3aed&color=fff&bold=true`;
+
+                      return (
+                        <div key={app._id} className="border border-border/50 rounded-xl p-5 bg-background">
+                          <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
+                            <div className="flex items-center gap-4">
+                              <img 
+                                src={applicantImg} 
+                                alt={applicantName} 
+                                className={`w-12 h-12 rounded-full border border-border/50 object-cover ${applicantProfileUrl ? 'cursor-pointer hover:opacity-85 transition-opacity' : ''}`}
+                                onClick={() => { if (applicantProfileUrl) navigate(applicantProfileUrl); }}
+                              />
+                              <div>
+                                <h4 
+                                  className={`font-semibold text-foreground ${applicantProfileUrl ? 'hover:text-primary transition-colors cursor-pointer' : ''}`}
+                                  onClick={() => { if (applicantProfileUrl) navigate(applicantProfileUrl); }}
+                                >
+                                  {applicantName}
+                                </h4>
+                                <p className="text-xs text-muted-foreground">{app.applicant?.email}</p>
+                              </div>
                             </div>
-                          </div>
                           
                           <div className="flex items-center gap-2">
                             {app.status === 'pending' ? (
@@ -653,7 +878,8 @@ const MentorJobs = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
                   </div>
                 )}
               </div>
@@ -669,6 +895,14 @@ const MentorJobs = () => {
         onConfirm={handleDeleteJob}
         title="Delete Job Post"
         message="Are you sure you want to delete this job? This action cannot be undone and will also delete all associated applications."
+      />
+
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        shareUrl={shareConfig?.shareUrl} 
+        shareType={shareConfig?.shareType} 
+        itemId={shareConfig?.itemId} 
       />
 
     </div>

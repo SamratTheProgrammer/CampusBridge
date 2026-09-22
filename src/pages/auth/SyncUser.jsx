@@ -42,6 +42,7 @@ const SyncUser = () => {
           if (data.existingRole) {
             sessionStorage.setItem('campusbridge_just_authenticated', 'true');
             sessionStorage.setItem('campusbridge_user_role', data.existingRole);
+            localStorage.setItem('campusbridge_user_role', data.existingRole);
             if (data.existingRole === 'mentor') {
               navigate('/mentor-dashboard');
             } else {
@@ -56,6 +57,7 @@ const SyncUser = () => {
         const finalRole = data.role || user.publicMetadata?.role || savedRole;
         sessionStorage.setItem('campusbridge_just_authenticated', 'true');
         sessionStorage.setItem('campusbridge_user_role', finalRole);
+        localStorage.setItem('campusbridge_user_role', finalRole);
 
         if (finalRole === 'mentor') {
           navigate('/mentor-dashboard');

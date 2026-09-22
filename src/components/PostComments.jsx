@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Send, Loader2, CornerDownRight, Heart, Smile } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../utils/api';
@@ -37,9 +38,11 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [highlightedId, setHighlightedId] = useState(null);
+  const [pickerPosition, setPickerPosition] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const emojiPickerRef = React.useRef(null);
+  const smileButtonRef = useRef(null);
   const commentsContainerRef = useRef(null);
 
   // Auto-scroll to highlighted comment/reply from notification deep link
@@ -58,16 +61,63 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
     return () => { clearTimeout(timer); clearTimeout(clearTimer); };
   }, [highlightCommentId, highlightReplyId, post?.comments]);
 
-  // Close emoji picker when clicking outside
+  // Close emoji picker when clicking outside or scrolling
   useEffect(() => {
+    if (!showEmojiPicker) return;
     const handleClickOutside = (event) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+      if (
+        emojiPickerRef.current && 
+        !emojiPickerRef.current.contains(event.target) &&
+        smileButtonRef.current &&
+        !smileButtonRef.current.contains(event.target)
+      ) {
         setShowEmojiPicker(false);
       }
     };
+    const handleScrollOrResize = () => {
+      setShowEmojiPicker(false);
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [showEmojiPicker]);
+
+  const toggleEmojiPicker = (e) => {
+    e?.stopPropagation();
+    if (!showEmojiPicker && smileButtonRef.current) {
+      const rect = smileButtonRef.current.getBoundingClientRect();
+      const pickerHeight = 380;
+      const pickerWidth = Math.min(320, window.innerWidth - 32);
+      
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      
+      let top = null;
+      let bottom = null;
+      
+      if (spaceAbove >= pickerHeight + 12 || spaceAbove > spaceBelow) {
+        bottom = window.innerHeight - rect.top + 8;
+      } else {
+        top = rect.bottom + 8;
+      }
+      
+      let right = window.innerWidth - rect.right;
+      if (right < 16) right = 16;
+      if (right + pickerWidth > window.innerWidth) {
+        right = Math.max(16, window.innerWidth - pickerWidth - 16);
+      }
+      
+      setPickerPosition({ top, bottom, right });
+    }
+    setShowEmojiPicker(prev => !prev);
+  };
 
   const handleUserClick = (userId, userRole, username) => {
     if (!userId) return;
@@ -246,20 +296,22 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                           <Heart className={`w-3 h-3 ${comment.likes?.includes(currentUser.id) ? 'fill-current' : ''}`} />
                           {comment.likes?.length > 0 && <span>{comment.likes.length}</span>}
                         </button>
-                        <button
-                          onClick={() => {
-                            if (isReplyingThis) {
-                              setReplyingCommentId(null);
-                              setReplyText('');
-                            } else {
-                              setReplyingCommentId(comment._id);
-                              setReplyText(`@${comment.author?.name} `);
-                            }
-                          }}
-                          className="font-bold hover:underline hover:text-primary transition-colors cursor-pointer"
-                        >
-                          Reply
-                        </button>
+                        {!post?.commentsDisabled && (
+                          <button
+                            onClick={() => {
+                              if (isReplyingThis) {
+                                setReplyingCommentId(null);
+                                setReplyText('');
+                              } else {
+                                setReplyingCommentId(comment._id);
+                                setReplyText(`@${comment.author?.name} `);
+                              }
+                            }}
+                            className="font-bold hover:underline hover:text-primary transition-colors cursor-pointer"
+                          >
+                            Reply
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -383,6 +435,11 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
 
       {/* Main Comment Input Form */}
       {currentUser && showCommentInput && (
+        post?.commentsDisabled ? (
+          <div className="p-3 text-center text-xs text-muted-foreground italic bg-muted/20 border border-border/40 rounded-xl my-2">
+            Commenting is turned off for this post.
+          </div>
+        ) : (
         <div className="flex flex-col gap-2 pt-2 border-t border-border/40 mt-2">
           {/* Quick Replies for Job/Event posts */}
           {(post.jobDetails?.title || post.eventDetails?.title) && (
@@ -420,9 +477,11 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
             ></textarea>
             <div className="absolute right-2 top-2 flex items-center gap-1">
               <button
+                ref={smileButtonRef}
                 type="button"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                onClick={toggleEmojiPicker}
+                className="p-1.5 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                title="Add emoji"
               >
                 <Smile className="w-5 h-5" />
               </button>
@@ -435,22 +494,54 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
               </button>
             </div>
             
-            {showEmojiPicker && (
-              <div className="absolute bottom-full right-0 mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden max-w-[calc(100vw-32px)]">
-                <EmojiPicker 
-                  onEmojiClick={(emoji) => setCommentText(prev => prev + emoji.emoji)}
-                  theme={isDark ? 'dark' : 'light'}
-                  previewConfig={{ showPreview: false }}
-                  width={320}
-                  height={380}
-                  lazyLoadEmojis={true}
-                  searchPlaceHolder="Search emoji..."
+            {showEmojiPicker && typeof document !== 'undefined' && createPortal(
+              <>
+                {/* Backdrop to catch clicks outside and close */}
+                <div 
+                  className="fixed inset-0 z-[9998] bg-black/25 sm:bg-transparent"
+                  onClick={() => setShowEmojiPicker(false)}
                 />
-              </div>
+
+                {/* Emoji Picker Popup: mobile centered bottom sheet, desktop anchored without clipping */}
+                <div 
+                  ref={emojiPickerRef}
+                  className={`fixed z-[9999] shadow-2xl rounded-2xl overflow-hidden border border-border/80 bg-card transition-all ${
+                    typeof window !== 'undefined' && window.innerWidth < 640
+                      ? 'left-1/2 -translate-x-1/2 bottom-4 max-w-[calc(100vw-32px)]'
+                      : ''
+                  }`}
+                  style={
+                    typeof window !== 'undefined' && window.innerWidth >= 640 && pickerPosition
+                      ? {
+                          top: pickerPosition.top ? `${pickerPosition.top}px` : 'auto',
+                          bottom: pickerPosition.bottom ? `${pickerPosition.bottom}px` : 'auto',
+                          right: `${pickerPosition.right}px`,
+                          width: '320px',
+                          height: '380px'
+                        }
+                      : {}
+                  }
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <EmojiPicker 
+                    onEmojiClick={(emoji) => {
+                      setCommentText(prev => prev + emoji.emoji);
+                    }}
+                    theme={isDark ? 'dark' : 'light'}
+                    previewConfig={{ showPreview: false }}
+                    width={typeof window !== 'undefined' && window.innerWidth < 640 ? Math.min(window.innerWidth - 32, 320) : 320}
+                    height={380}
+                    lazyLoadEmojis={true}
+                    searchPlaceHolder="Search emoji..."
+                  />
+                </div>
+              </>,
+              document.body
             )}
           </div>
           </div>
         </div>
+        )
       )}
     </div>
   );

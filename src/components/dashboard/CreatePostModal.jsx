@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Image as ImageIcon, Video, UserPlus, MapPin, Smile, MoreHorizontal } from 'lucide-react'
+import { X, Image as ImageIcon, Video, UserPlus, MapPin, Smile, MoreHorizontal, Link as LinkIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import EmojiPicker from 'emoji-picker-react'
 import { useTheme } from '../ThemeProvider'
@@ -8,6 +8,8 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
   const [content, setContent] = useState('')
   const [media, setMedia] = useState(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showUrlInput, setShowUrlInput] = useState(false)
+  const [mediaUrlInput, setMediaUrlInput] = useState('')
   const emojiRef = useRef(null)
   const { theme } = useTheme()
   const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
@@ -93,18 +95,24 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
           />
 
           {media && (
-            <div className="relative mt-2 rounded-xl overflow-hidden bg-muted border border-border/50 group">
+            <div className="relative mt-2 rounded-xl overflow-hidden bg-muted border border-border/50 group flex items-center justify-center min-h-[120px] max-h-[260px] p-2">
               <button 
                 onClick={() => setMedia(null)}
-                className="absolute top-2 right-2 p-1.5 bg-background/80 hover:bg-background rounded-full text-foreground transition-all z-10 opacity-0 group-hover:opacity-100 shadow-sm"
+                className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-rose-600 text-white rounded-full transition-all z-10 shadow-sm cursor-pointer"
                 title="Remove media"
               >
                 <X className="w-4 h-4" />
               </button>
-              <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-                <ImageIcon className="w-8 h-8 mb-2" />
-                <span className="text-sm font-medium">{media.name}</span>
-              </div>
+              {media.url ? (
+                <img src={media.url} alt="Attached" className="max-h-[240px] w-auto max-w-full object-contain rounded-lg" />
+              ) : media instanceof File && media.type.startsWith('image/') ? (
+                <img src={URL.createObjectURL(media)} alt="Attached" className="max-h-[240px] w-auto max-w-full object-contain rounded-lg" />
+              ) : (
+                <div className="flex flex-col items-center justify-center p-6 text-muted-foreground">
+                  <ImageIcon className="w-8 h-8 mb-2" />
+                  <span className="text-sm font-medium">{media.name}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -128,6 +136,14 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
                 />
                 <ImageIcon className="w-5 h-5" />
               </label>
+              <button 
+                type="button" 
+                onClick={() => setShowUrlInput(!showUrlInput)} 
+                className={`p-2 hover:bg-muted rounded-full transition-colors ${showUrlInput ? 'bg-primary/10 text-primary' : 'text-purple-500'}`} 
+                title="Add image from URL"
+              >
+                <LinkIcon className="w-5 h-5" />
+              </button>
               <label className="p-2 hover:bg-muted rounded-full transition-colors text-green-500 cursor-pointer" title="Add a video">
                 <input 
                   type="file" 
@@ -177,11 +193,48 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
             <button 
               onClick={handleSubmit}
               disabled={!content.trim() && !media}
-              className="bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-full font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-5 py-1.5 rounded-full text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
             >
               Post
             </button>
           </div>
+
+          {/* URL Input Bar */}
+          {showUrlInput && (
+            <div className="mt-3 flex items-center gap-2 p-2 bg-muted/40 rounded-xl border border-border/50 animate-in fade-in duration-200">
+              <LinkIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+              <input
+                type="url"
+                value={mediaUrlInput}
+                onChange={(e) => setMediaUrlInput(e.target.value)}
+                placeholder="Paste image URL (https://...)"
+                className="flex-1 bg-transparent text-xs focus:outline-none text-foreground placeholder:text-muted-foreground"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (mediaUrlInput.trim()) {
+                      setMedia({ url: mediaUrlInput.trim(), name: 'Linked Image' });
+                      setShowUrlInput(false);
+                      setMediaUrlInput('');
+                    }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (mediaUrlInput.trim()) {
+                    setMedia({ url: mediaUrlInput.trim(), name: 'Linked Image' });
+                    setShowUrlInput(false);
+                    setMediaUrlInput('');
+                  }
+                }}
+                className="px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-all cursor-pointer"
+              >
+                Attach
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -951,14 +951,22 @@ const VideoCallModal = ({ currentUser }) => {
     };
   }, []);
 
-  // Listen for window initiate_call trigger
+  // Listen for window initiate_call or open-video-call trigger
   useEffect(() => {
     const handleTriggerCall = (e) => {
-      const { targetPartner, type } = e.detail;
-      startCall(targetPartner, type);
+      const detail = e.detail || {};
+      const targetPartner = detail.targetPartner || detail.userToCall || detail.partner;
+      const type = detail.type || 'video';
+      if (targetPartner) {
+        startCall(targetPartner, type);
+      }
     };
     window.addEventListener('initiate_call', handleTriggerCall);
-    return () => window.removeEventListener('initiate_call', handleTriggerCall);
+    window.addEventListener('open-video-call', handleTriggerCall);
+    return () => {
+      window.removeEventListener('initiate_call', handleTriggerCall);
+      window.removeEventListener('open-video-call', handleTriggerCall);
+    };
   }, [currentUser, onlineUsers, callState]);
 
   if (callState === 'idle') return null;

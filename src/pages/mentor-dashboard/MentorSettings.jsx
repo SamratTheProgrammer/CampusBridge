@@ -3,13 +3,14 @@ import {
   Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2, AtSign, Check, 
   AlertCircle, Laptop, Smartphone, MapPin, Trash2, Plus, Briefcase, GraduationCap, 
   FileText, ExternalLink, Sparkles, X, UploadCloud, Award, Edit2, Sun, Moon, MonitorSmartphone, Palette,
-  CheckCircle2
+  CheckCircle2, Link as LinkIcon
 } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import DeleteAccountModal from '../../components/modals/DeleteAccountModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
 import MentorOnboardingBanner from '../../components/mentor/MentorOnboardingBanner'
 import { socket } from '../../services/socket'
@@ -28,6 +29,8 @@ const MentorSettings = () => {
   const { mongoProfile, isMongoProfileLoading, refetchMongoProfile } = useProfileData()
   const [activeTab, setActiveTab] = useState('profile')
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [showPhotoUrlPrompt, setShowPhotoUrlPrompt] = useState(false)
+  const [photoUrlInput, setPhotoUrlInput] = useState('')
   const [profileVisibility, setProfileVisibility] = useState('public')
   const [userDoc, setUserDoc] = useState(null)
   const [completeness, setCompleteness] = useState({ percentage: 0, missingFields: [] })
@@ -261,6 +264,28 @@ const MentorSettings = () => {
   const handleCropComplete = (croppedFile) => {
     if (cropModalData?.type === 'dp') {
       uploadProfilePic(croppedFile)
+    }
+  }
+
+  const handleUpdateProfilePicUrl = async (url) => {
+    if (!url || !url.trim()) return
+    try {
+      toast.loading('Updating profile picture...', { id: 'pic-upload' })
+      const res = await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: url.trim() })
+      })
+      if (res.ok) {
+        toast.success('Profile picture updated!', { id: 'pic-upload' })
+        setShowPhotoUrlPrompt(false)
+        setPhotoUrlInput('')
+        refetchMongoProfile?.()
+      } else {
+        throw new Error('Failed to update')
+      }
+    } catch (err) {
+      toast.error('Failed to update profile picture', { id: 'pic-upload' })
     }
   }
 
@@ -1413,12 +1438,11 @@ const MentorSettings = () => {
         </div>
       </div>
 
-      <ConfirmModal
+      <DeleteAccountModal
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleDeleteAccount}
-        title="Delete Account"
-        message="Are you absolutely sure you want to delete your mentor account? This action cannot be undone."
+        userRole="mentor"
       />
 
       {/* Render Image Crop Modal if active */}

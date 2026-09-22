@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
 import Connection from '../models/Connection.js';
@@ -91,7 +92,10 @@ router.get('/conversations/:clerkId', async (req, res) => {
         if (!partnerUser) return null;
 
         const conversationId = Message.getConversationId(clerkId, partnerId);
-        const lastMessage = await Message.findOne({ conversationId }).sort({ createdAt: -1 });
+        const lastMessage = await Message.findOne({ 
+          conversationId,
+          deletedFor: { $ne: clerkId }
+        }).sort({ createdAt: -1 });
         const unreadCount = await Message.countDocuments({
           conversationId,
           recipientClerkId: clerkId,
@@ -104,6 +108,19 @@ router.get('/conversations/:clerkId', async (req, res) => {
         if (lastMessage) {
           if (lastMessage.isDeleted) {
             displayLastMessage = '🚫 This message was deleted';
+          } else if (lastMessage.type === 'call_log') {
+            const isVideo = lastMessage.callInfo?.callType === 'video';
+            displayLastMessage = `${isVideo ? '📹' : '📞'} ${lastMessage.text || 'Call'}`;
+          } else if (lastMessage.type === 'share') {
+            displayLastMessage = `🔗 Shared ${lastMessage.share?.type || 'item'}`;
+          } else if (
+            lastMessage.type === 'voice' || 
+            lastMessage.type === 'audio' || 
+            lastMessage.attachment?.type === 'audio' || 
+            lastMessage.attachment?.name === 'Voice Message' || 
+            (typeof lastMessage.attachment?.name === 'string' && /\.(mp3|wav|ogg|m4a|aac|webm)$/i.test(lastMessage.attachment.name))
+          ) {
+            displayLastMessage = `🎙️ ${lastMessage.attachment?.name || 'Voice Message'}`;
           } else if (lastMessage.attachment && lastMessage.attachment.name) {
             displayLastMessage = `📄 ${lastMessage.attachment.name}`;
           } else {
@@ -369,18 +386,29 @@ router.delete('/:messageId', async (req, res) => {
     const { messageId } = req.params;
     const { type, userId } = req.query;
 
-    const message = await Message.findById(messageId);
+    let message = null;
+    if (mongoose.Types.ObjectId.isValid(messageId)) {
+      message = await Message.findById(messageId);
+    } else {
+      message = await Message.findOne({ _id: messageId });
+    }
     if (!message) {
       return res.status(404).json({ message: 'Message not found' });
     }
+
+    const io = req.app?.get('io') || req.io;
 
     if (type === 'me') {
       if (!message.deletedFor.includes(userId)) {
         message.deletedFor.push(userId);
         await message.save();
       }
-      if (req.io) {
-        req.io.to(message.conversationId).emit('message_deleted_for_me', { messageId, userId });
+      if (io) {
+        io.to(message.conversationId).emit('message_deleted_for_me', { 
+          messageId: message._id.toString(), 
+          userId,
+          conversationId: message.conversationId
+        });
       }
     } else if (type === 'everyone') {
       if (message.senderClerkId === userId) {
@@ -389,8 +417,11 @@ router.delete('/:messageId', async (req, res) => {
         message.attachment = null;
         await message.save();
 
-        if (req.io) {
-          req.io.to(message.conversationId).emit('message_deleted_for_everyone', { messageId });
+        if (io) {
+          io.to(message.conversationId).emit('message_deleted_for_everyone', { 
+            messageId: message._id.toString(),
+            conversationId: message.conversationId
+          });
         }
       }
     }
@@ -414,7 +445,8 @@ router.post('/share', async (req, res) => {
     const typeModelMap = {
       'post': 'Post',
       'job': 'Job',
-      'event': 'Event'
+      'event': 'Event',
+      'profile': 'User'
     };
 
     const typeModel = typeModelMap[shareType];
@@ -447,6 +479,20 @@ router.post('/share', async (req, res) => {
           title = event.name;
           description = `${new Date(event.date).toLocaleDateString()} • ${event.type}`;
           imageUrl = event.image;
+        }
+      } else if (shareType === 'profile') {
+        const query = [{ clerkId: itemId }, { username: itemId }];
+        if (mongoose.Types.ObjectId.isValid(itemId)) {
+          query.push({ _id: itemId });
+        }
+        const profileUser = await User.findOne({ $or: query });
+        if (profileUser) {
+          title = `${profileUser.firstName || ''} ${profileUser.lastName || ''}`.trim() || profileUser.name || profileUser.username || 'User Profile';
+          description = profileUser.headline || (profileUser.role ? `${profileUser.role.charAt(0).toUpperCase() + profileUser.role.slice(1)} • CampusBridge` : 'CampusBridge Member');
+          imageUrl = profileUser.imageUrl || profileUser.photoUrl || profileUser.image;
+        } else {
+          title = 'User Profile';
+          description = 'View profile on CampusBridge';
         }
       }
     } catch (err) {
@@ -487,6 +533,7 @@ router.post('/share', async (req, res) => {
       savedMessages.push(newMessage);
 
       if (req.io) {
+        req.io.to(conversationId).emit('receive_message', newMessage);
         req.io.to(conversationId).emit('new_message', newMessage);
       }
     }

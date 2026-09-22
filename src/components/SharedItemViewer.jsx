@@ -12,6 +12,8 @@ import ShareModal from './modals/ShareModal';
 import ImageViewerModal from './ImageViewerModal';
 import ModalPortal from './modals/ModalPortal';
 import { socket } from '../services/socket';
+import FormattedPostText from './common/FormattedPostText';
+import AudioPlayerWidget from './common/AudioPlayerWidget';
 
 const optimizeUrl = (url) => {
   if (url && url.includes('cloudinary.com') && url.includes('/upload/')) {
@@ -191,6 +193,28 @@ const SharedItemViewer = () => {
       navigate(user?.publicMetadata?.role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
     } else {
       navigate(`/profile/${data.author?.username || data.authorClerkId}`);
+    }
+  };
+
+  const handleViewFullJob = () => {
+    const targetId = data?._id || jobId || itemId;
+    if (!targetId) return;
+    closeModal();
+    const role = sessionStorage.getItem('campusbridge_user_role') || localStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
+    if (role === 'mentor') {
+      navigate(`/mentor-dashboard/jobs/${targetId}`);
+    } else {
+      navigate(`/dashboard/jobs/${targetId}`);
+    }
+  };
+
+  const handleViewFullEvent = () => {
+    closeModal();
+    const role = sessionStorage.getItem('campusbridge_user_role') || localStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
+    if (role === 'mentor') {
+      navigate('/mentor-dashboard/events');
+    } else {
+      navigate('/dashboard/events');
     }
   };
 
@@ -453,9 +477,21 @@ const SharedItemViewer = () => {
                   <div className="relative w-full h-full flex items-center justify-center bg-black">
                     {(() => {
                       const activeMedia = data.mediaFiles?.length > 0 ? data.mediaFiles[currentMediaIndex] : { url: data.imageUrl, mediaType: data.mediaType };
-                      const isVideo = activeMedia.mediaType === 'video' || (activeMedia.url && activeMedia.url.match(/\.(mp4|webm|ogg)$/i));
+                      const isAudio = activeMedia.mediaType === 'audio' || (activeMedia.url && activeMedia.url.match(/\.(mp3|wav|ogg|m4a|aac|webm)(\?.*)?$/i));
+                      const isVideo = !isAudio && (activeMedia.mediaType === 'video' || (activeMedia.url && activeMedia.url.match(/\.(mp4|webm|ogg)$/i)));
                       const optimizedSrc = optimizeUrl(activeMedia.url);
-                      return isVideo ? (
+
+                      return isAudio ? (
+                        <div className="w-full max-w-md p-6 bg-card/90 rounded-2xl shadow-xl border border-border/50">
+                          <AudioPlayerWidget 
+                            src={activeMedia.url} 
+                            duration={activeMedia.duration}
+                            title={`${data.author?.name || 'Author'}'s Audio`} 
+                            userAvatar={data.author?.imageUrl}
+                            senderName={data.author?.name}
+                          />
+                        </div>
+                      ) : isVideo ? (
                         <AutoPlayVideo src={activeMedia.url} className="w-full max-h-full object-contain bg-black" />
                       ) : (
                         <img
@@ -720,14 +756,14 @@ const SharedItemViewer = () => {
                             <div className={`max-h-[60dvh] overflow-y-auto ${isCaptionExpanded ? 'md:max-h-none' : ''}`}>
                               {(!isCaptionExpanded && data.content?.length > 100) ? (
                                 <span className="text-sm text-white md:text-foreground whitespace-pre-wrap leading-relaxed drop-shadow-md md:drop-shadow-none">
-                                  {data.content.substring(0, 100)}...
+                                  <FormattedPostText text={data.content.substring(0, 100)} />...
                                   <button onClick={() => setIsCaptionExpanded(true)} className="md:hidden text-white/60 ml-1 font-semibold hover:underline bg-transparent">
                                     more
                                   </button>
                                 </span>
                               ) : (
                                 <span className="text-sm text-white md:text-foreground whitespace-pre-wrap leading-relaxed drop-shadow-md md:drop-shadow-none">
-                                  {data.content}
+                                  <FormattedPostText text={data.content} />
                                 </span>
                               )}
                             </div>
@@ -908,12 +944,18 @@ const SharedItemViewer = () => {
                 {(itemType === 'job' || itemType === 'event') && (
                   <div className="p-4 pt-0 border-t-0 md:border-t md:border-border/50 bg-transparent md:bg-card shrink-0 pointer-events-auto w-full z-40">
                     {itemType === 'job' && (
-                      <button className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
+                      <button 
+                        onClick={handleViewFullJob}
+                        className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                      >
                         <ExternalLink className="w-4 h-4" /> View Full Job Details
                       </button>
                     )}
                     {itemType === 'event' && (
-                      <button className="w-full py-3 bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 hover:bg-indigo-600 transition-all flex items-center justify-center gap-2">
+                      <button 
+                        onClick={handleViewFullEvent}
+                        className="w-full py-3 bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                      >
                         <CalendarIcon className="w-4 h-4" /> View Full Event
                       </button>
                     )}

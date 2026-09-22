@@ -1,7 +1,7 @@
 import EventSkeleton from '../../components/skeletons/EventSkeleton'
 
 import React, { useState, useEffect } from 'react'
-import { Loader2, Calendar, Clock, MapPin, Users, X, CheckCircle2, Globe, Video, Share2 } from 'lucide-react'
+import { Loader2, Calendar, Clock, MapPin, Users, X, CheckCircle2, Globe, Video, Share2, ChevronRight, Wifi, ArrowRight, Laptop, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -12,6 +12,7 @@ import ShareModal from '../../components/modals/ShareModal'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ReviewModal from '../../components/modals/ReviewModal'
 import ModalPortal from '../../components/modals/ModalPortal'
+import defaultPP from '../../assets/default_pp.png'
 import { Star } from 'lucide-react'
 
 const EventRatingBadge = ({ eventId, onClick }) => {
@@ -27,11 +28,12 @@ const EventRatingBadge = ({ eventId, onClick }) => {
   return (
     <button 
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(stats.reviews, stats.averageRating); }}
-      className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20"
+      className="flex items-center gap-1 bg-amber-400/10 text-amber-600 dark:text-amber-400 hover:bg-amber-400/20 px-2 py-1 rounded-lg transition-colors border border-amber-400/20 shrink-0"
+      title="View Reviews"
     >
-      <Star className="w-3.5 h-3.5 fill-current" />
-      <span className="font-bold text-sm">{stats.averageRating || '0.0'}</span>
-      <span className="text-xs">({stats.totalRatings || 0} Reviews)</span>
+      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+      <span className="font-bold text-xs">{stats.averageRating ? Number(stats.averageRating).toFixed(1) : '0.0'}</span>
+      <span className="text-[10px] text-muted-foreground">({stats.totalRatings || 0})</span>
     </button>
   )
 }
@@ -221,7 +223,7 @@ const Events = () => {
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6 pb-8">
+    <div className="w-full max-w-5xl mx-auto space-y-6 pb-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Events</h1>
         <p className="text-muted-foreground">Discover and register for upcoming events.</p>
@@ -245,138 +247,217 @@ const Events = () => {
       <div className="space-y-4 pt-2">
         {isLoading ? (
           <div className="w-full space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <EventSkeleton key={i}  />
-              ))}
-            </div>
+            {[...Array(4)].map((_, i) => (
+              <EventSkeleton key={i} />
+            ))}
+          </div>
         ) : filteredEvents.length > 0 ? (
-          filteredEvents.map(event => {
-            const registered = isRegistered(event)
-            return (
-              <div key={event._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                {event.moderationStatus === 'paused' && (
-                  <div className="absolute top-0 left-0 w-full bg-amber-500/10 text-amber-500 text-xs font-bold py-1.5 px-4 text-center border-b border-amber-500/20">
-                    Paused by Admin: {event.moderationRemark || 'Under review'}
-                  </div>
-                )}
-                <div className={`flex flex-col sm:flex-row sm:items-center gap-5 ${event.moderationStatus === 'paused' ? 'mt-6' : ''}`}>
-                  <div className="w-full sm:w-32 h-32 sm:h-24 rounded-xl overflow-hidden shrink-0 bg-primary/10 flex items-center justify-center">
-                    {event.imageUrl ? (
-                      <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-primary font-bold text-xl">{event.type?.charAt(0) || 'E'}</span>
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                        {event.type || 'Event'}
-                      </span>
-                      <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                        event.mode === 'Offline' || (event.location && !event.mode)
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                          : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                      }`}>
-                        {event.mode === 'Offline' || (event.location && !event.mode) ? (
-                          <><MapPin className="w-3 h-3" /> Offline</>
-                        ) : (
-                          <><Globe className="w-3 h-3" /> Online</>
-                        )}
-                      </span>
-                      {registered && (
-                        <span className="text-[10px] uppercase font-bold tracking-wider bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Registered
-                        </span>
-                      )}
+          <div className="space-y-4">
+            {filteredEvents.map(event => {
+              const registered = isRegistered(event);
+              const isPastEvent = checkIsPast(event.date, event.time);
+              const isOffline = event.mode === 'Offline' || (event.location && !event.mode);
+              const attendeesList = Array.isArray(event.attendees) ? event.attendees.filter(Boolean) : [];
+              const attendeesCount = attendeesList.length;
+              const displayedAttendees = attendeesList.slice(0, 3);
+              const eventImg = event.imageUrl;
+
+              return (
+                <div 
+                  key={event._id} 
+                  className="bg-card border border-border/50 hover:border-primary/40 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-5 relative overflow-hidden group"
+                >
+                  {/* Paused Admin Banner */}
+                  {event.moderationStatus === 'paused' && (
+                    <div className="absolute top-0 left-0 w-full bg-amber-500/10 text-amber-500 text-xs font-bold py-1.5 px-4 text-center border-b border-amber-500/20">
+                      Paused by Admin: {event.moderationRemark || 'Under review'}
                     </div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-bold text-foreground">{event.title}</h3>
-                      <button 
-                        onClick={(e) => handleShareEvent(e, event._id)}
-                        className="text-muted-foreground hover:text-primary transition-colors p-1"
-                        title="Share Event"
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-primary" /> {event.date ? format(new Date(event.date), 'MMM dd, yyyy') : 'TBD'} <Clock className="w-4 h-4 text-primary ml-2" /> {event.time}
-                    </p>
-                    <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                      {event.mode === 'Offline' || (event.location && !event.mode) ? (
-                        <><MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {event.location || 'Campus Location'}</>
+                  )}
+
+                  {/* Left / Main info */}
+                  <div className={`flex flex-col sm:flex-row sm:items-center gap-5 flex-1 min-w-0 ${event.moderationStatus === 'paused' ? 'mt-6' : ''}`}>
+                    {/* Thumbnail Image */}
+                    <div className="w-full sm:w-44 h-36 sm:h-32 rounded-xl overflow-hidden shrink-0 bg-primary/10 border border-border/40 relative">
+                      {eventImg ? (
+                        <img 
+                          src={eventImg} 
+                          alt={event.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        />
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" /> 
-                          {event.link && registered ? (
-                            <a href={event.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-semibold transition-colors">
-                              <Video className="w-3.5 h-3.5" /> Join Meeting
-                            </a>
-                          ) : (
-                            <span>Virtual / Online Meeting</span>
-                          )}
+                        <div className="w-full h-full flex items-center justify-center text-primary font-bold text-2xl">
+                          {event.type?.charAt(0) || 'E'}
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <p className="text-xs font-medium text-muted-foreground bg-muted inline-block px-2 py-1 rounded border border-border/50 flex items-center gap-1 w-fit">
-                        <Users className="w-3.5 h-3.5 text-primary" /> {event.attendees?.length || 0} Registered
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 mt-3">
+
+                    {/* Content Details */}
+                    <div className="flex-1 min-w-0">
+                      {/* Badges: Type, Mode (Online/Offline), Status, Rating */}
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
+                          {event.type || 'Event'}
+                        </span>
+                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                          isOffline
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                        }`}>
+                          {isOffline ? (
+                            <><MapPin className="w-3 h-3" /> Offline</>
+                          ) : (
+                            <><Globe className="w-3 h-3" /> Online</>
+                          )}
+                        </span>
+                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                          isPastEvent 
+                            ? 'bg-muted text-muted-foreground' 
+                            : (event.active && event.link && registered) 
+                            ? 'bg-rose-500/10 text-rose-500' 
+                            : 'bg-emerald-500/10 text-emerald-500'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isPastEvent ? 'bg-muted-foreground' : (event.active && event.link && registered) ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                          {isPastEvent ? 'Completed' : (event.active && event.link && registered) ? 'Live Now' : 'Upcoming'}
+                        </span>
                         <EventRatingBadge 
                           eventId={event._id} 
                           onClick={(reviews) => {
-                            setSelectedReviews(reviews)
-                            setSelectedEventTitle(`Reviews for ${event.title}`)
-                            setSelectedEventForReview(event)
-                            setIsReviewListModalOpen(true)
+                            setSelectedReviews(reviews);
+                            setSelectedEventTitle(`Reviews for ${event.title}`);
+                            setSelectedEventForReview(event);
+                            setIsReviewListModalOpen(true);
                           }} 
                         />
                       </div>
-                    </div>
-                  </div>
-                  {registered && (() => {
-                    const isPastEvent = checkIsPast(event.date, event.time);
-                    return (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {event.date && !isPastEvent && (
-                          <a 
-                            href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(event.title)}&dates=${format(new Date(event.date), 'yyyyMMdd')}/${format(new Date(event.date), 'yyyyMMdd')}&details=${encodeURIComponent(`CampusBridge Event: ${event.title}\nTime: ${event.time || 'TBD'}\nLink: ${event.link || ''}`)}&location=${encodeURIComponent(event.location || '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-3 py-2 rounded-lg"
-                          >
-                            <Calendar className="w-3.5 h-3.5" /> Add to Calendar
-                          </a>
-                        )}
-                        <button
-                          onClick={() => {
-                            const role = user?.publicMetadata?.role || 'student';
-                            navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard' : '/dashboard', { state: { shareEvent: event } });
-                          }}
-                          className={`inline-flex items-center gap-1.5 text-xs font-semibold text-white transition-colors px-3 py-2 rounded-lg shadow-sm ${
-                            isPastEvent 
-                              ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600' 
-                              : 'bg-primary hover:bg-primary/90'
-                          }`}
+
+                      {/* Title & Share */}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                          {event.title}
+                        </h3>
+                        <button 
+                          onClick={(e) => handleShareEvent(e, event._id)}
+                          className="text-muted-foreground hover:text-primary transition-colors p-1 shrink-0"
+                          title="Share Event"
                         >
-                          <Share2 className="w-3.5 h-3.5" /> {isPastEvent ? 'Share Experience' : 'Share Thought'}
+                          <Share2 className="w-4 h-4" />
                         </button>
                       </div>
-                    );
-                  })()}
+
+                      {/* Date, Time & Mode/Location */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mb-2.5">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-primary" />
+                          {event.date ? format(new Date(event.date), 'MMM dd, yyyy') : 'TBD'}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-primary" />
+                          {event.time || 'TBD'}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          {isOffline ? (
+                            <><MapPin className="w-3.5 h-3.5 text-amber-500" /> {event.location || 'Campus Location'}</>
+                          ) : (
+                            <><Globe className="w-3.5 h-3.5 text-blue-500" /> Virtual / Online</>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Attendees Avatars Stack & Count */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 bg-muted/60 border border-border/40 px-2.5 py-1 rounded-lg">
+                          {attendeesCount > 0 ? (
+                            <>
+                              <div className="flex -space-x-1.5 overflow-hidden shrink-0">
+                                {displayedAttendees.map((att, attIdx) => {
+                                  const imgSrc = (typeof att === 'object' && att?.imageUrl) ? att.imageUrl : defaultPP;
+                                  const attName = (typeof att === 'object' && (att?.name || att?.firstName)) ? (att.name || att.firstName) : 'Attendee';
+                                  return (
+                                    <img 
+                                      key={attIdx} 
+                                      src={imgSrc} 
+                                      alt={attName}
+                                      title={attName}
+                                      onError={(e) => { e.currentTarget.src = defaultPP; }}
+                                      className="inline-block w-5 h-5 rounded-full ring-2 ring-card object-cover shrink-0" 
+                                    />
+                                  );
+                                })}
+                              </div>
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                {attendeesCount > 3 ? `+${attendeesCount - 3} attending` : `${attendeesCount} attending`}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Users className="w-3.5 h-3.5 text-primary" />
+                              <span className="text-xs font-semibold text-muted-foreground">0 attending</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Side: Action Buttons */}
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/40">
+                    {registered ? (
+                      event.link && !isPastEvent ? (
+                        <a
+                          href={event.link.startsWith('http') ? event.link : `https://${event.link}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-md hover:shadow-purple-500/25 hover:opacity-95 transition-all shrink-0"
+                        >
+                          <Video className="w-3.5 h-3.5" /> Join Event
+                        </a>
+                      ) : (
+                        <span className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold inline-flex items-center gap-1.5 border border-emerald-500/20 shrink-0">
+                          <Check className="w-3.5 h-3.5" /> Enrolled
+                        </span>
+                      )
+                    ) : (
+                      event.active && !isPastEvent ? (
+                        <button
+                          onClick={() => handleRegisterClick(event)}
+                          className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:bg-primary/90 transition-all shadow-sm active:scale-95 shrink-0"
+                        >
+                          Register
+                        </button>
+                      ) : (
+                        <span className="px-4 py-2 rounded-xl bg-muted text-muted-foreground text-xs font-semibold shrink-0">
+                          Closed
+                        </span>
+                      )
+                    )}
+
+                    {/* Additional Registered Actions: Calendar & Experience */}
+                    {registered && event.date && !isPastEvent && (
+                      <a 
+                        href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(event.title)}&dates=${format(new Date(event.date), 'yyyyMMdd')}/${format(new Date(event.date), 'yyyyMMdd')}&details=${encodeURIComponent(`CampusBridge Event: ${event.title}\nTime: ${event.time || 'TBD'}\nLink: ${event.link || ''}`)}&location=${encodeURIComponent(event.location || '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg"
+                      >
+                        <Calendar className="w-3 h-3" /> Add to Calendar
+                      </a>
+                    )}
+                    {registered && isPastEvent && (
+                      <button
+                        onClick={() => {
+                          const role = user?.publicMetadata?.role || 'student';
+                          navigate(['mentor', 'alumni'].includes(role.toLowerCase()) ? '/mentor-dashboard' : '/dashboard', { state: { shareEvent: event } });
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-500 hover:text-amber-400 transition-colors bg-amber-500/10 px-2.5 py-1 rounded-lg"
+                      >
+                        <Share2 className="w-3 h-3" /> Share Experience
+                      </button>
+                    )}
+                  </div>
                 </div>
-                {event.active && !registered && !checkIsPast(event.date, event.time) && (
-                  <button 
-                    onClick={() => handleRegisterClick(event)}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm shrink-0 w-full sm:w-auto"
-                  >
-                    Register
-                  </button>
-                )}
-              </div>
-            )
-          })
+              );
+            })}
+          </div>
         ) : (
           <div className="py-12 text-center text-muted-foreground bg-card border border-border/50 rounded-2xl">
             {activeTab === 'upcoming' ? 'No upcoming events.' : 'No past events to show.'}

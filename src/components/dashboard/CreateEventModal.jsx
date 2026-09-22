@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { X, Calendar as CalendarIcon, MapPin, Video, Users, Globe, Lock, Users2, Image as ImageIcon, CheckCircle2, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ImageInputWithUrl from '../common/ImageInputWithUrl'
 
 const CreateEventModal = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1) // 1: Form, 2: Success/Management
@@ -15,6 +16,7 @@ const CreateEventModal = ({ isOpen, onClose }) => {
     virtualLink: '',
     privacy: 'public', // public, private, group
     description: '',
+    imageUrl: '',
   })
 
   if (!isOpen) return null
@@ -46,6 +48,7 @@ const CreateEventModal = ({ isOpen, onClose }) => {
       virtualLink: '',
       privacy: 'public',
       description: '',
+      imageUrl: '',
     })
     onClose()
   }
@@ -207,22 +210,16 @@ const CreateEventModal = ({ isOpen, onClose }) => {
               </div>
 
               {/* Cover Photo */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">Cover Photo</label>
-                <label className="border-2 border-dashed border-border/50 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer">
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={(e) => {
-                      if(e.target.files?.length) toast.success(`Cover photo selected: ${e.target.files[0].name}`)
-                    }}
-                  />
-                  <ImageIcon className="w-8 h-8 text-muted-foreground mb-2" />
-                  <span className="text-sm font-medium text-foreground">Add a cover photo</span>
-                  <span className="text-xs text-muted-foreground mt-1">Recommended size: 1200 x 628</span>
-                </label>
-              </div>
+              <ImageInputWithUrl
+                label="Cover Photo (Optional)"
+                value={formData.imageUrl}
+                onChangeUrl={(url) => setFormData(prev => ({ ...prev, imageUrl: url }))}
+                onChangeFile={(file) => {
+                  if (file) toast.success(`Cover photo selected: ${file.name}`)
+                }}
+                onClear={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
+                placeholder="https://images.unsplash.com/..."
+              />
 
               {/* Description */}
               <div className="space-y-2">

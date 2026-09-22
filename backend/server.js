@@ -291,8 +291,9 @@ io.on('connection', (socket) => {
       // Emit to all sockets in conversation room
       io.to(convId).emit('receive_message', message);
 
-      // Emit directly to recipient sockets
+      // Emit directly to recipient and sender sockets
       emitToUserSockets(recipientClerkId, 'receive_message', message);
+      emitToUserSockets(senderClerkId, 'receive_message', message);
 
       const sender = await User.findOne({ clerkId: senderClerkId });
       const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'Someone';
@@ -341,22 +342,36 @@ io.on('connection', (socket) => {
   // Handle Message Deletion
   socket.on('delete_message', async ({ messageId, type, userId, conversationId }) => {
     try {
-      const message = await Message.findById(messageId);
+      let message = null;
+      if (mongoose.Types.ObjectId.isValid(messageId)) {
+        message = await Message.findById(messageId);
+      } else {
+        message = await Message.findOne({ _id: messageId });
+      }
       if (!message) return;
+
+      const convId = conversationId || message.conversationId;
 
       if (type === 'me') {
         if (!message.deletedFor.includes(userId)) {
           message.deletedFor.push(userId);
           await message.save();
         }
-        socket.emit('message_deleted_for_me', { messageId });
+        socket.emit('message_deleted_for_me', { 
+          messageId: message._id.toString(), 
+          userId, 
+          conversationId: convId 
+        });
       } else if (type === 'everyone') {
         if (message.senderClerkId === userId) {
           message.isDeleted = true;
           message.text = '';
           message.attachment = null;
           await message.save();
-          io.to(conversationId).emit('message_deleted_for_everyone', { messageId });
+          io.to(convId).emit('message_deleted_for_everyone', { 
+            messageId: message._id.toString(), 
+            conversationId: convId 
+          });
         }
       }
     } catch (err) {

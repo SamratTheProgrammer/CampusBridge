@@ -30,6 +30,7 @@ router.get('/', async (req, res) => {
 
     let events = await Event.find(filter)
       .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company username')
+      .populate('attendees', 'name firstName lastName imageUrl username clerkId')
       .sort({ createdAt: -1 });
 
     // Seed sample events if none exist in database
@@ -76,6 +77,7 @@ router.get('/', async (req, res) => {
         await Event.insertMany(SAMPLE_EVENTS);
         events = await Event.find(filter)
           .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company username')
+          .populate('attendees', 'name firstName lastName imageUrl username clerkId')
           .sort({ createdAt: -1 });
       } catch (seedErr) {
         console.error('Error seeding initial events:', seedErr);
@@ -97,6 +99,7 @@ router.get('/mentor/:clerkId', async (req, res) => {
     }
     const events = await Event.find({ organizer: user._id, moderationStatus: { $ne: 'deleted' } })
       .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company')
+      .populate('attendees', 'name firstName lastName imageUrl username clerkId')
       .sort({ createdAt: -1 });
     res.json(events);
   } catch (error) {

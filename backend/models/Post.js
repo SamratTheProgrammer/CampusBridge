@@ -29,7 +29,8 @@ const postSchema = new mongoose.Schema({
   },
   mediaFiles: [{
     url: String,
-    mediaType: String // 'image' or 'video'
+    mediaType: String, // 'image', 'video', or 'audio'
+    duration: Number
   }],
   likes: [{
     type: String, // clerkId of the user who liked
@@ -73,6 +74,14 @@ const postSchema = new mongoose.Schema({
   },
   moderationRemark: {
     type: String
+  },
+  commentsDisabled: {
+    type: Boolean,
+    default: false
+  },
+  hideLikes: {
+    type: Boolean,
+    default: false
   }
 });
 

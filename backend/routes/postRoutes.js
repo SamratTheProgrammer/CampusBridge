@@ -437,6 +437,10 @@ router.post('/:id/comment', async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
+    if (post.commentsDisabled) {
+      return res.status(403).json({ message: 'Comments are turned off for this post' });
+    }
+
     post.comments.push({ authorClerkId, content });
     await post.save();
 
@@ -515,6 +519,10 @@ router.post('/:id/comment/:commentId/reply', async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
+    if (post.commentsDisabled) {
+      return res.status(403).json({ message: 'Commenting is turned off for this post' });
+    }
+
     const comment = post.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
 
@@ -580,6 +588,70 @@ router.post('/:id/comment/:commentId/reply', async (req, res) => {
 
   } catch (error) {
     console.error('Error adding reply:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle Turn Off / On Comments
+router.put('/:id/toggle-comments', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'userId is required' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    if (post.authorClerkId !== userId) {
+      return res.status(403).json({ message: 'Only author can modify post settings' });
+    }
+
+    post.commentsDisabled = !post.commentsDisabled;
+    await post.save();
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_updated', { postId: post._id.toString(), commentsDisabled: post.commentsDisabled });
+    }
+
+    res.status(200).json({ success: true, commentsDisabled: post.commentsDisabled });
+  } catch (error) {
+    console.error('Error toggling comments:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle Hide / Unhide Likes Count
+router.put('/:id/toggle-likes-visibility', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'userId is required' });
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    if (post.authorClerkId !== userId) {
+      return res.status(403).json({ message: 'Only author can modify post settings' });
+    }
+
+    post.hideLikes = !post.hideLikes;
+    await post.save();
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_updated', { postId: post._id.toString(), hideLikes: post.hideLikes });
+    }
+
+    res.status(200).json({ success: true, hideLikes: post.hideLikes });
+  } catch (error) {
+    console.error('Error toggling likes visibility:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2 } from 'lucide-react';
+import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
@@ -12,6 +11,9 @@ import { formatRoleSubtitle } from '../utils/textFormatters';
 import { isToday, isYesterday, format } from 'date-fns';
 import { useTheme } from './ThemeProvider';
 import ModalPortal from './modals/ModalPortal';
+import AudioPlayerWidget from './common/AudioPlayerWidget';
+import ExportChatModal from './modals/ExportChatModal';
+import ShareProfileInChatModal from './modals/ShareProfileInChatModal';
 
 const formatMessageDateSeparator = (dateString) => {
   if (!dateString) return '';
@@ -68,10 +70,20 @@ const RealtimeChat = () => {
   const [filePreview, setFilePreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [fullscreenAttachment, setFullscreenAttachment] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isShareProfileModalOpen, setIsShareProfileModalOpen] = useState(false);
+
+  // Voice recording state
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [voiceDuration, setVoiceDuration] = useState(0);
+  const voiceRecorderRef = useRef(null);
+  const voiceStreamRef = useRef(null);
+  const voiceChunksRef = useRef([]);
+  const voiceTimerRef = useRef(null);
   const [deleteModalMsg, setDeleteModalMsg] = useState(null);
-  const [fullscreenAttachment, setFullscreenAttachment] = useState(null);
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -263,7 +275,12 @@ const RealtimeChat = () => {
       if (isForActiveContact) {
         setMessages((prev) => {
           const tempIdx = prev.findIndex(
-            (m) => String(m._id).startsWith('temp_') && m.senderClerkId === msg.senderClerkId && m.text === msg.text
+            (m) =>
+              String(m._id).startsWith('temp_') &&
+              m.senderClerkId === msg.senderClerkId &&
+              ((m.attachment?.url && m.attachment?.url === msg.attachment?.url) ||
+               (m.type === 'audio' && msg.type === 'audio') ||
+               (m.text && m.text === msg.text))
           );
           if (tempIdx !== -1) {
             const updated = [...prev];
@@ -301,10 +318,12 @@ const RealtimeChat = () => {
 
     const handleMessageDeletedMe = ({ messageId }) => {
       setMessages((prev) => prev.filter((m) => String(m._id) !== String(messageId)));
+      fetchContacts();
     };
 
     const handleMessageDeletedEveryone = ({ messageId }) => {
       setMessages((prev) => prev.map((m) => String(m._id) === String(messageId) ? { ...m, isDeleted: true, text: '', attachment: null } : m));
+      fetchContacts();
     };
 
     const handleMessageEdited = ({ messageId, newText, editedAt }) => {
@@ -312,6 +331,7 @@ const RealtimeChat = () => {
     };
 
     socket.on('receive_message', handleReceiveMessage);
+    socket.on('new_message', handleReceiveMessage);
     socket.on('user_typing', handleUserTyping);
     socket.on('messages_read', handleMessagesRead);
     socket.on('user_messages_delivered', handleMessagesDelivered);
@@ -322,6 +342,7 @@ const RealtimeChat = () => {
     return () => {
       socket.emit('leave_room', { conversationId });
       socket.off('receive_message', handleReceiveMessage);
+      socket.off('new_message', handleReceiveMessage);
       socket.off('user_typing', handleUserTyping);
       socket.off('messages_read', handleMessagesRead);
       socket.off('user_messages_delivered', handleMessagesDelivered);
@@ -348,7 +369,7 @@ const RealtimeChat = () => {
   // Handle Send / Edit Message
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
-    if ((!inputText.trim() && !selectedFile) || !activeContact || !user || isUploading) return;
+    if ((!inputText.trim() && !selectedFile) || !activeContact || !user) return;
 
     if (isCurrentPartnerBlocked) {
       toast.error('Unblock user to send messages');
@@ -388,72 +409,132 @@ const RealtimeChat = () => {
       return;
     }
 
-    let attachmentData = null;
-    let messageType = 'text';
-
-    if (selectedFile) {
-      setIsUploading(true);
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      
-      const fileType = selectedFile.type.startsWith('image/') ? 'image' 
-                     : selectedFile.type.startsWith('video/') ? 'video' 
-                     : 'document';
-      formData.append('type', fileType === 'document' ? 'raw' : 'auto');
-      
-      try {
-        const uploadRes = await fetch(`${API_BASE}/api/upload/file`, { method: 'POST', body: formData });
-        if (uploadRes.ok) {
-          const data = await uploadRes.json();
-          attachmentData = {
-            url: data.url,
-            name: data.name,
-            type: fileType,
-            size: data.size
-          };
-          messageType = fileType;
-        } else {
-          toast.error('Failed to upload file');
-          setIsUploading(false);
-          return;
-        }
-      } catch (err) {
-        toast.error('Upload error');
-        setIsUploading(false);
-        return;
-      }
-      setIsUploading(false);
-    }
-
     const replyData = replyingTo ? {
       messageId: replyingTo._id,
-      text: replyingTo.type === 'image' ? '📸 Image' : replyingTo.type === 'video' ? '🎥 Video' : replyingTo.type === 'document' ? '📄 Document' : replyingTo.text,
+      text: replyingTo.type === 'image' ? '📸 Image' : replyingTo.type === 'video' ? '🎥 Video' : (replyingTo.type === 'audio' || replyingTo.attachment?.type === 'audio') ? '🎤 Voice Note' : replyingTo.type === 'document' ? '📄 Document' : replyingTo.text,
       senderName: replyingTo.senderClerkId === user.id ? 'You' : activeContact.name
     } : null;
-    
-    setReplyingTo(null);
 
     const currentConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
-    // 1. Optimistic Local UI update (Zero Latency)
-    const tempId = 'temp_' + Date.now();
+    // If there is an attachment to send
+    if (selectedFile) {
+      const fileToSend = selectedFile;
+      const fileType = fileToSend.type.startsWith('image/') ? 'image' 
+                     : fileToSend.type.startsWith('video/') ? 'video' 
+                     : fileToSend.type.startsWith('audio/') ? 'audio'
+                     : 'document';
+      
+      const localPreviewUrl = URL.createObjectURL(fileToSend);
+
+      const tempMessage = {
+        _id: tempId,
+        conversationId: currentConvId,
+        senderClerkId: user.id,
+        recipientClerkId: activeContact.clerkId,
+        text,
+        type: fileType,
+        attachment: {
+          url: localPreviewUrl,
+          name: fileToSend.name,
+          type: fileType,
+          size: fileToSend.size
+        },
+        replyTo: replyData,
+        createdAt: new Date().toISOString(),
+        isRead: false,
+        isUploading: true
+      };
+
+      // Optimistic update & immediately free up the input bar
+      setMessages((prev) => [...prev, tempMessage]);
+      setInputText('');
+      setSelectedFile(null);
+      setFilePreview(null);
+      setReplyingTo(null);
+
+      // Update contacts sidebar
+      setContacts(prev => {
+        const updated = prev.map(c => {
+          if (c.clerkId === activeContact.clerkId) {
+            return {
+              ...c,
+              lastMessage: text || (fileType === 'image' ? '📸 Image' : fileType === 'video' ? '🎥 Video' : fileType === 'audio' ? '🎙️ Voice Message' : '📄 Document'),
+              lastMessageTime: new Date().toISOString()
+            };
+          }
+          return c;
+        });
+        return updated.sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+      });
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      socket.emit('typing', { conversationId: currentConvId, userId: user.id, isTyping: false });
+
+      // Background asynchronous upload (WhatsApp style)
+      (async () => {
+        const formData = new FormData();
+        formData.append('file', fileToSend);
+        formData.append('type', fileType === 'document' ? 'raw' : 'auto');
+
+        try {
+          const uploadRes = await fetch(`${API_BASE}/api/upload/file`, { method: 'POST', body: formData });
+          if (uploadRes.ok) {
+            const data = await uploadRes.json();
+            const realAttachment = {
+              url: data.url,
+              name: data.name || fileToSend.name,
+              type: fileType,
+              size: data.size || fileToSend.size
+            };
+
+            setMessages((prev) => prev.map((m) => m._id === tempId ? {
+              ...m,
+              isUploading: false,
+              attachment: realAttachment
+            } : m));
+
+            socket.emit('send_message', {
+              senderClerkId: user.id,
+              recipientClerkId: activeContact.clerkId,
+              conversationId: currentConvId,
+              text,
+              type: fileType,
+              attachment: realAttachment,
+              replyTo: replyData
+            });
+          } else {
+            setMessages((prev) => prev.map((m) => m._id === tempId ? { ...m, isUploading: false, isError: true } : m));
+            toast.error('Failed to upload file');
+          }
+        } catch (err) {
+          console.error('Upload error:', err);
+          setMessages((prev) => prev.map((m) => m._id === tempId ? { ...m, isUploading: false, isError: true } : m));
+          toast.error('Upload error');
+        }
+      })();
+      return;
+    }
+
+    // Normal text message (immediate sending)
     const tempMessage = {
       _id: tempId,
       conversationId: currentConvId,
       senderClerkId: user.id,
       recipientClerkId: activeContact.clerkId,
       text,
-      type: messageType,
-      attachment: attachmentData,
+      type: 'text',
+      attachment: null,
       replyTo: replyData,
       createdAt: new Date().toISOString(),
-      isRead: false
+      isRead: false,
+      isUploading: false
     };
 
     setMessages((prev) => [...prev, tempMessage]);
     setInputText('');
-    setSelectedFile(null);
-    setFilePreview(null);
+    setReplyingTo(null);
 
     // Update contacts list to move the active contact to the top
     setContacts(prev => {
@@ -461,7 +542,7 @@ const RealtimeChat = () => {
         if (c.clerkId === activeContact.clerkId) {
           return {
             ...c,
-            lastMessage: text || (messageType === 'image' ? '📸 Image' : messageType === 'video' ? '🎥 Video' : '📄 Document'),
+            lastMessage: text,
             lastMessageTime: new Date().toISOString()
           };
         }
@@ -473,14 +554,14 @@ const RealtimeChat = () => {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     socket.emit('typing', { conversationId: currentConvId, userId: user.id, isTyping: false });
 
-    // 2. Emit live message via Socket.io
+    // Emit live message via Socket.io
     socket.emit('send_message', {
       senderClerkId: user.id,
       recipientClerkId: activeContact.clerkId,
       conversationId: currentConvId,
       text,
-      type: messageType,
-      attachment: attachmentData,
+      type: 'text',
+      attachment: null,
       replyTo: replyData
     });
   };
@@ -499,7 +580,7 @@ const RealtimeChat = () => {
   };
 
   const handleDeleteMessage = async (messageId, type) => {
-    // 1. Optimistic local update
+    // 1. Optimistic local messages update
     if (type === 'everyone') {
       setMessages((prev) => prev.map((m) => String(m._id) === String(messageId) ? { ...m, isDeleted: true, text: '', attachment: null } : m));
     } else {
@@ -507,15 +588,49 @@ const RealtimeChat = () => {
     }
     setActiveMessageMenu(null);
 
-    // 2. Socket emit
+    // 2. Immediately recalculate sidebar snippet for active contact
+    if (activeContact) {
+      const remainingMessages = messages.filter((m) => String(m._id) !== String(messageId));
+      const newLastMsg = remainingMessages.length > 0 ? remainingMessages[remainingMessages.length - 1] : null;
+
+      let displaySnippet = 'Start a conversation';
+      if (newLastMsg) {
+        if (newLastMsg.isDeleted) displaySnippet = '🚫 This message was deleted';
+        else if (newLastMsg.type === 'call_log') displaySnippet = `${newLastMsg.callInfo?.callType === 'video' ? '📹' : '📞'} ${newLastMsg.text || 'Call'}`;
+        else if (newLastMsg.type === 'share') displaySnippet = `🔗 Shared ${newLastMsg.share?.type || 'item'}`;
+        else if (
+          newLastMsg.type === 'voice' || 
+          newLastMsg.type === 'audio' || 
+          newLastMsg.attachment?.type === 'audio' || 
+          newLastMsg.attachment?.name === 'Voice Message' || 
+          (typeof newLastMsg.attachment?.name === 'string' && /\.(mp3|wav|ogg|m4a|aac|webm)$/i.test(newLastMsg.attachment.name))
+        ) displaySnippet = `🎙️ ${newLastMsg.attachment?.name || 'Voice Message'}`;
+        else if (newLastMsg.attachment?.name) displaySnippet = `📄 ${newLastMsg.attachment.name}`;
+        else displaySnippet = newLastMsg.text || `[${newLastMsg.type || 'Attachment'}]`;
+      }
+
+      setContacts((prev) => prev.map((c) => {
+        if (c.clerkId === activeContact.clerkId || c.id === activeContact.clerkId) {
+          return {
+            ...c,
+            lastMessage: displaySnippet,
+            lastMessageTime: newLastMsg ? newLastMsg.createdAt : null
+          };
+        }
+        return c;
+      }));
+    }
+
+    // 3. Socket emit
+    const convId = activeContact?.conversationId || getConvId(user.id, activeContact?.clerkId);
     socket.emit('delete_message', {
       messageId,
       type,
       userId: user.id,
-      conversationId: activeContact.conversationId
+      conversationId: convId
     });
 
-    // 3. REST API persistence
+    // 4. REST API persistence
     try {
       await fetch(`${API_BASE}/api/messages/${messageId}?type=${type}&userId=${user.id}`, {
         method: 'DELETE'
@@ -523,6 +638,9 @@ const RealtimeChat = () => {
     } catch (err) {
       console.error('Error deleting message:', err);
     }
+
+    // 5. Re-fetch contacts to ensure server-side consistency
+    fetchContacts();
   };
 
   // Block / Unblock User
@@ -571,6 +689,169 @@ const RealtimeChat = () => {
     setMessages([]);
     toast.success('Chat cleared');
     setShowMoreMenu(false);
+  };
+
+  // Voice recording methods
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      voiceStreamRef.current = stream;
+
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      voiceRecorderRef.current = mediaRecorder;
+      voiceChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          voiceChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.start(200);
+      setIsVoiceRecording(true);
+      setVoiceDuration(0);
+
+      voiceTimerRef.current = setInterval(() => {
+        setVoiceDuration(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Error starting voice recording:', err);
+      toast.error('Could not access microphone');
+    }
+  };
+
+  const cancelVoiceRecording = () => {
+    if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state !== 'inactive') {
+      voiceRecorderRef.current.stop();
+    }
+    if (voiceStreamRef.current) {
+      voiceStreamRef.current.getTracks().forEach(t => t.stop());
+      voiceStreamRef.current = null;
+    }
+    setIsVoiceRecording(false);
+    setVoiceDuration(0);
+  };
+
+  const sendVoiceRecording = () => {
+    if (!voiceRecorderRef.current) return;
+    if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+
+    const recorder = voiceRecorderRef.current;
+    const mimeType = recorder.mimeType || 'audio/webm';
+    const recordedDuration = Math.max(1, voiceDuration);
+
+    // Immediately close recording UI without any waiting
+    setIsVoiceRecording(false);
+    setVoiceDuration(0);
+
+    recorder.onstop = async () => {
+      if (voiceStreamRef.current) {
+        voiceStreamRef.current.getTracks().forEach(t => t.stop());
+        voiceStreamRef.current = null;
+      }
+      const audioBlob = new Blob(voiceChunksRef.current, { type: mimeType });
+      if (audioBlob.size < 100) {
+        toast.error('Recording too short');
+        return;
+      }
+
+      const fileExt = mimeType.includes('mp4') ? 'm4a' : 'webm';
+      const audioFile = new File([audioBlob], `voice_${Date.now()}.${fileExt}`, { type: mimeType });
+      const localBlobUrl = URL.createObjectURL(audioBlob);
+
+      const currentConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
+      const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+
+      const tempMessage = {
+        _id: tempId,
+        conversationId: currentConvId,
+        senderClerkId: user.id,
+        recipientClerkId: activeContact.clerkId,
+        text: '',
+        type: 'audio',
+        attachment: {
+          url: localBlobUrl,
+          name: 'Voice Message',
+          type: 'audio',
+          size: audioBlob.size,
+          duration: recordedDuration
+        },
+        createdAt: new Date().toISOString(),
+        isRead: false,
+        isUploading: true
+      };
+
+      // Optimistically add to message thread immediately
+      setMessages((prev) => [...prev, tempMessage]);
+
+      // Update contacts sidebar to show voice message immediately
+      setContacts((prev) => {
+        const updated = prev.map((c) => {
+          if (c.clerkId === activeContact.clerkId) {
+            return {
+              ...c,
+              lastMessage: '🎙️ Voice Message',
+              lastMessageTime: new Date().toISOString()
+            };
+          }
+          return c;
+        });
+        return updated.sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+      });
+
+      // Background asynchronous upload (WhatsApp style)
+      const formData = new FormData();
+      formData.append('file', audioFile);
+      formData.append('type', 'auto');
+
+      try {
+        const uploadRes = await fetch(`${API_BASE}/api/upload/file`, { method: 'POST', body: formData });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          const realAttachment = {
+            url: uploadData.url,
+            name: 'Voice Message',
+            type: 'audio',
+            size: uploadData.size || audioBlob.size,
+            duration: recordedDuration
+          };
+
+          setMessages((prev) => prev.map((m) => m._id === tempId ? {
+            ...m,
+            isUploading: false,
+            attachment: realAttachment
+          } : m));
+
+          socket.emit('send_message', {
+            senderClerkId: user.id,
+            recipientClerkId: activeContact.clerkId,
+            conversationId: currentConvId,
+            text: '',
+            type: 'audio',
+            attachment: realAttachment
+          });
+        } else {
+          setMessages((prev) => prev.map((m) => m._id === tempId ? { ...m, isUploading: false, isError: true } : m));
+          toast.error('Failed to upload voice message');
+        }
+      } catch (err) {
+        console.error(err);
+        setMessages((prev) => prev.map((m) => m._id === tempId ? { ...m, isUploading: false, isError: true } : m));
+        toast.error('Error sending voice message');
+      }
+    };
+
+    recorder.stop();
   };
 
   // Delete Person from chat
@@ -870,6 +1151,15 @@ const RealtimeChat = () => {
                       <User className="w-3.5 h-3.5 text-primary" /> View Profile
                     </button>
                     <button
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        setIsShareProfileModalOpen(true);
+                      }}
+                      className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-emerald-400" /> Share Profile to Chat
+                    </button>
+                    <button
                       onClick={cycleTheme}
                       className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
                     >
@@ -880,6 +1170,12 @@ const RealtimeChat = () => {
                       className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-amber-400" /> Clear Chat History
+                    </button>
+                    <button
+                      onClick={() => { setShowMoreMenu(false); setIsExportModalOpen(true); }}
+                      className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-blue-500" /> Export Chat (.txt, .pdf, .doc)
                     </button>
                     <button
                       onClick={deleteChatPerson}
@@ -937,33 +1233,55 @@ const RealtimeChat = () => {
                   return (
                     <React.Fragment key={msg._id || Math.random()}>
                       {renderDateSeparator}
-                      <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-2xl border text-xs max-w-[92%] sm:max-w-[70%] shadow-sm ${
-                        isMissed
-                          ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
-                          : 'bg-primary/10 border-primary/20 text-foreground'
-                      }`}>
-                        <div className={`p-2.5 rounded-full shrink-0 ${
-                          isMissed ? 'bg-red-500/20 text-red-500' : 'bg-primary/20 text-primary'
-                        }`}>
-                          {msg.callInfo?.callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+                      <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
+                        <div className={`flex items-start gap-1.5 sm:gap-2 max-w-[92%] sm:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                          {/* Call Log Context Menu */}
+                          <div className={`relative opacity-50 hover:opacity-100 transition-opacity flex items-center ${isMe ? 'pr-2' : 'pl-2'} mt-2`}>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setActiveMessageMenu(activeMessageMenu === msg._id ? null : msg._id); }} 
+                              className="message-menu-trigger p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+                            >
+                              <MoreVertical className="w-4 h-4 pointer-events-none" />
+                            </button>
+                            {activeMessageMenu === msg._id && (
+                              <div className={`message-context-menu absolute ${isMe ? 'right-8' : 'left-8'} top-0 w-36 bg-card border border-border/60 rounded-xl shadow-lg py-1 z-30`}>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); setDeleteModalMsg(msg); setActiveMessageMenu(null); }} 
+                                  className="w-full px-3 py-2 text-left text-xs text-red-500 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-2xl border text-xs shadow-sm ${
+                            isMissed
+                              ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
+                              : 'bg-primary/10 border-primary/20 text-foreground'
+                          }`}>
+                            <div className={`p-2.5 rounded-full shrink-0 ${
+                              isMissed ? 'bg-red-500/20 text-red-500' : 'bg-primary/20 text-primary'
+                            }`}>
+                              {msg.callInfo?.callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-xs sm:text-sm truncate">{msg.text}</p>
+                              <span className="text-[10px] text-muted-foreground">{formatMessageTime(msg.createdAt)}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                window.dispatchEvent(new CustomEvent('initiate_call', {
+                                  detail: { targetPartner: activeContact, type: msg.callInfo?.callType || 'video' }
+                                }));
+                              }}
+                              className="px-2.5 py-1 bg-background border border-border/50 hover:bg-muted rounded-lg text-[11px] font-semibold text-foreground transition-colors shrink-0 shadow-xs"
+                            >
+                              Call Back
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-xs sm:text-sm truncate">{msg.text}</p>
-                          <span className="text-[10px] text-muted-foreground">{formatMessageTime(msg.createdAt)}</span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            window.dispatchEvent(new CustomEvent('initiate_call', {
-                              detail: { targetPartner: activeContact, type: msg.callInfo?.callType || 'video' }
-                            }));
-                          }}
-                          className="px-2.5 py-1 bg-background border border-border/50 hover:bg-muted rounded-lg text-[11px] font-semibold text-foreground transition-colors shrink-0 shadow-xs"
-                        >
-                          Call Back
-                        </button>
                       </div>
-                    </div>
                     </React.Fragment>
                   );
                 }
@@ -1025,23 +1343,51 @@ const RealtimeChat = () => {
                                   {msg.attachment.type === 'image' ? (
                                     <div 
                                       onClick={() => setFullscreenAttachment({ url: msg.attachment.url, type: 'image' })} 
-                                      className="cursor-pointer"
+                                      className="cursor-pointer relative overflow-hidden rounded-xl"
                                     >
-                                      <img src={msg.attachment.url} alt="attachment" className="rounded-xl max-h-60 w-auto object-cover hover:opacity-90 transition-opacity" />
+                                      <img src={msg.attachment.url} alt="attachment" className={`rounded-xl max-h-60 w-auto object-cover hover:opacity-90 transition-opacity ${msg.isUploading ? 'opacity-75 blur-[0.5px]' : ''}`} />
+                                      {msg.isUploading && (
+                                        <div className="absolute inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center">
+                                          <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                        </div>
+                                      )}
                                     </div>
                                   ) : msg.attachment.type === 'video' ? (
-                                    <video src={msg.attachment.url} controls className="rounded-xl max-h-60 w-auto" />
+                                    <div className="relative rounded-xl overflow-hidden">
+                                      <video src={msg.attachment.url} controls className="rounded-xl max-h-60 w-auto" />
+                                      {msg.isUploading && (
+                                        <div className="absolute inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center pointer-events-none">
+                                          <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    msg.attachment.type === 'audio' || 
+                                    msg.type === 'audio' || 
+                                    (typeof msg.attachment?.url === 'string' && /\.(webm|mp3|wav|ogg|m4a|aac)(\?.*)?$/i.test(msg.attachment.url)) ||
+                                    (typeof msg.attachment?.name === 'string' && /\.(webm|mp3|wav|ogg|m4a|aac)$/i.test(msg.attachment.name))
+                                  ) ? (
+                                    <AudioPlayerWidget 
+                                      src={msg.attachment.url} 
+                                      variant="bubble" 
+                                      title="Voice Message" 
+                                      duration={msg.attachment?.duration || msg.attachment?.durationSecs}
+                                      isMe={isMe}
+                                      userAvatar={isMe ? (user.imageUrl || null) : (activeContact.image || null)}
+                                      senderName={isMe ? 'You' : (activeContact.name || 'User')}
+                                      className={isMe ? 'bg-primary-foreground/15 border-white/20 text-white' : ''}
+                                    />
                                   ) : (
                                     <div 
                                       onClick={() => setFullscreenAttachment({ url: msg.attachment.url, type: 'document' })} 
-                                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20' : 'bg-muted/50 border-border/50 hover:bg-muted'} transition-colors`}
+                                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20' : 'bg-muted/50 border-border/50 hover:bg-muted'} transition-colors relative`}
                                     >
                                       <div className="p-2 bg-background/50 rounded-lg shrink-0">
-                                        <FileText className="w-5 h-5" />
+                                        {msg.isUploading ? <Loader2 className="w-5 h-5 animate-spin text-primary" /> : <FileText className="w-5 h-5" />}
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold truncate" title={msg.attachment.name}>{msg.attachment.name}</p>
-                                        <p className="text-[10px] opacity-70 mt-0.5">{(msg.attachment.size / 1024).toFixed(1)} KB</p>
+                                        <p className="text-[10px] opacity-70 mt-0.5">{(msg.attachment.size / 1024).toFixed(1)} KB {msg.isUploading && '• Uploading...'}</p>
                                       </div>
                                       <Eye className="w-4 h-4 shrink-0 opacity-70" />
                                     </div>
@@ -1052,21 +1398,52 @@ const RealtimeChat = () => {
                               {/* Share Rendering */}
                               {msg.type === 'share' && msg.share && (
                                 <div 
-                                  onClick={() => navigate(`?${msg.share.type}=${msg.share.itemId}`)}
-                                  className={`mb-2 p-3 rounded-xl border cursor-pointer hover:opacity-90 transition-opacity flex flex-col gap-2 ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20' : 'bg-muted/50 border-border/50'}`}
+                                  onClick={() => {
+                                    if (msg.share.type === 'profile') {
+                                      navigate(`/profile/${msg.share.itemId}`);
+                                    } else {
+                                      navigate(`?${msg.share.type}=${msg.share.itemId}`);
+                                    }
+                                  }}
+                                  className={`mb-2 p-3 sm:p-3.5 rounded-2xl border cursor-pointer hover:opacity-95 transition-all flex flex-col gap-2 ${
+                                    isMe 
+                                      ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/15' 
+                                      : 'bg-card border-border/70 hover:border-primary/40 shadow-sm'
+                                  }`}
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg shrink-0 ${isMe ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/20 text-primary'}`}>
-                                      <Share2 className="w-5 h-5" />
+                                    <div className={`p-2.5 rounded-xl shrink-0 ${isMe ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/10 text-primary'}`}>
+                                      {msg.share.type === 'profile' ? <User className="w-5 h-5" /> : <Share2 className="w-5 h-5" />}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-bold truncate">Shared {msg.share.type.charAt(0).toUpperCase() + msg.share.type.slice(1)}</p>
-                                      {msg.share.title && <p className="text-xs font-semibold mt-1 truncate">{msg.share.title}</p>}
-                                      {msg.share.description && <p className="text-xs opacity-80 mt-0.5 truncate">{msg.share.description}</p>}
+                                      <div className="flex items-center gap-1.5">
+                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isMe ? 'opacity-80' : 'text-primary'}`}>
+                                          Shared {msg.share.type}
+                                        </span>
+                                      </div>
+                                      {msg.share.title && <p className="text-sm font-bold truncate mt-0.5">{msg.share.title}</p>}
+                                      {msg.share.description && <p className="text-xs opacity-80 truncate">{msg.share.description}</p>}
                                     </div>
-                                    {msg.share.imageUrl && (
-                                      <img src={msg.share.imageUrl} alt="preview" className="w-12 h-12 object-cover rounded-md shrink-0 border border-border/50" />
-                                    )}
+                                    {msg.share.imageUrl ? (
+                                      <img 
+                                        src={msg.share.imageUrl} 
+                                        alt="preview" 
+                                        className={`w-12 h-12 object-cover shrink-0 border border-border/40 ${
+                                          msg.share.type === 'profile' ? 'rounded-full shadow-sm' : 'rounded-xl'
+                                        }`} 
+                                      />
+                                    ) : msg.share.type === 'profile' ? (
+                                      <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                                        {(msg.share.title || 'U').charAt(0).toUpperCase()}
+                                      </div>
+                                    ) : null}
+                                  </div>
+
+                                  <div className={`flex items-center justify-between pt-1.5 border-t text-xs font-semibold ${
+                                    isMe ? 'border-primary-foreground/15 text-primary-foreground/90' : 'border-border/40 text-primary'
+                                  }`}>
+                                    <span>View {msg.share.type === 'profile' ? 'Profile' : msg.share.type.charAt(0).toUpperCase() + msg.share.type.slice(1)}</span>
+                                    <ArrowRight className="w-3.5 h-3.5" />
                                   </div>
                                 </div>
                               )}
@@ -1081,7 +1458,15 @@ const RealtimeChat = () => {
                         <div className={`text-[10px] text-muted-foreground mt-1 flex items-center gap-1`}>
                           <span>{formatMessageTime(msg.createdAt)}</span>
                           {isMe && (
-                            msg.isRead || msg.isDelivered ? (
+                            msg.isUploading ? (
+                              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/80 font-medium" title="Sending...">
+                                <Clock className="w-3.5 h-3.5 animate-pulse text-muted-foreground" />
+                              </span>
+                            ) : msg.isError ? (
+                              <span className="flex items-center gap-0.5 text-red-500 text-[10px] font-medium" title="Failed to send">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                              </span>
+                            ) : msg.isRead || msg.isDelivered ? (
                               <CheckCheck className={`w-3.5 h-3.5 ${msg.isRead ? 'text-blue-500' : 'text-muted-foreground/60'}`} />
                             ) : (
                               <Check className="w-3.5 h-3.5 text-muted-foreground/60" />
@@ -1161,63 +1546,119 @@ const RealtimeChat = () => {
               </div>
             )}
 
-            <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
-              <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isCurrentPartnerBlocked}
-                className="p-2 sm:p-3 bg-muted/40 hover:bg-muted text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center shrink-0"
-              >
-                <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-              <div className="flex-1 relative flex items-center min-w-0">
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                  disabled={isCurrentPartnerBlocked || isUploading}
-                  placeholder={isCurrentPartnerBlocked ? 'You have blocked this user' : `Message ${activeContact.name}...`}
-                  className="w-full bg-muted/40 border border-border/50 rounded-xl pl-3 sm:pl-4 pr-8 sm:pr-10 py-2 sm:py-3 h-[38px] sm:h-[46px] text-xs sm:text-sm focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-0"
-                />
+            {/* Recording Bar or Text Input Form */}
+            {isVoiceRecording ? (
+              <div className="flex items-center justify-between gap-3 bg-red-500/10 border border-red-500/30 rounded-2xl p-2.5 sm:p-3 animate-pulse w-full">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-3.5 h-3.5 rounded-full bg-red-500 animate-ping" />
+                  <span className="text-xs font-bold text-red-500">Recording voice note...</span>
+                  <span className="font-mono text-xs font-bold text-foreground bg-background/60 px-2 py-0.5 rounded-md">
+                    {Math.floor(voiceDuration / 60)}:{(voiceDuration % 60).toString().padStart(2, '0')}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={cancelVoiceRecording}
+                    className="p-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl transition-colors text-xs font-medium flex items-center gap-1"
+                    title="Cancel Recording"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={sendVoiceRecording}
+                    className="p-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-all shadow-md text-xs font-bold flex items-center gap-1"
+                    title="Send Voice Note"
+                  >
+                    <Send className="w-4 h-4" /> Send
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
+                <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
                 <button
                   type="button"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="absolute right-2.5 text-muted-foreground hover:text-foreground transition-colors p-1"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isCurrentPartnerBlocked}
+                  className="p-2 sm:p-3 bg-muted/40 hover:bg-muted text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center shrink-0 cursor-pointer"
+                  title="Attach file or audio"
                 >
-                  <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
-                {showEmojiPicker && (
-                  <div className="absolute bottom-16 right-0 z-50 shadow-2xl rounded-2xl overflow-hidden" style={{ maxWidth: 'calc(100vw - 32px)' }}>
-                    <EmojiPicker 
-                      theme={isDark ? 'dark' : 'light'} 
-                      previewConfig={{ showPreview: false }}
-                      width={typeof window !== 'undefined' ? Math.min(320, window.innerWidth - 32) : 320}
-                      height={380}
-                      lazyLoadEmojis={true}
-                      searchPlaceHolder="Search emoji..."
-                      onEmojiClick={(emojiData) => {
-                        setInputText(prev => prev + emojiData.emoji);
-                        setShowEmojiPicker(false);
-                      }} 
-                    />
-                  </div>
+                <button
+                  type="button"
+                  onClick={() => setIsShareProfileModalOpen(true)}
+                  disabled={isCurrentPartnerBlocked}
+                  className="p-2 sm:p-3 bg-muted/40 hover:bg-muted hover:text-primary text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center shrink-0 cursor-pointer"
+                  title="Share profile in chat"
+                >
+                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <div className="flex-1 relative flex items-center min-w-0">
+                  <input
+                    type="text"
+                    value={inputText}
+                    onChange={handleInputChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
+                    disabled={isCurrentPartnerBlocked}
+                    placeholder={isCurrentPartnerBlocked ? 'You have blocked this user' : `Message ${activeContact.name}...`}
+                    className="w-full bg-muted/40 border border-border/50 rounded-xl pl-3 sm:pl-4 pr-8 sm:pr-10 py-2 sm:py-3 h-[38px] sm:h-[46px] text-xs sm:text-sm focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="absolute right-2.5 text-muted-foreground hover:text-foreground transition-colors p-1"
+                  >
+                    <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-16 right-0 z-50 shadow-2xl rounded-2xl overflow-hidden" style={{ maxWidth: 'calc(100vw - 32px)' }}>
+                      <EmojiPicker 
+                        theme={isDark ? 'dark' : 'light'} 
+                        previewConfig={{ showPreview: false }}
+                        width={typeof window !== 'undefined' ? Math.min(320, window.innerWidth - 32) : 320}
+                        height={380}
+                        lazyLoadEmojis={true}
+                        searchPlaceHolder="Search emoji..."
+                        onEmojiClick={(emojiData) => {
+                          setInputText(prev => prev + emojiData.emoji);
+                          setShowEmojiPicker(false);
+                        }} 
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Voice Note Button */}
+                {!inputText.trim() && !selectedFile && (
+                  <button
+                    type="button"
+                    onClick={startVoiceRecording}
+                    disabled={isCurrentPartnerBlocked}
+                    className="p-2 sm:p-3 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl transition-colors h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center shrink-0 border border-purple-500/20 active:scale-95"
+                    title="Record voice message"
+                  >
+                    <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
                 )}
-              </div>
-              <button
-                type="submit"
-                disabled={(!inputText.trim() && !selectedFile) || isCurrentPartnerBlocked || isUploading}
-                className="bg-primary text-primary-foreground p-2 sm:p-3 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center rounded-xl hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              >
-                {isUploading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Send className="w-4 h-4 sm:w-5 sm:h-5" />}
-              </button>
-            </form>
+
+                <button
+                  type="submit"
+                  disabled={(!inputText.trim() && !selectedFile) || isCurrentPartnerBlocked}
+                  className="bg-primary text-primary-foreground p-2 sm:p-3 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center rounded-xl hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                >
+                  <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </form>
+            )}
           </div>
         </div>
       ) : (
@@ -1344,6 +1785,23 @@ const RealtimeChat = () => {
         </div>
         </ModalPortal>
       )}
+
+      {/* Export Chat Modal */}
+      <ExportChatModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        contact={activeContact}
+        messages={messages}
+        currentUser={user}
+      />
+
+      {/* Share Profile In Chat Modal */}
+      <ShareProfileInChatModal
+        isOpen={isShareProfileModalOpen}
+        onClose={() => setIsShareProfileModalOpen(false)}
+        currentUser={user}
+        activeContact={activeContact}
+      />
     </div>
   );
 };

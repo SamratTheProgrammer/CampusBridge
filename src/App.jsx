@@ -180,6 +180,7 @@ function AnimatedRoutes() {
             <Route path="requests" element={<MentorRequests />} />
             <Route path="network" element={<MyNetwork />} />
             <Route path="jobs" element={<MentorJobs />} />
+            <Route path="jobs/:id" element={<JobDetails />} />
             <Route path="sessions" element={<MentorSessions />} />
             <Route path="events" element={<MentorSessions />} />
             <Route path="posts" element={<MentorPosts />} />

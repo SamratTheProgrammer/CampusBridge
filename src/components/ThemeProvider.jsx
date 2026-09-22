@@ -60,6 +60,9 @@ export function ThemeProvider({
   useEffect(() => {
     const root = window.document.documentElement
 
+    // Temporarily suppress all transitions during theme switch so borders & colors don't lag or flash
+    root.classList.add("no-transitions")
+
     // Remove all possible theme classes
     root.classList.remove("light", "dark", "event-diwali", "event-holi", "event-independence")
 
@@ -74,6 +77,15 @@ export function ThemeProvider({
     if (globalTheme && globalTheme !== 'system' && globalTheme !== 'none') {
       root.classList.add(`event-${globalTheme}`)
     }
+
+    // Force browser reflow
+    void window.getComputedStyle(root).opacity;
+
+    const timer = setTimeout(() => {
+      root.classList.remove("no-transitions");
+    }, 50);
+
+    return () => clearTimeout(timer);
   }, [theme, globalTheme])
 
   // System theme dynamic change listener
@@ -82,8 +94,11 @@ export function ThemeProvider({
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = () => {
       const root = window.document.documentElement;
+      root.classList.add("no-transitions");
       root.classList.remove("light", "dark");
       root.classList.add(mediaQuery.matches ? "dark" : "light");
+      void window.getComputedStyle(root).opacity;
+      setTimeout(() => root.classList.remove("no-transitions"), 50);
     };
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);

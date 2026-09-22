@@ -249,7 +249,7 @@ const PeopleYouMayKnow = () => {
           >
             <div 
               ref={scrollContainerRef}
-              className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-1 px-1 pt-1"
+              className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-2.5 pt-1.5 px-1 sm:px-2 scrollbar-none snap-x snap-mandatory scroll-smooth scroll-pl-1"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
         {suggestions.map((item) => {
@@ -260,7 +260,7 @@ const PeopleYouMayKnow = () => {
           return (
             <div
               key={item.clerkId}
-              className="w-32 sm:w-44 md:w-48 shrink-0 snap-start bg-background/60 hover:bg-background/90 border border-border/50 hover:border-primary/40 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 flex flex-col items-center text-center space-y-2 sm:space-y-3 hover:shadow-md transition-all group relative"
+              className="w-32 sm:w-44 md:w-48 shrink-0 snap-start bg-background/60 hover:bg-background/90 border border-border/50 hover:border-primary/40 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 flex flex-col items-center text-center space-y-2 sm:space-y-3 hover:shadow-md transition-all group relative first:ml-0.5"
             >
               {/* Profile Image with role ring */}
               <Link to={profileLink} className="relative block">

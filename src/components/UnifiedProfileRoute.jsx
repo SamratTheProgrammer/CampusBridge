@@ -42,7 +42,7 @@ export const DynamicLayoutWrapper = () => {
     )
   }
 
-  const role = sessionStorage.getItem('campusbridge_user_role') || mongoProfile?.role || user.publicMetadata?.role || user.unsafeMetadata?.role || 'student'
+  const role = localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || mongoProfile?.role || user.publicMetadata?.role || user.unsafeMetadata?.role || 'student'
   
   // If the user navigates to their own profile, send them to their own profile dashboard
   const isSelf = username && (
@@ -132,7 +132,7 @@ export const ProfileDispatcher = () => {
   );
 
   if (isSelf && !isAdmin) {
-    const role = sessionStorage.getItem('campusbridge_user_role') || mongoProfile?.role || user.publicMetadata?.role || user.unsafeMetadata?.role || 'student';
+    const role = localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || mongoProfile?.role || user.publicMetadata?.role || user.unsafeMetadata?.role || 'student';
     return <Navigate to={(role === 'mentor' || role === 'alumni') ? '/mentor-dashboard/profile' : '/dashboard/profile'} replace />;
   }
   const profileContent = (profileUser.role === 'mentor' || profileUser.role === 'alumni')
