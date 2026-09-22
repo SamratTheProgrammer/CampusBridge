@@ -745,6 +745,15 @@ router.post('/users/:id/warn', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    if (!user.warnings) user.warnings = [];
+    user.warnings.push({
+      subject: warningSubject || 'Notice from Administration: Community Guidelines',
+      message: warningMessage || 'You have received an administrative warning regarding platform policy.',
+      date: new Date(),
+      isDismissed: false
+    });
+    await user.save();
+
     if (user.clerkId) {
       await createNotificationHelper({
         recipientClerkId: user.clerkId,
@@ -752,7 +761,7 @@ router.post('/users/:id/warn', async (req, res) => {
         type: 'system',
         title: `Official Warning: ${warningSubject || 'Notice from Administration'}`,
         message: warningMessage || 'You have received an administrative warning regarding platform policy.',
-        link: '/dashboard/settings'
+        link: user.role === 'mentor' ? '/mentor-dashboard' : '/dashboard'
       });
     }
 

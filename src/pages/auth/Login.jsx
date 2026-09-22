@@ -157,7 +157,7 @@ const Login = () => {
               <p className="text-base text-muted-foreground">Please select your role to continue</p>
             </div>
 
-            <div className="flex flex-col md:flex-row relative max-w-5xl mx-auto">
+            <div className="w-full flex flex-col md:flex-row relative max-w-5xl mx-auto">
               {/* Vertical divider on desktop */}
               <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-border/50 -translate-x-1/2"></div>
               

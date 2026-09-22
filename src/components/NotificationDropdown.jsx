@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User, ArrowLeft, Volume2 } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User, ArrowLeft, Volume2, AlertTriangle } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +22,7 @@ const NotificationDropdown = () => {
   const [soundEnabled, setSoundEnabled] = useState(
     localStorage.getItem('campusbridge_notification_sound') !== 'false'
   );
+  const [warningModal, setWarningModal] = useState({ isOpen: false, notification: null });
   const dropdownRef = useRef(null);
 
   const handleToggleSound = () => {
@@ -170,7 +171,10 @@ const NotificationDropdown = () => {
     } else if (userRole === 'student' && targetLink.startsWith('/mentor-dashboard')) {
       targetLink = targetLink.replace('/mentor-dashboard', '/dashboard');
     }
-    navigate(targetLink);
+    
+    // Navigate directly. React Router will handle the search parameter changes natively,
+    // and SharedItemViewer will pick up the new ?post= query automatically.
+    navigate(targetLink, { state: { _ts: Date.now() } });
   };
 
   useEffect(() => {
@@ -334,6 +338,14 @@ const NotificationDropdown = () => {
     if (!n.isRead) {
       handleMarkAsRead(n._id);
     }
+    
+    // Check if it's an admin warning
+    if (n.type === 'admin_warning' || n.type === 'admin' || (n.title && n.title.toLowerCase().includes('warning'))) {
+      setIsOpen(false);
+      setWarningModal({ isOpen: true, notification: n });
+      return;
+    }
+
     setIsOpen(false);
     if (n.link) {
       navigateNotification(n.link);
@@ -498,7 +510,7 @@ const NotificationDropdown = () => {
             </div>
 
             {/* List */}
-            <div className="max-h-[360px] overflow-y-auto custom-scrollbar divide-y divide-border/30">
+            <div className="max-h-[360px] overflow-y-auto overscroll-contain divide-y divide-border/30">
               {filteredNotifications.length > 0 ? (
                 filteredNotifications.map((n) => (
                   <div 
@@ -561,6 +573,46 @@ const NotificationDropdown = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Warning Modal */}
+      {warningModal.isOpen && warningModal.notification && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-border/50 animate-in zoom-in-95 duration-200 relative">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500"></div>
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-6 h-6 text-rose-500" />
+              </div>
+              <h2 className="text-xl font-bold text-foreground mb-2">Important Notice</h2>
+              <p className="text-sm font-semibold text-foreground/90 mb-1">{warningModal.notification.title}</p>
+              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                {warningModal.notification.message}
+              </p>
+              
+              <div className="bg-muted/30 border border-border/40 rounded-xl p-4 mb-6">
+                <p className="text-xs text-muted-foreground">
+                  If you have questions or believe this is a mistake, please reach out to the moderation team.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => setWarningModal({ isOpen: false, notification: null })}
+                  className="px-4 py-2 border border-border/60 hover:bg-muted font-semibold text-foreground rounded-xl transition-all cursor-pointer text-sm"
+                >
+                  Close
+                </button>
+                <a 
+                  href="mailto:support@campusbridge.com"
+                  className="px-4 py-2 bg-rose-500 hover:bg-rose-600 font-semibold text-white rounded-xl transition-all shadow-sm shadow-rose-500/10 inline-flex items-center gap-2 cursor-pointer text-sm"
+                >
+                  Contact Support
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

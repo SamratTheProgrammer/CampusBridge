@@ -34,7 +34,7 @@ const DashboardSkeleton = ({ className }) => {
     // 3. Profile
     if (pathname.includes('/profile')) {
       return (
-        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
+        <div className="p-0 sm:p-6 md:p-8 w-full min-w-0 max-w-6xl mx-auto">
           <ProfileSkeleton />
         </div>
       )
@@ -128,7 +128,7 @@ const DashboardSkeleton = ({ className }) => {
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
                 {isMentorDir ? 'Mentor Directory' : 'My Network'}
               </h1>
-              <p className="text-muted-foreground text-sm max-w-2xl">
+              <p className="w-full text-muted-foreground text-sm max-w-2xl">
                 {isMentorDir ? 'Find and connect with industry experts.' : 'Connect with peers, alumni, and mentors.'}
               </p>
             </div>
@@ -143,7 +143,7 @@ const DashboardSkeleton = ({ className }) => {
             </div>
           </div>
           {isMentorDir ? (
-            <div className="space-y-4 max-w-5xl">
+            <div className="w-full space-y-4 max-w-5xl">
               {[...Array(5)].map((_, i) => <UserSkeleton key={i} variant="list" />)}
             </div>
           ) : (
@@ -295,8 +295,8 @@ const DashboardSkeleton = ({ className }) => {
 
   return (
     <div className={`min-h-screen bg-background flex w-full overflow-hidden ${className || ''}`}>
-      {/* Sidebar Skeleton (hidden on mobile, block on lg) */}
-      <div className={`hidden lg:flex flex-col ${isCollapsed ? 'w-20' : 'w-64'} border-r border-border/40 bg-background p-4 h-screen fixed left-0 top-0 z-10 transition-all duration-300`}>
+      {/* Sidebar Skeleton (hidden on mobile, block on md+) */}
+      <div className={`hidden md:flex flex-col ${isCollapsed ? 'w-20' : 'w-64'} border-r border-border/40 bg-background p-4 h-screen fixed left-0 top-0 z-10 transition-all duration-300`}>
         {/* Logo area */}
         <div className={`flex items-center gap-3 mb-8 px-2 mt-2 ${isCollapsed ? 'justify-center' : ''}`}>
           <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
@@ -327,11 +327,11 @@ const DashboardSkeleton = ({ className }) => {
       </div>
 
       {/* Main Content Area Skeleton */}
-      <div className={`flex-1 flex flex-col ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'} w-full min-h-screen transition-all duration-300`}>
+      <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} w-full min-h-screen transition-all duration-300 min-w-0`}>
         {/* Header Skeleton */}
-        <header className="h-16 border-b border-border/40 px-4 md:px-6 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+        <header className={`h-16 border-b border-border/40 px-4 md:px-8 justify-between sticky top-0 bg-background/95 backdrop-blur-sm z-10 ${pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
           <div className="flex-1 max-w-md hidden sm:block">
-            <Skeleton className="h-10 w-full rounded-full" />
+            <Skeleton className="h-10 w-full rounded-lg" />
           </div>
           <div className="flex items-center gap-4 ml-auto">
             <Skeleton className="w-8 h-8 rounded-full" />

@@ -3,6 +3,7 @@ import { useParams, Outlet, Navigate, useLocation, useNavigate } from 'react-rou
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../utils/api'
 import { Loader2, ArrowLeft } from 'lucide-react'
+import { useProfileData } from '../context/ProfileDataContext'
 import DashboardLayout from '../layouts/DashboardLayout'
 import MentorDashboardLayout from '../layouts/MentorDashboardLayout'
 import Navbar from './Navbar'
@@ -15,9 +16,18 @@ import ProfileSkeleton from './skeletons/ProfileSkeleton'
 export const DynamicLayoutWrapper = () => {
   const { user, isLoaded, isSignedIn } = useUser()
   const { username } = useParams()
+  const { mongoProfile } = useProfileData()
 
   if (!isLoaded) {
-    return <DashboardSkeleton />
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <Navbar />
+        <main className="flex-1 bg-background p-0 sm:p-6 md:p-8">
+          <ProfileSkeleton />
+        </main>
+        <Footer />
+      </div>
+    )
   }
 
   if (!isSignedIn) {
@@ -32,8 +42,22 @@ export const DynamicLayoutWrapper = () => {
     )
   }
 
-  const role = sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || user.unsafeMetadata?.role || 'student'
+  const role = sessionStorage.getItem('campusbridge_user_role') || mongoProfile?.role || user.publicMetadata?.role || user.unsafeMetadata?.role || 'student'
   
+  // If the user navigates to their own profile, send them to their own profile dashboard
+  const isSelf = username && (
+    username === mongoProfile?.username ||
+    username === user.id ||
+    (user.username && username.toLowerCase() === user.username.toLowerCase())
+  );
+
+  if (isSelf) {
+    if (role === 'mentor' || role === 'alumni') {
+      return <Navigate to="/mentor-dashboard/profile" replace />
+    }
+    return <Navigate to="/dashboard/profile" replace />
+  }
+
   if (role === 'mentor' || role === 'alumni') {
     return <Navigate to={`/mentor-dashboard/profile/${username}`} replace />
   }
@@ -50,6 +74,7 @@ export const ProfileDispatcher = () => {
   const { username } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
+  const { mongoProfile } = useProfileData()
   const [profileUser, setProfileUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -71,11 +96,11 @@ export const ProfileDispatcher = () => {
       }
     }
     fetchUser()
-  }, [username])
+  }, [username, user?.id])
 
   if (isLoading) {
     return (
-      <div className="min-h-[60vh] p-4 sm:p-6 md:p-8">
+      <div className="w-full">
         <ProfileSkeleton />
       </div>
     )
@@ -97,20 +122,38 @@ export const ProfileDispatcher = () => {
     )
   }
 
-  const profileContent = (profileUser.role === 'mentor' || profileUser.role === 'alumni')
-    ? <MentorProfile initialUser={profileUser} />
-    : <StudentProfile initialUser={profileUser} />;
+  const isAdmin = location.pathname.startsWith('/admin');
 
-  if (location.pathname.startsWith('/admin')) {
+  // If this is the current user's profile and not an admin view, redirect to the personal profile view
+  const isSelf = user && (
+    profileUser.clerkId === user.id ||
+    profileUser._id === user.id ||
+    (profileUser.username && profileUser.username === mongoProfile?.username)
+  );
+
+  if (isSelf && !isAdmin) {
+    const role = sessionStorage.getItem('campusbridge_user_role') || mongoProfile?.role || user.publicMetadata?.role || user.unsafeMetadata?.role || 'student';
+    return <Navigate to={(role === 'mentor' || role === 'alumni') ? '/mentor-dashboard/profile' : '/dashboard/profile'} replace />;
+  }
+  const profileContent = (profileUser.role === 'mentor' || profileUser.role === 'alumni')
+    ? <MentorProfile initialUser={profileUser} isAdmin={isAdmin} />
+    : <StudentProfile initialUser={profileUser} isAdmin={isAdmin} />;
+
+  if (isAdmin) {
     return (
       <div className="space-y-4">
-        <div>
+        <div className="flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-card border border-border/60 hover:bg-muted text-foreground text-xs font-bold transition-all shadow-sm cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 text-primary" /> Back
           </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold px-3 py-1 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+              Admin Viewing Mode
+            </span>
+          </div>
         </div>
         {profileContent}
       </div>

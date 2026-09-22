@@ -8,10 +8,10 @@ import { AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
-import { calculateStudentProfileProgress } from '../../utils/profileProgress'
+import { calculateStudentProfileProgress, getStudentMissingItems } from '../../utils/profileProgress'
 import API_BASE from '../../utils/api'
 import { useTheme } from '../../components/ThemeProvider'
-
+import { useProfileData } from '../../context/ProfileDataContext'
 const JOB_TITLES = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
   "Mobile Developer", "iOS Developer", "Android Developer", "Web Developer",
@@ -126,6 +126,7 @@ const Settings = () => {
   const { session: currentSession } = useSession()
   const currentDeviceInfo = useCurrentDevice()
   const { theme, setTheme, globalTheme } = useTheme()
+  const { mongoProfile, isMongoProfileLoading, refetchMongoProfile } = useProfileData()
   const [activeTab, setActiveTab] = useState('basic')
   
   // Form State
@@ -171,7 +172,6 @@ const Settings = () => {
   const [showSkillDropdown, setShowSkillDropdown] = useState(false)
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
   const [hasInitialized, setHasInitialized] = useState(false)
-  const [isDataLoading, setIsDataLoading] = useState(true)
   
   const [isUploading, setIsUploading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -196,61 +196,129 @@ const Settings = () => {
   
   const fileInputRef = useRef(null)
   const resumeInputRef = useRef(null)
+  const formScrollRef = useRef(null)
+  const contentGridRef = useRef(null)
+
+  // Two-stage coordinated scroll: window scrolls down until tabs/form reach navbar (Picture 3 position),
+  // then sticks firmly while only the right form container scrolls smoothly.
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (window.innerWidth < 768) return; // Natural scroll on mobile devices
+      const contentGrid = contentGridRef.current;
+      const formContainer = formScrollRef.current;
+      if (!contentGrid || !formContainer) return;
+
+      const targetTop = 88; // Scrolled completely past top completion card so tabs/form sit right at gap
+
+      const rect = contentGrid.getBoundingClientRect();
+
+      if (e.deltaY > 0) {
+        // SCROLLING DOWN
+        if (rect.top > targetTop + 1) {
+          // Stage 1: Window has not yet reached the stuck position
+          e.preventDefault();
+          const neededScroll = rect.top - targetTop;
+          if (e.deltaY <= neededScroll) {
+            window.scrollBy({ top: e.deltaY, behavior: 'instant' });
+          } else {
+            window.scrollBy({ top: neededScroll, behavior: 'instant' });
+            formContainer.scrollTop += (e.deltaY - neededScroll);
+          }
+        } else {
+          // Stage 2: Locked at the top!
+          // Window remains rock-solid stationary, only the right form column scrolls
+          e.preventDefault();
+          formContainer.scrollTop += e.deltaY;
+        }
+      } else if (e.deltaY < 0) {
+        // SCROLLING UP
+        if (formContainer.scrollTop > 0) {
+          // Form is scrolled down, so scroll form back UP
+          e.preventDefault();
+          const canScrollUp = formContainer.scrollTop;
+          if (-e.deltaY <= canScrollUp) {
+            formContainer.scrollTop += e.deltaY;
+          } else {
+            formContainer.scrollTop = 0;
+            const leftover = e.deltaY + canScrollUp; // negative delta
+            window.scrollBy({ top: leftover, behavior: 'instant' });
+          }
+        } else if (window.scrollY > 0) {
+          // Form is at top (0), scroll window back UP to reveal Profile Settings & Completion bar
+          e.preventDefault();
+          window.scrollBy({ top: e.deltaY, behavior: 'instant' });
+        }
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (window.innerWidth < 768) return;
+      const contentGrid = contentGridRef.current;
+      const formContainer = formScrollRef.current;
+      if (!contentGrid || !formContainer) return;
+
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+        return;
+      }
+
+      const targetTop = 88;
+      const rect = contentGrid.getBoundingClientRect();
+
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+        if (rect.top <= targetTop + 2) {
+          e.preventDefault();
+          formContainer.scrollTop += (e.key === 'ArrowDown' ? 80 : 300);
+        }
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        if (formContainer.scrollTop > 0) {
+          e.preventDefault();
+          formContainer.scrollTop -= (e.key === 'ArrowUp' ? 80 : 300);
+        }
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Image crop state
   const [cropModalData, setCropModalData] = useState(null)
 
   useEffect(() => {
-    if (user && !hasInitialized) {
-      // Set initial state from Clerk as a fallback
-      setFirstName(user.firstName || '')
-      setLastName(user.lastName || '')
-      setHeadline(user.unsafeMetadata?.headline || '')
-      setLocation(user.unsafeMetadata?.location || '')
-      setAddress(user.unsafeMetadata?.address || '')
-      setPhone(user.unsafeMetadata?.phone || '')
-      setAboutMe(user.unsafeMetadata?.aboutMe || '')
-      setSocialLinks(user.unsafeMetadata?.socialLinks || [])
-      setResumeUrl(user.unsafeMetadata?.resumeUrl || '')
-      setExperience(user.unsafeMetadata?.experience || [])
-      setEducation(user.unsafeMetadata?.education || [])
-      setSkills(user.unsafeMetadata?.skills || [])
-
-      // Fetch from MongoDB for the source of truth
-      const fetchMongoProfile = async () => {
-        try {
-          const res = await fetch(`${API_BASE}/api/users/${user.id}`);
-          if (res.ok) {
-            const data = await res.json();
-            setFirstName(data.firstName || user.firstName || '');
-            setLastName(data.lastName || user.lastName || '');
-            setUsernameValue(data.username || '');
-            setHeadline(data.headline || user.unsafeMetadata?.headline || '');
-            setLocation(data.location || user.unsafeMetadata?.location || '');
-            setAddress(data.address || user.unsafeMetadata?.address || '');
-            setPhone(data.phone || user.unsafeMetadata?.phone || '');
-            setAboutMe(data.aboutMe || user.unsafeMetadata?.aboutMe || '');
-            setSocialLinks(data.socialLinks?.length ? data.socialLinks : (user.unsafeMetadata?.socialLinks || []));
-            setResumeUrl(data.resumeUrl || user.unsafeMetadata?.resumeUrl || '');
-            setExperience(data.experience?.length ? data.experience : (user.unsafeMetadata?.experience || []));
-            setEducation(data.education?.length ? data.education : (user.unsafeMetadata?.education || []));
-            setSkills(data.skills?.length ? data.skills : (user.unsafeMetadata?.skills || []));
-            setDateOfBirth(data.dateOfBirth || '');
-            if (data.ageVisibility) setAgeVisibility(data.ageVisibility);
-            if (data.gender) setGender(data.gender);
-            if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
-            setHasInitialized(true);
-            setIsDataLoading(false);
-          }
-        } catch (error) {
-          console.error("Failed to fetch mongo profile:", error);
-          setHasInitialized(true);
-            setIsDataLoading(false); // Proceed even if fetch fails to avoid getting stuck
-        }
-      };
-      fetchMongoProfile();
+    // Wait until both user and mongoProfile are loaded before initializing
+    if (!user || isMongoProfileLoading) return;
+    
+    if (!hasInitialized) {
+      const emailPrefix = user.primaryEmailAddress?.emailAddress?.split('@')[0] || user.emailAddresses?.[0]?.emailAddress?.split('@')[0];
+      const defaultUsername = (user.username || emailPrefix || user.firstName || '').toLowerCase().replace(/[^a-z0-9-_]/g, '');
+      
+      // Always prefer MongoDB data over Clerk data
+      setFirstName(mongoProfile?.firstName || user.firstName || '');
+      setLastName(mongoProfile?.lastName || user.lastName || '');
+      setUsernameValue(mongoProfile?.username || defaultUsername);
+      setHeadline(mongoProfile?.headline || user.unsafeMetadata?.headline || '');
+      setLocation(mongoProfile?.location || user.unsafeMetadata?.location || '');
+      setAddress(mongoProfile?.address || user.unsafeMetadata?.address || '');
+      setPhone(mongoProfile?.phone || user.unsafeMetadata?.phone || '');
+      setAboutMe(mongoProfile?.aboutMe || user.unsafeMetadata?.aboutMe || '');
+      setSocialLinks(mongoProfile?.socialLinks?.length ? mongoProfile.socialLinks : (user.unsafeMetadata?.socialLinks || []));
+      setResumeUrl(mongoProfile?.resumeUrl || user.unsafeMetadata?.resumeUrl || '');
+      setExperience(mongoProfile?.experience?.length ? mongoProfile.experience : (user.unsafeMetadata?.experience || []));
+      setEducation(mongoProfile?.education?.length ? mongoProfile.education : (user.unsafeMetadata?.education || []));
+      setSkills(mongoProfile?.skills?.length ? mongoProfile.skills : (user.unsafeMetadata?.skills || []));
+      setDateOfBirth(mongoProfile?.dateOfBirth || '');
+      if (mongoProfile?.ageVisibility) setAgeVisibility(mongoProfile.ageVisibility);
+      if (mongoProfile?.gender) setGender(mongoProfile.gender);
+      if (mongoProfile?.profileVisibility) setProfileVisibility(mongoProfile.profileVisibility);
+      
+      setHasInitialized(true);
     }
-  }, [user, hasInitialized])
+  }, [user, hasInitialized, mongoProfile, isMongoProfileLoading])
 
   const handleProfilePicSelect = (e) => {
     const file = e.target.files?.[0]
@@ -297,13 +365,13 @@ const Settings = () => {
     if (!value) return ''
     if (value.length < 3) return 'Username must be at least 3 characters'
     if (value.length > 30) return 'Username must be 30 characters or less'
-    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(value) && value.length > 1) return 'Only lowercase letters, numbers, and hyphens allowed'
-    if (/--/.test(value)) return 'No consecutive hyphens allowed'
+    if (!/^[a-z0-9][a-z0-9-_]*[a-z0-9]$/.test(value) && value.length > 1) return 'Only lowercase letters, numbers, hyphens, and underscores allowed'
+    if (/--|__/.test(value)) return 'No consecutive special characters allowed'
     return ''
   }
 
   const handleUsernameChange = (value) => {
-    const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+    const cleaned = value.toLowerCase().replace(/[^a-z0-9-_]/g, '')
     setUsernameValue(cleaned)
     setUsernameError(validateUsername(cleaned))
   }
@@ -321,12 +389,11 @@ const Settings = () => {
         });
         if (!usernameRes.ok) {
           const data = await usernameRes.json().catch(() => ({}));
-          if (data.message?.includes('taken')) {
-            setUsernameError('This username is already taken');
-            toast.error('Username is already taken');
-            setIsSaving(false);
-            return;
-          }
+          const errMsg = data.message || 'Failed to update username';
+          setUsernameError(errMsg);
+          toast.error(errMsg);
+          setIsSaving(false);
+          return;
         }
       }
 
@@ -359,6 +426,7 @@ const Settings = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          username: usernameValue,
           firstName,
           lastName,
           headline,
@@ -384,6 +452,7 @@ const Settings = () => {
         throw new Error(errData.message || 'Failed to save to MongoDB');
       }
 
+      await refetchMongoProfile();
       toast.success('Profile updated successfully!')
     } catch (err) {
       toast.error(err.message || 'Failed to save changes')
@@ -492,18 +561,20 @@ const Settings = () => {
     }, user);
   }
 
-  const completionPercentage = calculateProgress()
+  const completionPercentage = calculateProgress();
+  const missingItems = getStudentMissingItems({
+    firstName, lastName, headline, location, address, phone, aboutMe, skills, education, experience, resumeUrl
+  }, user);
 
   return (
-    <div className="max-w-6xl mx-auto pb-8 space-y-6">
-      
-      {/* Header & Progress */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">Profile Settings</h1>
+    <div className="w-full min-w-0 max-w-6xl mx-auto space-y-4 sm:space-y-6 pb-12 md:pb-80">
+      {/* Header & Overall Progress */}
+      <div className="shrink-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-3 sm:mb-4">Profile Settings</h1>
         
         <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
-          <div className="flex-1 w-full">
-            <div className="flex items-center justify-between mb-2">
+          <div className="flex-1 w-full space-y-2">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="font-bold text-sm sm:text-base text-foreground">Profile Completion</h3>
               <span className="text-primary font-bold text-sm sm:text-base">{completionPercentage}%</span>
             </div>
@@ -513,7 +584,7 @@ const Settings = () => {
                 style={{ width: `${completionPercentage}%` }}
               ></div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 sm:mt-3">
+            <p className="text-xs text-muted-foreground">
               Complete your profile to stand out to recruiters and mentor mentors.
             </p>
           </div>
@@ -529,10 +600,10 @@ const Settings = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start">
+      <div ref={contentGridRef} className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start flex-1 min-h-0">
         
         {/* Left Sidebar (Tabs) */}
-        <div className="w-full md:w-64 bg-card border border-border/50 rounded-2xl p-1.5 sm:p-3 shadow-sm shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none md:sticky md:top-24 min-w-0">
+        <div className="w-full md:w-64 bg-card/95 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 sm:p-3 shadow-sm shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none sticky top-0 z-30 md:static h-auto md:h-fit min-w-0">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -565,7 +636,10 @@ const Settings = () => {
         </div>
 
         {/* Right Content Area (Forms) */}
-        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm min-h-[500px]">
+        <div 
+          ref={formScrollRef}
+          className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm md:h-[calc(100vh-112px)] md:overflow-y-auto scrollbar-none min-w-0"
+        >
           
           {/* --- BASIC INFO --- */}
           {activeTab === 'basic' && (
@@ -1406,23 +1480,23 @@ const Settings = () => {
               <div className="mt-8 space-y-3">
                 <h4 className="text-sm font-bold text-foreground">Your Documents</h4>
                 {resumeUrl ? (
-                  <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-muted/10 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-red-500/10 text-red-500 p-2.5 rounded-xl">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border border-border/50 rounded-xl bg-muted/10 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
+                      <div className="bg-red-500/10 text-red-500 p-2.5 rounded-xl shrink-0">
                         <FileText className="w-5 h-5" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-sm text-foreground">Uploaded Resume</p>
-                        <p className="text-xs text-muted-foreground">Click view to open in new tab</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm text-foreground truncate block">Uploaded Resume</p>
+                        <p className="text-xs text-muted-foreground truncate block">Click view to open in new tab</p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <a href={getPdfViewUrl(resumeUrl)} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary hover:underline px-2">View</a>
+                    <div className="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
+                      <a href={getPdfViewUrl(resumeUrl)} target="_blank" rel="noreferrer" className="flex-1 sm:flex-none text-center text-xs font-medium text-primary hover:bg-primary/10 px-3 py-2 rounded-lg transition-colors border border-primary/20 sm:border-transparent sm:hover:border-primary/20 bg-primary/5 sm:bg-transparent">View PDF</a>
                       <button onClick={async () => {
                         setResumeUrl('')
                         await user.update({ unsafeMetadata: { ...user.unsafeMetadata, resumeUrl: '' }})
                         toast.success('Resume removed')
-                      }} className="text-xs font-medium text-destructive hover:underline px-2">Remove</button>
+                      }} className="flex-1 sm:flex-none text-center text-xs font-medium text-destructive hover:bg-destructive/10 px-3 py-2 rounded-lg transition-colors border border-destructive/20 sm:border-transparent sm:hover:border-destructive/20 bg-destructive/5 sm:bg-transparent">Remove</button>
                     </div>
                   </div>
                 ) : (

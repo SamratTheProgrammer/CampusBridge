@@ -134,7 +134,7 @@ const AdminDashboard = () => {
                       { name: 'Week 3', users: data.stats?.totalUsers || 0 },
                       { name: 'Week 4', users: data.stats?.totalUsers || 0 },
                     ]} 
-                    margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
+                    margin={{ top: 10, right: 18, left: 18, bottom: 0 }}
                   >
                     <defs>
                       <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
@@ -142,7 +142,15 @@ const AdminDashboard = () => {
                         <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))', fontWeight: 'bold' }} dy={10} />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 'bold' }} 
+                      dy={10} 
+                      padding={{ left: 14, right: 14 }}
+                      interval="preserveStartEnd"
+                    />
                     <Tooltip 
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}
                       itemStyle={{ color: 'hsl(var(--primary))' }}

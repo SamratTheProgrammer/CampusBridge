@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
 import defaultPP from '../../assets/default_pp.png';
+import { formatRoleSubtitle } from '../../utils/textFormatters';
 
 const PeopleYouMayKnow = () => {
   const { user } = useUser();
@@ -287,7 +288,7 @@ const PeopleYouMayKnow = () => {
                   {item.name}
                 </Link>
                 <p className="text-[10px] sm:text-[11px] text-muted-foreground line-clamp-1 sm:line-clamp-2 leading-tight">
-                  {item.headline || item.institution || `${item.role} at CampusBridge`}
+                  {formatRoleSubtitle(item.headline, item.role, item.institution)}
                 </p>
               </div>
 
@@ -492,7 +493,7 @@ const PeopleYouMayKnow = () => {
                                 </span>
                               </div>
                               <p className="text-xs text-muted-foreground line-clamp-1 sm:line-clamp-2">
-                                {item.headline || item.institution || 'CampusBridge Member'}
+                                {formatRoleSubtitle(item.headline, item.role, item.institution)}
                               </p>
                               
                               {/* Institution / Skills tags if available */}

@@ -21,7 +21,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
 
     const handleCommentsUpdated = (payload) => {
       if (payload?.postId === postId && onRefresh) {
-        onRefresh();
+        onRefresh(payload.comments);
       }
     };
 
@@ -117,6 +117,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
         body: JSON.stringify({ authorClerkId: currentUser.id, content: commentText })
       });
       if (res.ok) {
+        const enrichedComments = await res.json();
         if (/congrat|congo|🎉|🎊/i.test(commentText)) {
           confetti({
             particleCount: 100,
@@ -126,7 +127,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
         }
         setCommentText('');
         setShowEmojiPicker(false);
-        if (onRefresh) onRefresh();
+        if (onRefresh) onRefresh(enrichedComments);
       } else {
         toast.error('Failed to post comment');
       }

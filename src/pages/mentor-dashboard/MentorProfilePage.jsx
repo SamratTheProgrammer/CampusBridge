@@ -3,7 +3,7 @@ import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Co
 
 const MentorProfilePage = () => {
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="w-full max-w-7xl mx-auto space-y-6">
       
       {/* Header Profile Card */}
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">

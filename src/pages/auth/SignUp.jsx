@@ -227,12 +227,12 @@ const SignUp = () => {
             </div>
 
             {!authSettings.allowSignups ? (
-              <div className="text-center bg-destructive/10 text-destructive p-6 rounded-xl border border-destructive/20 mb-8 max-w-2xl mx-auto">
+              <div className="w-full text-center bg-destructive/10 text-destructive p-6 rounded-xl border border-destructive/20 mb-8 max-w-2xl mx-auto">
                 <h3 className="text-xl font-bold mb-2">Signups Disabled</h3>
                 <p>New user registrations are currently disabled by the administrator. Please try again later.</p>
               </div>
             ) : (
-              <div className="flex flex-col md:flex-row relative max-w-5xl mx-auto">
+              <div className="w-full flex flex-col md:flex-row relative max-w-5xl mx-auto">
                 <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-border/50 -translate-x-1/2"></div>
                 
                 <div className="flex-1 flex flex-col items-center text-center px-6 md:px-16 py-6 md:py-4">

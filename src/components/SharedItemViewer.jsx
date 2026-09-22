@@ -67,6 +67,10 @@ const SharedItemViewer = () => {
       setItemType('post');
       setItemId(postId);
       if (location.state?.postData) setData(location.state.postData);
+      // Auto-open mobile comments bottom sheet when navigating from a comment notification
+      if (commentId || replyId) {
+        setIsMobileCommentsOpen(true);
+      }
     } else if (jobId) {
       setItemType('job');
       setItemId(jobId);
@@ -77,8 +81,9 @@ const SharedItemViewer = () => {
       setItemType(null);
       setItemId(null);
       setData(null);
+      setIsMobileCommentsOpen(false);
     }
-  }, [postId, jobId, eventId, location.state]);
+  }, [postId, jobId, eventId, commentId, replyId, location.state]);
 
   const fetchData = async (silent = false) => {
     if (!itemType || !itemId) return;
@@ -418,8 +423,8 @@ const SharedItemViewer = () => {
                   >
                     <div className="w-full h-full bg-card/90 border-0 flex flex-col items-center text-center relative overflow-hidden">
                       {data.eventDetails?.imageUrl || data.eventDetails?.image ? (
-                        <div className="w-full h-[40%] bg-muted shrink-0 relative">
-                          <img src={data.eventDetails.imageUrl || data.eventDetails.image} alt={data.eventDetails.title} className="w-full h-full object-cover" />
+                        <div className="w-full h-[40%] bg-black/95 shrink-0 relative">
+                          <img src={data.eventDetails.imageUrl || data.eventDetails.image} alt={data.eventDetails.title} className="w-full h-full object-contain p-2" />
                           <div className="absolute top-4 right-4 p-4 bg-black/50 backdrop-blur-md rounded-full text-4xl leading-none">📅</div>
                         </div>
                       ) : (
@@ -542,8 +547,8 @@ const SharedItemViewer = () => {
                 <div className="w-full h-full flex flex-col items-center justify-center bg-muted/10">
                   <div className="w-full h-full bg-card/90 border-0 flex flex-col items-center text-center relative overflow-hidden">
                     {data.imageUrl || data.image ? (
-                      <div className="w-full h-[45%] bg-muted shrink-0 relative">
-                        <img src={data.imageUrl || data.image} alt={data.name} className="w-full h-full object-cover" />
+                      <div className="w-full h-[45%] bg-black/95 shrink-0 relative">
+                        <img src={data.imageUrl || data.image} alt={data.name} className="w-full h-full object-contain p-2" />
                         <div className="absolute top-6 right-6 p-5 bg-black/50 backdrop-blur-md rounded-full text-5xl leading-none">📅</div>
                       </div>
                     ) : (

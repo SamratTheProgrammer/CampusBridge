@@ -3,6 +3,7 @@ import { X, Copy, Send, CheckCircle2, Search, Loader2, Share2 } from 'lucide-rea
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
+import { formatRoleSubtitle } from '../../utils/textFormatters';
 
 const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) => {
   const { user } = useUser();
@@ -199,7 +200,7 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) =
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm text-foreground truncate">{contact.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{contact.headline || contact.role}</p>
+                          <p className="text-xs text-muted-foreground truncate">{formatRoleSubtitle(contact.headline, contact.role)}</p>
                         </div>
                         <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground' : 'border-border'}`}>
                           {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}

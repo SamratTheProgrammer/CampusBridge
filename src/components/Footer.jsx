@@ -8,10 +8,10 @@ import footerBg from '../assets/footer-logo.png'
 const Footer = () => {
   return (
     <footer 
-      className="bg-background border-t pt-16 pb-8 bg-cover bg-center bg-no-repeat relative"
+      className="bg-background border-t pt-16 pb-8 bg-no-repeat bg-[length:240px_auto] sm:bg-cover bg-bottom sm:bg-center relative overflow-hidden"
       style={{ backgroundImage: `url(${footerBg})` }}
     >
-      <div className="absolute inset-0 bg-background/90 dark:bg-background/80"></div>
+      <div className="absolute inset-0 bg-background/90 dark:bg-background/80 pointer-events-none"></div>
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
           {/* Brand & Socials */}

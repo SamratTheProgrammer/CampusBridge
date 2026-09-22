@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { ThemeProvider, useTheme } from './components/ThemeProvider'
 import LandingPage from './pages/LandingPage'
+import TermsPage from './pages/TermsPage'
+import PrivacyPage from './pages/PrivacyPage'
 import Login from './pages/auth/Login'
 import SignUp from './pages/auth/SignUp'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -21,6 +23,7 @@ import HoliSplashAnimation from './components/HoliSplashAnimation'
 import DiwaliFireworks from './components/DiwaliFireworks'
 import SessionManager from './components/SessionManager'
 import { DynamicLayoutWrapper, ProfileDispatcher } from './components/UnifiedProfileRoute'
+import { ProfileDataProvider } from './context/ProfileDataContext'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -132,6 +135,8 @@ function AnimatedRoutes() {
         <Route path="/signup" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><SignUp /></main><Footer /></div></PageTransition>} />
         <Route path="/forgot-password" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><ForgotPassword /></main><Footer /></div></PageTransition>} />
         <Route path="/otp" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><OTPVerification /></main><Footer /></div></PageTransition>} />
+        <Route path="/terms" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><TermsPage /></main><Footer /></div></PageTransition>} />
+        <Route path="/privacy" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><PrivacyPage /></main><Footer /></div></PageTransition>} />
         <Route path="/sso-callback" element={<SSOCallback />} />
         <Route path="/sync-user" element={<SyncUser />} />
         
@@ -276,19 +281,21 @@ function App() {
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
-        <Router>
-          <SessionManager />
-          <ScrollToHash />
-          <ErrorBoundary>
-            <AnimatedRoutes />
-          </ErrorBoundary>
-          <EventPopup />
-          <IndependenceDayWrapper />
-          <HoliSplashWrapper />
-          <DiwaliWrapper />
-          <SharedItemViewer />
-          <Toaster position="bottom-right" />
-        </Router>
+        <ProfileDataProvider>
+          <Router>
+            <SessionManager />
+            <ScrollToHash />
+            <ErrorBoundary>
+              <AnimatedRoutes />
+            </ErrorBoundary>
+            <EventPopup />
+            <IndependenceDayWrapper />
+            <HoliSplashWrapper />
+            <DiwaliWrapper />
+            <SharedItemViewer />
+            <Toaster position="bottom-right" />
+          </Router>
+        </ProfileDataProvider>
       </ThemeProvider>
     </ClerkProvider>
   )

@@ -15,7 +15,7 @@ const SettingsSkeleton = () => {
         </div>
       </div>
 
-      <div className="space-y-6 max-w-3xl">
+      <div className="w-full space-y-6 max-w-3xl">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Skeleton className="h-4 w-24 rounded-md" />

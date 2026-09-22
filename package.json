@@ -20,6 +20,8 @@
     "emoji-picker-react": "^4.19.1",
     "fireworks-js": "^2.10.8",
     "framer-motion": "^12.43.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.28.0",
     "react": "^19.2.8",
     "react-cropper": "^2.3.3",
@@ -30,7 +32,8 @@
     "react-router-dom": "^7.18.2",
     "recharts": "^3.10.1",
     "socket.io-client": "^4.8.3",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

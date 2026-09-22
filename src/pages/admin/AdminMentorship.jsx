@@ -126,7 +126,7 @@ const AdminMentorship = () => {
                 >
                   {mentor.name}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">{mentor.role} at {mentor.company}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate capitalize">{mentor.role} at {mentor.company}</p>
                 <p className="text-sm font-semibold text-foreground mt-4">Mentees: <span className="text-primary">{mentor.activeMentees} active</span></p>
               </div>
               <button 

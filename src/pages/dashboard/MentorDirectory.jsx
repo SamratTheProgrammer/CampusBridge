@@ -181,7 +181,7 @@ const MentorDirectory = () => {
   }, [searchTerm, domainFilter, locationFilter, activeTab])
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-8">
+    <div className="w-full max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-8">
       {/* Header & Tabs */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Mentor Directory</h1>
@@ -211,7 +211,7 @@ const MentorDirectory = () => {
       {activeTab === 'discover' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {/* Filters and Search for Discover */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-5xl">
+          <div className="sticky top-0 md:top-[64px] z-20 bg-background/95 backdrop-blur-md py-3 -mt-3 mb-2 w-full flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-5xl">
             <div className="flex-1 relative">
               <Search className="w-5 h-5 absolute left-3 top-3.5 text-muted-foreground" />
               <input
@@ -281,7 +281,7 @@ const MentorDirectory = () => {
             </div>
           </div>
 
-          <div className="space-y-4 max-w-5xl">
+          <div className="w-full space-y-4 max-w-5xl">
             {isLoading ? (
               <div className="w-full space-y-4">
               {[...Array(5)].map((_, i) => (
@@ -343,7 +343,7 @@ const MentorDirectory = () => {
             )}
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4 max-w-5xl">
+            <div className="w-full flex items-center justify-center gap-2 pt-4 max-w-5xl">
               <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-2 border border-border/50 rounded-lg hover:bg-muted disabled:opacity-50"><ChevronLeft className="w-4 h-4" /></button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum = i + 1;
@@ -364,8 +364,8 @@ const MentorDirectory = () => {
 
       {activeTab === 'myMentors' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="relative w-full sm:w-64 max-w-5xl">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <div className="relative sticky top-0 md:top-[64px] z-20 bg-background/95 backdrop-blur-md py-3 -mt-3 mb-2 w-full sm:w-64 max-w-5xl">
+            <Search className="absolute left-3 top-5 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search my mentors..."
@@ -393,7 +393,7 @@ const MentorDirectory = () => {
                     </div>
                     <img src={mentor.image} alt={mentor.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto mb-3 sm:mb-4 border-2 border-primary/20 group-hover:scale-105 transition-transform" />
                     <h3 className="font-bold text-foreground text-base sm:text-lg truncate group-hover:text-primary transition-colors">{mentor.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{mentor.role}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 capitalize">{mentor.role}</p>
                     <p className="text-[10px] font-medium text-foreground/70 uppercase tracking-widest mt-1 truncate">{mentor.company}</p>
                   </Link>
                   <div className="px-4 pb-4 sm:px-5 sm:pb-5 mt-2 sm:mt-4">

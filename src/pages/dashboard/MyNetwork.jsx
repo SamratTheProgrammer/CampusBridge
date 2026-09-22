@@ -191,7 +191,7 @@ const MyNetwork = () => {
   );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-10">
+    <div className="w-full max-w-6xl mx-auto space-y-8 pb-10">
       
       {/* Header Banner */}
       <div className="bg-card border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">

@@ -39,7 +39,7 @@ const MentorshipRequests = () => {
   ]
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-8">
+    <div className="w-full max-w-3xl mx-auto space-y-6 pb-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Mentorship</h1>
         <p className="text-muted-foreground">Manage your mentorship requests and connections.</p>
@@ -71,7 +71,7 @@ const MentorshipRequests = () => {
                   <img src={request.image} alt={request.name} className="w-12 h-12 rounded-full object-cover shrink-0" />
                   <div>
                     <h3 className="font-bold text-foreground text-sm">{request.name}</h3>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">{request.role}</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2 capitalize">{request.role}</p>
                     <p className="text-sm text-foreground/80 leading-relaxed mb-2">{request.message}</p>
                     <p className="text-[10px] text-muted-foreground">{request.time}</p>
                   </div>

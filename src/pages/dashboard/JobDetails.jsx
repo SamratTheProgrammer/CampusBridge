@@ -206,7 +206,7 @@ const JobDetails = () => {
 
   if (isLoading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6 pb-8 animate-pulse pt-4">
+      <div className="w-full max-w-3xl mx-auto space-y-6 pb-8 animate-pulse pt-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <Skeleton className="h-5 w-24 rounded-md" />
           <div className="flex gap-3">
@@ -259,7 +259,7 @@ const JobDetails = () => {
 
   if (!job) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6 pb-8 text-center">
+      <div className="w-full max-w-3xl mx-auto space-y-6 pb-8 text-center">
         <div className="bg-card border border-border/50 rounded-2xl p-12 shadow-sm">
           <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
           <h3 className="text-lg font-bold text-foreground mb-2">Job not found</h3>
@@ -275,7 +275,7 @@ const JobDetails = () => {
   const jobLogo = getCompanyLogo(job.company, job.companyLogo)
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-8">
+    <div className="w-full max-w-3xl mx-auto space-y-6 pb-8">
       {/* Top Nav */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <Link to="/dashboard/jobs" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">

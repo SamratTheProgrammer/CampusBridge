@@ -269,7 +269,7 @@ const AdminVerification = () => {
   const currentList = verifications.filter(v => v.status === activeTab)
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="w-full space-y-6 max-w-5xl mx-auto pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -366,7 +366,7 @@ const AdminVerification = () => {
                         )}
                       </h3>
                       <p className="text-xs text-muted-foreground truncate">{mentor.email}</p>
-                      <p className="text-xs font-semibold text-foreground bg-muted inline-block px-2.5 py-1 rounded-lg border border-border/50 mt-1 max-w-full truncate">
+                      <p className="text-xs font-semibold text-foreground bg-muted inline-block px-2.5 py-1 rounded-lg border border-border/50 mt-1 max-w-full truncate capitalize">
                         {mentor.role} at {mentor.company}
                       </p>
                     </div>
@@ -556,7 +556,7 @@ const AdminVerification = () => {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{selectedMentor.email}</p>
-                <p className="text-xs font-semibold text-primary bg-primary/10 inline-block px-3 py-1 rounded-lg border border-primary/20 mt-2">
+                <p className="text-xs font-semibold text-primary bg-primary/10 inline-block px-3 py-1 rounded-lg border border-primary/20 mt-2 capitalize">
                   {selectedMentor.role} at {selectedMentor.company}
                 </p>
               </div>

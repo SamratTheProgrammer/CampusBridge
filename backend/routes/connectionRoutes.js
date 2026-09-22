@@ -235,11 +235,12 @@ router.get('/suggestions/:clerkId', async (req, res) => {
       profileVisibility: { $ne: 'hidden' }
     }).limit(10);
 
+    const capitalizeRole = (r) => r ? (r.charAt(0).toUpperCase() + r.slice(1)) : 'Member';
     const formatUser = (u, defaultRole) => ({
       clerkId: u.clerkId || u._id,
       name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
       role: u.role || defaultRole,
-      headline: u.headline || u.bio || `${u.role || defaultRole} at CampusBridge`,
+      headline: u.headline || u.bio || `${capitalizeRole(u.role || defaultRole)} at CampusBridge`,
       image: u.imageUrl || u.image || null,
       username: u.username,
       institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
@@ -328,7 +329,7 @@ router.get('/discover/:clerkId', async (req, res) => {
         clerkId: uId,
         name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
         role: u.role || 'student',
-        headline: u.headline || u.bio || `${u.role || 'Student'} at CampusBridge`,
+        headline: u.headline || u.bio || `${(u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : 'Student')} at CampusBridge`,
         image: u.imageUrl || u.image || null,
         username: u.username,
         institution: u.education?.[0]?.institution || u.company || 'CampusBridge',

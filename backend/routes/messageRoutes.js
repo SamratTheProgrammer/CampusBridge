@@ -117,7 +117,7 @@ router.get('/conversations/:clerkId', async (req, res) => {
           name: `${partnerUser.firstName} ${partnerUser.lastName || ''}`.trim(),
           role: partnerUser.headline || partnerUser.role || 'Member',
           userRole: partnerUser.role || 'student',
-          headline: partnerUser.headline || `${partnerUser.role || 'Member'} at CampusBridge`,
+          headline: partnerUser.headline || `${(partnerUser.role ? partnerUser.role.charAt(0).toUpperCase() + partnerUser.role.slice(1) : 'Member')} at CampusBridge`,
           image: partnerUser.imageUrl,
           username: partnerUser.username,
           conversationId,

@@ -1,7 +1,8 @@
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
+import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import React, { useState, useEffect, useCallback } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield } from 'lucide-react'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
@@ -18,13 +19,15 @@ import { formatTime } from '../../utils/dateFormatter'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ReviewModal from '../../components/modals/ReviewModal'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
-const MentorProfile = ({ initialUser }) => {
+const MentorProfile = ({ initialUser, isAdmin = false }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminView = isAdmin || location.pathname.startsWith('/admin');
   const { id, username } = useParams();
   const identifier = username || id;
   const { user } = useUser();
   const [mentor, setMentor] = useState(initialUser || null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!initialUser)
   const [connectionStatus, setConnectionStatus] = useState('none')
   const [connectionId, setConnectionId] = useState(null)
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false)
@@ -57,14 +60,15 @@ const MentorProfile = ({ initialUser }) => {
   useEffect(() => {
     if (initialUser) {
       setMentor(initialUser);
+      setIsLoading(false);
     }
   }, [initialUser]);
 
   useEffect(() => {
     const fetchMentorAndConnection = async () => {
       try {
-        let currentMentor = initialUser;
-        if (identifier) {
+        let currentMentor = mentor || initialUser;
+        if (!currentMentor && identifier) {
           const res = await fetch(`${API_BASE}/api/users/${identifier}?viewerId=${user?.id || ''}`)
           if (res.ok) {
             currentMentor = await res.json()
@@ -72,7 +76,7 @@ const MentorProfile = ({ initialUser }) => {
           }
         }
         
-        if (currentMentor && user && currentMentor.clerkId) {
+        if (!isAdminView && currentMentor && user && currentMentor.clerkId) {
           const connRes = await fetch(`${API_BASE}/api/connections/status/${user.id}/${currentMentor.clerkId}`)
           if (connRes.ok) {
             const connData = await connRes.json()
@@ -87,7 +91,7 @@ const MentorProfile = ({ initialUser }) => {
       }
     }
     fetchMentorAndConnection()
-  }, [identifier, user])
+  }, [identifier, user, initialUser, isAdminView])
 
   // Fetch posts by this mentor
   useEffect(() => {
@@ -358,17 +362,17 @@ const MentorProfile = ({ initialUser }) => {
     setUnfriendConfirm(true);
   }
 
-  if (isLoading) {
+  if (isLoading && !mentor) {
     return (
-      <div className="flex justify-center py-20">
-        <CardSkeleton />
+      <div className="w-full">
+        <ProfileSkeleton />
       </div>
     )
   }
 
   if (!mentor) {
     return (
-      <div className="text-center py-20 bg-card border border-border/50 rounded-2xl max-w-5xl mx-auto">
+      <div className="w-full text-center py-20 bg-card border border-border/50 rounded-2xl max-w-5xl mx-auto">
         <p className="text-muted-foreground">Mentor not found.</p>
       </div>
     )
@@ -383,7 +387,7 @@ const MentorProfile = ({ initialUser }) => {
   const isMentorRole = user?.unsafeMetadata?.role === 'mentor';
   
   let isLocked = false;
-  if (!isOwner) {
+  if (!isAdminView && !isOwner) {
     if (mentor.profileVisibility === 'hidden') {
       isLocked = !isConnected;
       } else if (mentor.profileVisibility === 'restricted') {
@@ -392,32 +396,34 @@ const MentorProfile = ({ initialUser }) => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto sm:pb-8">
+    <div className="w-full max-w-6xl mx-auto sm:pb-8">
       {/* Cover & Header Section */}
       <div className="bg-card border-x-0 border-t-0 sm:border border-border/50 rounded-none sm:rounded-2xl overflow-hidden mb-6 shadow-sm relative">
-        <button 
-          onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors flex items-center justify-center"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="h-48 sm:h-64 w-full bg-muted relative">
+        {!isAdminView && (
+          <button 
+            onClick={() => navigate(-1)}
+            className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors flex items-center justify-center"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
+        <div className="h-56 sm:h-72 md:h-80 w-full bg-muted relative">
           {coverUrl ? (
-            <img src={coverUrl} alt="Cover" className={`w-full h-full object-cover transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`} onClick={isLocked ? undefined : () => setViewerData({ files: [coverUrl], index: 0 })} />
+            <img src={coverUrl} alt="Cover" className={`w-full h-full object-cover object-center transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`} onClick={isLocked ? undefined : () => setViewerData({ files: [coverUrl], index: 0 })} />
           ) : (
             <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600"></div>
           )}
         </div>
-        <div className="px-4 sm:px-10 pb-6 sm:pb-8 relative">
+        <div className="px-6 sm:px-10 md:px-12 pb-6 sm:pb-8 relative">
           <div className="flex flex-col gap-5 sm:gap-6">
             
             {/* Top Row: Avatar and Actions */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end w-full -mt-16 sm:-mt-20 relative z-10 gap-4 sm:gap-0">
-              <div className="shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end w-full -mt-16 sm:-mt-22 md:-mt-24 relative z-10 gap-4 sm:gap-0">
+              <div className="shrink-0 sm:ml-2 md:ml-3">
                 <img
                   src={avatarUrl}
                   alt={fullName}
-                  className={`w-24 h-24 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-card bg-card shadow-md transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+                  className={`w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
                   onClick={isLocked ? undefined : () => setViewerData({ files: [avatarUrl], index: 0 })}
                 />
               </div>
@@ -431,91 +437,121 @@ const MentorProfile = ({ initialUser }) => {
                   <Share2 className="w-4 h-4" /> <span className="hidden sm:inline">Share</span>
                 </button>
                 
-                {!isLocked && mentor?.role === 'mentor' && (
-                  <button
-                    onClick={() => {
-                      const targetId = mentor?.clerkId || mentor?._id || identifier;
-                      const isMentor = ['mentor', 'alumni'].includes((user?.publicMetadata?.role || '').toLowerCase());
-                      navigate(isMentor ? `/mentor-dashboard/mentor/${targetId}/book` : `/dashboard/mentor/${targetId}/book`);
-                    }}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
-                  >
-                    <Calendar className="w-4 h-4" /> <span className="hidden sm:inline">Book Session</span>
-                  </button>
-                )}
-              
-                {connectionStatus === 'none' && (
-                  <button 
-                    onClick={() => {
-                      if (!user) {
-                        toast.error('Please login to connect');
-                        navigate('/login');
-                      } else {
-                        setIsConnectModalOpen(true);
-                      }
-                    }}
-                    className="bg-background border border-border/50 text-foreground hover:bg-muted p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
-                  >
-                    <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Connect</span>
-                  </button>
-                )}
-                
-                {connectionStatus === 'pending' && (
-                  <button 
-                    onClick={handleCancelRequest}
-                    disabled={isConnecting}
-                    className="bg-amber-500/10 text-amber-500 hover:text-rose-500 hover:bg-rose-500/10 border border-amber-500/20 hover:border-rose-500/30 p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm transition-colors"
-                  >
-                    {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><X className="w-4 h-4" /> <span className="hidden sm:inline">Unsend</span></>}
-                  </button>
-                )}
-                
-                {connectionStatus === 'accepted' && (
-                  <button 
-                    onClick={handleUnfriend}
-                    className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
-                  >
-                    <X className="w-4 h-4" /> <span className="hidden sm:inline">Remove</span>
-                  </button>
-                )}
-
-                {!isLocked && (
+                {isAdminView ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                      <Shield className="w-3.5 h-3.5" /> Admin Viewing
+                    </span>
+                    <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 shadow-sm ${
+                      mentor.verificationStatus === 'Approved' || mentor.isVerified
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                        : mentor.verificationStatus === 'Rejected'
+                        ? 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                        : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                    }`}>
+                      Status: {mentor.verificationStatus || (mentor.isVerified ? 'Approved' : 'Pending')}
+                    </span>
+                    {mentor.verificationStatus === 'Pending' && (
+                      <button
+                        onClick={() => navigate('/admin/verification')}
+                        className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+                      >
+                        Review Verification
+                      </button>
+                    )}
+                  </div>
+                ) : (
                   <>
-                    <button 
-                      onClick={() => {
-                        const isMentor = ['mentor', 'alumni'].includes((user?.publicMetadata?.role || '').toLowerCase());
-                        navigate(isMentor ? `/mentor-dashboard/messages?user=${mentor.clerkId}` : `/dashboard/messages?user=${mentor.clerkId}`);
-                      }}
-                      className="bg-background border border-border/50 hover:bg-muted text-foreground p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
-                    >
-                      <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
-                    </button>
-                    
-                    <button 
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent('open-video-call', { 
-                          detail: { 
-                            userToCall: {
-                              id: mentor.clerkId,
-                              name: `${mentor.firstName} ${mentor.lastName}`,
-                              image: mentor.imageUrl || mentor.image 
-                            }, 
-                            type: 'video' 
+                    {!isLocked && mentor?.role === 'mentor' && (
+                      <button
+                        onClick={() => {
+                          const targetId = mentor?.clerkId || mentor?._id || identifier;
+                          const isMentor = ['mentor', 'alumni'].includes((user?.publicMetadata?.role || '').toLowerCase());
+                          navigate(isMentor ? `/mentor-dashboard/mentor/${targetId}/book` : `/dashboard/mentor/${targetId}/book`);
+                        }}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
+                      >
+                        <Calendar className="w-4 h-4" /> <span className="hidden sm:inline">Book Session</span>
+                      </button>
+                    )}
+                  
+                    {connectionStatus === 'none' && (
+                      <button 
+                        onClick={() => {
+                          if (!user) {
+                            toast.error('Please login to connect');
+                            navigate('/login');
+                          } else {
+                            setIsConnectModalOpen(true);
                           }
-                        }))
-                      }}
-                      className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm flex-1 sm:flex-none justify-center"
-                    >
-                      <Video className="w-4 h-4" /> Video Call
-                    </button>
+                        }}
+                        className="bg-background border border-border/50 text-foreground hover:bg-muted p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                      >
+                        <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Connect</span>
+                      </button>
+                    )}
+                    
+                    {connectionStatus === 'pending' && (
+                      <button 
+                        onClick={handleCancelRequest}
+                        disabled={isConnecting}
+                        className="bg-amber-500/10 text-amber-500 hover:text-rose-500 hover:bg-rose-500/10 border border-amber-500/20 hover:border-rose-500/30 p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm flex items-center gap-2 shadow-sm transition-colors"
+                      >
+                        {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><X className="w-4 h-4" /> <span className="hidden sm:inline">Unsend</span></>}
+                      </button>
+                    )}
+                    
+                    {connectionStatus === 'accepted' && (
+                      <button 
+                        onClick={handleUnfriend}
+                        className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                      >
+                        <X className="w-4 h-4" /> <span className="hidden sm:inline">Remove</span>
+                      </button>
+                    )}
+
+                    {!isLocked && (
+                      <>
+                        <button 
+                          onClick={() => {
+                            const isMentor = ['mentor', 'alumni'].includes((user?.publicMetadata?.role || '').toLowerCase());
+                            navigate(isMentor ? `/mentor-dashboard/messages?user=${mentor.clerkId}` : `/dashboard/messages?user=${mentor.clerkId}`);
+                          }}
+                          className="bg-background border border-border/50 hover:bg-muted text-foreground p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                        >
+                          <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">Message</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('open-video-call', { 
+                              detail: { 
+                                userToCall: {
+                                  id: mentor.clerkId,
+                                  name: `${mentor.firstName} ${mentor.lastName}`,
+                                  image: mentor.imageUrl || mentor.image 
+                                }, 
+                                type: 'video' 
+                              }
+                            }))
+                          }}
+                          className="bg-green-500/10 text-green-500 hover:bg-green-500/20 px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm flex-1 sm:flex-none justify-center"
+                        >
+                          <Video className="w-4 h-4" /> Video Call
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>
             </div>
             
             {/* User Info Stack */}
-            <div className="mt-2 flex flex-col gap-1.5 text-left w-full">
+            <div className="mt-3 sm:mt-4 flex flex-col gap-1.5 text-left w-full sm:pl-2 md:pl-3">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">{fullName}</h1>
+              {mentor?.username && (
+                <p className="text-sm text-muted-foreground font-medium">@{mentor.username}</p>
+              )}
               <p className="text-sm sm:text-base font-semibold text-primary">{mentor?.headline || 'Mentor'}</p>
               
               <div className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -527,6 +563,16 @@ const MentorProfile = ({ initialUser }) => {
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5" />
                     {mentor.address}
+                  </span>
+                )}
+                {mentor?.yearsOfExperience && (
+                  <span className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-lg text-xs font-semibold">
+                    <Briefcase className="w-3.5 h-3.5 shrink-0" />
+                    {(() => {
+                      const num = parseInt(String(mentor.yearsOfExperience).replace(/[^0-9]/g, ''), 10);
+                      if (isNaN(num)) return mentor.yearsOfExperience;
+                      return num === 1 ? '1 Year Experience' : `${num} Years Experience`;
+                    })()}
                   </span>
                 )}
                 <button 
@@ -672,6 +718,21 @@ const MentorProfile = ({ initialUser }) => {
             </ul>
           </div>
 
+          {/* Total Experience Card */}
+          {mentor.yearsOfExperience && (
+            <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Total Experience</h2>
+              <p className="text-lg font-extrabold text-foreground flex items-center gap-2 mt-1">
+                <Briefcase className="w-5 h-5 text-primary" />
+                {(() => {
+                  const num = parseInt(String(mentor.yearsOfExperience).replace(/[^0-9]/g, ''), 10);
+                  if (isNaN(num)) return mentor.yearsOfExperience;
+                  return num === 1 ? '1 Year' : `${num} Years`;
+                })()}
+              </p>
+            </div>
+          )}
+
           {/* Skills */}
           {mentor.skills && mentor.skills.length > 0 && (
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
@@ -689,7 +750,7 @@ const MentorProfile = ({ initialUser }) => {
       </div>
 
       {/* Content Tabs */}
-      <div id="profile-content-tabs" className="mt-8 border-b border-border/50 flex items-center justify-between gap-4">
+      <div id="profile-content-tabs" className="mt-8 sticky top-16 z-20 bg-background/95 backdrop-blur-md pt-2 border-b border-border/50 flex items-center justify-between gap-4">
         <div className="flex gap-2">
           <button
             onClick={() => setActiveTab('posts')}
@@ -1118,7 +1179,7 @@ const MentorProfile = ({ initialUser }) => {
                 <div className="px-4 sm:px-5 py-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="bg-blue-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
+                      <span className="bg-rose-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
                       <span className="font-medium text-foreground/80">{renderLikesText(post.likes)}</span>
                     </div>
                     <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
@@ -1127,7 +1188,7 @@ const MentorProfile = ({ initialUser }) => {
                     <button 
                       onClick={() => handleLike(post._id)}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1 sm:flex-none justify-center
-                        ${hasLiked ? 'text-blue-500 hover:bg-blue-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                        ${hasLiked ? 'text-rose-500 hover:bg-rose-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                     >
                       <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
                       <span className="hidden sm:inline">{hasLiked ? 'Liked' : 'Like'}</span>

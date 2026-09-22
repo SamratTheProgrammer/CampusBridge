@@ -22,7 +22,7 @@ const DashboardLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true')
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [mentorsList, setMentorsList] = useState([])
+  const [usersList, setUsersList] = useState([])
   const [jobsList, setJobsList] = useState([])
   const [eventsList, setEventsList] = useState([])
   
@@ -43,13 +43,13 @@ const DashboardLayout = () => {
   useEffect(() => {
     const fetchGlobalData = async () => {
       try {
-        const [mentorsRes, jobsRes, eventsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/users/mentors/all`),
+        const [usersRes, jobsRes, eventsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/users/search/all`).then(r => r.ok ? r : fetch(`${API_BASE}/api/users/mentors/all`)),
           fetch(`${API_BASE}/api/jobs`),
           fetch(`${API_BASE}/api/events`)
         ]);
         
-        if (mentorsRes.ok) setMentorsList(await mentorsRes.json());
+        if (usersRes.ok) setUsersList(await usersRes.json());
         if (jobsRes.ok) setJobsList(await jobsRes.json());
         if (eventsRes.ok) setEventsList(await eventsRes.json());
       } catch (error) {
@@ -241,17 +241,24 @@ const DashboardLayout = () => {
     return <DashboardSkeleton />
   }
 
-  const filteredMentor = mentorsList.filter(mentor => {
-    const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim().toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase()) ||
-           (mentor.headline || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (mentor.skills || []).some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-  }).map(m => ({
-    id: m.clerkId,
-    username: m.username,
-    name: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
-    role: m.headline || 'Mentor',
-    company: m.location || ''
+  const filteredUsers = usersList.filter(u => {
+    const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return fullName.includes(query) ||
+           (u.name || '').toLowerCase().includes(query) ||
+           (u.username || '').toLowerCase().includes(query) ||
+           (u.headline || '').toLowerCase().includes(query) ||
+           (u.role || '').toLowerCase().includes(query) ||
+           (u.course || '').toLowerCase().includes(query) ||
+           (u.skills || []).some(s => s.toLowerCase().includes(query));
+  }).map(u => ({
+    id: u.clerkId || u._id,
+    username: u.username,
+    name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || 'User',
+    role: (u.role || '').toLowerCase(),
+    headline: u.headline || (u.company ? `At ${u.company}` : (u.course || '')),
+    company: u.company || u.location || '',
+    imageUrl: u.imageUrl
   }))
 
   const filteredJobs = jobsList.filter(job =>
@@ -272,7 +279,7 @@ const DashboardLayout = () => {
     type: e.type
   }))
 
-  const hasResults = filteredMentor.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
+  const hasResults = filteredUsers.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -297,7 +304,7 @@ const DashboardLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
         {/* Top Header */}
-        <header className={`sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
+        <header className={`md:sticky md:top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
           <div className="flex items-center gap-4 flex-1">
             <button
               className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
@@ -311,6 +318,8 @@ const DashboardLayout = () => {
                 <input
                   type="text"
                   value={searchQuery}
+                  autoComplete="off"
+                  spellCheck="false"
                   onChange={(e) => {
                     setSearchQuery(e.target.value)
                     setIsDropdownOpen(true)
@@ -332,24 +341,50 @@ const DashboardLayout = () => {
               {isDropdownOpen && searchQuery && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-xl z-50 max-h-[380px] overflow-y-auto divide-y divide-border/40 scrollbar-none animate-in fade-in slide-in-from-top-1 duration-200">
 
-                  {filteredMentor.length > 0 && (
+                  {filteredUsers.length > 0 && (
                     <div className="p-2">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" /> Mentor
+                        <Users className="w-3.5 h-3.5" /> Mentors & Students
                       </div>
-                      <div className="space-y-0.5 mt-1">
-                        {filteredMentor.map(mentor => (
+                      <div className="space-y-1 mt-1">
+                        {filteredUsers.map(userItem => (
                           <button
-                            key={mentor.id}
+                            key={userItem.id}
                             onClick={() => {
-                              navigate(`/profile/${mentor.username || mentor.id}`)
+                              navigate(`/profile/${userItem.username || userItem.id}`)
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-between gap-3 group"
                           >
-                            <span className="font-semibold text-foreground">{mentor.name}</span>
-                            <span className="text-xs text-muted-foreground">{mentor.role} at {mentor.company}</span>
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
+                                <img
+                                  src={userItem.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userItem.name || 'User')}`}
+                                  alt={userItem.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userItem.name || 'User')}`;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{userItem.name}</span>
+                                <span className="text-xs text-muted-foreground capitalize truncate">{userItem.headline || (userItem.company ? `At ${userItem.company}` : '')}</span>
+                              </div>
+                            </div>
+
+                            {/* Right side role badge */}
+                            <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
+                              userItem.role === 'mentor'
+                                ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                : userItem.role === 'alumni'
+                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                            }`}>
+                              {userItem.role === 'mentor' ? 'Mentor' : userItem.role === 'alumni' ? 'Alumni' : 'Student'}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -361,7 +396,7 @@ const DashboardLayout = () => {
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
                         <Briefcase className="w-3.5 h-3.5" /> Jobs
                       </div>
-                      <div className="space-y-0.5 mt-1">
+                      <div className="space-y-1 mt-1">
                         {filteredJobs.map(job => (
                           <button
                             key={job.id}
@@ -370,10 +405,15 @@ const DashboardLayout = () => {
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center gap-3 group"
                           >
-                            <span className="font-semibold text-foreground">{job.title}</span>
-                            <span className="text-xs text-muted-foreground">{job.company}</span>
+                            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                              <Briefcase className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{job.title}</span>
+                              <span className="text-xs text-muted-foreground truncate">{job.company}</span>
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -385,7 +425,7 @@ const DashboardLayout = () => {
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" /> Events
                       </div>
-                      <div className="space-y-0.5 mt-1">
+                      <div className="space-y-1 mt-1">
                         {filteredEvents.map(event => (
                           <button
                             key={event.id}
@@ -394,10 +434,15 @@ const DashboardLayout = () => {
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center gap-3 group"
                           >
-                            <span className="font-semibold text-foreground">{event.title}</span>
-                            <span className="text-xs text-muted-foreground">{event.type}</span>
+                            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{event.title}</span>
+                              <span className="text-xs text-muted-foreground truncate">{event.type}</span>
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -415,16 +460,16 @@ const DashboardLayout = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
             <ThemeToggle />
             <NotificationDropdown />
-            <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
+            <div className="flex items-center gap-2 sm:gap-3 pl-1.5 sm:pl-4 border-l border-border/50 ml-1 sm:ml-2 shrink-0">
               {isLoaded && user ? (
                 <>
                   <img 
                     src={user.imageUrl || "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
                     alt="Profile" 
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20 cursor-pointer hover:opacity-80 transition-opacity"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20 cursor-pointer hover:opacity-80 transition-opacity shrink-0"
                     onClick={() => navigate('/dashboard/profile')}
                   />
                   <div className="hidden lg:block text-sm">

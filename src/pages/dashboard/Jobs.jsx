@@ -59,7 +59,7 @@ const Jobs = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-8">
+    <div className="w-full max-w-7xl mx-auto space-y-6 pb-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Jobs & Internships</h1>
         <p className="text-muted-foreground">Find the best opportunities tailored for you.</p>

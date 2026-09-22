@@ -112,6 +112,14 @@ router.get('/', async (req, res) => {
       })
     );
 
+    // Shuffle posts if requested (e.g. for dynamic feeds like Instagram/social media)
+    if (req.query.shuffle === 'true' && admin_override !== 'true') {
+      for (let i = enrichedPosts.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [enrichedPosts[i], enrichedPosts[j]] = [enrichedPosts[j], enrichedPosts[i]];
+      }
+    }
+
     res.status(200).json(enrichedPosts);
   } catch (error) {
     console.error('Error fetching posts:', error);
@@ -188,6 +196,57 @@ router.get('/user/:clerkId', async (req, res) => {
     res.status(200).json(enrichedPosts);
   } catch (error) {
     console.error('Error fetching user posts:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get a single post by ID
+router.get('/:id', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const user = await User.findOne({ clerkId: post.authorClerkId });
+    const enrichedComments = await enrichCommentsList(post.comments);
+    const enrichedLikes = await Promise.all(
+      post.likes.map(async (likeItem) => {
+        const likeClerkId = getLikeClerkId(likeItem);
+        if (!likeClerkId) return { clerkId: 'unknown', name: 'Unknown User', image: null };
+        const likeUser = await User.findOne({ clerkId: likeClerkId });
+        return likeUser ? {
+          clerkId: likeClerkId,
+          name: likeUser.firstName + (likeUser.lastName ? ' ' + likeUser.lastName : ''),
+          image: likeUser.imageUrl,
+          role: likeUser.headline || likeUser.role,
+          username: likeUser.username
+        } : { clerkId: likeClerkId, name: 'Unknown User', image: null };
+      })
+    );
+
+    const enrichedPost = {
+      ...post.toObject(),
+      author: user ? {
+        clerkId: user.clerkId,
+        name: user.firstName + (user.lastName ? ' ' + user.lastName : ''),
+        role: user.headline || user.role,
+        image: user.imageUrl,
+        username: user.username || user.clerkId,
+      } : {
+        clerkId: post.authorClerkId,
+        name: 'Unknown User',
+        role: 'Member',
+        image: null
+      },
+      comments: enrichedComments,
+      likes: enrichedLikes
+    };
+
+    res.status(200).json(enrichedPost);
+  } catch (error) {
+    console.error('Error fetching single post:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

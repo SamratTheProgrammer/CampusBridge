@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react'
 import { 
   Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2, AtSign, Check, 
   AlertCircle, Laptop, Smartphone, MapPin, Trash2, Plus, Briefcase, GraduationCap, 
-  FileText, ExternalLink, Sparkles, X, UploadCloud, Award, Edit2, Sun, Moon, MonitorSmartphone, Palette
+  FileText, ExternalLink, Sparkles, X, UploadCloud, Award, Edit2, Sun, Moon, MonitorSmartphone, Palette,
+  CheckCircle2
 } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -16,6 +17,7 @@ import { socket } from '../../services/socket'
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
 import API_BASE from '../../utils/api'
 import { useTheme } from '../../components/ThemeProvider'
+import { useProfileData } from '../../context/ProfileDataContext'
 
 const MentorSettings = () => {
   const { user, isLoaded } = useUser()
@@ -23,6 +25,7 @@ const MentorSettings = () => {
   const { session: currentSession } = useSession()
   const currentDeviceInfo = useCurrentDevice()
   const { theme, setTheme, globalTheme } = useTheme()
+  const { mongoProfile, isMongoProfileLoading, refetchMongoProfile } = useProfileData()
   const [activeTab, setActiveTab] = useState('profile')
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [profileVisibility, setProfileVisibility] = useState('public')
@@ -90,51 +93,138 @@ const MentorSettings = () => {
   
   const fileInputRef = useRef(null)
   const resumeInputRef = useRef(null)
+  const formScrollRef = useRef(null)
+  const contentGridRef = useRef(null)
+
+  // Two-stage coordinated scroll: window scrolls down until tabs/form reach navbar (Picture 3 position),
+  // then sticks firmly while only the right form container scrolls smoothly.
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (window.innerWidth < 768) return; // Natural scroll on mobile devices
+      const contentGrid = contentGridRef.current;
+      const formContainer = formScrollRef.current;
+      if (!contentGrid || !formContainer) return;
+
+      const targetTop = 88; // 64px header + 24px gap
+
+      const rect = contentGrid.getBoundingClientRect();
+
+      if (e.deltaY > 0) {
+        // SCROLLING DOWN
+        if (rect.top > targetTop + 1) {
+          // Stage 1: Window has not yet reached the stuck position
+          e.preventDefault();
+          const neededScroll = rect.top - targetTop;
+          if (e.deltaY <= neededScroll) {
+            window.scrollBy({ top: e.deltaY, behavior: 'instant' });
+          } else {
+            window.scrollBy({ top: neededScroll, behavior: 'instant' });
+            formContainer.scrollTop += (e.deltaY - neededScroll);
+          }
+        } else {
+          // Stage 2: Locked at the top!
+          // Window remains rock-solid stationary, only the right form column scrolls
+          e.preventDefault();
+          formContainer.scrollTop += e.deltaY;
+        }
+      } else if (e.deltaY < 0) {
+        // SCROLLING UP
+        if (formContainer.scrollTop > 0) {
+          // Form is scrolled down, so scroll form back UP
+          e.preventDefault();
+          const canScrollUp = formContainer.scrollTop;
+          if (-e.deltaY <= canScrollUp) {
+            formContainer.scrollTop += e.deltaY;
+          } else {
+            formContainer.scrollTop = 0;
+            const leftover = e.deltaY + canScrollUp; // negative delta
+            window.scrollBy({ top: leftover, behavior: 'instant' });
+          }
+        } else if (window.scrollY > 0) {
+          // Form is at top (0), scroll window back UP to reveal Header & Onboarding Banner
+          e.preventDefault();
+          window.scrollBy({ top: e.deltaY, behavior: 'instant' });
+        }
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (window.innerWidth < 768) return;
+      const contentGrid = contentGridRef.current;
+      const formContainer = formScrollRef.current;
+      if (!contentGrid || !formContainer) return;
+
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+        return;
+      }
+
+      const targetTop = 88; // 64px header + 24px gap
+      const rect = contentGrid.getBoundingClientRect();
+
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+        if (rect.top <= targetTop + 2) {
+          e.preventDefault();
+          formContainer.scrollTop += (e.key === 'ArrowDown' ? 80 : 300);
+        }
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        if (formContainer.scrollTop > 0) {
+          e.preventDefault();
+          formContainer.scrollTop -= (e.key === 'ArrowUp' ? 80 : 300);
+        }
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
   
   // Image crop state
   const [cropModalData, setCropModalData] = useState(null)
 
-  const fetchProfile = async () => {
-    if (!user) return
-    try {
-      const res = await fetch(`${API_BASE}/api/users/${user.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setUserDoc(data);
-        setUsernameValue(data.username || '');
-        setFirstName(data.firstName || user.firstName || '');
-        setLastName(data.lastName || user.lastName || '');
-        setHeadline(data.headline || '');
-        setAboutMe(data.aboutMe || '');
-        setPhone(data.phone || user.unsafeMetadata?.phone || '');
-        setAddress(data.address || user.unsafeMetadata?.address || '');
-        setYearsOfExperience(data.yearsOfExperience || '');
-        setExperienceList(Array.isArray(data.experience) ? data.experience : []);
-        setEducationList(Array.isArray(data.education) ? data.education : []);
-        setSkillsList(Array.isArray(data.skills) ? data.skills : []);
-        setResumeUrl(data.resumeUrl || '');
-        setDateOfBirth(data.dateOfBirth || '');
-        if (data.ageVisibility) setAgeVisibility(data.ageVisibility);
-        if (data.gender) setGender(data.gender);
-        if (data.profileVisibility) setProfileVisibility(data.profileVisibility);
-        
-        const comp = calculateProfileCompleteness(data);
-        setCompleteness(comp);
-        setHasInitialized(true);
-      }
-    } catch (err) {
-      console.error('Failed to fetch profile:', err);
-      setHasInitialized(true);
-    } finally {
-      setIsLoadingProfile(false);
-    }
-  };
-
   useEffect(() => {
-    if (user && !hasInitialized) {
-      fetchProfile();
+    if (!user || isMongoProfileLoading) return;
+
+    if (!hasInitialized) {
+      if (mongoProfile) {
+        setUserDoc(mongoProfile);
+        const emailPrefix = user.primaryEmailAddress?.emailAddress?.split('@')[0] || user.emailAddresses?.[0]?.emailAddress?.split('@')[0];
+        const defaultUsername = (user.username || emailPrefix || user.firstName || '').toLowerCase().replace(/[^a-z0-9-_]/g, '');
+        setUsernameValue(mongoProfile.username || defaultUsername);
+        setFirstName(mongoProfile.firstName || user.firstName || '');
+        setLastName(mongoProfile.lastName || user.lastName || '');
+        setHeadline(mongoProfile.headline || '');
+        setAboutMe(mongoProfile.aboutMe || '');
+        setPhone(mongoProfile.phone || user.unsafeMetadata?.phone || '');
+        setAddress(mongoProfile.address || user.unsafeMetadata?.address || '');
+        setYearsOfExperience(mongoProfile.yearsOfExperience !== undefined && mongoProfile.yearsOfExperience !== null ? String(mongoProfile.yearsOfExperience).replace(/[^0-9]/g, '') : '');
+        setExperienceList(Array.isArray(mongoProfile.experience) ? mongoProfile.experience : []);
+        setEducationList(Array.isArray(mongoProfile.education) ? mongoProfile.education : []);
+        setSkillsList(Array.isArray(mongoProfile.skills) ? mongoProfile.skills : []);
+        setResumeUrl(mongoProfile.resumeUrl || '');
+        setDateOfBirth(mongoProfile.dateOfBirth || '');
+        if (mongoProfile.ageVisibility) setAgeVisibility(mongoProfile.ageVisibility);
+        if (mongoProfile.gender) setGender(mongoProfile.gender);
+        if (mongoProfile.profileVisibility) setProfileVisibility(mongoProfile.profileVisibility);
+        
+        const comp = calculateProfileCompleteness(mongoProfile);
+        setCompleteness(comp);
+      } else {
+        const emailPrefix = user.primaryEmailAddress?.emailAddress?.split('@')[0] || user.emailAddresses?.[0]?.emailAddress?.split('@')[0];
+        const defaultUsername = (user.username || emailPrefix || user.firstName || '').toLowerCase().replace(/[^a-z0-9-_]/g, '');
+        setUsernameValue(defaultUsername);
+        setFirstName(user.firstName || '');
+        setLastName(user.lastName || '');
+        setPhone(user.unsafeMetadata?.phone || '');
+        setAddress(user.unsafeMetadata?.address || '');
+      }
+      setHasInitialized(true);
     }
-  }, [user, hasInitialized])
+  }, [user, hasInitialized, mongoProfile, isMongoProfileLoading])
 
   const handleProfilePicSelect = (e) => {
     const file = e.target.files?.[0]
@@ -172,6 +262,21 @@ const MentorSettings = () => {
     if (cropModalData?.type === 'dp') {
       uploadProfilePic(croppedFile)
     }
+  }
+
+  const validateUsername = (value) => {
+    if (!value) return ''
+    if (value.length < 3) return 'Username must be at least 3 characters'
+    if (value.length > 30) return 'Username must be 30 characters or less'
+    if (!/^[a-z0-9][a-z0-9-_]*[a-z0-9]$/.test(value) && value.length > 1) return 'Only lowercase letters, numbers, hyphens, and underscores allowed'
+    if (/--|__/.test(value)) return 'No consecutive special characters allowed'
+    return ''
+  }
+
+  const handleUsernameChange = (value) => {
+    const cleaned = value.toLowerCase().replace(/[^a-z0-9-_]/g, '')
+    setUsernameValue(cleaned)
+    setUsernameError(validateUsername(cleaned))
   }
 
   // Resume Upload Handler
@@ -334,6 +439,23 @@ const MentorSettings = () => {
         })
       });
 
+      // Save username separately (has its own uniqueness check)
+      if (usernameValue) {
+        const usernameRes = await fetch(`${API_BASE}/api/users/${user.id}/username`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: usernameValue })
+        });
+        if (!usernameRes.ok) {
+          const data = await usernameRes.json().catch(() => ({}));
+          const errMsg = data.message || 'Failed to update username';
+          setUsernameError(errMsg);
+          toast.error(errMsg);
+          setIsSaving(false);
+          return;
+        }
+      }
+
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.message || 'Failed to save to MongoDB');
@@ -343,6 +465,7 @@ const MentorSettings = () => {
         await user.update({
           firstName: firstName || user.firstName,
           lastName: lastName || user.lastName,
+          ...(user.username ? { username: usernameValue || undefined } : {}),
           unsafeMetadata: {
             ...user.unsafeMetadata,
             headline,
@@ -354,6 +477,7 @@ const MentorSettings = () => {
         console.warn('Clerk update failed, proceeding with DB update:', clerkErr);
       }
 
+      await refetchMongoProfile();
       const checkRes = await fetch(`${API_BASE}/api/users/${user.id}`);
       if (checkRes.ok) {
         const updatedData = await checkRes.json();
@@ -404,60 +528,65 @@ const MentorSettings = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12">
-      
+    <div className="w-full min-w-0 max-w-6xl mx-auto space-y-4 sm:space-y-6 pb-12 md:pb-80">
       {/* Header */}
-      <div>
+      <div className="shrink-0">
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage your mentor profile, credentials, experience, resume, and skills.</p>
       </div>
 
       {/* Onboarding & Verification Completeness Banner */}
       {!isLoadingProfile && (
-        <MentorOnboardingBanner 
-          completeness={completeness} 
-          verificationStatus={userDoc?.verificationStatus || (userDoc?.isVerified ? 'Approved' : 'Pending')} 
-        />
+        <div className="shrink-0">
+          <MentorOnboardingBanner 
+            completeness={completeness} 
+            verificationStatus={userDoc?.verificationStatus || (userDoc?.isVerified ? 'Approved' : 'Pending')} 
+          />
+        </div>
       )}
 
-      <div className="flex flex-col md:flex-row gap-4 sm:gap-6 md:gap-8">
+      <div ref={contentGridRef} className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start flex-1 min-h-0">
         
         {/* Sidebar Nav */}
-        <div className="w-full md:w-64 shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none bg-card border border-border/50 rounded-2xl p-1.5 sm:p-3 shadow-sm md:bg-transparent md:border-0 md:p-0 md:shadow-none min-w-0">
+        <div className="w-full md:w-64 bg-card/95 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 sm:p-3 shadow-sm shrink-0 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none sticky top-0 z-30 md:static h-auto md:h-fit min-w-0">
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'profile' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all text-left whitespace-nowrap shrink-0 ${activeTab === 'profile' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
           >
-            <User className="w-4 h-4 shrink-0" /> Account Profile
+            <User className="w-4 h-4 shrink-0" /> 
+            <span>Account Profile</span>
+            {completeness.percentage >= 80 && (
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto hidden md:block" />
+            )}
           </button>
 
           <button 
             onClick={() => setActiveTab('appearance')}
-            className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'appearance' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all text-left whitespace-nowrap shrink-0 ${activeTab === 'appearance' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
           >
-            <Palette className="w-4 h-4 shrink-0" /> Appearance
+            <Palette className="w-4 h-4 shrink-0" /> 
+            <span>Appearance</span>
           </button>
 
           <button 
             onClick={() => setActiveTab('privacy')}
-            className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${activeTab === 'privacy' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted'}`}
+            className={`flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all text-left whitespace-nowrap shrink-0 ${activeTab === 'privacy' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
           >
-            <Lock className="w-4 h-4 shrink-0" /> Privacy & Security
+            <Lock className="w-4 h-4 shrink-0" /> 
+            <span>Privacy & Security</span>
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm min-h-[500px]">
-          
+        <div 
+          ref={formScrollRef}
+          className="flex-1 w-full bg-card border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm md:h-[calc(100vh-112px)] md:overflow-y-auto scrollbar-none min-w-0"
+        >
           {activeTab === 'profile' && (
             <div className="space-y-8 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <h2 className="text-xl font-bold text-foreground">Account Profile</h2>
-                <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                  completeness.percentage >= 80 
-                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                }`}>
+                <span className="text-xs font-bold px-3 py-1 rounded-full border bg-primary/10 text-primary border-primary/20">
                   {completeness.percentage}% Complete (Min: 80%)
                 </span>
               </div>
@@ -466,11 +595,11 @@ const MentorSettings = () => {
               <div className="bg-muted/30 border border-border/40 rounded-2xl p-4 space-y-2">
                 <div className="flex justify-between text-xs font-bold">
                   <span className="text-muted-foreground">Profile Completeness Score</span>
-                  <span className={completeness.percentage >= 80 ? 'text-emerald-500' : 'text-amber-500'}>{completeness.percentage}%</span>
+                  <span className="text-primary font-bold">{completeness.percentage}%</span>
                 </div>
                 <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full transition-all duration-500 ${completeness.percentage >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                    className="h-full bg-primary transition-all duration-500 ease-out"
                     style={{ width: `${completeness.percentage}%` }}
                   />
                 </div>
@@ -501,7 +630,7 @@ const MentorSettings = () => {
                       onClick={() => fileInputRef.current?.click()}
                       className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
                     >
-                      Upload New Photo (+15%)
+                      Upload New Photo
                     </button>
                   </div>
                 </div>
@@ -541,7 +670,39 @@ const MentorSettings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Headline / Professional Title (+15%)</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
+                    <AtSign className="w-4 h-4 text-primary" /> Username
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={usernameValue} 
+                      onChange={(e) => handleUsernameChange(e.target.value)} 
+                      placeholder="e.g. mentor-john" 
+                      className={`w-full px-3 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-1 transition-all ${
+                        usernameError 
+                          ? 'border-red-500/50 focus:ring-red-500/50' 
+                          : 'border-border/50 focus:ring-primary'
+                      }`} 
+                    />
+                    {usernameValue && !usernameError && (
+                      <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                    )}
+                    {usernameError && (
+                      <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  {usernameError ? (
+                    <p className="text-xs text-red-500 mt-1">{usernameError}</p>
+                  ) : usernameValue ? (
+                    <p className="text-xs text-muted-foreground mt-1">campusbridge.com/profile/<span className="text-primary font-medium">{usernameValue}</span></p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">Your unique profile URL. Auto-generated on signup.</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Headline / Professional Title</label>
                   <input 
                     type="text" 
                     value={headline}
@@ -552,7 +713,7 @@ const MentorSettings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">About Me / Professional Bio (+15%)</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">About Me / Professional Bio</label>
                   <textarea 
                     rows="3"
                     value={aboutMe}
@@ -575,14 +736,28 @@ const MentorSettings = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Years of Experience (+15%)</label>
-                    <input 
-                      type="text" 
-                      value={yearsOfExperience}
-                      onChange={(e) => setYearsOfExperience(e.target.value)}
-                      placeholder="e.g. 5+ years" 
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                    />
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Years of Experience</label>
+                    <div className="relative flex items-center">
+                      <input 
+                        type="number" 
+                        min="0"
+                        max="70"
+                        value={yearsOfExperience}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setYearsOfExperience(val);
+                        }}
+                        placeholder="e.g. 5" 
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary pr-28 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                      />
+                      {yearsOfExperience !== '' && (
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <span className="bg-primary/10 text-primary border border-primary/20 text-xs font-semibold px-2 py-0.5 rounded-md">
+                            {Number(yearsOfExperience) === 1 ? '1 Year' : `${yearsOfExperience} Years`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -974,30 +1149,30 @@ const MentorSettings = () => {
                   />
 
                   {resumeUrl ? (
-                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-3">
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
+                      <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
                         <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center shrink-0">
                           <FileText className="w-5 h-5" />
                         </div>
-                        <div>
-                          <span className="font-bold text-foreground text-sm block">Resume Document Attached</span>
-                          <span className="text-[11px] text-muted-foreground">Ready for verification & student viewing</span>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-foreground text-sm block truncate">Resume Document Attached</span>
+                          <span className="text-[11px] text-muted-foreground block truncate">Ready for verification & student viewing</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <div className="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
                         <a 
                           href={resumeUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="px-3 py-1.5 bg-card border border-border/60 hover:bg-muted text-foreground font-bold rounded-xl transition-all flex items-center gap-1 text-xs"
+                          className="flex-1 sm:flex-none px-3 py-1.5 bg-card border border-border/60 hover:bg-muted text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-1 text-xs"
                         >
                           <ExternalLink className="w-3.5 h-3.5" /> View PDF
                         </a>
                         <button 
                           type="button" 
                           onClick={() => setResumeUrl('')} 
-                          className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold rounded-xl transition-all text-xs"
+                          className="flex-1 sm:flex-none px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold rounded-xl transition-all text-xs flex items-center justify-center"
                         >
                           Remove
                         </button>

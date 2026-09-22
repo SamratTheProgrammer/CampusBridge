@@ -220,7 +220,7 @@ const Events = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-8">
+    <div className="w-full max-w-4xl mx-auto space-y-6 pb-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Events</h1>
         <p className="text-muted-foreground">Discover and register for upcoming events.</p>

@@ -180,7 +180,7 @@ const CommunityDetailModal = ({
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                                   <span className="font-medium text-foreground/80">{disc.author}</span>
                                   <span>•</span>
-                                  <span className="text-[11px] bg-muted px-2 py-0.5 rounded-md border border-border/40">{disc.role}</span>
+                                  <span className="text-[11px] bg-muted px-2 py-0.5 rounded-md border border-border/40 capitalize">{disc.role}</span>
                                   <span>•</span>
                                   <span className="flex items-center gap-1 text-[11px]">
                                     <Clock className="w-3 h-3" /> {disc.time}
@@ -250,7 +250,7 @@ const CommunityDetailModal = ({
                               {member.role === 'Mentor' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
                             </h4>
                             <p className="text-xs text-muted-foreground truncate">{member.title}</p>
-                            <span className={`inline-block mt-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                            <span className={`text-[10px] font-extrabold capitalize tracking-wider px-2 py-0.5 rounded-full border ${
                               member.role === 'Mentor' 
                                 ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' 
                                 : member.role === 'Alumni' 

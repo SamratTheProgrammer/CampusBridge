@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import MentorSidebar from '../components/dashboard/MentorSidebar'
 import PageTransition from '../components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
-import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2 } from 'lucide-react'
+import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2, ShieldAlert, Check, X } from 'lucide-react'
 import ThemeToggle from '../components/ThemeToggle'
 import { useUser } from '@clerk/clerk-react'
 import NotificationDropdown from '../components/NotificationDropdown'
@@ -17,11 +17,10 @@ import ReviewModal from '../components/modals/ReviewModal'
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 
-
-
 const MentorDashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true')
+  const [warnings, setWarnings] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [mentorsList, setMentorsList] = useState([])
@@ -45,24 +44,19 @@ const MentorDashboardLayout = () => {
   useEffect(() => {
     const fetchSearchData = async () => {
       try {
-        const [mentorsRes, jobsRes, eventsRes, connsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/users/mentors/all`),
+        const [usersRes, jobsRes, eventsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/users/search/all`).then(r => r.ok ? r : fetch(`${API_BASE}/api/users/mentors/all`)),
           fetch(`${API_BASE}/api/jobs`),
-          fetch(`${API_BASE}/api/events`),
-          user ? fetch(`${API_BASE}/api/connections/user/${user.id}`) : Promise.resolve({ ok: false })
+          fetch(`${API_BASE}/api/events`)
         ]);
 
-        if (mentorsRes.ok) setMentorsList(await mentorsRes.json());
+        if (usersRes.ok) {
+          const allUsers = await usersRes.json();
+          setMentorsList(allUsers.filter(u => ['mentor', 'alumni'].includes((u.role || '').toLowerCase())));
+          setStudentsList(allUsers.filter(u => !['mentor', 'alumni'].includes((u.role || '').toLowerCase())));
+        }
         if (jobsRes.ok) setJobsList(await jobsRes.json());
         if (eventsRes.ok) setEventsList(await eventsRes.json());
-        if (connsRes && connsRes.ok) {
-          const conns = await connsRes.json();
-          const accepted = conns
-            .filter(c => c.status === 'accepted')
-            .map(c => c.targetUser)
-            .filter(Boolean);
-          setStudentsList(accepted);
-        }
       } catch (error) {
         console.error('Error fetching search data for MentorDashboardLayout:', error);
       }
@@ -88,6 +82,9 @@ const MentorDashboardLayout = () => {
         setProfileCompleteness(comp)
         if (data.verificationStatus) setVerificationStatus(data.verificationStatus)
         if (data.isVerified !== undefined) setIsVerified(data.isVerified)
+        if (data.warnings && Array.isArray(data.warnings)) {
+          setWarnings(data.warnings.filter(w => !w.isDismissed))
+        }
       }
     } catch (err) {
       console.error('Failed to fetch user profile in MentorDashboardLayout:', err)
@@ -95,6 +92,18 @@ const MentorDashboardLayout = () => {
       setIsLoadingProfile(false)
     }
   }
+
+  const handleDismissWarning = async (warningId) => {
+    try {
+      setWarnings(prev => prev.filter(w => String(w._id || w.id) !== String(warningId)));
+      await fetch(`${API_BASE}/api/users/${user.id}/warnings/${warningId}/dismiss`, {
+        method: 'PUT'
+      });
+      toast.success('Warning acknowledged');
+    } catch (err) {
+      console.error('Failed to dismiss warning:', err);
+    }
+  };
 
   useEffect(() => {
     if (user?.id) {
@@ -284,25 +293,38 @@ const MentorDashboardLayout = () => {
 
   const filteredMentors = mentorsList.filter(mentor => {
     const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim().toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase()) ||
-           (mentor.headline || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (mentor.skills || []).some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+    const query = searchQuery.toLowerCase();
+    return fullName.includes(query) ||
+           (mentor.name || '').toLowerCase().includes(query) ||
+           (mentor.username || '').toLowerCase().includes(query) ||
+           (mentor.headline || '').toLowerCase().includes(query) ||
+           (mentor.skills || []).some(s => s.toLowerCase().includes(query));
   }).map(m => ({
-    id: m.clerkId,
+    id: m.clerkId || m._id,
     username: m.username,
-    name: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
+    name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.name || 'Mentor',
     role: m.headline || 'Mentor',
-    company: m.location || ''
+    roleType: (m.role || 'mentor').toLowerCase(),
+    company: m.company || m.location || '',
+    imageUrl: m.imageUrl
   }))
 
-  const filteredStudents = studentsList.filter(student =>
-    (student.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (student.course || '').toLowerCase().includes(searchQuery.toLowerCase())
-  ).map(s => ({
-    id: s.clerkId || s.id || s._id,
+  const filteredStudents = studentsList.filter(student => {
+    const fullName = `${student.firstName || ''} ${student.lastName || ''}`.trim().toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return fullName.includes(query) ||
+           (student.name || '').toLowerCase().includes(query) ||
+           (student.username || '').toLowerCase().includes(query) ||
+           (student.course || '').toLowerCase().includes(query) ||
+           (student.headline || '').toLowerCase().includes(query) ||
+           (student.skills || []).some(s => s.toLowerCase().includes(query));
+  }).map(s => ({
+    id: s.clerkId || s._id,
     username: s.username,
-    name: s.name || 'Student',
-    role: s.course || 'Student'
+    name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || 'Student',
+    role: s.course || s.headline || 'Student',
+    roleType: (s.role || 'student').toLowerCase(),
+    imageUrl: s.imageUrl
   }))
 
   const filteredJobs = jobsList.filter(job =>
@@ -327,41 +349,43 @@ const MentorDashboardLayout = () => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar for Desktop */}
-      <div className={`hidden md:block fixed inset-y-0 left-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} z-40`}>
-        <MentorSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-      </div>
+        {/* Sidebar for Desktop */}
+        <div className={`hidden md:block fixed inset-y-0 left-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} z-40`}>
+          <MentorSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+        </div>
 
-      {/* Mobile Sidebar Overlay */}
-      <div 
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm md:hidden transition-opacity duration-300 z-[90] ${isMobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setIsMobileSidebarOpen(false)}
-      />
+        {/* Mobile Sidebar Overlay */}
+        <div 
+          className={`fixed inset-0 bg-black/60 backdrop-blur-sm md:hidden transition-opacity duration-300 z-[90] ${isMobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
 
-      {/* Mobile Sidebar Drawer */}
-      <div 
-        className={`fixed inset-y-0 left-0 z-[100] transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 bg-card shadow-2xl`}
-      >
-        <MentorSidebar isCollapsed={false} setIsCollapsed={() => {}} onClose={() => setIsMobileSidebarOpen(false)} />
-      </div>
+        {/* Mobile Sidebar Drawer */}
+        <div 
+          className={`fixed inset-y-0 left-0 z-[100] transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 bg-card shadow-2xl`}
+        >
+          <MentorSidebar isCollapsed={false} setIsCollapsed={() => {}} onClose={() => setIsMobileSidebarOpen(false)} />
+        </div>
 
-      {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
-        {/* Top Header */}
-        <header className={`sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
-          <div className="flex items-center gap-4 flex-1">
-            <button 
-              className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
-              onClick={() => setIsMobileSidebarOpen(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div ref={searchRef} className="hidden sm:block relative flex-1 max-w-md">
-              <div className="flex items-center bg-muted/50 border border-border/50 rounded-lg px-3 py-2 w-full focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
-                <Search className="w-4 h-4 text-muted-foreground mr-2 animate-pulse" />
+        {/* Main Content Area */}
+        <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
+          {/* Top Header */}
+          <header className={`md:sticky md:top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
+            <div className="flex items-center gap-4 flex-1">
+              <button 
+                className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
+                onClick={() => setIsMobileSidebarOpen(true)}
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div ref={searchRef} className="hidden sm:block relative flex-1 max-w-md">
+                <div className="flex items-center bg-muted/50 border border-border/50 rounded-lg px-3 py-2 w-full focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+                  <Search className="w-4 h-4 text-muted-foreground mr-2 animate-pulse" />
                 <input 
                   type="text" 
                   value={searchQuery}
+                  autoComplete="off"
+                  spellCheck="false"
                   onChange={(e) => {
                     setSearchQuery(e.target.value)
                     setIsDropdownOpen(true)
@@ -388,7 +412,7 @@ const MentorDashboardLayout = () => {
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5" /> Mentors
                       </div>
-                      <div className="space-y-0.5 mt-1">
+                      <div className="space-y-1 mt-1">
                         {filteredMentors.map(mentor => (
                           <button
                             key={mentor.id}
@@ -397,10 +421,34 @@ const MentorDashboardLayout = () => {
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-between gap-3 group"
                           >
-                            <span className="font-semibold text-foreground">{mentor.name}</span>
-                            <span className="text-xs text-muted-foreground">{mentor.role}</span>
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
+                                <img
+                                  src={mentor.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(mentor.name || 'Mentor')}`}
+                                  alt={mentor.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(mentor.name || 'Mentor')}`;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{mentor.name}</span>
+                                <span className="text-xs text-muted-foreground capitalize truncate">{mentor.role}{mentor.company ? ` at ${mentor.company}` : ''}</span>
+                              </div>
+                            </div>
+
+                            {/* Right side role badge */}
+                            <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
+                              mentor.roleType === 'alumni'
+                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                : 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                            }`}>
+                              {mentor.roleType === 'alumni' ? 'Alumni' : 'Mentor'}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -412,7 +460,7 @@ const MentorDashboardLayout = () => {
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5" /> Students & Mentees
                       </div>
-                      <div className="space-y-0.5 mt-1">
+                      <div className="space-y-1 mt-1">
                         {filteredStudents.map(student => (
                           <button
                             key={student.id}
@@ -421,10 +469,30 @@ const MentorDashboardLayout = () => {
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-between gap-3 group"
                           >
-                            <span className="font-semibold text-foreground">{student.name}</span>
-                            <span className="text-xs text-muted-foreground">{student.role}</span>
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
+                                <img
+                                  src={student.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(student.name || 'Student')}`}
+                                  alt={student.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(student.name || 'Student')}`;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{student.name}</span>
+                                <span className="text-xs text-muted-foreground capitalize truncate">{student.role}</span>
+                              </div>
+                            </div>
+
+                            {/* Right side role badge */}
+                            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30">
+                              Student
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -436,7 +504,7 @@ const MentorDashboardLayout = () => {
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
                         <Briefcase className="w-3.5 h-3.5" /> Jobs
                       </div>
-                      <div className="space-y-0.5 mt-1">
+                      <div className="space-y-1 mt-1">
                         {filteredJobs.map(job => (
                           <button
                             key={job.id}
@@ -445,10 +513,15 @@ const MentorDashboardLayout = () => {
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center gap-3 group"
                           >
-                            <span className="font-semibold text-foreground">{job.title}</span>
-                            <span className="text-xs text-muted-foreground">{job.company}</span>
+                            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                              <Briefcase className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{job.title}</span>
+                              <span className="text-xs text-muted-foreground truncate">{job.company}</span>
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -460,7 +533,7 @@ const MentorDashboardLayout = () => {
                       <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" /> Events & Sessions
                       </div>
-                      <div className="space-y-0.5 mt-1">
+                      <div className="space-y-1 mt-1">
                         {filteredEvents.map(event => (
                           <button
                             key={event.id}
@@ -469,10 +542,15 @@ const MentorDashboardLayout = () => {
                               setSearchQuery('')
                               setIsDropdownOpen(false)
                             }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex flex-col"
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center gap-3 group"
                           >
-                            <span className="font-semibold text-foreground">{event.title}</span>
-                            <span className="text-xs text-muted-foreground">{event.type}</span>
+                            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{event.title}</span>
+                              <span className="text-xs text-muted-foreground truncate">{event.type}</span>
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -485,39 +563,88 @@ const MentorDashboardLayout = () => {
                     </div>
                   )}
 
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-4">
-            <ThemeToggle />
-            <NotificationDropdown />
-            <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
-              {isLoaded && user ? (
-                <>
-                  <img 
-                    src={user.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
-                    alt="Profile" 
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => navigate('/mentor-dashboard/profile')}
-                  />
-                  <div className="hidden lg:block text-sm">
-                    <p 
-                      className="font-semibold text-foreground leading-none mb-1 cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => navigate('/mentor-dashboard/profile')}
-                    >
-                      {user.fullName || 'Mentor'}
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-none">Mentor</p>
                   </div>
-                </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
+              <ThemeToggle />
+              <NotificationDropdown />
+              <div className="flex items-center gap-2 sm:gap-3 pl-1.5 sm:pl-4 border-l border-border/50 ml-1 sm:ml-2 shrink-0">
+                {isLoaded && user ? (
+                  <>
+                    <img 
+                      src={user.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"} 
+                      alt="Profile" 
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20 cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                      onClick={() => navigate('/mentor-dashboard/profile')}
+                    />
+                    <div className="hidden lg:block text-sm">
+                      <p 
+                        className="font-semibold text-foreground leading-none mb-1 cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => navigate('/mentor-dashboard/profile')}
+                      >
+                        {user.fullName || 'Mentor'}
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-none">Mentor</p>
+                    </div>
+                  </>
               ) : (
                 <div className="w-32 h-8 bg-muted animate-pulse rounded-md hidden lg:block"></div>
               )}
             </div>
           </div>
         </header>
+
+        {/* Official Administrative Warning Banner for Mentor */}
+        {warnings.length > 0 && (
+          <div className="px-3 sm:px-8 pt-4 pb-0 max-w-7xl mx-auto w-full">
+            {warnings.map(warn => (
+              <div 
+                key={warn._id || warn.id} 
+                className="bg-amber-500/10 border-2 border-amber-500/40 dark:border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg relative overflow-hidden backdrop-blur-md mb-4 animate-in slide-in-from-top-2 duration-300"
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                    <ShieldAlert className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 pr-8">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500 text-black">
+                        Administrative Notice
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(warn.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <h4 className="text-sm sm:text-base font-extrabold text-foreground mt-1.5">
+                      {warn.subject}
+                    </h4>
+                    <p className="text-xs sm:text-sm text-foreground/85 mt-1 leading-relaxed whitespace-pre-wrap">
+                      {warn.message}
+                    </p>
+                    <div className="mt-3.5 flex items-center gap-3">
+                      <button
+                        onClick={() => handleDismissWarning(warn._id || warn.id)}
+                        className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Acknowledge & Dismiss
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDismissWarning(warn._id || warn.id)}
+                    className="absolute top-3.5 right-3.5 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-amber-500/20 transition-colors cursor-pointer"
+                    title="Dismiss"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Page Content */}
         <main className={`flex-1 ${

@@ -237,6 +237,23 @@ router.get('/session/:sessionId', async (req, res) => {
 router.get('/platform', async (req, res) => {
   try {
     const reviews = await PlatformReview.find({ isSeed: { $ne: true } }).sort({ createdAt: -1 });
+    
+    // Enrich reviews with usernames from User collection
+    const clerkIds = [...new Set(reviews.filter(r => r.userClerkId).map(r => r.userClerkId))];
+    if (clerkIds.length > 0) {
+      const users = await User.find({ clerkId: { $in: clerkIds } }, 'clerkId username').lean();
+      const usernameMap = {};
+      users.forEach(u => { if (u.username) usernameMap[u.clerkId] = u.username; });
+      const enriched = reviews.map(r => {
+        const obj = r.toObject();
+        if (obj.userClerkId && usernameMap[obj.userClerkId]) {
+          obj.username = usernameMap[obj.userClerkId];
+        }
+        return obj;
+      });
+      return res.json(enriched);
+    }
+    
     res.json(reviews);
   } catch (error) {
     console.error('Get Platform Reviews Error:', error);

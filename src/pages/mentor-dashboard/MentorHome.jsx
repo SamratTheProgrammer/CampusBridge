@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
@@ -14,6 +14,7 @@ import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
+import { formatRoleSubtitle } from '../../utils/textFormatters'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import { 
   Users, 
@@ -37,7 +38,8 @@ import {
   Check,
   BookOpen,
   Clock,
-  MapPin
+  MapPin,
+  RotateCw
 } from 'lucide-react'
 import API_BASE from '../../utils/api'
 
@@ -59,6 +61,7 @@ const MentorHome = () => {
   const { user, isLoaded } = useUser()
   const navigate = useNavigate()
   const location = useLocation()
+  const feedScrollRef = useRef(null)
 
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
@@ -181,20 +184,108 @@ const MentorHome = () => {
   // Real-time synchronization of posts, comments, likes, edits, and deletions
   useRealtimePosts({ setPosts })
 
-  // Fetch Posts
-  const fetchPosts = async () => {
+  // Pull-to-refresh state for Instagram-style feed reload
+  const [pullDistance, setPullDistance] = useState(0)
+  const [isPulling, setIsPulling] = useState(false)
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false)
+  const touchStartYRef = useRef(0)
+
+  // Fetch Posts: Only shuffles when explicitly requested (page reload or pull-to-refresh)
+  const fetchPosts = async ({ shuffle = false } = {}) => {
     try {
-      const res = await fetch(`${API_BASE}/api/posts`)
+      setIsLoadingPosts(true)
+      const res = await fetch(`${API_BASE}/api/posts?shuffle=${shuffle ? 'true' : 'false'}&t=${Date.now()}`)
       if (res.ok) {
         const data = await res.json()
-        setPosts(data)
+        if (Array.isArray(data)) {
+          if (shuffle) {
+            // Instagram-style shuffle ONLY on explicit page reload or pull-to-refresh
+            const shuffled = [...data]
+            for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            setPosts(shuffled)
+          } else {
+            // In-place merge: preserve existing post order and scroll position!
+            setPosts(prev => {
+              if (!prev || prev.length === 0) return data;
+              const dataMap = new Map(data.map(p => [p._id, p]));
+              const updatedExisting = prev.map(p => dataMap.get(p._id) || p);
+              const existingIds = new Set(prev.map(p => p._id));
+              const newlyAdded = data.filter(p => !existingIds.has(p._id));
+              return [...newlyAdded, ...updatedExisting];
+            })
+          }
+        } else {
+          setPosts([])
+        }
       }
     } catch (err) {
       console.error('Failed to fetch posts', err)
     } finally {
       setIsLoadingPosts(false)
+      setIsPullRefreshing(false)
     }
   }
+
+  // Refresh or update ONLY a single post (for comments, likes) without ever shuffling or shifting the feed!
+  const refreshSinglePost = useCallback(async (postId, updatedComments) => {
+    if (!postId) return;
+    if (Array.isArray(updatedComments)) {
+      setPosts(prev => prev.map(p => (p._id === postId ? { ...p, comments: updatedComments } : p)));
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}`);
+      if (res.ok) {
+        const updatedPost = await res.json();
+        setPosts(prev => prev.map(p => (p._id === postId ? updatedPost : p)));
+      }
+    } catch (err) {
+      console.error('Failed to refresh post', err);
+    }
+  }, []);
+
+  const handleTouchStart = (e) => {
+    if (feedScrollRef.current && feedScrollRef.current.scrollTop <= 0) {
+      touchStartYRef.current = e.touches[0].clientY;
+      setIsPulling(true);
+    } else {
+      setIsPulling(false);
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isPulling || isPullRefreshing) return;
+    if (feedScrollRef.current && feedScrollRef.current.scrollTop <= 0) {
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - touchStartYRef.current;
+      if (diff > 0) {
+        const distance = Math.min(diff * 0.45, 80);
+        setPullDistance(distance);
+      } else {
+        setPullDistance(0);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isPulling || isPullRefreshing) return;
+    setIsPulling(false);
+    if (pullDistance >= 55) {
+      setIsPullRefreshing(true);
+      setPullDistance(60);
+      fetchPosts({ shuffle: true }).finally(() => {
+        setTimeout(() => {
+          setPullDistance(0);
+          setIsPullRefreshing(false);
+        }, 400);
+      });
+    } else {
+      setPullDistance(0);
+    }
+  };
 
   // Fetch Upcoming Sessions
   const fetchSessions = async () => {
@@ -215,7 +306,7 @@ const MentorHome = () => {
 
   // Fetch initial data
   useEffect(() => {
-    fetchPosts()
+    fetchPosts({ shuffle: true })
     fetchMentorsAndConnections()
     fetchSessions()
   }, [user])
@@ -491,16 +582,26 @@ const MentorHome = () => {
   ]
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-8">
+    <div className="w-full space-y-6 max-w-7xl mx-auto pb-8">
       {/* Onboarding & Verification Completeness Banner */}
       {!isLoadingProfile && (
         <MentorOnboardingBanner completeness={profileCompleteness} verificationStatus={verificationStatus} />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      <div 
+        onWheel={(e) => {
+          if (window.innerWidth >= 768 && feedScrollRef.current) {
+            const isOverRight = e.target.closest('.right-widget-col');
+            if (!isOverRight && !feedScrollRef.current.contains(e.target)) {
+              feedScrollRef.current.scrollTop += e.deltaY;
+            }
+          }
+        }}
+        className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start md:h-[calc(100vh-8rem)] md:max-h-[calc(100vh-8rem)] md:overflow-hidden"
+      >
 
       {/* Left Column (Profile & Quick Stats) */}
-      <div className="hidden md:block md:col-span-3 space-y-6 sticky top-24 self-start">
+      <div className="hidden md:block md:col-span-3 space-y-6 md:h-full md:overflow-y-auto scrollbar-none shrink-0">
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
           <div 
@@ -578,7 +679,28 @@ const MentorHome = () => {
       </div>
 
       {/* Main Column (Feed) */}
-      <div className="col-span-1 md:col-span-6 space-y-6">
+      <div 
+        ref={feedScrollRef} 
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="col-span-1 md:col-span-6 space-y-6 md:h-full md:overflow-y-auto scrollbar-none pb-20 overscroll-contain"
+      >
+        {/* Instagram-style Pull to Refresh Indicator */}
+        {(pullDistance > 0 || isPullRefreshing) && (
+        <div 
+          className="w-full overflow-hidden transition-all duration-300 flex items-center justify-center opacity-100 mb-2"
+          style={{ height: isPullRefreshing ? '52px' : `${pullDistance}px` }}
+        >
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-md text-xs font-semibold text-foreground">
+            <RotateCw 
+              className={`w-4 h-4 text-primary ${isPullRefreshing ? 'animate-spin' : ''}`} 
+              style={{ transform: isPullRefreshing ? 'none' : `rotate(${Math.min(pullDistance * 5, 360)}deg)` }}
+            />
+            <span>{isPullRefreshing ? 'Reloading feed...' : pullDistance >= 55 ? 'Release to reload' : 'Pull down to reload'}</span>
+          </div>
+        </div>
+        )}
 
         {/* Create Post */}
         <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">
@@ -930,7 +1052,7 @@ const MentorHome = () => {
                         className="flex items-center gap-2 cursor-pointer hover:underline"
                         onClick={() => post.likes?.length > 0 && setLikesModalPost(post)}
                       >
-                        <span className="bg-blue-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
+                        <span className="bg-rose-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
                         <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes)}</span>
                       </div>
                       <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
@@ -965,7 +1087,7 @@ const MentorHome = () => {
                         <PostComments 
                           post={post}
                           currentUser={user}
-                          onRefresh={fetchPosts}
+                          onRefresh={(comments) => refreshSinglePost(post._id, comments)}
                           formatTime={formatTime}
                           getAvatarFallback={getAvatarFallback}
                         />
@@ -985,7 +1107,7 @@ const MentorHome = () => {
       </div>
 
       {/* Right Column (Widgets) */}
-      <div className="hidden lg:block md:col-span-3 space-y-6 sticky top-24 self-start">
+      <div className="right-widget-col hidden lg:block md:col-span-3 space-y-6 md:h-full md:overflow-y-auto scrollbar-none pb-8 shrink-0">
         
         {/* Mentorship Requests */}
         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
@@ -1008,7 +1130,7 @@ const MentorHome = () => {
                   >
                     {req.targetUser?.name || 'Student'}
                   </h4>
-                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">{req.targetUser?.course || req.targetUser?.headline || 'Connecting...'}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">{req.targetUser?.course || (req.targetUser?.headline ? formatRoleSubtitle(req.targetUser.headline, req.targetUser.role) : 'Connecting...')}</p>
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={async () => {
@@ -1141,7 +1263,7 @@ const MentorHome = () => {
             >
               <div className="flex items-center justify-between p-4 border-b border-border/40 bg-muted/30">
                 <div className="flex items-center gap-2">
-                  <span className="bg-blue-500 text-white rounded-full p-1.5"><Heart className="w-4 h-4 fill-current" /></span>
+                  <span className="bg-rose-500 text-white rounded-full p-1.5"><Heart className="w-4 h-4 fill-current" /></span>
                   <h3 className="font-bold text-foreground">Likes</h3>
                 </div>
                 <button onClick={() => setLikesModalPost(null)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
@@ -1159,7 +1281,7 @@ const MentorHome = () => {
                     />
                     <div className="flex-1 min-w-0">
                       <h4 className="font-semibold text-sm text-foreground truncate">{like.name}</h4>
-                      <p className="text-xs text-muted-foreground truncate">{like.role}</p>
+                      <p className="text-xs text-muted-foreground truncate capitalize">{like.role}</p>
                     </div>
                     <button className="px-3 py-1 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium rounded-full transition-colors">
                       View

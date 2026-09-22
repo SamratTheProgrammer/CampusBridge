@@ -41,6 +41,9 @@ const userSchema = new mongoose.Schema({
   headline: {
     type: String,
   },
+  department: {
+    type: String,
+  },
   location: {
     type: String,
   },
@@ -126,7 +129,25 @@ const userSchema = new mongoose.Schema({
   pushEnabled: {
     type: Boolean,
     default: true
-  }
+  },
+  warnings: [{
+    subject: {
+      type: String,
+      default: 'Notice from Administration'
+    },
+    message: {
+      type: String,
+      required: true
+    },
+    date: {
+      type: Date,
+      default: Date.now
+    },
+    isDismissed: {
+      type: Boolean,
+      default: false
+    }
+  }]
 });
 
 const User = mongoose.model('User', userSchema);

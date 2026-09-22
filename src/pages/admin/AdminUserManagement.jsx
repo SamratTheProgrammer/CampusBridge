@@ -1,5 +1,5 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   Search, 
@@ -13,11 +13,17 @@ import {
   GraduationCap,
   AlertTriangle,
   Loader2,
-  ShieldAlert
+  ShieldAlert,
+  ChevronDown,
+  FileSpreadsheet,
+  FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import API_BASE from '../../utils/api'
+import * as XLSX from 'xlsx'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const AdminUserManagement = () => {
   const navigate = useNavigate()
@@ -79,6 +85,194 @@ const AdminUserManagement = () => {
   // Delete Confirmation State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+
+  // Export State & Handlers
+  const [isExportOpen, setIsExportOpen] = useState(false)
+  const exportRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (exportRef.current && !exportRef.current.contains(e.target)) {
+        setIsExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const getExportData = () => {
+    const list = filteredStudents.length > 0 ? filteredStudents : students
+    return list.map((student, idx) => ({
+      index: idx + 1,
+      id: student.id,
+      name: student.name,
+      username: student.username || '',
+      email: student.email,
+      dept: student.dept,
+      role: student.year,
+      status: student.status,
+      isBlocked: student.isBlocked ? 'Yes' : 'No',
+      blockReason: student.blockReason || ''
+    }))
+  }
+
+  const exportToExcel = () => {
+    try {
+      const data = getExportData()
+      if (data.length === 0) {
+        toast.error('No user records found to export')
+        return
+      }
+
+      const rows = data.map(u => ({
+        '#': u.index,
+        'Name': u.name,
+        'Username': u.username ? `@${u.username}` : '',
+        'Email Address': u.email,
+        'Role': u.role,
+        'Department / Headline': u.dept,
+        'Status': u.status,
+        'Blocked': u.isBlocked,
+        'Block Reason': u.blockReason || 'None',
+        'User ID': u.id
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      ws['!cols'] = [
+        { wch: 6 },
+        { wch: 25 },
+        { wch: 22 },
+        { wch: 32 },
+        { wch: 14 },
+        { wch: 28 },
+        { wch: 12 },
+        { wch: 10 },
+        { wch: 30 },
+        { wch: 26 }
+      ]
+
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Registered Users')
+      const fileName = `CampusBridge_Users_${new Date().toISOString().slice(0, 10)}.xlsx`
+      XLSX.writeFile(wb, fileName)
+      toast.success(`Exported ${data.length} users to Excel successfully!`)
+      setIsExportOpen(false)
+    } catch (err) {
+      console.error('Export Excel error:', err)
+      toast.error('Failed to export to Excel')
+    }
+  }
+
+  const exportToPDF = () => {
+    try {
+      const data = getExportData()
+      if (data.length === 0) {
+        toast.error('No user records found to export')
+        return
+      }
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.width
+
+      // Brand Header Banner
+      doc.setFillColor(124, 58, 237)
+      doc.rect(0, 0, pageWidth, 55, 'F')
+
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text('CampusBridge - User Management Report', 36, 35)
+
+      // Subheader Info
+      doc.setTextColor(70, 70, 70)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      const now = new Date().toLocaleString()
+      const filterText = deptFilter !== 'All' ? ` | Department: ${deptFilter}` : ''
+      const searchTxt = searchQuery ? ` | Search: "${searchQuery}"` : ''
+      doc.text(`Generated on: ${now} | Total Records: ${data.length}${filterText}${searchTxt}`, 36, 75)
+
+      const tableRows = data.map(u => [
+        u.index,
+        u.name,
+        u.username ? `@${u.username}` : '-',
+        u.email,
+        u.role,
+        u.dept,
+        u.status
+      ])
+
+      const autoTableFunc = autoTable.default || autoTable
+      autoTableFunc(doc, {
+        startY: 90,
+        head: [['#', 'Name', 'Username', 'Email Address', 'Role', 'Department / Headline', 'Status']],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [124, 58, 237],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        bodyStyles: {
+          fontSize: 8.5,
+          textColor: [30, 30, 30]
+        },
+        alternateRowStyles: {
+          fillColor: [248, 249, 253]
+        },
+        margin: { left: 36, right: 36, bottom: 36 },
+        didDrawPage: () => {
+          const pageCount = doc.internal.getNumberOfPages()
+          doc.setFontSize(8)
+          doc.setTextColor(140, 140, 140)
+          doc.text(`Page ${pageCount} | CampusBridge Administration Portal • Confidential`, 36, doc.internal.pageSize.height - 18)
+        }
+      })
+
+      const fileName = `CampusBridge_Users_${new Date().toISOString().slice(0, 10)}.pdf`
+      doc.save(fileName)
+      toast.success(`Exported ${data.length} users to PDF successfully!`)
+      setIsExportOpen(false)
+    } catch (err) {
+      console.error('Export PDF error:', err)
+      toast.error('Failed to export to PDF')
+    }
+  }
+
+  const exportToCSV = () => {
+    try {
+      const data = getExportData()
+      if (data.length === 0) {
+        toast.error('No user records found to export')
+        return
+      }
+
+      const rows = data.map(u => ({
+        '#': u.index,
+        'Name': u.name,
+        'Username': u.username ? `@${u.username}` : '',
+        'Email Address': u.email,
+        'Role': u.role,
+        'Department / Headline': u.dept,
+        'Status': u.status,
+        'Blocked': u.isBlocked,
+        'Block Reason': u.blockReason || 'None',
+        'User ID': u.id
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Users')
+      const fileName = `CampusBridge_Users_${new Date().toISOString().slice(0, 10)}.csv`
+      XLSX.writeFile(wb, fileName, { bookType: 'csv' })
+      toast.success(`Exported ${data.length} users to CSV successfully!`)
+      setIsExportOpen(false)
+    } catch (err) {
+      console.error('Export CSV error:', err)
+      toast.error('Failed to export to CSV')
+    }
+  }
 
   // Open Block Modal
   const openBlockModal = (student) => {
@@ -209,7 +403,7 @@ const AdminUserManagement = () => {
   })
 
   return (
-    <div className="space-y-6 pb-12 max-w-6xl mx-auto">
+    <div className="w-full space-y-6 pb-12 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -261,9 +455,54 @@ const AdminUserManagement = () => {
               <option value="ECE">ECE</option>
             </select>
 
-            <button className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold flex items-center gap-2 hover:bg-muted/60 transition-colors">
-              <Download className="w-4 h-4" /> Export
-            </button>
+            <div className="relative" ref={exportRef}>
+              <button 
+                onClick={() => setIsExportOpen(!isExportOpen)}
+                className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold flex items-center gap-2 hover:bg-muted/60 transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-primary" />
+                <span>Export</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${isExportOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isExportOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-card border border-border/60 rounded-xl shadow-xl z-50 py-1.5 overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40">
+                    Export {filteredStudents.length} Records
+                  </div>
+                  <button 
+                    onClick={exportToExcel}
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div>
+                      <div className="font-bold">Excel Sheet</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">.xlsx spreadsheet format</div>
+                    </div>
+                  </button>
+                  <button 
+                    onClick={exportToPDF}
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-rose-500 shrink-0" />
+                    <div>
+                      <div className="font-bold">PDF Document</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">.pdf formatted table report</div>
+                    </div>
+                  </button>
+                  <button 
+                    onClick={exportToCSV}
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-primary/10 hover:text-primary flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-primary shrink-0" />
+                    <div>
+                      <div className="font-bold">CSV File</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">.csv plain tabular format</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

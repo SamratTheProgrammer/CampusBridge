@@ -19,7 +19,7 @@ const MentorPosts = () => {
   ])
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="w-full max-w-3xl mx-auto space-y-6">
       
       {/* Create Post */}
       <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm">

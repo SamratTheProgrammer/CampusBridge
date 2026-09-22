@@ -146,7 +146,9 @@ const SearchModal = ({ isOpen, onClose }) => {
           path: `/profile/${u.username || u.clerkId}`,
           icon: Users,
           description: u.headline || (u.company ? `At ${u.company}` : (u.role === 'mentor' ? 'Verified Mentor' : 'Student Member')),
-          image: u.imageUrl
+          image: u.imageUrl,
+          role: (u.role || '').toLowerCase(),
+          badge: (u.role || '').toLowerCase() === 'mentor' ? 'Mentor' : (u.role || '').toLowerCase() === 'alumni' ? 'Alumni' : 'Student'
         }))
       })
     }
@@ -326,6 +328,17 @@ const SearchModal = ({ isOpen, onClose }) => {
                                     {item.description}
                                   </span>
                                 </div>
+                                {item.badge && (
+                                  <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
+                                    item.role === 'mentor'
+                                      ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                      : item.role === 'alumni'
+                                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                      : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                                  }`}>
+                                    {item.badge}
+                                  </span>
+                                )}
                               </button>
                             </li>
                           )

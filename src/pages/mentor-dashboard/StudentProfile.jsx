@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2 } from 'lucide-react'
+import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield } from 'lucide-react'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -16,13 +17,15 @@ import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 
-const StudentProfile = ({ initialUser }) => {
+const StudentProfile = ({ initialUser, isAdmin = false }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminView = isAdmin || location.pathname.startsWith('/admin');
   const { id, username } = useParams();
   const identifier = username || id;
   const { user } = useUser();
   const [student, setStudent] = useState(initialUser || null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!initialUser)
   const [viewerData, setViewerData] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('none')
   const [connectionId, setConnectionId] = useState(null)
@@ -44,14 +47,15 @@ const StudentProfile = ({ initialUser }) => {
   useEffect(() => {
     if (initialUser) {
       setStudent(initialUser);
+      setIsLoading(false);
     }
   }, [initialUser]);
 
   useEffect(() => {
     const fetchStudent = async () => {
       try {
-        let currentStudent = initialUser;
-        if (identifier) {
+        let currentStudent = student || initialUser;
+        if (!currentStudent && identifier) {
           const res = await fetch(`${API_BASE}/api/users/${identifier}?viewerId=${user?.id || ''}`)
           if (res.ok) {
             currentStudent = await res.json()
@@ -59,7 +63,7 @@ const StudentProfile = ({ initialUser }) => {
           }
         }
 
-        if (currentStudent && user && currentStudent.clerkId) {
+        if (!isAdminView && currentStudent && user && currentStudent.clerkId) {
           const connRes = await fetch(`${API_BASE}/api/connections/status/${user.id}/${currentStudent.clerkId}`)
           if (connRes.ok) {
             const connData = await connRes.json()
@@ -74,7 +78,7 @@ const StudentProfile = ({ initialUser }) => {
       }
     }
     fetchStudent()
-  }, [identifier, user, initialUser])
+  }, [identifier, user, initialUser, isAdminView])
 
   // Fetch posts by this student once we have their clerkId
   useEffect(() => {
@@ -280,10 +284,10 @@ const StudentProfile = ({ initialUser }) => {
     return defaultPP
   }
 
-  if (isLoading) {
+  if (isLoading && !student) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <CardSkeleton />
+      <div className="w-full">
+        <ProfileSkeleton />
       </div>
     )
   }
@@ -308,22 +312,24 @@ const StudentProfile = ({ initialUser }) => {
 
   return (
     <>
-    <div className="max-w-4xl mx-auto space-y-6 sm:pb-20">
+    <div className="w-full max-w-6xl mx-auto space-y-6 sm:pb-20">
       {/* Header Profile Card */}
       <div className="bg-card border-x-0 border-t-0 sm:border border-border/50 rounded-none sm:rounded-2xl overflow-hidden shadow-sm relative">
-        <button 
-          onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors flex items-center justify-center"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        {!isAdminView && (
+          <button 
+            onClick={() => navigate(-1)}
+            className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors flex items-center justify-center"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
         
-        <div className="h-40 sm:h-48 bg-muted relative">
+        <div className="h-56 sm:h-72 md:h-80 w-full bg-muted relative">
           {(student.coverPhoto || (user?.id === (student.clerkId || student._id) ? user?.unsafeMetadata?.coverPhoto : null)) ? (
             <img 
               src={student.coverPhoto || user?.unsafeMetadata?.coverPhoto} 
               alt="Cover" 
-              className={`w-full h-full object-cover transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+              className={`w-full h-full object-cover object-center transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
               onClick={isLocked ? undefined : () => setViewerData({ files: [student.coverPhoto || user?.unsafeMetadata?.coverPhoto], index: 0 })}
             />
           ) : (
@@ -331,16 +337,16 @@ const StudentProfile = ({ initialUser }) => {
           )}
         </div>
         
-        <div className="px-4 sm:px-6 pb-6 relative">
+        <div className="px-6 sm:px-10 md:px-12 pb-6 relative">
           <div className="flex flex-col gap-5 sm:gap-6">
             
             {/* Top Row: Avatar and Actions */}
-            <div className="flex justify-between items-end w-full -mt-16 sm:-mt-20 relative z-10">
-              <div className="shrink-0">
+            <div className="flex justify-between items-end w-full -mt-16 sm:-mt-22 md:-mt-24 relative z-10">
+              <div className="shrink-0 sm:ml-2 md:ml-3">
                 <img 
                   src={student.imageUrl || student.image || getAvatarFallback()} 
                   alt={student.firstName || student.name} 
-                  className={`w-24 h-24 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-card bg-card shadow-md transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
+                  className={`w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
                   onClick={isLocked ? undefined : () => setViewerData({ files: [student.imageUrl || student.image || getAvatarFallback()], index: 0 })}
                 />
               </div>
@@ -354,7 +360,18 @@ const StudentProfile = ({ initialUser }) => {
                   <Share2 className="w-4 h-4" /> <span className="hidden sm:inline">Share</span>
                 </button>
                 
-                {connectionStatus === 'none' && !isOwner && (
+                {isAdminView ? (
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                      <Shield className="w-3.5 h-3.5" /> Admin Viewing
+                    </span>
+                    <span className="px-3 py-1.5 rounded-xl bg-muted border border-border/50 text-foreground text-xs font-bold shadow-sm">
+                      Role: Student
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    {connectionStatus === 'none' && !isOwner && (
                   <button 
                     onClick={() => {
                       if (!user) {
@@ -420,14 +437,19 @@ const StudentProfile = ({ initialUser }) => {
                     </button>
                   </>
                 )}
+                  </>
+                )}
               </div>
             </div>
             
             {/* User Info Stack */}
-            <div className="mt-2 flex flex-col gap-1.5 text-left w-full">
+            <div className="mt-3 sm:mt-4 flex flex-col gap-1.5 text-left w-full sm:pl-2 md:pl-3">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">
                 {student?.firstName && student?.lastName ? `${student.firstName} ${student.lastName}` : (student?.name || student?.username || 'Student')}
               </h1>
+              {student?.username && (
+                <p className="text-sm text-muted-foreground font-medium">@{student.username}</p>
+              )}
               <p className="text-sm sm:text-base font-semibold text-primary">{student?.headline || 'Student'}</p>
               
               <div className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -445,7 +467,7 @@ const StudentProfile = ({ initialUser }) => {
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40">
+          <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40 sm:pl-2 md:pl-3">
             {Array.isArray(student.socialLinks) && student.socialLinks.length > 0 ? (
               student.socialLinks.map((link, i) => {
                 let Icon = Globe;
@@ -622,7 +644,9 @@ const StudentProfile = ({ initialUser }) => {
 
       {/* Posts Section */}
       <div className="space-y-4 mt-6">
-        <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
+        <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md pt-2 pb-2 border-b border-border/40 mb-2">
+          <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
+        </div>
         {isLoadingPosts ? (
           <div className="flex justify-center p-8">
             <CardSkeleton />
@@ -847,7 +871,7 @@ const StudentProfile = ({ initialUser }) => {
                 <div className="px-4 sm:px-5 py-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="bg-blue-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
+                      <span className="bg-rose-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
                       <span className="font-medium text-foreground/80">{renderLikesText(post.likes)}</span>
                     </div>
                     <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
@@ -856,7 +880,7 @@ const StudentProfile = ({ initialUser }) => {
                     <button 
                       onClick={() => handleLike(post._id)}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1 sm:flex-none justify-center
-                        ${hasLiked ? 'text-blue-500 hover:bg-blue-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                        ${hasLiked ? 'text-rose-500 hover:bg-rose-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                     >
                       <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
                       <span className="hidden sm:inline">{hasLiked ? 'Liked' : 'Like'}</span>

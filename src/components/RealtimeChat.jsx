@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import EmojiPicker from 'emoji-picker-react';
 import { getPdfViewUrl } from '../utils/pdfViewer';
 import API_BASE from '../utils/api'
+import { formatRoleSubtitle } from '../utils/textFormatters';
 import { isToday, isYesterday, format } from 'date-fns';
 import { useTheme } from './ThemeProvider';
 
@@ -199,9 +200,9 @@ const RealtimeChat = () => {
             id: u.clerkId,
             clerkId: u.clerkId,
             name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
-            role: u.headline || u.role || 'Member',
+            role: formatRoleSubtitle(u.headline, u.role),
             userRole: u.role || 'student',
-            headline: u.headline || `${u.role || 'Member'} at CampusBridge`,
+            headline: formatRoleSubtitle(u.headline, u.role),
             image: u.imageUrl,
             username: u.username,
             conversationId: getConvId(user.id, u.clerkId),
@@ -624,10 +625,10 @@ const RealtimeChat = () => {
   };
 
   return (
-    <div className="w-full sm:max-w-7xl sm:mx-auto h-[calc(100dvh-4rem)] sm:h-[calc(100dvh-8.5rem)] flex bg-card sm:border border-0 sm:border-border/50 rounded-none sm:rounded-2xl sm:shadow-lg overflow-hidden">
+    <div className="w-full max-w-full min-w-0 md:max-w-7xl md:mx-auto h-[calc(100dvh-4rem)] md:h-[calc(100dvh-8.5rem)] flex bg-card md:border border-0 md:border-border/50 rounded-none md:rounded-2xl md:shadow-lg overflow-hidden">
       
       {/* Left Contacts Sidebar */}
-      <div className={`w-full sm:w-80 lg:w-96 border-r border-border/40 flex-col h-full bg-card shrink-0 ${activeContact && isMobileChatOpen ? 'hidden sm:flex' : 'flex'}`}>
+      <div className={`w-full max-w-full min-w-0 md:w-72 lg:w-80 xl:w-96 border-r border-border/40 flex-col h-full bg-card shrink-0 ${activeContact && isMobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border/40">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-foreground">Chat with anyone</h2>
@@ -763,13 +764,13 @@ const RealtimeChat = () => {
 
       {/* Right Chat Area */}
       {activeContact ? (
-        <div className={`flex-1 flex-col h-full ${currentTheme.bg} transition-colors duration-300 relative ${isMobileChatOpen ? 'flex' : 'hidden sm:flex'}`}>
+        <div className={`flex-1 flex-col h-full w-full max-w-full min-w-0 overflow-hidden ${currentTheme.bg} transition-colors duration-300 relative ${isMobileChatOpen ? 'flex' : 'hidden md:flex'}`}>
           {/* Header */}
-          <div className="h-16 px-4 sm:px-6 border-b border-border/40 flex items-center justify-between bg-card/90 backdrop-blur z-20 shrink-0 relative">
-            <div className="flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0" onClick={viewPartnerProfile}>
+          <div className="h-16 px-3 sm:px-6 border-b border-border/40 flex items-center justify-between bg-card/90 backdrop-blur z-20 shrink-0 relative w-full max-w-full min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 flex-1 mr-2" onClick={viewPartnerProfile}>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsMobileChatOpen(false); }}
-                className="sm:hidden p-2 -ml-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+                className="md:hidden p-2 -ml-1 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
               </button>
@@ -792,7 +793,7 @@ const RealtimeChat = () => {
               </div>
 
               <div className="min-w-0">
-                <h3 className="font-bold text-foreground text-sm flex items-center gap-2 truncate">
+                <h3 className="font-bold text-foreground text-sm flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
                   <span className="truncate">{activeContact.name}</span>
                   <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
                     (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'mentor'
@@ -807,20 +808,21 @@ const RealtimeChat = () => {
                   </span>
                   {isCurrentPartnerBlocked && <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full font-medium shrink-0">Blocked</span>}
                 </h3>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
+                <div className="text-xs text-muted-foreground flex items-center gap-1 min-w-0 truncate">
                   {isOtherTyping ? (
-                    <span className="text-primary font-semibold animate-pulse">typing...</span>
+                    <span className="text-primary font-semibold animate-pulse truncate">typing...</span>
                   ) : (
-                    <span className="truncate flex items-center gap-2">
+                    <div className="truncate flex items-center gap-1.5 min-w-0">
                       {(onlineUsers.includes(activeContact.clerkId) || onlineUsers.includes(activeContact.id) || onlineUsers.includes(activeContact._id)) ? (
-                        <span className="flex items-center gap-1 text-emerald-400 font-semibold"><Circle className="w-2 h-2 fill-current text-emerald-400" /> Online</span>
+                        <span className="flex items-center gap-1 text-emerald-400 font-semibold shrink-0"><Circle className="w-2 h-2 fill-current text-emerald-400" /> Online</span>
                       ) : (
-                        <span className="flex items-center gap-1 text-muted-foreground"><Circle className="w-2 h-2 fill-current text-slate-500" /> Offline</span>
+                        <span className="flex items-center gap-1 text-muted-foreground shrink-0"><Circle className="w-2 h-2 fill-current text-slate-500" /> Offline</span>
                       )}
-                      &bull; <span className="truncate">{activeContact.headline || activeContact.role || 'CampusBridge Member'}</span>
-                    </span>
+                      <span className="shrink-0">&bull;</span>
+                      <span className="truncate">{formatRoleSubtitle(activeContact.headline, activeContact.role || activeContact.userRole)}</span>
+                    </div>
                   )}
-                </p>
+                </div>
               </div>
             </div>
 
@@ -910,7 +912,7 @@ const RealtimeChat = () => {
           )}
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 custom-scrollbar w-full min-w-0">
             {isLoadingMessages ? (
               <MessageSkeleton variant="chat" />
             ) : messages.length > 0 ? (
@@ -935,7 +937,7 @@ const RealtimeChat = () => {
                     <React.Fragment key={msg._id || Math.random()}>
                       {renderDateSeparator}
                       <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex items-center gap-3 p-3 rounded-2xl border text-xs max-w-[85%] sm:max-w-[70%] shadow-sm ${
+                      <div className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-2xl border text-xs max-w-[92%] sm:max-w-[70%] shadow-sm ${
                         isMissed
                           ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
                           : 'bg-primary/10 border-primary/20 text-foreground'
@@ -969,7 +971,7 @@ const RealtimeChat = () => {
                   <React.Fragment key={msg._id || Math.random()}>
                     {renderDateSeparator}
                     <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
-                      <div className={`flex items-start gap-2 max-w-[85%] sm:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className={`flex items-start gap-1.5 sm:gap-2 max-w-[92%] sm:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                       {/* Message Bubble Context Menu */}
                       <div className={`relative opacity-50 hover:opacity-100 transition-opacity flex items-center ${isMe ? 'pr-2' : 'pl-2'} mt-2`}>
                         <button onClick={(e) => { e.stopPropagation(); setActiveMessageMenu(activeMessageMenu === msg._id ? null : msg._id); }} className="message-menu-trigger p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors">
@@ -994,11 +996,11 @@ const RealtimeChat = () => {
                         )}
                       </div>
 
-                      <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                      <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} min-w-0 max-w-full`}>
                         <div
                           className={`${
-                            (!msg.text && msg.attachment?.type === 'image') ? 'p-1' : 'px-4 py-2.5'
-                          } rounded-2xl text-sm shadow-sm leading-relaxed whitespace-pre-wrap flex flex-col ${
+                            (!msg.text && msg.attachment?.type === 'image') ? 'p-1' : 'px-3.5 py-2 sm:px-4 sm:py-2.5'
+                          } rounded-2xl text-sm shadow-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] flex flex-col max-w-full ${
                             isMe
                               ? 'bg-primary text-primary-foreground rounded-tr-sm'
                               : 'bg-card border border-border/50 text-foreground rounded-tl-sm'
@@ -1113,12 +1115,12 @@ const RealtimeChat = () => {
           </div>
 
           {/* Input Footer */}
-          <div className="p-4 bg-card/90 backdrop-blur border-t border-border/40 shrink-0">
+          <div className="p-2.5 sm:p-4 bg-card/90 backdrop-blur border-t border-border/40 shrink-0 w-full max-w-full min-w-0">
             {editingMessage && (
-              <div className="mb-2 mx-2 p-2.5 bg-muted/50 border-l-4 border-l-primary rounded-r-xl flex items-start justify-between">
+              <div className="mb-2 mx-1 sm:mx-2 p-2 sm:p-2.5 bg-muted/50 border-l-4 border-l-primary rounded-r-xl flex items-start justify-between">
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-bold text-primary mb-0.5 flex items-center gap-1.5"><Edit2 className="w-3 h-3" /> Edit Message</span>
-                  <span className="text-xs text-muted-foreground truncate max-w-sm">
+                  <span className="text-xs text-muted-foreground truncate max-w-xs sm:max-w-sm">
                     {editingMessage.text}
                   </span>
                 </div>
@@ -1129,10 +1131,10 @@ const RealtimeChat = () => {
             )}
 
             {replyingTo && (
-              <div className="mb-2 mx-2 p-2.5 bg-muted/50 border-l-4 border-l-primary rounded-r-xl flex items-start justify-between">
+              <div className="mb-2 mx-1 sm:mx-2 p-2 sm:p-2.5 bg-muted/50 border-l-4 border-l-primary rounded-r-xl flex items-start justify-between">
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-bold text-primary mb-0.5">Replying to {replyingTo.senderClerkId === user.id ? 'yourself' : activeContact.name}</span>
-                  <span className="text-xs text-muted-foreground truncate max-w-sm">
+                  <span className="text-xs text-muted-foreground truncate max-w-xs sm:max-w-sm">
                     {replyingTo.type === 'image' ? '📸 Image' : replyingTo.type === 'video' ? '🎥 Video' : replyingTo.type === 'document' ? '📄 Document' : replyingTo.text}
                   </span>
                 </div>
@@ -1143,7 +1145,7 @@ const RealtimeChat = () => {
             )}
             
             {selectedFile && (
-              <div className="mb-2 mx-2 p-2 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between w-fit max-w-[200px]">
+              <div className="mb-2 mx-1 sm:mx-2 p-2 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between w-fit max-w-[200px]">
                 <div className="flex items-center gap-2 min-w-0">
                   {filePreview ? (
                     <img src={filePreview} alt="preview" className="w-8 h-8 rounded object-cover shrink-0" />
@@ -1158,17 +1160,17 @@ const RealtimeChat = () => {
               </div>
             )}
 
-            <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+            <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
               <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isCurrentPartnerBlocked}
-                className="p-3 bg-muted/40 hover:bg-muted text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[46px]"
+                className="p-2 sm:p-3 bg-muted/40 hover:bg-muted text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center shrink-0"
               >
-                <Paperclip className="w-5 h-5" />
+                <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <div className="flex-1 relative flex items-center">
+              <div className="flex-1 relative flex items-center min-w-0">
                 <input
                   type="text"
                   value={inputText}
@@ -1181,21 +1183,21 @@ const RealtimeChat = () => {
                   }}
                   disabled={isCurrentPartnerBlocked || isUploading}
                   placeholder={isCurrentPartnerBlocked ? 'You have blocked this user' : `Message ${activeContact.name}...`}
-                  className="w-full bg-muted/40 border border-border/50 rounded-xl pl-4 pr-10 py-3 h-[46px] text-sm focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-muted/40 border border-border/50 rounded-xl pl-3 sm:pl-4 pr-8 sm:pr-10 py-2 sm:py-3 h-[38px] sm:h-[46px] text-xs sm:text-sm focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-0"
                 />
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-2.5 text-muted-foreground hover:text-foreground transition-colors p-1"
                 >
-                  <Smile className="w-5 h-5" />
+                  <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
                 {showEmojiPicker && (
-                  <div className="absolute bottom-16 right-0 z-50 shadow-2xl rounded-2xl overflow-hidden max-w-[calc(100vw-32px)]">
+                  <div className="absolute bottom-16 right-0 z-50 shadow-2xl rounded-2xl overflow-hidden" style={{ maxWidth: 'calc(100vw - 32px)' }}>
                     <EmojiPicker 
                       theme={isDark ? 'dark' : 'light'} 
                       previewConfig={{ showPreview: false }}
-                      width={320}
+                      width={typeof window !== 'undefined' ? Math.min(320, window.innerWidth - 32) : 320}
                       height={380}
                       lazyLoadEmojis={true}
                       searchPlaceHolder="Search emoji..."
@@ -1210,15 +1212,15 @@ const RealtimeChat = () => {
               <button
                 type="submit"
                 disabled={(!inputText.trim() && !selectedFile) || isCurrentPartnerBlocked || isUploading}
-                className="bg-primary text-primary-foreground p-3 h-[46px] w-[46px] flex items-center justify-center rounded-xl hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                className="bg-primary text-primary-foreground p-2 sm:p-3 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center rounded-xl hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                {isUploading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Send className="w-4 h-4 sm:w-5 sm:h-5" />}
               </button>
             </form>
           </div>
         </div>
       ) : (
-        <div className="hidden sm:flex flex-1 items-center justify-center bg-background p-8 text-center">
+        <div className="hidden md:flex flex-1 items-center justify-center bg-background p-8 text-center">
           <div className="space-y-3 max-w-sm">
             <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
               <MessageSquare className="w-8 h-8" />

@@ -159,6 +159,19 @@ router.get('/mentors/all', async (req, res) => {
   }
 });
 
+// Get all users for platform search (mentors, students, alumni)
+router.get('/search/all', async (req, res) => {
+  try {
+    const users = await User.find({ 
+      profileVisibility: { $ne: 'hidden' }
+    }).select('firstName lastName name username imageUrl headline role company clerkId location skills course').lean();
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error fetching search users:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get suggested mentors (excluding existing friends and self)
 router.get('/mentors/suggested', async (req, res) => {
   try {
@@ -266,18 +279,28 @@ router.put('/:clerkId/username', async (req, res) => {
       return res.status(400).json({ message: 'Username is required' });
     }
 
+    const cleanUsername = username.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '');
+    if (cleanUsername.length < 3) {
+      return res.status(400).json({ message: 'Username must be at least 3 characters' });
+    }
+    if (cleanUsername.length > 30) {
+      return res.status(400).json({ message: 'Username must be 30 characters or less' });
+    }
+
     const targetUser = await findUserByIdentifier(req.params.clerkId);
     if (!targetUser) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if username is already taken by another user
-    const existingUser = await User.findOne({ username });
+    // Check if username is already taken by another user (case-insensitive)
+    const existingUser = await User.findOne({ 
+      username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } 
+    });
     if (existingUser && existingUser.clerkId !== targetUser.clerkId) {
-      return res.status(400).json({ message: 'Username is already taken' });
+      return res.status(400).json({ message: 'This username is already taken' });
     }
 
-    targetUser.username = username;
+    targetUser.username = cleanUsername;
     await targetUser.save();
 
     res.status(200).json(targetUser);
@@ -296,9 +319,11 @@ router.put('/:clerkId/profile', async (req, res) => {
     }
 
     const { 
+      username,
       firstName, 
       lastName, 
       headline, 
+      department,
       location, 
       address,
       phone,
@@ -317,6 +342,19 @@ router.put('/:clerkId/profile', async (req, res) => {
       ageVisibility,
       gender
     } = req.body;
+
+    if (username !== undefined && username.trim()) {
+      const cleanUsername = username.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '');
+      if (cleanUsername.length >= 3 && cleanUsername.length <= 30) {
+        const existingUser = await User.findOne({ 
+          username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } 
+        });
+        if (existingUser && existingUser.clerkId !== targetUser.clerkId) {
+          return res.status(400).json({ message: 'This username is already taken' });
+        }
+        targetUser.username = cleanUsername;
+      }
+    }
 
     if (firstName !== undefined) targetUser.firstName = firstName;
     if (lastName !== undefined) targetUser.lastName = lastName;
@@ -451,6 +489,29 @@ router.delete('/:clerkId', async (req, res) => {
   } catch (error) {
     console.error('Error deleting user account:', error);
     res.status(500).json({ message: 'Failed to delete account data' });
+  }
+});
+
+// Dismiss an administrative warning
+router.put('/:clerkId/warnings/:warningId/dismiss', async (req, res) => {
+  try {
+    const { clerkId, warningId } = req.params;
+    const isObjectId = mongoose.Types.ObjectId.isValid(clerkId);
+    const user = await User.findOne(
+      isObjectId ? { $or: [{ clerkId }, { _id: clerkId }] } : { clerkId }
+    );
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const warning = user.warnings?.find(w => String(w._id) === warningId);
+    if (warning) {
+      warning.isDismissed = true;
+      await user.save();
+    }
+    res.status(200).json({ success: true, message: 'Warning acknowledged' });
+  } catch (err) {
+    console.error('Error dismissing warning:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

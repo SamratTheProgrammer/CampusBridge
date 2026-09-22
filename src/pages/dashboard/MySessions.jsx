@@ -219,6 +219,7 @@ const MySessions = () => {
   const filteredAvailableSessions = availableSessions.filter(session => {
     if (modeFilter === 'Online' && session.mode !== 'Online') return false;
     if (modeFilter === 'Offline' && session.mode !== 'Offline') return false;
+    if (checkIsPast(session.date, session.time)) return false;
     return true
   })
 
@@ -247,78 +248,72 @@ const MySessions = () => {
         key={item._id}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-card border border-border/50 rounded-2xl shadow-sm hover:border-primary/30 transition-all"
+        className="bg-card border border-border/30 hover:border-border/60 rounded-2xl p-4 sm:p-5 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group overflow-hidden"
       >
-        {/* Top Section: Mentor + Session Info */}
-        <div className="p-5 pb-4">
-          {/* Mentor Header */}
-          <div className="flex items-center gap-3 mb-4">
-            <img src={mentorImg} alt={mentorName} className="w-11 h-11 rounded-full object-cover ring-2 ring-primary/20 shrink-0" />
-            <div className="overflow-hidden flex-1">
-              <h4 className="font-bold text-foreground text-sm truncate">{mentorName}</h4>
-              <p className="text-xs text-muted-foreground truncate">{mentorRole}</p>
-            </div>
-            {/* Source badge */}
-            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${
-              isEvent ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-            }`}>
+        <div className="relative z-10 flex-1 flex flex-col">
+          {/* Header: Session Type Badge Only */}
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground">
               {isEvent ? 'Session' : '1-on-1'}
             </span>
           </div>
 
-          {/* Session Title */}
-          <h3 className="font-bold text-foreground text-base mb-3 leading-snug line-clamp-2">{sessionTitle}</h3>
+          {/* Session Title (Gigantic) */}
+          <h3 className="font-black text-foreground text-xl mb-4 leading-tight line-clamp-2">
+            {sessionTitle}
+          </h3>
 
-          {/* Details */}
-          <div className="space-y-2 text-xs bg-muted/40 p-3 rounded-xl border border-border/40">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground font-medium">Mode:</span>
-              <span className={`font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                isOffline
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                  : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-              }`}>
-                {isOffline ? <><MapPin className="w-3 h-3" /> Offline</> : <><Globe className="w-3 h-3" /> Online</>}
-              </span>
+          {/* Middle Block (Ticket Style) */}
+          <div className="relative bg-muted/50 rounded-2xl p-4 mb-4 border border-border/20 flex-1 flex flex-col justify-center">
+            {/* Floating Avatar Overlapping Top Border */}
+            <div className="absolute -top-5 right-4 w-10 h-10 rounded-full border-[3px] border-card bg-muted overflow-hidden shadow-sm transition-transform group-hover:scale-110 duration-300">
+              <img src={mentorImg} alt={mentorName} className="w-full h-full object-cover" />
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground font-medium">Date:</span>
-              <span className="font-semibold text-foreground flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-primary" /> {sessionDate}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground font-medium">Time:</span>
-              <span className="font-semibold text-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3 text-primary" /> {sessionTime}
-              </span>
-            </div>
-
-            {isOffline && venueLocation && (
-              <div className="flex items-center justify-between pt-1 border-t border-border/30">
-                <span className="text-muted-foreground font-medium">Venue:</span>
-                <span className="font-semibold text-amber-600 dark:text-amber-400 truncate max-w-[150px] text-right flex items-center gap-1">
-                  <MapPin className="w-3 h-3 shrink-0" /> {venueLocation}
-                </span>
+            <div className="flex flex-col gap-3 pt-1">
+              {/* Date & Time */}
+              <div>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Date & Time</p>
+                <p className="text-sm font-bold text-foreground">
+                  {sessionDate} • {sessionTime}
+                </p>
               </div>
-            )}
+              
+              {/* Mode & Venue */}
+              <div>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Mode & Venue</p>
+                <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <span className={isOffline ? 'text-amber-500' : 'text-blue-500'}>
+                    {isOffline ? <MapPin className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                  </span>
+                  <span className="truncate" title={venueLocation || 'Virtual Video'}>
+                    {isOffline ? (venueLocation || 'Campus Venue') : 'Virtual Video'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Host Name */}
+              <div>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Hosted By</p>
+                <p className="text-sm font-bold text-foreground truncate">{mentorName}</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Bottom Action Bar: Join Button on right */}
-        <div className="px-5 py-3 border-t border-border/40 flex items-center justify-between">
-          {isEvent && (
-            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-              <User className="w-3.5 h-3.5" /> {item.attendees?.length || 0} Registered
-            </span>
-          )}
-          {!isEvent && (
-            <span className="text-xs text-muted-foreground font-medium">
-              {item.duration || 30} min session
-            </span>
-          )}
+        {/* Bottom Action Bar */}
+        <div className="flex items-center justify-between mt-auto pt-2">
+          <div className="flex items-center gap-2">
+            {isEvent ? (
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider hidden sm:block">
+                {item.attendees?.length || 0} Registered
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider hidden sm:block">
+                {item.duration || 30} min session
+              </span>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             {(isPast || item.status === 'completed' || item.status === 'declined' || item.status === 'cancelled') && !isEvent ? (
@@ -333,13 +328,13 @@ const MySessions = () => {
             ) : null}
             
             {isPast || item.status === 'completed' || item.status === 'declined' || item.status === 'cancelled' ? (
-              <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-muted text-muted-foreground">
+              <span className="bg-muted text-muted-foreground text-[10px] font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm shrink-0 uppercase tracking-wider">
                 {item.status === 'declined' || item.status === 'cancelled' ? item.status : 'Completed'}
               </span>
             ) : isOffline ? (
-              <div className="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-amber-500/20">
+              <span className="bg-amber-500 text-amber-500-foreground text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm shrink-0">
                 <MapPin className="w-3.5 h-3.5" /> In-Person
-              </div>
+              </span>
             ) : (
               <button 
                 onClick={() => {
@@ -356,7 +351,7 @@ const MySessions = () => {
                     }));
                   }
                 }}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2 rounded-xl font-bold text-xs transition-colors shadow-sm flex items-center gap-1.5"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 hover:scale-105 active:scale-95 shrink-0"
               >
                 <Video className="w-3.5 h-3.5" /> Join Call
               </button>
@@ -365,10 +360,10 @@ const MySessions = () => {
             {!isEvent && !(isPast || item.status === 'completed' || item.status === 'declined' || item.status === 'cancelled') && (
               <button 
                 onClick={() => handleCancelSession(item._id)}
-                className="p-2 rounded-xl hover:bg-muted text-muted-foreground border border-border/50 transition-colors" 
+                className="p-2.5 rounded-xl bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0" 
                 title="Cancel Session"
               >
-                <XCircle className="w-3.5 h-3.5" />
+                <XCircle className="w-4 h-4" />
               </button>
             )}
             
@@ -377,10 +372,10 @@ const MySessions = () => {
                  href={`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(sessionTitle)}&dates=${format(new Date(item.date), 'yyyyMMdd')}/${format(new Date(item.date), 'yyyyMMdd')}&details=${encodeURIComponent(`Session with ${mentorName}\nTime: ${sessionTime}\nMode: ${item.mode || 'Online'}`)}&location=${encodeURIComponent(venueLocation || '')}`}
                  target="_blank"
                  rel="noopener noreferrer"
-                 className="p-2 rounded-xl hover:bg-primary/10 text-primary border border-primary/20 transition-colors"
+                 className="p-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors shrink-0"
                  title="Add to Google Calendar"
                >
-                 <Calendar className="w-3.5 h-3.5" />
+                 <Calendar className="w-4 h-4" />
                </a>
             )}
           </div>
@@ -390,7 +385,7 @@ const MySessions = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto pb-12">
+    <div className="w-full max-w-7xl mx-auto pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -495,90 +490,84 @@ const MySessions = () => {
               const alreadyRegistered = registeredEvents.some(re => re.eventId === session._id || re.eventId?.toString() === session._id?.toString())
 
               return (
-                <div key={session._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:border-primary/50 transition-all flex flex-col justify-between group">
-                  <div>
-                    {/* Mentor Header */}
-                    <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border/40">
-                      <img 
-                        src={mentorImg} 
-                        alt={mentorName} 
-                        className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
-                      />
-                      <div className="overflow-hidden">
-                        <h4 className="font-bold text-foreground text-sm truncate">{mentorName}</h4>
-                        <p className="text-xs text-muted-foreground truncate">{mentorRole}</p>
-                      </div>
+                <div key={session._id} className="bg-card border border-border/30 hover:border-border/60 rounded-2xl p-4 sm:p-5 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group overflow-hidden">
+                  
+                  <div className="relative z-10 flex-1 flex flex-col">
+                    {/* Header: Session Type Badge Only */}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {session.type || 'Masterclass'}
+                      </span>
                     </div>
 
-                    {/* Session Title */}
-                    <h3 className="font-bold text-foreground text-base mb-3 leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                    {/* Session Title (Gigantic) */}
+                    <h3 className="font-black text-foreground text-xl mb-4 leading-tight line-clamp-2">
                       {session.title}
                     </h3>
 
-                    {/* Details */}
-                    <div className="space-y-2 text-xs bg-muted/40 p-3.5 rounded-xl border border-border/40 mb-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">Session Type:</span>
-                        <span className="font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                          {session.type || 'Masterclass'}
-                        </span>
+                    {/* Middle Block (Ticket Style) */}
+                    <div className="relative bg-muted/50 rounded-2xl p-4 mb-4 border border-border/20 flex-1 flex flex-col justify-center">
+                      {/* Floating Avatar Overlapping Top Border */}
+                      <div className="absolute -top-5 right-4 w-10 h-10 rounded-full border-[3px] border-card bg-muted overflow-hidden shadow-sm transition-transform group-hover:scale-110 duration-300">
+                        <img src={mentorImg} alt={mentorName} className="w-full h-full object-cover" />
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">Session Mode:</span>
-                        <span className={`font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                          isOffline
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                        }`}>
-                          {isOffline ? <><MapPin className="w-3 h-3" /> Offline</> : <><Globe className="w-3 h-3" /> Online</>}
-                        </span>
-                      </div>
+                      <div className="flex flex-col gap-3 pt-1">
+                        {/* Date & Time */}
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Date & Time</p>
+                          <p className="text-sm font-bold text-foreground">
+                            {session.date ? new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} • {session.time || 'N/A'}
+                          </p>
+                        </div>
+                        
+                        {/* Mode & Venue */}
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Mode & Venue</p>
+                          <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                            <span className={isOffline ? 'text-amber-500' : 'text-blue-500'}>
+                              {isOffline ? <MapPin className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                            </span>
+                            <span className="truncate" title={session.location || 'Virtual Video'}>
+                              {isOffline ? (session.location || 'Campus Venue') : 'Virtual Video'}
+                            </span>
+                          </div>
+                        </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">Date:</span>
-                        <span className="font-semibold text-foreground flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-primary" />
-                          {session.date ? new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">Time Slot:</span>
-                        <span className="font-semibold text-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-primary" />
-                          {session.time || 'N/A'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1 border-t border-border/30">
-                        <span className="text-muted-foreground font-medium">Venue / Link:</span>
-                        <span className="font-semibold truncate max-w-[150px] text-right">
-                          {isOffline ? (
-                            <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" /> {session.location || 'Campus Venue'}</span>
-                          ) : (
-                            <span className="text-blue-500 flex items-center gap-1"><Globe className="w-3 h-3 shrink-0" /> Virtual Video</span>
-                          )}
-                        </span>
+                        {/* Host Name */}
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Hosted By</p>
+                          <p className="text-sm font-bold text-foreground truncate">{mentorName}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Card Footer */}
-                  <div className="pt-2 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-primary" /> {session.attendees?.length || 0} Registered
-                    </span>
+                  <div className="flex items-center justify-between mt-auto pt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-2 shrink-0">
+                        {[...Array(Math.min(3, session.attendees?.length || 1))].map((_, i) => (
+                          <div key={i} className="w-7 h-7 rounded-full bg-muted border-2 border-card flex items-center justify-center overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-300">
+                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Attendee${i}${session._id}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider hidden sm:block">
+                        {(session.attendees?.length || 0)} Registered
+                      </span>
+                    </div>
+                    
                     {alreadyRegistered ? (
-                      <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1 border border-emerald-500/20">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Registered ✓
+                      <span className="bg-foreground text-background text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm shrink-0">
+                        <CheckCircle2 className="w-4 h-4" /> Registered
                       </span>
                     ) : (
                       <button
                         onClick={() => { setSelectedSession(session); setIsRegisterModalOpen(true); }}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-6 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 hover:scale-105 active:scale-95 shrink-0"
                       >
-                        Register <ChevronRight className="w-3.5 h-3.5" />
+                        Register
                       </button>
                     )}
                   </div>
@@ -645,56 +634,67 @@ const MySessions = () => {
                     key={session._id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:border-primary/50 transition-colors flex flex-col justify-between"
+                    className="bg-card border border-border/30 hover:border-border/60 rounded-2xl p-4 sm:p-5 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group overflow-hidden"
                   >
-                    <div>
-                      {/* Partner Header */}
-                      <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border/40">
-                        <img src={partnerImage} alt={partnerName} className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20 shrink-0" />
-                        <div className="overflow-hidden">
-                          <h4 className="font-bold text-foreground text-sm truncate">{partnerName}</h4>
-                          <p className="text-xs text-muted-foreground truncate">{partnerRole}</p>
-                        </div>
+                    <div className="relative z-10 flex-1 flex flex-col">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {isMentorView ? 'Received Request' : 'Sent Request'}
+                        </span>
+                        <span className="bg-amber-500/10 text-amber-500 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
+                          Pending
+                        </span>
                       </div>
 
-                      {/* Session Topic */}
-                      <h3 className="font-bold text-foreground text-base mb-3 leading-snug line-clamp-2">{session.type}</h3>
+                      {/* Session Title (Gigantic) */}
+                      <h3 className="font-black text-foreground text-xl mb-4 leading-tight line-clamp-2">
+                        {session.type}
+                      </h3>
 
-                      {/* Line by Line Details */}
-                      <div className="space-y-2 text-xs bg-muted/40 p-3.5 rounded-xl border border-border/40 mb-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground font-medium">Session Mode:</span>
-                          <span className={`font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                            session.mode === 'Offline'
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                              : 'bg-primary/10 text-primary'
-                          }`}>
-                            {session.mode === 'Offline' ? <><MapPin className="w-3 h-3" /> Offline</> : <><Globe className="w-3 h-3" /> Online</>}
-                          </span>
+                      {/* Middle Block (Ticket Style) */}
+                      <div className="relative bg-muted/50 rounded-2xl p-4 mb-4 border border-border/20 flex-1 flex flex-col justify-center">
+                        {/* Floating Avatar Overlapping Top Border */}
+                        <div className="absolute -top-5 right-4 w-10 h-10 rounded-full border-[3px] border-card bg-muted overflow-hidden shadow-sm transition-transform group-hover:scale-110 duration-300">
+                          <img src={partnerImage} alt={partnerName} className="w-full h-full object-cover" />
                         </div>
 
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground font-medium">Date:</span>
-                          <span className="font-semibold text-foreground flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-primary" />
-                            {session.date ? new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
-                          </span>
-                        </div>
+                        <div className="flex flex-col gap-3 pt-1">
+                          {/* Date & Time */}
+                          <div>
+                            <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Date & Time</p>
+                            <p className="text-sm font-bold text-foreground">
+                              {session.date ? new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} • {session.time}
+                            </p>
+                          </div>
+                          
+                          {/* Mode & Duration */}
+                          <div>
+                            <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Mode & Duration</p>
+                            <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                              <span className={session.mode === 'Offline' ? 'text-amber-500' : 'text-blue-500'}>
+                                {session.mode === 'Offline' ? <MapPin className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                              </span>
+                              <span>
+                                {session.mode} • {session.duration || 30} min
+                              </span>
+                            </div>
+                          </div>
 
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground font-medium">Time:</span>
-                          <span className="font-semibold text-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-primary" />
-                            {session.time} ({session.duration || 30}m)
-                          </span>
+                          {/* Host Name */}
+                          <div>
+                            <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">{isMentorView ? 'Student' : 'Mentor'}</p>
+                            <p className="text-sm font-bold text-foreground truncate">{partnerName}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-2 flex items-center gap-2">
+                    {/* Bottom Action Bar */}
+                    <div className="flex items-center gap-2 mt-auto pt-2">
                       <button 
                         onClick={() => handleCancelSession(session._id)}
-                        className="w-full bg-background border border-destructive/50 text-destructive hover:bg-destructive/10 py-2.5 rounded-xl font-medium text-xs transition-colors"
+                        className="w-full bg-background border border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground py-2.5 rounded-xl font-bold text-xs transition-colors"
                       >
                         Cancel Request
                       </button>

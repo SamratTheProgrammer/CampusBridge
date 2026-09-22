@@ -602,7 +602,7 @@ const BookSession = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto pb-12 pt-4">
+    <div className="w-full max-w-3xl mx-auto pb-12 pt-4">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button

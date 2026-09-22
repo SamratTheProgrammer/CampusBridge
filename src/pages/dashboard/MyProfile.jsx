@@ -17,10 +17,12 @@ import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
+import { useProfileData } from '../../context/ProfileDataContext'
 
 const MyProfile = () => {
   const navigate = useNavigate()
   const { user, isLoaded } = useUser()
+  const { mongoProfile } = useProfileData()
   const [dbUser, setDbUser] = useState(null)
   
   // Post states
@@ -64,6 +66,115 @@ const MyProfile = () => {
 
   const coverMenuRef = useRef(null)
   const profileMenuRef = useRef(null)
+  const contentGridRef = useRef(null)
+  const postsContainerRef = useRef(null)
+
+  // Two-stage coordinated scroll: window scrolls down until content grid reaches navbar,
+  // then sticks firmly while only the right posts column scrolls smoothly.
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (window.innerWidth < 768) return; // Natural scroll on mobile devices
+      const contentGrid = contentGridRef.current;
+      const postsContainer = postsContainerRef.current;
+      const detailsContainer = detailsContainerRef.current;
+      if (!contentGrid || !postsContainer || !detailsContainer) return;
+
+      const targetTop = 88; // 64px header + 24px padding
+
+      const rect = contentGrid.getBoundingClientRect();
+
+      if (e.deltaY > 0) {
+        // SCROLLING DOWN
+        if (rect.top > targetTop + 1) {
+          // Stage 1: Window has not yet reached the content grid
+          e.preventDefault();
+          const neededScroll = rect.top - targetTop;
+          if (e.deltaY <= neededScroll) {
+            window.scrollBy({ top: e.deltaY, behavior: 'instant' });
+          } else {
+            window.scrollBy({ top: neededScroll, behavior: 'instant' });
+            if (detailsContainer.contains(e.target)) {
+              detailsContainer.scrollTop += (e.deltaY - neededScroll);
+            } else {
+              postsContainer.scrollTop += (e.deltaY - neededScroll);
+            }
+          }
+        } else {
+          // Stage 2: Locked at content grid!
+          e.preventDefault();
+          if (detailsContainer.contains(e.target)) {
+            detailsContainer.scrollTop += e.deltaY;
+          } else {
+            postsContainer.scrollTop += e.deltaY;
+          }
+        }
+      } else if (e.deltaY < 0) {
+        // SCROLLING UP
+        if (detailsContainer.contains(e.target) && detailsContainer.scrollTop > 0) {
+          e.preventDefault();
+          const canScrollUp = detailsContainer.scrollTop;
+          if (-e.deltaY <= canScrollUp) {
+            detailsContainer.scrollTop += e.deltaY;
+          } else {
+            detailsContainer.scrollTop = 0;
+            const leftover = e.deltaY + canScrollUp;
+            window.scrollBy({ top: leftover, behavior: 'instant' });
+          }
+        } else if (!detailsContainer.contains(e.target) && postsContainer.scrollTop > 0) {
+          e.preventDefault();
+          const canScrollUp = postsContainer.scrollTop;
+          if (-e.deltaY <= canScrollUp) {
+            postsContainer.scrollTop += e.deltaY;
+          } else {
+            postsContainer.scrollTop = 0;
+            const leftover = e.deltaY + canScrollUp;
+            window.scrollBy({ top: leftover, behavior: 'instant' });
+          }
+        } else if (window.scrollY > 0) {
+          // Neither container has internal scroll up left, scroll window back UP to reveal cover & avatar
+          e.preventDefault();
+          window.scrollBy({ top: e.deltaY, behavior: 'instant' });
+        }
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (window.innerWidth < 768) return;
+      const contentGrid = contentGridRef.current;
+      const postsContainer = postsContainerRef.current;
+      const detailsContainer = detailsContainerRef.current;
+      if (!contentGrid || !postsContainer || !detailsContainer) return;
+
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+        return;
+      }
+
+      const targetTop = 88;
+      const rect = contentGrid.getBoundingClientRect();
+
+      // Simple routing: if mouse is over details, scroll details, else posts
+      // but keydown doesn't easily know mouse position. Default to postsContainer.
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+        if (rect.top <= targetTop + 2) {
+          e.preventDefault();
+          postsContainer.scrollTop += (e.key === 'ArrowDown' ? 80 : 300);
+        }
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        if (postsContainer.scrollTop > 0) {
+          e.preventDefault();
+          postsContainer.scrollTop -= (e.key === 'ArrowUp' ? 80 : 300);
+        }
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -455,14 +566,14 @@ const MyProfile = () => {
     }
   }
 
-  if (!isLoaded) return <div className="p-8"><ProfileSkeleton /></div>
+  if (!isLoaded) return <ProfileSkeleton />
 
   const coverPhotoUrl = dbUser?.coverPhoto || user?.unsafeMetadata?.coverPhoto
   const hasCoverPhoto = Boolean(coverPhotoUrl)
   const profilePhotoUrl = user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 sm:pb-8">
+    <div className="w-full max-w-6xl mx-auto space-y-6 sm:pb-8">
       
       {/* Header Profile Card */}
       <div className="bg-card border-x-0 border-t-0 sm:border border-border/50 rounded-none sm:rounded-2xl overflow-hidden shadow-sm relative">
@@ -472,12 +583,12 @@ const MyProfile = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="h-48 bg-muted relative group">
+        <div className="h-56 sm:h-72 md:h-80 w-full bg-muted relative group">
           {coverPhotoUrl ? (
             <img 
               src={coverPhotoUrl} 
               alt="Cover" 
-              className="w-full h-full object-cover cursor-pointer"
+              className="w-full h-full object-cover object-center cursor-pointer"
               onClick={() => setViewerData({ files: [coverPhotoUrl], index: 0 })}
             />
           ) : (
@@ -510,14 +621,14 @@ const MyProfile = () => {
           </div>
         </div>
         
-        <div className="px-4 sm:px-6 pb-6 relative">
+        <div className="px-6 sm:px-10 md:px-12 pb-6 relative">
           {/* Top Row: Avatar and Actions */}
-          <div className="flex justify-between items-end w-full -mt-16 sm:-mt-20 relative z-10">
-            <div className="relative group shrink-0" ref={profileMenuRef}>
+          <div className="flex justify-between items-end w-full -mt-16 sm:-mt-22 md:-mt-24 relative z-10">
+            <div className="relative group shrink-0 sm:ml-2 md:ml-3" ref={profileMenuRef}>
               <img 
                 src={profilePhotoUrl} 
                 alt="Profile" 
-                className="w-24 h-24 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-card bg-card shadow-md cursor-pointer transition-all hover:brightness-90"
+                className="w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg cursor-pointer transition-all hover:brightness-90"
                 onClick={() => setViewerData({ files: [profilePhotoUrl], index: 0 })}
               />
               <input type="file" ref={profilePicInputRef} onChange={handleProfilePicSelect} accept="image/*" className="hidden" />
@@ -529,7 +640,7 @@ const MyProfile = () => {
                     setShowProfileMenu(!showProfileMenu);
                   }
                 }}
-                className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 z-20 p-1.5 hover:scale-110 transition-transform drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] bg-transparent"
+                className="absolute bottom-1.5 right-1.5 sm:bottom-2.5 sm:right-2.5 z-20 p-1.5 hover:scale-110 transition-transform drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] bg-transparent"
               >
                 <Edit3 className="w-5 h-5 sm:w-6 sm:h-6 text-white fill-white stroke-[2.5]" />
               </button>
@@ -555,7 +666,7 @@ const MyProfile = () => {
           </div>
           
           {/* User Info Stack */}
-          <div className="mt-2 flex flex-col gap-1.5 text-left w-full">
+          <div className="mt-3 sm:mt-4 flex flex-col gap-1.5 text-left w-full sm:pl-2 md:pl-3">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-0.5">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{user?.fullName}</h1>
               {isMentorUser && (
@@ -569,6 +680,10 @@ const MyProfile = () => {
                 </button>
               )}
             </div>
+            
+            {(dbUser?.username || mongoProfile?.username) && (
+              <p className="text-sm text-muted-foreground font-medium">@{dbUser?.username || mongoProfile?.username}</p>
+            )}
             
             <p className="text-sm sm:text-base font-semibold text-primary">{dbUser?.headline || user?.unsafeMetadata?.headline || (user?.publicMetadata?.role === 'mentor' ? 'Mentor' : 'Student')}</p>
             
@@ -599,7 +714,7 @@ const MyProfile = () => {
           </div>
 
           {/* Stats */}
-          <div className="flex gap-6 sm:gap-8 mt-2">
+          <div className="flex gap-6 sm:gap-8 mt-3 sm:pl-2 md:pl-3">
             <div className="flex gap-1.5 items-baseline">
               <span className="font-bold text-base sm:text-lg text-foreground">{posts.length}</span>
               <span className="text-xs sm:text-sm text-muted-foreground font-medium hover:underline cursor-pointer">Posts</span>
@@ -610,7 +725,7 @@ const MyProfile = () => {
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40">
+          <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40 sm:pl-2 md:pl-3">
             {(dbUser?.socialLinks?.length > 0 || user?.unsafeMetadata?.socialLinks?.length > 0) ? (
               (dbUser?.socialLinks || user?.unsafeMetadata?.socialLinks).map((link, i) => {
                 let Icon = Globe;
@@ -635,10 +750,10 @@ const MyProfile = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      <div ref={contentGridRef} className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         
         {/* Left Column - Details */}
-        <div className="md:col-span-1 space-y-6 md:sticky md:top-20 md:self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto scrollbar-none md:pr-1">
+        <div className="md:col-span-1 space-y-6 md:h-[calc(100vh-1.5rem)] md:overflow-y-auto scrollbar-none">
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-foreground mb-4">About Me</h3>
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
@@ -724,30 +839,36 @@ const MyProfile = () => {
         </div>
 
         {/* Right Column - User Posts & Reviews */}
-        <div className="md:col-span-2 space-y-6">
-          {isMentorUser ? (
-            <div className="flex border-b border-border/40 gap-4 mb-2">
-              <button
-                onClick={() => setProfileTab('posts')}
-                className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
-                  profileTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                My Posts ({posts.length})
-              </button>
-              <button
-                onClick={() => setProfileTab('reviews')}
-                className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
-                  profileTab === 'reviews' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                Mentorship Reviews ({mentorStats?.totalRatings || mentorStats?.reviews?.length || 0})
-              </button>
-            </div>
-          ) : (
-            <h2 className="text-xl font-bold text-foreground px-1">My Posts</h2>
-          )}
+        <div ref={postsContainerRef} className="md:col-span-2 space-y-6 md:h-[calc(100vh-1.5rem)] md:overflow-y-auto scrollbar-none">
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-2 pb-2 px-4 sm:px-0 border-b border-border/40 flex items-center justify-between gap-4 mb-2">
+            {isMentorUser ? (
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setProfileTab('posts')}
+                  className={`pb-2.5 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+                    profileTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  My Posts ({posts.length})
+                </button>
+                <button
+                  onClick={() => setProfileTab('reviews')}
+                  className={`pb-2.5 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+                    profileTab === 'reviews' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                  Mentorship Reviews ({mentorStats?.totalRatings || mentorStats?.reviews?.length || 0})
+                </button>
+              </div>
+            ) : (
+              <div className="flex border-b border-transparent gap-4">
+                <span className="pb-2.5 text-sm font-semibold text-primary border-b-2 border-primary">
+                  My Posts ({posts.length})
+                </span>
+              </div>
+            )}
+          </div>
 
           {profileTab === 'reviews' && isMentorUser ? (
             <div className="space-y-6 animate-in fade-in duration-200">
@@ -1167,7 +1288,7 @@ const MyProfile = () => {
                             className="flex items-center gap-2 cursor-pointer hover:underline"
                             onClick={() => post.likes?.length > 0 && setLikesModalPost(post)}
                           >
-                            <span className="bg-blue-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
+                            <span className="bg-rose-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
                             <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes)}</span>
                           </div>
                           <span className="cursor-pointer hover:underline" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>{commentsArray.length} comments</span>
@@ -1176,7 +1297,7 @@ const MyProfile = () => {
                           <button 
                             onClick={() => handleLike(post._id)}
                             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1 sm:flex-none justify-center
-                              ${hasLiked ? 'text-blue-500 hover:bg-blue-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                              ${hasLiked ? 'text-rose-500 hover:bg-rose-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                           >
                             <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
                             <span className="hidden sm:inline">{hasLiked ? 'Liked' : 'Like'}</span>

@@ -1,6 +1,6 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause } from 'lucide-react'
+import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import API_BASE from '../../utils/api'
@@ -14,6 +14,7 @@ const AdminJobs = () => {
   
   // Modal states
   const [remarkModal, setRemarkModal] = useState({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
+  const [viewJobModal, setViewJobModal] = useState({ isOpen: false, job: null })
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -193,7 +194,7 @@ const AdminJobs = () => {
   })
 
   return (
-    <div className="space-y-6 pb-12 max-w-6xl mx-auto">
+    <div className="w-full space-y-6 pb-12 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -293,6 +294,13 @@ const AdminJobs = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right space-x-1">
+                        <button 
+                          onClick={() => setViewJobModal({ isOpen: true, job })}
+                          className="p-2 text-sky-500 hover:bg-sky-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         {job.moderationStatus !== 'paused' ? (
                           <button 
                             onClick={() => handleStatusChange(job.id || job._id, 'paused')}
@@ -477,6 +485,75 @@ const AdminJobs = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Details Modal */}
+      {viewJobModal.isOpen && viewJobModal.job && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+          <div className="bg-card w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden border border-border/50">
+            <div className="flex items-center justify-between p-5 border-b border-border/50 bg-muted/20">
+              <h2 className="text-lg font-bold text-foreground">Job Details</h2>
+              <button 
+                onClick={() => setViewJobModal({ isOpen: false, job: null })}
+                className="p-1.5 hover:bg-muted rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="flex items-center gap-4">
+                <img 
+                  src={getCompanyLogo(viewJobModal.job.company, viewJobModal.job.companyLogo)} 
+                  alt={viewJobModal.job.company} 
+                  onError={(e) => handleImageError(e, viewJobModal.job.company)}
+                  className="w-16 h-16 rounded-xl object-contain bg-white p-2 border border-border/40 shrink-0 shadow-sm"
+                />
+                <div>
+                  <h3 className="text-2xl font-black text-foreground">{viewJobModal.job.title}</h3>
+                  <p className="text-lg font-medium text-foreground/80">{viewJobModal.job.company}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1"><MapPin className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Location</span></div>
+                  <p className="font-semibold text-foreground">{viewJobModal.job.location || 'Remote'}</p>
+                </div>
+                <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1"><Briefcase className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Job Type</span></div>
+                  <p className="font-semibold text-foreground">{viewJobModal.job.type || 'Full-time'}</p>
+                </div>
+                <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1"><DollarSign className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Salary</span></div>
+                  <p className="font-semibold text-foreground">{viewJobModal.job.salary || 'Not specified'}</p>
+                </div>
+                <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1"><Building className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Posted On</span></div>
+                  <p className="font-semibold text-foreground">{viewJobModal.job.posted}</p>
+                </div>
+              </div>
+
+              {viewJobModal.job.description && (
+                <div>
+                  <h4 className="font-bold text-foreground mb-2">Description</h4>
+                  <div className="bg-muted/20 p-4 rounded-xl border border-border/30 text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                    {viewJobModal.job.description}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-border/50 bg-muted/10 flex justify-end">
+              <button 
+                onClick={() => setViewJobModal({ isOpen: false, job: null })}
+                className="px-6 py-2 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all cursor-pointer shadow-md shadow-primary/10"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

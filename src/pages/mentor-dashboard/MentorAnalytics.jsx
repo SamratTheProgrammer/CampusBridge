@@ -2,30 +2,26 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import React, { useState, useEffect } from 'react'
 import { Users, Eye, MousePointerClick, TrendingUp, Star, StarHalf, Award, Loader2 } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
+import { useProfileData } from '../../context/ProfileDataContext'
 import API_BASE from '../../utils/api'
 
-const PERFORMANCE_DATA = [
-  { month: 'Jan', value: 40 },
-  { month: 'Feb', value: 65 },
-  { month: 'Mar', value: 45 },
-  { month: 'Apr', value: 80 },
-  { month: 'May', value: 95 },
-  { month: 'Jun', value: 85 },
-  { month: 'Jul', value: 110 },
-  { month: 'Aug', value: 130 },
-]
 
 const MentorAnalytics = () => {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
+  const { mongoProfile } = useProfileData();
   const [analyticsData, setAnalyticsData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('This Year');
 
   useEffect(() => {
     const fetchAnalytics = async () => {
-      if (!user) return;
+      const identifier = user?.id || mongoProfile?.clerkId || mongoProfile?._id || user?.username;
+      if (!identifier) {
+        if (isLoaded) setIsLoading(false);
+        return;
+      }
       try {
-        const res = await fetch(`${API_BASE}/api/analytics/mentor/${user.id}`);
+        const res = await fetch(`${API_BASE}/api/analytics/mentor/${identifier}`);
         if (res.ok) {
           const data = await res.json();
           setAnalyticsData(data);
@@ -36,12 +32,14 @@ const MentorAnalytics = () => {
         setIsLoading(false);
       }
     };
-    fetchAnalytics();
-  }, [user]);
+    if (isLoaded) {
+      fetchAnalytics();
+    }
+  }, [user, mongoProfile, isLoaded]);
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto space-y-8 animate-pulse">
+      <div className="w-full max-w-6xl mx-auto space-y-8 animate-pulse">
         {/* Header */}
         <div className="space-y-2">
           <Skeleton className="h-8 w-56 rounded-md" />
@@ -117,7 +115,8 @@ const MentorAnalytics = () => {
     profileViews: 0,
     postEngagements: 0,
     sessionsHosted: 0,
-    performanceData: PERFORMANCE_DATA,
+    performanceData: [],
+    activityData: null,
     averageRating: 0,
     totalReviews: 0,
     ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
@@ -150,34 +149,48 @@ const MentorAnalytics = () => {
   ];
 
   const getChartData = () => {
-    const rawData = dataToRender.performanceData || [];
-    if (!Array.isArray(rawData)) {
-      return rawData[timeframe] || [];
-    }
-    if (timeframe === 'Last 6 Months') {
-      return rawData.slice(-6);
+    const ad = dataToRender.activityData;
+    if (ad && ad[timeframe] && ad[timeframe].length > 0) {
+      return ad[timeframe];
     }
     if (timeframe === 'This Month') {
-      const total = dataToRender.profileViews || 0;
-      const w1 = Math.round(total * 0.18);
-      const w2 = Math.round(total * 0.24);
-      const w3 = Math.round(total * 0.28);
-      const w4 = Math.max(total - w1 - w2 - w3, 0);
       return [
-        { month: 'Week 1', value: w1 },
-        { month: 'Week 2', value: w2 },
-        { month: 'Week 3', value: w3 },
-        { month: 'Week 4', value: w4 },
+        { month: 'Week 1', events: 0, sessions: 0, jobs: 0 },
+        { month: 'Week 2', events: 0, sessions: 0, jobs: 0 },
+        { month: 'Week 3', events: 0, sessions: 0, jobs: 0 },
+        { month: 'Week 4', events: 0, sessions: 0, jobs: 0 },
       ];
     }
-    return rawData;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    if (timeframe === 'Last 6 Months') {
+      const list = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(curYear, curMonth - i, 1);
+        list.push({ month: monthNames[d.getMonth()], events: 0, sessions: 0, jobs: 0 });
+      }
+      return list;
+    }
+
+    // This Year fallback: July (launch) to current month for 2026
+    const startM = curYear === 2026 ? 6 : 0;
+    const list = [];
+    for (let m = startM; m <= curMonth; m++) {
+      list.push({ month: monthNames[m], events: 0, sessions: 0, jobs: 0 });
+    }
+    return list;
   };
 
   const chartData = getChartData();
-  const maxVal = Math.max(...chartData.map(d => d.value), 1);
+  const rawMax = Math.max(...chartData.map(d => Math.max(d.events || 0, d.sessions || 0, d.jobs || 0)), 0);
+  const yMax = rawMax === 0 ? 4 : (rawMax <= 2 ? 4 : (rawMax % 2 === 0 ? rawMax : rawMax + 1));
+  const yMid = Math.round(yMax / 2);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="w-full max-w-6xl mx-auto space-y-8">
       
       {/* Header */}
       <div>
@@ -209,10 +222,10 @@ const MentorAnalytics = () => {
         
         {/* Main Chart */}
         <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 className="font-bold text-foreground text-lg">Profile Views Over Time</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Track visitor impressions on your profile</p>
+              <h3 className="font-bold text-foreground text-lg">Mentorship Impact Activity</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Track events, sessions, and jobs you've created.</p>
             </div>
             <select 
               value={timeframe}
@@ -224,33 +237,82 @@ const MentorAnalytics = () => {
               <option value="This Month">This Month</option>
             </select>
           </div>
+
+          {/* Chart Legend */}
+          <div className="flex gap-4 mb-2 px-2 justify-end">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <div className="w-3 h-3 rounded bg-blue-500"></div> Events
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <div className="w-3 h-3 rounded bg-orange-500"></div> Sessions
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <div className="w-3 h-3 rounded bg-emerald-500"></div> Jobs
+            </div>
+          </div>
           
           {/* CSS Bar Chart */}
-          <div className="h-64 flex items-end justify-between gap-2 sm:gap-4 mt-8 pt-4 border-l border-b border-border/50 px-4 pb-2 relative">
-            {/* Y-axis markers */}
-            <div className="absolute -left-8 top-0 text-[10px] text-muted-foreground font-semibold">{Math.ceil(maxVal)}</div>
-            <div className="absolute -left-8 top-1/2 text-[10px] text-muted-foreground font-semibold">{Math.round(maxVal / 2)}</div>
-            <div className="absolute -left-6 bottom-0 text-[10px] text-muted-foreground font-semibold">0</div>
+          <div className="relative mt-4 pt-4">
+            <div className="flex h-64">
+              {/* Left Y-Axis Labels */}
+              <div className="w-8 flex flex-col justify-between items-end pr-2.5 pb-7 text-[10px] text-muted-foreground font-semibold select-none">
+                <span>{yMax}</span>
+                <span>{yMid}</span>
+                <span>0</span>
+              </div>
 
-            {chartData.map((data, idx) => {
-              const heightPercent = maxVal > 0 ? (data.value / maxVal) * 100 : 0;
-              return (
-                <div key={idx} className="flex flex-col items-center flex-1 h-full justify-end group">
-                  <div className="w-full relative flex justify-center flex-1 items-end min-h-0">
-                    <div 
-                      className="w-full max-w-[36px] bg-gradient-to-t from-primary/30 to-primary group-hover:from-primary/60 group-hover:to-primary rounded-t-md transition-all duration-300 shadow-sm relative cursor-pointer"
-                      style={{ height: `${Math.max(heightPercent, 4)}%` }}
-                    >
-                      {/* Tooltip */}
-                      <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground border border-border/50 text-[10px] font-bold py-1 px-2 rounded-md pointer-events-none whitespace-nowrap transition-all shadow-md z-10">
-                        {data.value} Views
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-3 shrink-0">{data.month}</span>
+              {/* Chart Grid & Bars Container */}
+              <div className="flex-1 relative flex items-end justify-between gap-2 sm:gap-4 border-l border-b border-border/50 px-3 sm:px-6 pb-2">
+                {/* Horizontal Guide Lines */}
+                <div className="absolute inset-0 pointer-events-none flex flex-col justify-between pb-7">
+                  <div className="w-full border-b border-dashed border-border/30"></div>
+                  <div className="w-full border-b border-dashed border-border/30"></div>
+                  <div className="w-full"></div>
                 </div>
-              )
-            })}
+
+                {chartData.map((data, idx) => {
+                  const hEvents = data.events > 0 ? Math.max((data.events / yMax) * 100, 10) : 0;
+                  const hSessions = data.sessions > 0 ? Math.max((data.sessions / yMax) * 100, 10) : 0;
+                  const hJobs = data.jobs > 0 ? Math.max((data.jobs / yMax) * 100, 10) : 0;
+
+                  return (
+                    <div key={idx} className="flex flex-col items-center flex-1 h-full justify-end group z-10">
+                      <div className="w-full relative flex justify-center gap-1 sm:gap-2 flex-1 items-end min-h-0">
+                        {/* Events Bar */}
+                        <div 
+                          className={`w-full max-w-[14px] sm:max-w-[18px] bg-blue-500/80 hover:bg-blue-500 rounded-t transition-all duration-300 relative cursor-pointer group/bar ${hEvents === 0 ? 'opacity-0 pointer-events-none' : 'shadow-sm'}`}
+                          style={{ height: `${hEvents}%` }}
+                        >
+                          <div className="opacity-0 group-hover/bar:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground border border-border/50 text-[10px] font-bold py-1 px-2 rounded-md pointer-events-none whitespace-nowrap transition-all shadow-md z-20">
+                            {data.events} Events
+                          </div>
+                        </div>
+                        {/* Sessions Bar */}
+                        <div 
+                          className={`w-full max-w-[14px] sm:max-w-[18px] bg-orange-500/80 hover:bg-orange-500 rounded-t transition-all duration-300 relative cursor-pointer group/bar ${hSessions === 0 ? 'opacity-0 pointer-events-none' : 'shadow-sm'}`}
+                          style={{ height: `${hSessions}%` }}
+                        >
+                          <div className="opacity-0 group-hover/bar:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground border border-border/50 text-[10px] font-bold py-1 px-2 rounded-md pointer-events-none whitespace-nowrap transition-all shadow-md z-20">
+                            {data.sessions} Sessions
+                          </div>
+                        </div>
+                        {/* Jobs Bar */}
+                        <div 
+                          className={`w-full max-w-[14px] sm:max-w-[18px] bg-emerald-500/80 hover:bg-emerald-500 rounded-t transition-all duration-300 relative cursor-pointer group/bar ${hJobs === 0 ? 'opacity-0 pointer-events-none' : 'shadow-sm'}`}
+                          style={{ height: `${hJobs}%` }}
+                        >
+                          <div className="opacity-0 group-hover/bar:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground border border-border/50 text-[10px] font-bold py-1 px-2 rounded-md pointer-events-none whitespace-nowrap transition-all shadow-md z-20">
+                            {data.jobs} Jobs
+                          </div>
+                        </div>
+                      </div>
+                      {/* X-axis Label */}
+                      <span className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-3 shrink-0">{data.month}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 

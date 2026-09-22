@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Star, Quote, Send, Heart, MessageSquare, ChevronLeft, ChevronRight, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 
@@ -49,6 +50,7 @@ const getInitialStories = () => {
 
 const SuccessStories = () => {
   const { user, isSignedIn } = useUser()
+  const navigate = useNavigate()
   const [dbUser, setDbUser] = useState(null)
   const [stories, setStories] = useState(getInitialStories)
   const [newReview, setNewReview] = useState({
@@ -347,10 +349,38 @@ const SuccessStories = () => {
             <img 
               src={story.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(story.name || 'Student')}&background=random`} 
               alt={story.name} 
-              className="w-10 h-10 rounded-full object-cover border"
+              className={`w-10 h-10 rounded-full object-cover border ${isSignedIn && story.userClerkId ? 'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all' : ''}`}
+              onClick={() => {
+                if (!isSignedIn) {
+                  toast('Please log in to view profiles', { icon: '🔒' });
+                  return;
+                }
+                if (!story.userClerkId) return;
+                if (story.userClerkId === user?.id) {
+                  const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || user?.unsafeMetadata?.role || 'student';
+                  navigate((role === 'mentor' || role === 'alumni') ? '/mentor-dashboard/profile' : '/dashboard/profile');
+                } else {
+                  navigate(`/profile/${story.username || story.userClerkId}`);
+                }
+              }}
             />
             <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-foreground text-sm truncate flex items-center gap-2">
+              <h4 
+                className={`font-bold text-foreground text-sm truncate flex items-center gap-2 ${isSignedIn && story.userClerkId ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                onClick={() => {
+                  if (!isSignedIn) {
+                    toast('Please log in to view profiles', { icon: '🔒' });
+                    return;
+                  }
+                  if (!story.userClerkId) return;
+                  if (story.userClerkId === user?.id) {
+                    const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || user?.unsafeMetadata?.role || 'student';
+                    navigate((role === 'mentor' || role === 'alumni') ? '/mentor-dashboard/profile' : '/dashboard/profile');
+                  } else {
+                    navigate(`/profile/${story.username || story.userClerkId}`);
+                  }
+                }}
+              >
                 <span className="truncate">{story.name}</span>
                 {isCurrentReviewer && (
                   <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full shrink-0 font-medium">You</span>
