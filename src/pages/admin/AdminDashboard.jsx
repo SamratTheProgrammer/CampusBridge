@@ -28,11 +28,11 @@ const AdminDashboard = () => {
     const fetchAdminStats = async () => {
       try {
         const res = await fetch(`${API_BASE}/api/admin/stats`)
-        if (res.ok) {
-          const result = await res.json()
-          if (result.success) {
-            setData(result)
-          }
+        const result = await res.json()
+        if (res.ok && result.success) {
+          setData(result)
+        } else if (!res.ok) {
+          console.warn('Admin stats fetch returned non-ok:', res.status, result)
         }
       } catch (err) {
         console.error('Failed to fetch admin stats:', err)

@@ -3,6 +3,7 @@ import { X, Star } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
+import ModalPortal from './ModalPortal';
 
 const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
   const { user } = useUser();
@@ -84,10 +85,11 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-card text-card-foreground border border-border/50 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-4 border-b border-border/50 flex justify-between items-center bg-muted/30">
-          <h2 className="text-xl font-bold text-foreground">Rate your experience</h2>
+    <ModalPortal>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="bg-card text-card-foreground border border-border/50 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="p-4 border-b border-border/50 flex justify-between items-center bg-muted/30">
+            <h2 className="text-xl font-bold text-foreground">Rate your experience</h2>
           <button onClick={onClose} className="p-1 hover:bg-muted rounded-full transition-colors">
             <X className="w-6 h-6 text-muted-foreground" />
           </button>
@@ -158,7 +160,8 @@ const ReviewModal = ({ isOpen, onClose, pendingReview, onReviewSubmitted }) => {
         </div>
       </div>
     </div>
-  );
+  </ModalPortal>
+);
 };
 
 export default ReviewModal;

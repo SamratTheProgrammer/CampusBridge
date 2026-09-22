@@ -25,6 +25,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
+import announcementRoutes from './routes/announcementRoutes.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
 import Block from './models/Block.js';
@@ -172,6 +173,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/announcements', announcementRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {

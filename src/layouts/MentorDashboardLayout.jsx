@@ -16,6 +16,7 @@ import API_BASE from '../utils/api'
 import ReviewModal from '../components/modals/ReviewModal'
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
+import AnnouncementModal from '../components/dashboard/AnnouncementModal'
 
 const MentorDashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -668,6 +669,7 @@ const MentorDashboardLayout = () => {
           pendingReview={currentReview}
           onReviewSubmitted={handleReviewSubmitted}
         />
+        <AnnouncementModal role="mentor" />
       </div>
     </div>
   )

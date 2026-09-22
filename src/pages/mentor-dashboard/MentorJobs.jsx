@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
 import API_BASE from '../../utils/api'
 
@@ -482,7 +483,8 @@ const MentorJobs = () => {
 
       {/* Add Job Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200">
             <h2 className="text-2xl font-bold text-foreground mb-1">{jobToEdit ? 'Edit Job' : 'Add New Job'}</h2>
             <p className="text-sm text-muted-foreground mb-6">{jobToEdit ? 'Update job details.' : 'Post an opportunity for your mentees.'}</p>
@@ -552,12 +554,14 @@ const MentorJobs = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Applications Modal */}
       <AnimatePresence>
         {isApplicationsModalOpen && selectedJobForApps && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <ModalPortal>
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -655,6 +659,7 @@ const MentorJobs = () => {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
 

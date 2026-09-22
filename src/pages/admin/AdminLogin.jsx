@@ -1,18 +1,32 @@
-import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { Eye, EyeOff, Lock, Mail, ArrowLeft } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { Eye, EyeOff, Lock, Mail, ArrowLeft, KeyRound, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
 import API_BASE from '../../utils/api'
 
 const AdminLogin = () => {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('admin@campusbridge.com')
+  const [password, setPassword] = useState('Admin@12345')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('expired') === 'true') {
+      toast.error('Admin session expired or invalid. Please sign in again.')
+    }
+  }, [location.search])
+
+  const handleFillDemoCredentials = () => {
+    setEmail('admin@campusbridge.com')
+    setPassword('Admin@12345')
+    toast.success('Admin credentials autofilled!')
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -173,9 +187,19 @@ const AdminLogin = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 transition-all shadow-md shadow-primary/20"
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 transition-all shadow-md shadow-primary/20 cursor-pointer"
             >
               {isLoading ? 'Authenticating...' : 'Access Console'}
+            </button>
+          </div>
+
+          <div className="text-center pt-2">
+            <button
+              type="button"
+              onClick={handleFillDemoCredentials}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Auto-fill default admin credentials
             </button>
           </div>
         </form>

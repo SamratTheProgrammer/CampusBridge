@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
@@ -610,7 +611,8 @@ const AdminUserManagement = () => {
 
       {/* Block User Modal */}
       {isBlockModalOpen && blockTargetUser && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border/60 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-6 relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
             <button 
               onClick={() => setIsBlockModalOpen(false)}
@@ -662,12 +664,14 @@ const AdminUserManagement = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Add Student Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)}></div>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)}></div>
           <div className="bg-card border border-border/50 rounded-3xl p-6 sm:p-8 max-w-md w-full relative shadow-xl animate-in zoom-in-95 duration-150">
             <button 
               onClick={() => setIsAddModalOpen(false)}
@@ -716,6 +720,7 @@ const AdminUserManagement = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Delete Confirmation Modal */}

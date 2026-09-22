@@ -56,7 +56,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
     // Clear highlight after 4 seconds
     const clearTimer = setTimeout(() => setHighlightedId(null), 5000);
     return () => { clearTimeout(timer); clearTimeout(clearTimer); };
-  }, [highlightCommentId, highlightReplyId]);
+  }, [highlightCommentId, highlightReplyId, post?.comments]);
 
   // Close emoji picker when clicking outside
   useEffect(() => {

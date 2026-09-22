@@ -8,15 +8,10 @@ import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 
-// Mock events for now, since we haven't implemented saved events yet
-const mockSavedEvents = [
-  { id: 1, title: 'Tech Career Fair 2024', date: 'Nov 15, 2023', location: 'Main Campus Center', type: 'Career Fair' },
-  { id: 2, title: 'Mentor Mixer: Software Engineering', date: 'Nov 20, 2023', location: 'Virtual', type: 'Networking' },
-]
-
 const Saved = () => {
   const [activeTab, setActiveTab] = useState('Jobs') // 'Jobs' | 'Events'
   const [savedJobs, setSavedJobs] = useState([])
+  const [savedEvents, setSavedEvents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useUser()
 
@@ -165,33 +160,40 @@ const Saved = () => {
               exit={{ opacity: 0, y: -10 }}
               className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
             >
-              {mockSavedEvents.map(event => (
-                <div key={event.id} className="bg-card border border-border/40 p-5 rounded-2xl flex flex-col justify-between group hover:border-primary/50 transition-colors">
-                  <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 font-bold">
-                        <Calendar className="w-5 h-5" />
+              {savedEvents.length > 0 ? (
+                savedEvents.map(event => (
+                  <div key={event.id} className="bg-card border border-border/40 p-5 rounded-2xl flex flex-col justify-between group hover:border-primary/50 transition-colors">
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 font-bold">
+                          <Calendar className="w-5 h-5" />
+                        </div>
+                        <button className="text-muted-foreground hover:text-red-500 transition-colors" title="Remove from saved">
+                          <BookmarkMinus className="w-5 h-5" />
+                        </button>
                       </div>
-                      <button className="text-muted-foreground hover:text-red-500 transition-colors" title="Remove from saved">
-                        <BookmarkMinus className="w-5 h-5" />
+                      <h3 className="font-semibold text-lg text-foreground mb-2 group-hover:text-primary transition-colors">{event.title}</h3>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1.5 mb-2">
+                        <Calendar className="w-4 h-4" /> {event.date}
+                      </p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1.5 mb-4">
+                        <MapPin className="w-4 h-4" /> {event.location}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between pt-4 border-t border-border/40">
+                      <span className="text-xs font-medium px-2.5 py-1 bg-muted rounded-md">{event.type}</span>
+                      <button className="text-sm text-primary hover:underline font-medium">
+                        View Details
                       </button>
                     </div>
-                    <h3 className="font-semibold text-lg text-foreground mb-2 group-hover:text-primary transition-colors">{event.title}</h3>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1.5 mb-2">
-                      <Calendar className="w-4 h-4" /> {event.date}
-                    </p>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1.5 mb-4">
-                      <MapPin className="w-4 h-4" /> {event.location}
-                    </p>
                   </div>
-                  <div className="flex items-center justify-between pt-4 border-t border-border/40">
-                    <span className="text-xs font-medium px-2.5 py-1 bg-muted rounded-md">{event.type}</span>
-                    <button className="text-sm text-primary hover:underline font-medium">
-                      View Details
-                    </button>
-                  </div>
+                ))
+              ) : (
+                <div className="p-12 text-center text-muted-foreground col-span-full">
+                  <BookmarkMinus className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>You haven't saved any events yet.</p>
                 </div>
-              ))}
+              )}
             </motion.div>
           )}
         </AnimatePresence>

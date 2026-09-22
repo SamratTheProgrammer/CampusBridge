@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 import ReviewListModal from '../../components/modals/ReviewListModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import { Star } from 'lucide-react'
 
 const SessionRatingBadge = ({ sessionId, onClick }) => {
@@ -715,7 +716,8 @@ const MySessions = () => {
 
       {/* Registration Modal for Available Sessions */}
       {isRegisterModalOpen && selectedSession && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border/50 flex justify-between items-center">
               <div>
@@ -763,6 +765,7 @@ const MySessions = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Review List Modal */}

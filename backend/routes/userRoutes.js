@@ -393,8 +393,8 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (ageVisibility !== undefined) targetUser.ageVisibility = ageVisibility;
     if (gender !== undefined) targetUser.gender = gender;
 
-    // Manual role update
-    if (role !== undefined && ['student', 'mentor', 'alumni', 'admin'].includes(role)) {
+    // Manual role update (admin role can only be assigned via secured admin routes)
+    if (role !== undefined && ['student', 'mentor', 'alumni'].includes(role)) {
       targetUser.role = role;
     } else if (targetUser.role === 'student') {
       // Auto-detect alumni status

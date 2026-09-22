@@ -23,11 +23,14 @@ import {
   Sun,
   Moon,
   Search,
-  ChevronRight
+  ChevronRight,
+  Megaphone
 } from 'lucide-react'
 import { useClerk } from '@clerk/clerk-react'
 import ThemeToggle from '../components/ThemeToggle'
 import NotificationDropdown from '../components/NotificationDropdown'
+import AdminSpinner from '../components/admin/AdminSpinner'
+import API_BASE from '../utils/api'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
 import logoHalf from '../assets/CampusLogoHalf.png'
@@ -35,6 +38,7 @@ import logoHalf from '../assets/CampusLogoHalf.png'
 const AdminLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(true)
   const navigate = useNavigate()
   const location = useLocation()
   const { signOut } = useClerk()
@@ -44,30 +48,65 @@ const AdminLayout = () => {
     setIsMobileSidebarOpen(false)
   }, [location.pathname])
 
-  // Protect Admin Layout: Redirect to /admin/login if no adminToken exists or if session expired
+  // Protect Admin Layout: Verify session token with backend before mounting child routes
   useEffect(() => {
-    const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken')
-    const expiry = localStorage.getItem('adminTokenExpiry') || sessionStorage.getItem('adminTokenExpiry')
+    let isMounted = true
 
-    if (!token) {
-      navigate('/admin/login', { replace: true })
-      return
-    }
+    const verifyAdminSession = async () => {
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken')
+      const expiry = localStorage.getItem('adminTokenExpiry') || sessionStorage.getItem('adminTokenExpiry')
 
-    if (expiry) {
-      const expiryTime = parseInt(expiry, 10);
-      if (new Date().getTime() > expiryTime) {
-        // Session expired
-        localStorage.removeItem('adminToken')
-        localStorage.removeItem('adminUser')
-        localStorage.removeItem('adminTokenExpiry')
-        sessionStorage.removeItem('adminToken')
-        sessionStorage.removeItem('adminUser')
-        sessionStorage.removeItem('adminTokenExpiry')
-        toast.error('Session expired. Please log in again.')
-        navigate('/admin/login', { replace: true })
+      if (!token) {
+        if (isMounted) navigate('/admin/login', { replace: true })
         return
       }
+
+      if (expiry) {
+        const expiryTime = parseInt(expiry, 10)
+        if (new Date().getTime() > expiryTime) {
+          localStorage.removeItem('adminToken')
+          localStorage.removeItem('adminUser')
+          localStorage.removeItem('adminTokenExpiry')
+          sessionStorage.removeItem('adminToken')
+          sessionStorage.removeItem('adminUser')
+          sessionStorage.removeItem('adminTokenExpiry')
+          toast.error('Session expired. Please log in again.')
+          if (isMounted) navigate('/admin/login', { replace: true })
+          return
+        }
+      }
+
+      // Verify token integrity with backend
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        if (res.ok) {
+          if (isMounted) setIsVerifying(false)
+        } else {
+          // Token is rejected (e.g. backend restarted with different key or expired)
+          localStorage.removeItem('adminToken')
+          localStorage.removeItem('adminUser')
+          localStorage.removeItem('adminTokenExpiry')
+          sessionStorage.removeItem('adminToken')
+          sessionStorage.removeItem('adminUser')
+          sessionStorage.removeItem('adminTokenExpiry')
+          toast.error('Admin session invalid. Please log in.')
+          if (isMounted) navigate('/admin/login', { replace: true })
+        }
+      } catch (err) {
+        // Network failure; allow viewing with existing token if present
+        console.warn('Admin token verification network check failed:', err)
+        if (isMounted) setIsVerifying(false)
+      }
+    }
+
+    verifyAdminSession()
+
+    return () => {
+      isMounted = false
     }
   }, [navigate])
 
@@ -82,6 +121,7 @@ const AdminLayout = () => {
     { name: 'Jobs & Internships', path: '/admin/jobs', icon: Briefcase },
     { name: 'Events', path: '/admin/events', icon: Calendar },
     { name: 'Posts Moderation', path: '/admin/posts', icon: MessageSquare },
+    { name: 'Announcements', path: '/admin/announcements', icon: Megaphone },
     { name: 'Support Messages', path: '/admin/messages', icon: Mail },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ]
@@ -95,6 +135,14 @@ const AdminLayout = () => {
     sessionStorage.removeItem('adminTokenExpiry')
     toast.success('Admin logged out successfully')
     navigate('/admin/login')
+  }
+
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <AdminSpinner message="Authenticating admin session..." size="lg" />
+      </div>
+    )
   }
 
   return (

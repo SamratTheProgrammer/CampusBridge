@@ -21,6 +21,7 @@ import {
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
 
 const AdminVerification = () => {
@@ -529,7 +530,8 @@ const AdminVerification = () => {
 
       {/* Mentor Profile Details Modal */}
       {selectedMentor && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border/60 rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6 relative animate-in fade-in zoom-in duration-200">
             <button 
               onClick={() => setSelectedMentor(null)}
@@ -651,11 +653,13 @@ const AdminVerification = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Block Mentor Modal */}
       {blockModal.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border/60 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-3 text-rose-500">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
@@ -699,11 +703,13 @@ const AdminVerification = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Official Warning Modal */}
       {warnModal.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border/60 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-3 text-amber-500">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
@@ -764,6 +770,7 @@ const AdminVerification = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Confirm Permanent Delete Modal */}

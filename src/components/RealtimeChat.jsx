@@ -11,6 +11,7 @@ import API_BASE from '../utils/api'
 import { formatRoleSubtitle } from '../utils/textFormatters';
 import { isToday, isYesterday, format } from 'date-fns';
 import { useTheme } from './ThemeProvider';
+import ModalPortal from './modals/ModalPortal';
 
 const formatMessageDateSeparator = (dateString) => {
   if (!dateString) return '';
@@ -1235,7 +1236,8 @@ const RealtimeChat = () => {
 
       {/* Delete Message Modal */}
       {deleteModalMsg && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6">
               <h2 className="text-lg font-bold text-foreground mb-1">Delete message?</h2>
@@ -1268,10 +1270,12 @@ const RealtimeChat = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
       {/* Delete Person Modal */}
       {personToDelete && (
-        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 shadow-2xl rounded-2xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mb-4">
               <Trash2 className="w-6 h-6" />
@@ -1296,11 +1300,13 @@ const RealtimeChat = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Fullscreen Attachment Viewer Modal */}
       {fullscreenAttachment && (
-        <div className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
           <button 
             onClick={() => setFullscreenAttachment(null)}
             className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
@@ -1336,6 +1342,7 @@ const RealtimeChat = () => {
             ) : null}
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { Search, X, FileText, Users, Briefcase, Calendar, Info, LogIn, UserPlus,
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../utils/api'
+import ModalPortal from './modals/ModalPortal'
 
 const staticSearchData = [
   {
@@ -249,15 +250,15 @@ const SearchModal = ({ isOpen, onClose }) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <ModalPortal>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-sm"
           />
-          <div className="fixed inset-0 z-[101] flex items-start justify-center pt-16 sm:pt-24 px-4 pointer-events-none">
+          <div className="fixed inset-0 z-[201] flex items-start justify-center pt-16 sm:pt-24 px-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: -20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -366,7 +367,7 @@ const SearchModal = ({ isOpen, onClose }) => {
               </div>
             </motion.div>
           </div>
-        </>
+        </ModalPortal>
       )}
     </AnimatePresence>
   )

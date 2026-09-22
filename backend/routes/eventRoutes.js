@@ -4,6 +4,7 @@ import Event from '../models/Event.js';
 import User from '../models/User.js';
 import EventApplication from '../models/EventApplication.js';
 import Post from '../models/Post.js';
+import { verifyAdminToken } from '../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -11,7 +12,15 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const filter = { active: true };
-    if (req.query.admin_override !== 'true') {
+    let isAdmin = false;
+    if (req.query.admin_override === 'true') {
+      const authHeader = req.headers.authorization || req.headers['x-admin-token'];
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader?.trim();
+      if (token && verifyAdminToken(token)) {
+        isAdmin = true;
+      }
+    }
+    if (!isAdmin) {
       filter.moderationStatus = { $nin: ['paused', 'deleted'] };
     }
     

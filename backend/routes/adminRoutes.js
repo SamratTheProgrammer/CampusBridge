@@ -9,9 +9,11 @@ import Company from '../models/Company.js';
 import PlatformSetting from '../models/PlatformSetting.js';
 import SupportMessage from '../models/SupportMessage.js';
 import Review from '../models/Review.js';
+import Announcement from '../models/Announcement.js';
 import { Resend } from 'resend';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 import { createNotificationHelper } from './notificationRoutes.js';
+import { generateAdminToken, requireAdmin } from '../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -36,13 +38,17 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid admin email or password' });
     }
 
-    const adminToken = `admin_session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
-    const adminUser = {
+    const adminPayload = {
       id: 'admin_master_id',
       email: normalizedEmail,
       name: 'CampusBridge Admin',
-      role: role || 'super-admin',
+      role: role || 'super-admin'
+    };
+
+    const adminToken = generateAdminToken(adminPayload);
+
+    const adminUser = {
+      ...adminPayload,
       token: adminToken,
       loggedInAt: new Date().toISOString()
     };
@@ -59,18 +65,16 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Admin Verify / Me Endpoint
-router.get('/me', async (req, res) => {
+// Admin Verify / Me Endpoint (Requires valid admin token)
+router.get('/me', requireAdmin, async (req, res) => {
   return res.status(200).json({
     success: true,
-    user: {
-      id: 'admin_master_id',
-      email: DEFAULT_ADMIN_EMAIL,
-      name: 'CampusBridge Admin',
-      role: 'super-admin'
-    }
+    user: req.admin
   });
 });
+
+// Apply requireAdmin middleware to ALL following admin routes
+router.use(requireAdmin);
 
 // Sample initial mentors to seed if no mentor users exist in MongoDB
 const SAMPLE_MENTORS = [
@@ -1383,6 +1387,104 @@ router.delete('/moderate/:type/:id', async (req, res) => {
     return res.status(200).json({ success: true, message: `${type} deleted successfully` });
   } catch (error) {
     console.error(`Moderation Delete Error:`, error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// --- ANNOUNCEMENT MANAGEMENT ENDPOINTS ---
+
+router.get('/announcements', async (req, res) => {
+  try {
+    const announcements = await Announcement.find().sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, announcements });
+  } catch (error) {
+    console.error('Error fetching admin announcements:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/announcements', async (req, res) => {
+  try {
+    const { title, details, imageUrl, priority, audience, startDate, endDate, status } = req.body;
+    if (!title || !details) {
+      return res.status(400).json({ success: false, message: 'Title and details are required' });
+    }
+
+    const announcement = new Announcement({
+      title: title.trim(),
+      details: details.trim(),
+      imageUrl: imageUrl ? imageUrl.trim() : '',
+      priority: priority || 'Medium',
+      audience: audience || 'All Users',
+      startDate: startDate ? new Date(startDate) : new Date(),
+      endDate: endDate ? new Date(endDate) : null,
+      status: status || 'Published'
+    });
+
+    await announcement.save();
+    return res.status(201).json({ success: true, message: 'Announcement created successfully', announcement });
+  } catch (error) {
+    console.error('Error creating announcement:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.put('/announcements/:id', async (req, res) => {
+  try {
+    const { title, details, imageUrl, priority, audience, startDate, endDate, status } = req.body;
+    const announcement = await Announcement.findById(req.params.id);
+    if (!announcement) {
+      return res.status(404).json({ success: false, message: 'Announcement not found' });
+    }
+
+    if (title !== undefined) announcement.title = title.trim();
+    if (details !== undefined) announcement.details = details.trim();
+    if (imageUrl !== undefined) announcement.imageUrl = imageUrl.trim();
+    if (priority !== undefined) announcement.priority = priority;
+    if (audience !== undefined) announcement.audience = audience;
+    if (startDate !== undefined) announcement.startDate = startDate ? new Date(startDate) : null;
+    if (endDate !== undefined) announcement.endDate = endDate ? new Date(endDate) : null;
+    if (status !== undefined) announcement.status = status;
+
+    await announcement.save();
+    return res.status(200).json({ success: true, message: 'Announcement updated successfully', announcement });
+  } catch (error) {
+    console.error('Error updating announcement:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.patch('/announcements/:id/toggle-status', async (req, res) => {
+  try {
+    const announcement = await Announcement.findById(req.params.id);
+    if (!announcement) {
+      return res.status(404).json({ success: false, message: 'Announcement not found' });
+    }
+
+    announcement.status = announcement.status === 'Published' ? 'Paused' : 'Published';
+    await announcement.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Announcement ${announcement.status === 'Published' ? 'resumed' : 'paused'} successfully`,
+      announcement
+    });
+  } catch (error) {
+    console.error('Error toggling announcement status:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.delete('/announcements/:id', async (req, res) => {
+  try {
+    const announcement = await Announcement.findByIdAndDelete(req.params.id);
+    if (!announcement) {
+      return res.status(404).json({ success: false, message: 'Announcement not found' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Announcement deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });

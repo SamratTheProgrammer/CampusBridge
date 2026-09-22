@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 import socket from '../../services/socket'
 import AdminSpinner from '../../components/admin/AdminSpinner'
+import ModalPortal from '../../components/modals/ModalPortal'
 
 // Helper to generate domain-smart webmail URLs with prefilled reply
 const getEmailLinks = (email, subject = '', bodyText = '') => {
@@ -621,7 +622,8 @@ const AdminSupportMessages = () => {
         const userObj = fetchedUserData
         
         return (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <ModalPortal>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
             <div className="bg-card border border-border/60 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
               
               {/* Header */}
@@ -747,6 +749,7 @@ const AdminSupportMessages = () => {
               </div>
             </div>
           </div>
+          </ModalPortal>
         )
       })()}
     </div>

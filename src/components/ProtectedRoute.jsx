@@ -119,18 +119,19 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
     if (!isAllowed) {
       // Redirect to authorized dashboard based on actual user role
+      const search = location.search || '';
       if (userRole === 'mentor') {
         const subPath = location.pathname.startsWith('/dashboard')
           ? location.pathname.replace(/^\/dashboard\/?/, '')
           : location.pathname.replace(/^\//, '');
-        return <Navigate to={`/mentor-dashboard${subPath ? `/${subPath}` : ''}`} replace />
+        return <Navigate to={`/mentor-dashboard${subPath ? `/${subPath}` : ''}${search}`} replace />
       } else if (userRole === 'admin') {
-        return <Navigate to="/admin" replace />
+        return <Navigate to={`/admin${search}`} replace />
       } else {
         const subPath = location.pathname.startsWith('/mentor-dashboard')
           ? location.pathname.replace(/^\/mentor-dashboard\/?/, '')
           : location.pathname.replace(/^\//, '');
-        return <Navigate to={`/dashboard${subPath ? `/${subPath}` : ''}`} replace />
+        return <Navigate to={`/dashboard${subPath ? `/${subPath}` : ''}${search}`} replace />
       }
     }
   }

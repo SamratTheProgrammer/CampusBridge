@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 
@@ -343,219 +344,198 @@ const AdminJobs = () => {
 
       {/* Add New Job Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border/60 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-6 relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
-            <button 
-              onClick={() => setIsAddModalOpen(false)}
-              className="absolute top-6 right-6 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-card border border-border/60 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-6 relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+              <button 
+                onClick={() => setIsAddModalOpen(false)}
+                className="absolute top-6 right-6 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-            <div>
-              <h2 className="text-xl font-extrabold text-foreground">Add New Job Post</h2>
-              <p className="text-xs text-muted-foreground mt-1">Fill in the details to publish a new job or internship opportunity.</p>
-            </div>
-
-            <form onSubmit={handleCreateJob} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground block">Job Title *</label>
-                <div className="relative">
-                  <Briefcase className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="e.g. Senior Frontend Engineer"
-                    value={newJobData.title}
-                    onChange={(e) => setNewJobData({ ...newJobData, title: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2 bg-muted/40 border border-border/50 rounded-xl text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
+              <div>
+                <h2 className="text-xl font-extrabold text-foreground">Add New Job Post</h2>
+                <p className="text-xs text-muted-foreground mt-1">Fill in the details to publish a new job or internship opportunity.</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <form onSubmit={handleCreateJob} className="space-y-4 text-xs">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-foreground block">Company Name *</label>
-                  <select 
-                    required
-                    value={selectedCompanyOption}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      setSelectedCompanyOption(val)
-                      if (val !== 'Other') {
-                        setNewJobData({ ...newJobData, company: val })
-                      } else {
-                        setNewJobData({ ...newJobData, company: customCompany })
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-muted/40 border border-border/50 rounded-xl text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
-                  >
-                    <option value="" disabled>-- Select Company --</option>
-                    {companyOptions.map((comp) => (
-                      <option key={comp} value={comp}>{comp}</option>
-                    ))}
-                    <option value="Other">+ Other (Custom Company)</option>
-                  </select>
-
-                  {selectedCompanyOption === 'Other' && (
+                  <label className="font-bold text-foreground block">Job Title *</label>
+                  <div className="relative">
+                    <Briefcase className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input 
                       type="text" 
                       required
-                      placeholder="Type custom company name..."
-                      value={customCompany}
-                      onChange={(e) => {
-                        setCustomCompany(e.target.value)
-                        setNewJobData({ ...newJobData, company: e.target.value })
-                      }}
-                      className="w-full px-3 py-2 mt-2 bg-muted/40 border border-border/50 rounded-xl text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-bold text-foreground block">Location</label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Bangalore / Remote"
-                      value={newJobData.location}
-                      onChange={(e) => setNewJobData({ ...newJobData, location: e.target.value })}
-                      className="w-full pl-9 pr-3 py-2 bg-muted/40 border border-border/50 rounded-xl text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      placeholder="e.g. Senior Frontend Engineer"
+                      value={newJobData.title}
+                      onChange={(e) => setNewJobData({ ...newJobData, title: e.target.value })}
+                      className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-foreground block">Company *</label>
+                    <div className="relative">
+                      <Building className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="e.g. Google, TCS"
+                        value={newJobData.company}
+                        onChange={(e) => setNewJobData({ ...newJobData, company: e.target.value })}
+                        className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-foreground block">Location</label>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Remote, Bangalore"
+                        value={newJobData.location}
+                        onChange={(e) => setNewJobData({ ...newJobData, location: e.target.value })}
+                        className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-foreground block">Type</label>
+                    <select 
+                      value={newJobData.type}
+                      onChange={(e) => setNewJobData({ ...newJobData, type: e.target.value })}
+                      className="w-full bg-background border border-border/50 rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    >
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Internship">Internship</option>
+                      <option value="Contract">Contract</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-foreground block">Salary / Stipend</label>
+                    <div className="relative">
+                      <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input 
+                        type="text" 
+                        placeholder="e.g. ₹12,00,000 / year"
+                        value={newJobData.salary}
+                        onChange={(e) => setNewJobData({ ...newJobData, salary: e.target.value })}
+                        className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
-                  <label className="font-bold text-foreground block">Job Type</label>
-                  <select 
-                    value={newJobData.type}
-                    onChange={(e) => setNewJobData({ ...newJobData, type: e.target.value })}
-                    className="w-full px-3 py-2 bg-muted/40 border border-border/50 rounded-xl text-foreground text-xs focus:outline-none cursor-pointer"
+                  <label className="font-bold text-foreground block">Job Description</label>
+                  <textarea 
+                    rows={4}
+                    placeholder="Provide responsibilities, requirements, and tech stack details..."
+                    value={newJobData.description}
+                    onChange={(e) => setNewJobData({ ...newJobData, description: e.target.value })}
+                    className="w-full bg-background border border-border/50 rounded-xl p-3 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3">
+                  <button 
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="px-4 py-2 border border-border/60 hover:bg-muted text-foreground font-semibold rounded-xl transition-all cursor-pointer"
                   >
-                    <option value="Full-time">Full-time</option>
-                    <option value="Internship">Internship</option>
-                    <option value="Part-time">Part-time</option>
-                    <option value="Contract">Contract</option>
-                  </select>
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-5 py-2 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all flex items-center gap-1.5 shadow-md shadow-primary/10 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save & Publish
+                  </button>
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-bold text-foreground block">Salary / Package</label>
-                  <div className="relative">
-                    <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input 
-                      type="text" 
-                      placeholder="e.g. ₹12,00,000 / year"
-                      value={newJobData.salary}
-                      onChange={(e) => setNewJobData({ ...newJobData, salary: e.target.value })}
-                      className="w-full pl-9 pr-3 py-2 bg-muted/40 border border-border/50 rounded-xl text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground block">Description</label>
-                <textarea 
-                  rows="3"
-                  placeholder="Job description, requirements, and responsibilities..."
-                  value={newJobData.description}
-                  onChange={(e) => setNewJobData({ ...newJobData, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-muted/40 border border-border/50 rounded-xl text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                ></textarea>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3 border-t border-border/40">
-                <button 
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 border border-border/60 hover:bg-muted text-foreground font-bold rounded-xl transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all flex items-center gap-1.5 shadow-md shadow-primary/10 disabled:opacity-50 cursor-pointer"
-                >
-                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save & Publish
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* View Details Modal */}
       {viewJobModal.isOpen && viewJobModal.job && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-          <div className="bg-card w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden border border-border/50">
-            <div className="flex items-center justify-between p-5 border-b border-border/50 bg-muted/20">
-              <h2 className="text-lg font-bold text-foreground">Job Details</h2>
-              <button 
-                onClick={() => setViewJobModal({ isOpen: false, job: null })}
-                className="p-1.5 hover:bg-muted rounded-full transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto space-y-6">
-              <div className="flex items-center gap-4">
-                <img 
-                  src={getCompanyLogo(viewJobModal.job.company, viewJobModal.job.companyLogo)} 
-                  alt={viewJobModal.job.company} 
-                  onError={(e) => handleImageError(e, viewJobModal.job.company)}
-                  className="w-16 h-16 rounded-xl object-contain bg-white p-2 border border-border/40 shrink-0 shadow-sm"
-                />
-                <div>
-                  <h3 className="text-2xl font-black text-foreground">{viewJobModal.job.title}</h3>
-                  <p className="text-lg font-medium text-foreground/80">{viewJobModal.job.company}</p>
-                </div>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+            <div className="bg-card w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden border border-border/50">
+              <div className="flex items-center justify-between p-5 border-b border-border/50 bg-muted/20">
+                <h2 className="text-lg font-bold text-foreground">Job Details</h2>
+                <button 
+                  onClick={() => setViewJobModal({ isOpen: false, job: null })}
+                  className="p-1.5 hover:bg-muted rounded-full transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                  <div className="flex items-center gap-2 text-muted-foreground mb-1"><MapPin className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Location</span></div>
-                  <p className="font-semibold text-foreground">{viewJobModal.job.location || 'Remote'}</p>
-                </div>
-                <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                  <div className="flex items-center gap-2 text-muted-foreground mb-1"><Briefcase className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Job Type</span></div>
-                  <p className="font-semibold text-foreground">{viewJobModal.job.type || 'Full-time'}</p>
-                </div>
-                <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                  <div className="flex items-center gap-2 text-muted-foreground mb-1"><DollarSign className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Salary</span></div>
-                  <p className="font-semibold text-foreground">{viewJobModal.job.salary || 'Not specified'}</p>
-                </div>
-                <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                  <div className="flex items-center gap-2 text-muted-foreground mb-1"><Building className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Posted On</span></div>
-                  <p className="font-semibold text-foreground">{viewJobModal.job.posted}</p>
-                </div>
-              </div>
-
-              {viewJobModal.job.description && (
-                <div>
-                  <h4 className="font-bold text-foreground mb-2">Description</h4>
-                  <div className="bg-muted/20 p-4 rounded-xl border border-border/30 text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                    {viewJobModal.job.description}
+              
+              <div className="p-6 overflow-y-auto space-y-6">
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={getCompanyLogo(viewJobModal.job.company, viewJobModal.job.companyLogo)} 
+                    alt={viewJobModal.job.company} 
+                    onError={(e) => handleImageError(e, viewJobModal.job.company)}
+                    className="w-16 h-16 rounded-xl object-contain bg-white p-2 border border-border/40 shrink-0 shadow-sm"
+                  />
+                  <div>
+                    <h3 className="text-2xl font-black text-foreground">{viewJobModal.job.title}</h3>
+                    <p className="text-lg font-medium text-foreground/80">{viewJobModal.job.company}</p>
                   </div>
                 </div>
-              )}
-            </div>
-            
-            <div className="p-4 border-t border-border/50 bg-muted/10 flex justify-end">
-              <button 
-                onClick={() => setViewJobModal({ isOpen: false, job: null })}
-                className="px-6 py-2 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all cursor-pointer shadow-md shadow-primary/10"
-              >
-                Close
-              </button>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1"><MapPin className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Location</span></div>
+                    <p className="font-semibold text-foreground">{viewJobModal.job.location || 'Remote'}</p>
+                  </div>
+                  <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1"><Briefcase className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Job Type</span></div>
+                    <p className="font-semibold text-foreground">{viewJobModal.job.type || 'Full-time'}</p>
+                  </div>
+                  <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1"><DollarSign className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Salary</span></div>
+                    <p className="font-semibold text-foreground">{viewJobModal.job.salary || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1"><Building className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Posted On</span></div>
+                    <p className="font-semibold text-foreground">{viewJobModal.job.posted}</p>
+                  </div>
+                </div>
+
+                {viewJobModal.job.description && (
+                  <div>
+                    <h4 className="font-bold text-foreground mb-2">Description</h4>
+                    <div className="bg-muted/20 p-4 rounded-xl border border-border/30 text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                      {viewJobModal.job.description}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-4 border-t border-border/50 bg-muted/10 flex justify-end">
+                <button 
+                  onClick={() => setViewJobModal({ isOpen: false, job: null })}
+                  className="px-6 py-2 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all cursor-pointer shadow-md shadow-primary/10"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Delete Confirmation Modal */}

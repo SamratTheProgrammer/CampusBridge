@@ -39,6 +39,7 @@ import {
 import API_BASE from '../../utils/api'
 import defaultPP from '../../assets/default_pp.png'
 import ShareModal from '../../components/modals/ShareModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
@@ -1239,109 +1240,72 @@ const DashboardHome = () => {
       {/* Right Column (Widgets) */}
       <div className="right-widget-col hidden lg:block md:col-span-3 space-y-6 md:h-full md:overflow-y-auto scrollbar-none pb-8 shrink-0">
         {/* Recommended Mentors */}
+        {/* Recommended Mentors */}
         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-foreground">Suggested Mentors</h3>
+            {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 2 && (
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {showAllMentors ? `${recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length} mentors` : ''}
+              </span>
+            )}
           </div>
-          <motion.div layout className={`flex flex-col gap-4 ${showAllMentors ? 'max-h-[260px] overflow-y-auto scrollbar-none' : ''}`}>
+          <div 
+            className={`flex flex-col gap-4 overscroll-contain custom-scrollbar ${
+              showAllMentors ? 'max-h-[340px] overflow-y-auto pr-1.5' : ''
+            }`}
+            onWheel={(e) => {
+              if (showAllMentors) {
+                e.stopPropagation();
+              }
+            }}
+          >
             {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 0 ? (
-              <>
-                {recommendedMentors
-                  .filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
-                  .slice(0, 2)
-                  .map(mentor => (
-                    <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start">
-                      <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="shrink-0">
-                        <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 hover:ring-2 hover:ring-primary/40 transition-all" />
-                      </Link>
-                      <div className="flex-1 min-w-0">
-                        <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
-                          {mentor.firstName} {mentor.lastName}
-                        </Link>
-                        <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{formatMentorSubtitle(mentor.headline, mentor.role)}</p>
-                        
-                        {connections[mentor.clerkId] === 'pending' ? (
-                          <button 
-                            onClick={() => handleCancelRequest(mentor.clerkId)}
-                            disabled={isConnecting === mentor.clerkId}
-                            className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted hover:bg-muted/80 px-3 py-1 rounded-full flex items-center gap-1 transition-colors group">
-                            {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : (
-                              <>
-                                <span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
-                                <span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
-                              </>
-                            )}
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={() => handleConnect(mentor.clerkId)}
-                            disabled={isConnecting === mentor.clerkId}
-                            className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
-                            {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
-                          </button>
+              (showAllMentors
+                ? recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
+                : recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').slice(0, 2)
+              ).map(mentor => (
+                <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start group">
+                  <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="shrink-0">
+                    <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 group-hover:ring-2 group-hover:ring-primary/40 transition-all" />
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
+                      {mentor.firstName} {mentor.lastName}
+                    </Link>
+                    <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{formatMentorSubtitle(mentor.headline, mentor.role)}</p>
+                    
+                    {connections[mentor.clerkId] === 'pending' ? (
+                      <button 
+                        onClick={() => handleCancelRequest(mentor.clerkId)}
+                        disabled={isConnecting === mentor.clerkId}
+                        className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted hover:bg-muted/80 px-3 py-1 rounded-full flex items-center gap-1 transition-colors group">
+                        {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : (
+                          <>
+                            <span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
+                            <span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
+                          </>
                         )}
-                      </div>
-                    </div>
-                  ))}
-                
-                <AnimatePresence>
-                  {showAllMentors && recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 2 && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                      className="overflow-hidden flex flex-col gap-4"
-                    >
-                      {recommendedMentors
-                        .filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
-                        .slice(2, 10)
-                        .map(mentor => (
-                          <div key={mentor._id || mentor.clerkId} className="flex gap-3 items-start">
-                            <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="shrink-0">
-                              <img src={mentor.imageUrl || getAvatarFallback(mentor.firstName + ' ' + mentor.lastName)} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 hover:ring-2 hover:ring-primary/40 transition-all" />
-                            </Link>
-                            <div className="flex-1 min-w-0">
-                              <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="font-semibold text-sm text-foreground leading-tight line-clamp-1 hover:text-primary transition-colors block">
-                                {mentor.firstName} {mentor.lastName}
-                              </Link>
-                              <p className="text-xs text-muted-foreground mt-0.5 mb-2 line-clamp-1">{formatMentorSubtitle(mentor.headline, mentor.role)}</p>
-                              
-                              {connections[mentor.clerkId] === 'pending' ? (
-                                <button 
-                                  onClick={() => handleCancelRequest(mentor.clerkId)}
-                                  disabled={isConnecting === mentor.clerkId}
-                                  className="text-xs font-medium text-muted-foreground border border-border/50 bg-muted hover:bg-muted/80 px-3 py-1 rounded-full flex items-center gap-1 transition-colors group">
-                                  {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : (
-                                    <>
-                                      <span className="hidden sm:flex sm:group-hover:hidden items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Request Sent</span>
-                                      <span className="flex sm:hidden sm:group-hover:flex items-center gap-1.5 text-red-500"><X className="w-3.5 h-3.5" /> Unsend</span>
-                                    </>
-                                  )}
-                                </button>
-                              ) : (
-                                <button 
-                                  onClick={() => handleConnect(mentor.clerkId)}
-                                  disabled={isConnecting === mentor.clerkId}
-                                  className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
-                                  {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleConnect(mentor.clerkId)}
+                        disabled={isConnecting === mentor.clerkId}
+                        className="text-xs font-medium text-primary border border-primary/20 hover:bg-primary/10 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
+                        {isConnecting === mentor.clerkId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Connect'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
             ) : (
               <p className="text-xs text-muted-foreground italic">No new mentor suggestions right now.</p>
             )}
-          </motion.div>
+          </div>
           {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 2 && (
             <button 
               onClick={() => setShowAllMentors(!showAllMentors)}
-              className="block w-full mt-4 text-xs font-semibold text-primary hover:underline transition-colors text-center"
+              className="block w-full mt-4 text-xs font-semibold text-primary hover:underline transition-colors text-center cursor-pointer"
             >
               {showAllMentors ? 'Show less' : 'See all'}
             </button>
@@ -1352,84 +1316,55 @@ const DashboardHome = () => {
         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-foreground">Recent Jobs</h3>
+            {recentJobs.length > 2 && (
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {showAllJobs ? `${recentJobs.length} jobs` : ''}
+              </span>
+            )}
           </div>
-          <motion.div layout className={`flex flex-col gap-3.5 ${showAllJobs ? 'max-h-[260px] overflow-y-auto scrollbar-none' : ''}`}>
+          <div 
+            className={`flex flex-col gap-3.5 overscroll-contain custom-scrollbar ${
+              showAllJobs ? 'max-h-[340px] overflow-y-auto pr-1.5' : ''
+            }`}
+            onWheel={(e) => {
+              if (showAllJobs) {
+                e.stopPropagation();
+              }
+            }}
+          >
             {recentJobs.length > 0 ? (
-              <>
-                {recentJobs
-                  .slice(0, 2)
-                  .map(job => {
-                  const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
-                  return (
-                    <Link key={job._id || job.id} to="/dashboard/jobs" className="group flex items-start gap-3 cursor-pointer">
-                      <img 
-                        src={getCompanyLogo(companyName, job.companyLogo)} 
-                        alt={companyName}
-                        onError={(e) => handleImageError(e, companyName)}
-                        className="w-12 h-12 rounded-xl object-contain bg-muted/60 p-1.5 border border-border/50 shrink-0 shadow-sm"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
-                          {job.title}
-                        </h4>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {companyName} • {job.location || 'Remote'}
-                        </p>
-                        <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                          {job.createdAt ? formatTime(job.createdAt) : 'Recently posted'}
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })}
-
-                <AnimatePresence>
-                  {showAllJobs && recentJobs.length > 2 && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                      className="overflow-hidden flex flex-col gap-3.5"
-                    >
-                      {recentJobs
-                        .slice(2, 10)
-                        .map(job => {
-                        const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
-                        return (
-                          <Link key={job._id || job.id} to="/dashboard/jobs" className="group flex items-start gap-3 cursor-pointer">
-                            <img 
-                              src={getCompanyLogo(companyName, job.companyLogo)} 
-                              alt={companyName}
-                              onError={(e) => handleImageError(e, companyName)}
-                              className="w-12 h-12 rounded-xl object-contain bg-muted/60 p-1.5 border border-border/50 shrink-0 shadow-sm"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
-                                {job.title}
-                              </h4>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {companyName} • {job.location || 'Remote'}
-                              </p>
-                              <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                                {job.createdAt ? formatTime(job.createdAt) : 'Recently posted'}
-                              </span>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
+              (showAllJobs ? recentJobs : recentJobs.slice(0, 2)).map(job => {
+                const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
+                return (
+                  <Link key={job._id || job.id} to="/dashboard/jobs" className="group flex items-start gap-3 cursor-pointer">
+                    <img 
+                      src={getCompanyLogo(companyName, job.companyLogo)} 
+                      alt={companyName}
+                      onError={(e) => handleImageError(e, companyName)}
+                      className="w-12 h-12 rounded-xl object-contain bg-muted/60 p-1.5 border border-border/50 shrink-0 shadow-sm"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
+                        {job.title}
+                      </h4>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {companyName} • {job.location || 'Remote'}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                        {job.createdAt ? formatTime(job.createdAt) : 'Recently posted'}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })
             ) : (
               <p className="text-xs text-muted-foreground italic">No recent job postings.</p>
             )}
-          </motion.div>
+          </div>
           {recentJobs.length > 2 && (
             <button 
               onClick={() => setShowAllJobs(!showAllJobs)}
-              className="block w-full mt-4 text-xs font-semibold text-primary hover:underline transition-colors text-center"
+              className="block w-full mt-4 text-xs font-semibold text-primary hover:underline transition-colors text-center cursor-pointer"
             >
               {showAllJobs ? 'Show less' : 'See all'}
             </button>
@@ -1445,7 +1380,8 @@ const DashboardHome = () => {
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {postToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <ModalPortal>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1475,13 +1411,15 @@ const DashboardHome = () => {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
 
       {/* Likes Modal */}
       <AnimatePresence>
         {likesModalPost && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setLikesModalPost(null)}>
+          <ModalPortal>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setLikesModalPost(null)}>
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1519,6 +1457,7 @@ const DashboardHome = () => {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
 
@@ -1545,7 +1484,8 @@ const DashboardHome = () => {
       {/* Event Details Modal */}
       <AnimatePresence>
         {isEventModalOpen && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <ModalPortal>
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1879,13 +1819,15 @@ const DashboardHome = () => {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
 
       {/* Job Attachment Modal */}
       <AnimatePresence>
         {isJobModalOpen && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <ModalPortal>
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2153,6 +2095,7 @@ const DashboardHome = () => {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
 

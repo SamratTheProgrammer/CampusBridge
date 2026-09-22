@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 
@@ -363,7 +364,8 @@ const AdminPosts = () => {
 
       {/* Post Details & Media Inspection Modal */}
       {selectedPostDetails && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border/60 rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-5 relative animate-in fade-in zoom-in duration-200">
             <button 
               onClick={() => setSelectedPostDetails(null)}
@@ -615,6 +617,7 @@ const AdminPosts = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   )

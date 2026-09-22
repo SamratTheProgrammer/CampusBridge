@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import Post from '../models/Post.js';
 import User from '../models/User.js';
 import { createNotificationHelper } from './notificationRoutes.js';
+import { escapeRegex } from '../utils/regexHelper.js';
+import { verifyAdminToken } from '../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -54,8 +56,17 @@ router.get('/', async (req, res) => {
   try {
     const { userId, admin_override } = req.query;
     
-    let query = { moderationStatus: { $ne: 'deleted' } };
+    let isAdmin = false;
     if (admin_override === 'true') {
+      const authHeader = req.headers.authorization || req.headers['x-admin-token'];
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader?.trim();
+      if (token && verifyAdminToken(token)) {
+        isAdmin = true;
+      }
+    }
+
+    let query = { moderationStatus: { $ne: 'deleted' } };
+    if (isAdmin) {
       // Admin sees everything except deleted (handled above)
     } else if (userId) {
       query = {
@@ -460,10 +471,11 @@ router.post('/:id/comment', async (req, res) => {
     try {
       if (content.startsWith('@')) {
         const mentionedName = content.split(' ')[0].substring(1);
+        const safeMentioned = escapeRegex(mentionedName);
         const mentionedUser = await User.findOne({ 
           $or: [
-            { firstName: new RegExp(`^${mentionedName}$`, 'i') },
-            { username: new RegExp(`^${mentionedName}$`, 'i') }
+            { firstName: new RegExp(`^${safeMentioned}$`, 'i') },
+            { username: new RegExp(`^${safeMentioned}$`, 'i') }
           ]
         });
         
@@ -540,10 +552,11 @@ router.post('/:id/comment/:commentId/reply', async (req, res) => {
     try {
       if (content.startsWith('@')) {
         const mentionedName = content.split(' ')[0].substring(1);
+        const safeMentioned = escapeRegex(mentionedName);
         const mentionedUser = await User.findOne({ 
           $or: [
-            { firstName: new RegExp(`^${mentionedName}$`, 'i') },
-            { username: new RegExp(`^${mentionedName}$`, 'i') }
+            { firstName: new RegExp(`^${safeMentioned}$`, 'i') },
+            { username: new RegExp(`^${safeMentioned}$`, 'i') }
           ]
         });
         
@@ -727,8 +740,8 @@ router.delete('/:id', async (req, res) => {
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
     const authorClerkId = req.body?.authorClerkId || req.query?.authorClerkId;
-    if (authorClerkId && post.authorClerkId !== authorClerkId) {
-      return res.status(403).json({ message: 'Unauthorized' });
+    if (!authorClerkId || post.authorClerkId !== authorClerkId) {
+      return res.status(403).json({ message: 'Unauthorized: You can only delete your own posts' });
     }
 
     await Post.findByIdAndDelete(req.params.id);

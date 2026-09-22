@@ -3,6 +3,7 @@ import Connection from '../models/Connection.js';
 import User from '../models/User.js';
 import Mentor from '../models/Mentor.js';
 import { createNotificationHelper } from './notificationRoutes.js';
+import { escapeRegex } from '../utils/regexHelper.js';
 
 const router = express.Router();
 
@@ -286,7 +287,7 @@ router.get('/discover/:clerkId', async (req, res) => {
     };
 
     if (q && q.trim()) {
-      const regex = new RegExp(q.trim(), 'i');
+      const regex = new RegExp(escapeRegex(q.trim()), 'i');
       query.$or = [
         { firstName: regex },
         { lastName: regex },

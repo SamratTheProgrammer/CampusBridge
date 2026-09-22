@@ -76,6 +76,7 @@ import AdminEvents from './pages/admin/AdminEvents'
 import AdminPosts from './pages/admin/AdminPosts'
 import AdminSupportMessages from './pages/admin/AdminSupportMessages'
 import AdminSettings from './pages/admin/AdminSettings'
+import AdminAnnouncements from './pages/admin/AdminAnnouncements'
 
 import ProtectedRoute from './components/ProtectedRoute'
 import SharedItemViewer from './components/SharedItemViewer'
@@ -192,7 +193,7 @@ function AnimatedRoutes() {
         {/* Admin Routes */}
         <Route path="/admin/login" element={<PageTransition><AdminLogin /></PageTransition>} />
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-          <Route path="/admin" element={<PageTransition><AdminLayout /></PageTransition>}>
+          <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUserManagement />} />
             <Route path="users/:username" element={<ProfileDispatcher />} />
@@ -202,6 +203,7 @@ function AnimatedRoutes() {
             <Route path="companies" element={<AdminCompanies />} />
             <Route path="events" element={<AdminEvents />} />
             <Route path="posts" element={<AdminPosts />} />
+            <Route path="announcements" element={<AdminAnnouncements />} />
             <Route path="messages" element={<AdminSupportMessages />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />

@@ -10,6 +10,7 @@ import { X, Upload, Link as LinkIcon, FileText } from 'lucide-react'
 import emailjs from '@emailjs/browser'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import API_BASE from '../../utils/api'
+import ModalPortal from '../../components/modals/ModalPortal'
 
 const JobDetails = () => {
   const { id } = useParams()
@@ -402,7 +403,8 @@ const JobDetails = () => {
       {/* Apply Modal */}
       <AnimatePresence>
         {isApplyModalOpen && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <ModalPortal>
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -522,7 +524,8 @@ const JobDetails = () => {
                 </div>
               </form>
             </motion.div>
-          </div>
+            </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
     </div>

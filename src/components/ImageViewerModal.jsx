@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import AutoPlayVideo from './AutoPlayVideo';
+import ModalPortal from './modals/ModalPortal';
 
 const optimizeUrl = (url) => {
   if (url && url.includes('cloudinary.com') && url.includes('/upload/')) {
@@ -48,10 +49,11 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
   return (
     <AnimatePresence>
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/95 backdrop-blur-sm cursor-zoom-out"
-          onClick={onClose}
-        >
+        <ModalPortal>
+          <div 
+            className="fixed inset-0 z-[250] flex items-center justify-center bg-black/95 backdrop-blur-sm cursor-zoom-out"
+            onClick={onClose}
+          >
           <button 
             className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-20"
             onClick={onClose}
@@ -116,6 +118,7 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
             )}
           </div>
         </div>
+        </ModalPortal>
       )}
     </AnimatePresence>
   );

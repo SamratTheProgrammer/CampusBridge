@@ -1,21 +1,22 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, X, UserPlus } from 'lucide-react'
+import ModalPortal from './ModalPortal'
 
 const MessageAlertModal = ({ isOpen, onClose, onConnect }) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <ModalPortal>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            style={{ zIndex: 100 }}
+            style={{ zIndex: 200 }}
           />
-          <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none" style={{ zIndex: 101 }}>
+          <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none" style={{ zIndex: 201 }}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -58,7 +59,7 @@ const MessageAlertModal = ({ isOpen, onClose, onConnect }) => {
               </div>
             </motion.div>
           </div>
-        </>
+        </ModalPortal>
       )}
     </AnimatePresence>
   )

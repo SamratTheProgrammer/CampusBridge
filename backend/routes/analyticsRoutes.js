@@ -7,6 +7,7 @@ import Post from '../models/Post.js';
 import Job from '../models/Job.js';
 import Review from '../models/Review.js';
 import Connection from '../models/Connection.js';
+import { escapeRegex } from '../utils/regexHelper.js';
 
 const router = express.Router();
 
@@ -51,7 +52,7 @@ router.get('/mentor/:clerkId', async (req, res) => {
       user = await User.findById(clerkId);
     }
     if (!user) {
-      user = await User.findOne({ username: { $regex: new RegExp(`^${clerkId}$`, 'i') } });
+      user = await User.findOne({ username: { $regex: new RegExp(`^${escapeRegex(clerkId)}$`, 'i') } });
     }
     if (!user && clerkId.includes('@')) {
       user = await User.findOne({ email: clerkId.toLowerCase().trim() });

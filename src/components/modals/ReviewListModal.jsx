@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
+import ModalPortal from './ModalPortal';
 
 const ReviewListModal = ({ isOpen, onClose, reviews: initialReviews, title, type = 'mentor', mentorId, onAddReview, onReviewUpdated }) => {
   const { user } = useUser();
@@ -60,7 +61,8 @@ const ReviewListModal = ({ isOpen, onClose, reviews: initialReviews, title, type
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-card text-card-foreground rounded-2xl border border-border/50 w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         <div className="p-3 sm:p-4 border-b border-border/50 flex justify-between items-center bg-muted/30">
           <div className="flex-1 flex justify-between items-center mr-2 sm:mr-4">
@@ -177,7 +179,8 @@ const ReviewListModal = ({ isOpen, onClose, reviews: initialReviews, title, type
         </div>
       </div>
     </div>
-  );
+  </ModalPortal>
+);
 };
 
 export default ReviewListModal;

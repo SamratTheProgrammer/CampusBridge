@@ -8,6 +8,7 @@ import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import ImageCropModal from '../../components/ImageCropModal'
 import API_BASE from '../../utils/api'
 
@@ -686,7 +687,8 @@ const MentorSessions = () => {
 
       {/* Create Session Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-foreground">
@@ -831,11 +833,13 @@ const MentorSessions = () => {
             )}
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* View Registered Students Modal */}
       {isApplicationsModalOpen && selectedSession && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-xl shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <div className="flex justify-between items-start mb-6">
               <div>
@@ -888,11 +892,13 @@ const MentorSessions = () => {
             )}
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Accept Session Modal */}
       {isAcceptModalOpen && sessionToAccept && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-foreground">Provide Meeting URL</h2>
@@ -926,11 +932,13 @@ const MentorSessions = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Edit Session Modal */}
       {isEditModalOpen && selectedSession && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-foreground">Edit Session</h2>
@@ -1035,6 +1043,7 @@ const MentorSessions = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       <ConfirmModal

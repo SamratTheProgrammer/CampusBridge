@@ -147,7 +147,17 @@ router.get('/conversations/:clerkId', async (req, res) => {
 router.get('/:conversationId', async (req, res) => {
   try {
     const { userId } = req.query;
-    let query = { conversationId: req.params.conversationId };
+    const { conversationId } = req.params;
+
+    // Validate that the requester belongs to this conversation
+    const participants = conversationId.split('_');
+    if (participants.length === 2) {
+      if (!userId || !participants.includes(userId)) {
+        return res.status(403).json({ message: 'Forbidden: You are not a participant in this conversation' });
+      }
+    }
+
+    let query = { conversationId };
     if (userId) {
       query.deletedFor = { $ne: userId };
     }

@@ -4,13 +4,7 @@ import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 
 const AdminNotifications = () => {
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'New Career Fair Alert', audience: 'Students', type: 'In-App', sent: 'May 28, 2026', status: 'Sent' },
-    { id: 2, title: 'AI Workshop Reminder', audience: 'All Users', type: 'Email', sent: 'May 27, 2026', status: 'Sent' },
-    { id: 3, title: 'New Job Opportunities', audience: 'Mentor', type: 'In-App', sent: 'May 26, 2026', status: 'Sent' },
-    { id: 4, title: 'Platform Maintenance', audience: 'All Users', type: 'In-App', sent: 'May 25, 2026', status: 'Scheduled' },
-    { id: 5, title: 'Mentorship Program Update', audience: 'Students', type: 'Email', sent: 'May 24, 2026', status: 'Sent' },
-  ])
+  const [notifications, setNotifications] = useState([])
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -72,36 +66,44 @@ const AdminNotifications = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 text-sm">
-              {notifications.map((n) => (
-                <tr key={n.id} className="hover:bg-muted/10 transition-colors">
-                  <td className="px-6 py-4 font-bold text-foreground flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-primary shrink-0" />
-                    {n.title}
-                  </td>
-                  <td className="px-6 py-4 text-foreground">{n.audience}</td>
-                  <td className="px-6 py-4 text-muted-foreground font-medium">{n.type}</td>
-                  <td className="px-6 py-4 text-muted-foreground">{n.sent}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      n.status === 'Sent' 
-                        ? 'bg-emerald-500/10 text-emerald-500' 
-                        : 'bg-amber-500/10 text-amber-500'
-                    }`}>
-                      {n.status === 'Sent' ? <Check className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                      {n.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => confirmDelete(n.id, n.title)}
-                      className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
-                      title="Delete Notification"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+              {notifications.length > 0 ? (
+                notifications.map((n) => (
+                  <tr key={n.id} className="hover:bg-muted/10 transition-colors">
+                    <td className="px-6 py-4 font-bold text-foreground flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-primary shrink-0" />
+                      {n.title}
+                    </td>
+                    <td className="px-6 py-4 text-foreground">{n.audience}</td>
+                    <td className="px-6 py-4 text-muted-foreground font-medium">{n.type}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{n.sent}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        n.status === 'Sent' 
+                          ? 'bg-emerald-500/10 text-emerald-500' 
+                          : 'bg-amber-500/10 text-amber-500'
+                      }`}>
+                        {n.status === 'Sent' ? <Check className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                        {n.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => confirmDelete(n.id, n.title)}
+                        className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
+                        title="Delete Notification"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center text-muted-foreground">
+                    No notifications created yet.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

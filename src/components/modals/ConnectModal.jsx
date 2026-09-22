@@ -1,11 +1,13 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserPlus, X } from 'lucide-react'
+import ModalPortal from './ModalPortal'
 
 const ConnectModal = ({ isOpen, onClose, onConnect, mentorName }) => {
   return (
-    <AnimatePresence>
-      {isOpen && (
+    <ModalPortal>
+      <AnimatePresence>
+        {isOpen && (
         <>
           <motion.div
             initial={{ opacity: 0 }}
@@ -56,7 +58,8 @@ const ConnectModal = ({ isOpen, onClose, onConnect, mentorName }) => {
         </>
       )}
     </AnimatePresence>
-  )
+  </ModalPortal>
+)
 }
 
 export default ConnectModal

@@ -4,6 +4,7 @@ import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../../utils/api';
 import { formatRoleSubtitle } from '../../utils/textFormatters';
+import ModalPortal from './ModalPortal';
 
 const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) => {
   const { user } = useUser();
@@ -105,10 +106,11 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) =
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-4 border-b border-border/50">
-          <h2 className="text-lg font-bold">Share {shareType.charAt(0).toUpperCase() + shareType.slice(1)}</h2>
+    <ModalPortal>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between p-4 border-b border-border/50">
+            <h2 className="text-lg font-bold">Share {shareType.charAt(0).toUpperCase() + shareType.slice(1)}</h2>
           <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -226,7 +228,8 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) =
         </div>
       </div>
     </div>
-  );
+  </ModalPortal>
+);
 };
 
 export default ShareModal;

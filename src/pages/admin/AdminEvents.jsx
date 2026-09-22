@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Edit3, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2, Search, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
 
@@ -452,21 +453,22 @@ const AdminEvents = () => {
 
       {/* Modal for Create / Edit Event */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-card border border-border/50 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] my-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-border/50 flex justify-between items-center shrink-0 bg-card">
-              <h2 className="text-xl font-bold text-foreground">
-                {editingEvent ? 'Edit Event' : 'Create New Event'}
-              </h2>
-              <button 
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:bg-muted p-1.5 rounded-lg transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-card border border-border/50 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] my-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-border/50 flex justify-between items-center shrink-0 bg-card">
+                <h2 className="text-xl font-bold text-foreground">
+                  {editingEvent ? 'Edit Event' : 'Create New Event'}
+                </h2>
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-muted-foreground hover:bg-muted p-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -650,99 +652,102 @@ const AdminEvents = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* View Details Modal */}
       {viewEventModal.isOpen && viewEventModal.event && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-          <div className="bg-card w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden border border-border/50">
-            <div className="flex items-center justify-between p-5 border-b border-border/50 bg-muted/20 shrink-0">
-              <h2 className="text-lg font-bold text-foreground">Event Details</h2>
-              <button 
-                onClick={() => setViewEventModal({ isOpen: false, event: null })}
-                className="p-1.5 hover:bg-muted rounded-full transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-            
-            <div className="p-0 overflow-y-auto flex-1">
-              {/* Event Banner */}
-              {viewEventModal.event.imageUrl && (
-                <div className="w-full h-48 bg-muted shrink-0 relative border-b border-border/30">
-                  <img 
-                    src={viewEventModal.event.imageUrl} 
-                    alt={viewEventModal.event.title} 
-                    className="w-full h-full object-cover" 
-                  />
-                  <div className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-full text-3xl leading-none shadow-sm">📅</div>
-                </div>
-              )}
-
-              <div className="p-6 space-y-6">
-                <div>
-                  <h3 className="text-3xl font-black text-foreground leading-tight">{viewEventModal.event.title}</h3>
-                  <div className="flex items-center gap-2 mt-3">
-                    <span className="inline-block text-xs uppercase font-bold tracking-wider bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
-                      {viewEventModal.event.type || 'Event'}
-                    </span>
-                    <span className={`inline-block text-xs uppercase font-bold tracking-wider px-3 py-1 rounded-full border ${viewEventModal.event.mode === 'Offline' || (!viewEventModal.event.mode && viewEventModal.event.location) ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-sky-500/10 text-sky-500 border-sky-500/20'}`}>
-                      {viewEventModal.event.mode === 'Offline' || (!viewEventModal.event.mode && viewEventModal.event.location) ? 'Offline' : 'Online'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-1"><Calendar className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Date & Time</span></div>
-                    <p className="font-semibold text-foreground">
-                      {viewEventModal.event.date ? new Date(viewEventModal.event.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
-                      {viewEventModal.event.time ? ` at ${viewEventModal.event.time}` : ''}
-                    </p>
-                  </div>
-                  <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-1"><MapPin className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Location / Link</span></div>
-                    <p className="font-semibold text-foreground truncate" title={viewEventModal.event.location || viewEventModal.event.link}>{viewEventModal.event.location || viewEventModal.event.link || 'TBD'}</p>
-                  </div>
-                </div>
-
-                <div className="bg-muted/20 p-5 rounded-xl border border-border/40 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 shrink-0 flex items-center justify-center">
-                    {viewEventModal.event.organizer?.imageUrl ? (
-                      <img src={viewEventModal.event.organizer.imageUrl} alt="Host" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="font-bold text-primary text-xl">
-                        {(viewEventModal.event.organizer?.name || 'M')[0].toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-0.5">Hosted By</p>
-                    <p className="font-bold text-foreground text-lg">{viewEventModal.event.organizer?.name || 'CampusBridge Mentor'}</p>
-                  </div>
-                </div>
-
-                {viewEventModal.event.description && (
-                  <div>
-                    <h4 className="font-bold text-foreground mb-2">About Event</h4>
-                    <div className="bg-muted/10 p-4 rounded-xl border border-border/20 text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                      {viewEventModal.event.description}
-                    </div>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+            <div className="bg-card w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden border border-border/50">
+              <div className="flex items-center justify-between p-5 border-b border-border/50 bg-muted/20 shrink-0">
+                <h2 className="text-lg font-bold text-foreground">Event Details</h2>
+                <button 
+                  onClick={() => setViewEventModal({ isOpen: false, event: null })}
+                  className="p-1.5 hover:bg-muted rounded-full transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
+              </div>
+              
+              <div className="p-0 overflow-y-auto flex-1">
+                {/* Event Banner */}
+                {viewEventModal.event.imageUrl && (
+                  <div className="w-full h-48 bg-muted shrink-0 relative border-b border-border/30">
+                    <img 
+                      src={viewEventModal.event.imageUrl} 
+                      alt={viewEventModal.event.title} 
+                      className="w-full h-full object-cover" 
+                    />
+                    <div className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-full text-3xl leading-none shadow-sm">📅</div>
                   </div>
                 )}
+
+                <div className="p-6 space-y-6">
+                  <div>
+                    <h3 className="text-3xl font-black text-foreground leading-tight">{viewEventModal.event.title}</h3>
+                    <div className="flex items-center gap-2 mt-3">
+                      <span className="inline-block text-xs uppercase font-bold tracking-wider bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
+                        {viewEventModal.event.type || 'Event'}
+                      </span>
+                      <span className={`inline-block text-xs uppercase font-bold tracking-wider px-3 py-1 rounded-full border ${viewEventModal.event.mode === 'Offline' || (!viewEventModal.event.mode && viewEventModal.event.location) ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-sky-500/10 text-sky-500 border-sky-500/20'}`}>
+                        {viewEventModal.event.mode === 'Offline' || (!viewEventModal.event.mode && viewEventModal.event.location) ? 'Offline' : 'Online'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1"><Calendar className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Date & Time</span></div>
+                      <p className="font-semibold text-foreground">
+                        {viewEventModal.event.date ? new Date(viewEventModal.event.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                        {viewEventModal.event.time ? ` at ${viewEventModal.event.time}` : ''}
+                      </p>
+                    </div>
+                    <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1"><MapPin className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Location / Link</span></div>
+                      <p className="font-semibold text-foreground truncate" title={viewEventModal.event.location || viewEventModal.event.link}>{viewEventModal.event.location || viewEventModal.event.link || 'TBD'}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/20 p-5 rounded-xl border border-border/40 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 shrink-0 flex items-center justify-center">
+                      {viewEventModal.event.organizer?.imageUrl ? (
+                        <img src={viewEventModal.event.organizer.imageUrl} alt="Host" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-bold text-primary text-xl">
+                          {(viewEventModal.event.organizer?.name || 'M')[0].toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-0.5">Hosted By</p>
+                      <p className="font-bold text-foreground text-lg">{viewEventModal.event.organizer?.name || 'CampusBridge Mentor'}</p>
+                    </div>
+                  </div>
+
+                  {viewEventModal.event.description && (
+                    <div>
+                      <h4 className="font-bold text-foreground mb-2">About Event</h4>
+                      <div className="bg-muted/10 p-4 rounded-xl border border-border/20 text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                        {viewEventModal.event.description}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-4 border-t border-border/50 bg-muted/10 flex justify-end shrink-0">
+                <button 
+                  onClick={() => setViewEventModal({ isOpen: false, event: null })}
+                  className="px-6 py-2 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all cursor-pointer shadow-md shadow-primary/10"
+                >
+                  Close
+                </button>
               </div>
             </div>
-            
-            <div className="p-4 border-t border-border/50 bg-muted/10 flex justify-end shrink-0">
-              <button 
-                onClick={() => setViewEventModal({ isOpen: false, event: null })}
-                className="px-6 py-2 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all cursor-pointer shadow-md shadow-primary/10"
-              >
-                Close
-              </button>
-            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <RemarkModal

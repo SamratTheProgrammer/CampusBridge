@@ -11,6 +11,7 @@ import { useUser } from '@clerk/clerk-react'
 import PostComments from '../../components/PostComments'
 import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import defaultPP from '../../assets/default_pp.png'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
@@ -932,7 +933,8 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
 
       {/* Connect Modal */}
       {isConnectModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-2xl w-full max-w-md p-6 shadow-xl relative">
             <h2 className="text-xl font-bold text-foreground mb-2">Connect with {student.firstName || student.name}</h2>
             <p className="text-sm text-muted-foreground mb-4">
@@ -962,6 +964,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     {/* Lightbox / Image Viewer */}

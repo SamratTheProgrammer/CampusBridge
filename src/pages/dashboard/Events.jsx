@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import ShareModal from '../../components/modals/ShareModal'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ReviewModal from '../../components/modals/ReviewModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import { Star } from 'lucide-react'
 
 const EventRatingBadge = ({ eventId, onClick }) => {
@@ -385,12 +386,13 @@ const Events = () => {
 
       <AnimatePresence>
         {showRegisterModal && selectedEvent && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
-          >
+          <ModalPortal>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+            >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -476,6 +478,7 @@ const Events = () => {
               </div>
             </motion.div>
           </motion.div>
+          </ModalPortal>
         )}
       </AnimatePresence>
       <ShareModal

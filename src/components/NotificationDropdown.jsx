@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User, ArrowLeft, Volume2, AlertTriangle } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { socket } from '../services/socket';
 import { ringtoneService } from '../utils/ringtone';
 import toast from 'react-hot-toast';
 import API_BASE from '../utils/api'
 import { formatTime } from '../utils/dateFormatter'
+import ModalPortal from './modals/ModalPortal'
 
 const NotificationDropdown = () => {
   const { user } = useUser();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -162,8 +164,28 @@ const NotificationDropdown = () => {
     }
   };
 
-  const navigateNotification = (link) => {
+  const navigateNotification = (link, notificationItem = null) => {
     if (!link) return;
+    
+    // Check if link opens a shared modal item (post, job, event)
+    const hasItemParam = link.includes('post=') || link.includes('job=') || link.includes('event=');
+    if (hasItemParam) {
+      const queryIndex = link.indexOf('?');
+      const search = queryIndex !== -1 ? link.substring(queryIndex) : (link.startsWith('?') ? link : `?${link}`);
+      
+      // Navigate on the CURRENT page's pathname so the background page NEVER reloads or unmounts.
+      // SharedItemViewer is a global component and will immediately open over the current page.
+      navigate(`${location.pathname}${search}`, { state: { _ts: Date.now() } });
+      return;
+    }
+
+    // If it's a generic dashboard link with no item query, avoid reloading if already on a dashboard page
+    if (link === '/dashboard' || link === '/mentor-dashboard') {
+      if (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/mentor-dashboard')) {
+        return;
+      }
+    }
+
     let targetLink = link;
     const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
     if ((userRole === 'mentor' || userRole === 'alumni') && targetLink.startsWith('/dashboard')) {
@@ -172,8 +194,6 @@ const NotificationDropdown = () => {
       targetLink = targetLink.replace('/mentor-dashboard', '/dashboard');
     }
     
-    // Navigate directly. React Router will handle the search parameter changes natively,
-    // and SharedItemViewer will pick up the new ?post= query automatically.
     navigate(targetLink, { state: { _ts: Date.now() } });
   };
 
@@ -202,7 +222,7 @@ const NotificationDropdown = () => {
             onClick={() => {
               toast.dismiss(t.id);
               setIsOpen(false);
-              navigateNotification(notification.link);
+              navigateNotification(notification.link, notification);
             }}
             className={`${
               t.visible ? 'animate-in slide-in-from-top-3 fade-in duration-300' : 'animate-out slide-out-to-top-3 fade-out duration-200'
@@ -348,7 +368,7 @@ const NotificationDropdown = () => {
 
     setIsOpen(false);
     if (n.link) {
-      navigateNotification(n.link);
+      navigateNotification(n.link, n);
     }
   };
 
@@ -576,7 +596,8 @@ const NotificationDropdown = () => {
 
       {/* Warning Modal */}
       {warningModal.isOpen && warningModal.notification && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-border/50 animate-in zoom-in-95 duration-200 relative">
             <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500"></div>
             <div className="p-6">
@@ -612,6 +633,7 @@ const NotificationDropdown = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

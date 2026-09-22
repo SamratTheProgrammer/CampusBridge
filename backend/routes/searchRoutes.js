@@ -2,6 +2,7 @@ import express from 'express';
 import User from '../models/User.js';
 import Event from '../models/Event.js';
 import Job from '../models/Job.js';
+import { escapeRegex } from '../utils/regexHelper.js';
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ message: 'Search query must be at least 2 characters long.' });
     }
 
-    const regex = new RegExp(q, 'i');
+    const regex = new RegExp(escapeRegex(q.trim()), 'i');
 
     // Run searches in parallel
     const [users, events, jobs] = await Promise.all([

@@ -10,6 +10,7 @@ import AutoPlayVideo from './AutoPlayVideo';
 import PostComments from './PostComments';
 import ShareModal from './modals/ShareModal';
 import ImageViewerModal from './ImageViewerModal';
+import ModalPortal from './modals/ModalPortal';
 import { socket } from '../services/socket';
 
 const optimizeUrl = (url) => {
@@ -32,10 +33,13 @@ const SharedItemViewer = () => {
   const commentId = searchParams.get('comment');
   const replyId = searchParams.get('reply');
 
-  const [itemType, setItemType] = useState(null);
-  const [itemId, setItemId] = useState(null);
-  const [data, setData] = useState(null);
+  // Derive itemType and itemId synchronously from search parameters
+  const itemType = postId ? 'post' : jobId ? 'job' : eventId ? 'event' : null;
+  const itemId = postId || jobId || eventId || null;
+
+  const [data, setData] = useState(location.state?.postData || null);
   const [loading, setLoading] = useState(false);
+  const isLoading = loading || (!!itemId && !data);
 
   const [editingPostId, setEditingPostId] = useState(null);
   const [editContent, setEditContent] = useState('');
@@ -61,29 +65,6 @@ const SharedItemViewer = () => {
     }
     return formatDistanceToNow(dateObj, { addSuffix: true });
   };
-
-  useEffect(() => {
-    if (postId) {
-      setItemType('post');
-      setItemId(postId);
-      if (location.state?.postData) setData(location.state.postData);
-      // Auto-open mobile comments bottom sheet when navigating from a comment notification
-      if (commentId || replyId) {
-        setIsMobileCommentsOpen(true);
-      }
-    } else if (jobId) {
-      setItemType('job');
-      setItemId(jobId);
-    } else if (eventId) {
-      setItemType('event');
-      setItemId(eventId);
-    } else {
-      setItemType(null);
-      setItemId(null);
-      setData(null);
-      setIsMobileCommentsOpen(false);
-    }
-  }, [postId, jobId, eventId, commentId, replyId, location.state]);
 
   const fetchData = async (silent = false) => {
     if (!itemType || !itemId) return;
@@ -114,10 +95,21 @@ const SharedItemViewer = () => {
   };
 
   useEffect(() => {
-    const hasInitialData = !!location.state?.postData;
-    fetchData(hasInitialData);
-    setCurrentMediaIndex(0);
-  }, [itemType, itemId]);
+    if (itemId && itemType) {
+      const hasInitialData = !!location.state?.postData;
+      if (hasInitialData) {
+        setData(location.state.postData);
+      }
+      fetchData(hasInitialData);
+      setCurrentMediaIndex(0);
+      if (commentId || replyId) {
+        setIsMobileCommentsOpen(true);
+      }
+    } else {
+      setData(null);
+      setIsMobileCommentsOpen(false);
+    }
+  }, [itemType, itemId, commentId, replyId, location.state]);
 
   // Real-time synchronization for the currently open shared item/modal
   useEffect(() => {
@@ -312,9 +304,11 @@ const SharedItemViewer = () => {
   };
 
   const closeModal = () => {
-    // Remove the query parameter from the URL, keeping the path intact
+    // Remove the query parameters from the URL, keeping the pathname intact
     const params = new URLSearchParams(searchParams);
-    if (itemType) params.delete(itemType);
+    params.delete('post');
+    params.delete('job');
+    params.delete('event');
     params.delete('comment');
     params.delete('reply');
     const newSearch = params.toString() ? `?${params.toString()}` : '';
@@ -324,7 +318,8 @@ const SharedItemViewer = () => {
   if (!itemType || !itemId) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black md:bg-black/80 md:backdrop-blur-sm md:p-4 animate-in fade-in duration-200">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black md:bg-black/80 md:backdrop-blur-sm md:p-4 animate-in fade-in duration-200">
       <div
         className="absolute inset-0 md:relative bg-card w-full md:w-max md:max-w-[95vw] h-[100dvh] md:h-[90vh] rounded-none md:rounded-2xl overflow-y-auto overflow-x-hidden md:overflow-hidden shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-200 border-0 md:border border-border/50 mx-auto"
         onClick={(e) => e.stopPropagation()}
@@ -336,7 +331,7 @@ const SharedItemViewer = () => {
           <X className="w-5 h-5" />
         </button>
 
-        {loading ? (
+        {isLoading ? (
           <>
             {/* Left Media Area Skeleton */}
             <div className="absolute inset-0 md:relative w-full md:w-[calc(90vh*9/16)] md:max-w-[calc(100vw-450px)] md:shrink bg-black/5 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-border/50 z-0">
@@ -796,7 +791,13 @@ const SharedItemViewer = () => {
                       <PostComments
                         post={data}
                         currentUser={user}
-                        onRefresh={fetchData}
+                        onRefresh={(updatedComments) => {
+                          if (Array.isArray(updatedComments)) {
+                            setData(prev => (prev ? { ...prev, comments: updatedComments } : prev));
+                          } else {
+                            fetchData(true);
+                          }
+                        }}
                         formatTime={customFormatTime}
                         getAvatarFallback={(name) => `https://ui-avatars.com/api/?name=${name || 'User'}`}
                         fullHeight={true}
@@ -950,6 +951,7 @@ const SharedItemViewer = () => {
         itemId={itemId}
       />
     </div>
+    </ModalPortal>
   );
 };
 

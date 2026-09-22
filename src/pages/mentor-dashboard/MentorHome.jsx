@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
+import ModalPortal from '../../components/modals/ModalPortal'
 import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import MentorOnboardingBanner from '../../components/mentor/MentorOnboardingBanner'
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
@@ -1217,7 +1218,8 @@ const MentorHome = () => {
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {postToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <ModalPortal>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1247,13 +1249,15 @@ const MentorHome = () => {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
 
       {/* Likes Modal */}
       <AnimatePresence>
         {likesModalPost && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setLikesModalPost(null)}>
+          <ModalPortal>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setLikesModalPost(null)}>
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1291,6 +1295,7 @@ const MentorHome = () => {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
 
@@ -1317,7 +1322,8 @@ const MentorHome = () => {
       {/* Job Attachment Modal */}
       <AnimatePresence>
         {isJobModalOpen && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <ModalPortal>
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1585,6 +1591,7 @@ const MentorHome = () => {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
 
