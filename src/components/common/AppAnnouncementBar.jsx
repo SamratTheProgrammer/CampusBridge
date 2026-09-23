@@ -1,15 +1,41 @@
 import React, { useState, useEffect } from 'react'
 import { X, Smartphone, ArrowRight, Download } from 'lucide-react'
+import API_BASE from '../../utils/api'
 
 const AppAnnouncementBar = () => {
   const [isVisible, setIsVisible] = useState(false)
+  const [announcementText, setAnnouncementText] = useState('')
 
   useEffect(() => {
     // Only show if not dismissed in this session
     const isDismissed = sessionStorage.getItem('campusbridge_hide_app_announcement') === 'true'
-    if (!isDismissed) {
+    if (isDismissed) {
+      setIsVisible(false)
+      return
+    }
+
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/settings/public`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.appBannerSettings) {
+            if (data.appBannerSettings.showLandingAnnouncement === false) {
+              setIsVisible(false)
+              return
+            }
+            if (data.appBannerSettings.announcementText) {
+              setAnnouncementText(data.appBannerSettings.announcementText)
+            }
+          }
+        }
+      } catch (e) {
+        // Continue showing default if network fails
+      }
       setIsVisible(true)
     }
+
+    fetchSettings()
   }, [])
 
   const handleDismiss = (e) => {
@@ -44,8 +70,8 @@ const AppAnnouncementBar = () => {
           <Smartphone className="w-3.5 h-3.5" />
         </span>
         <span className="leading-tight">
-          <span className="font-semibold text-white">CampusBridge Mobile App is now live!</span>
-          <span className="hidden sm:inline text-purple-100/90 ml-1">Download today for Android & iOS.</span>
+          <span className="font-semibold text-white">{announcementText || 'CampusBridge Mobile App is now live!'}</span>
+          {!announcementText && <span className="hidden sm:inline text-purple-100/90 ml-1">Download today for Android & iOS.</span>}
         </span>
         <span className="bg-white text-purple-800 text-[10px] sm:text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm uppercase tracking-wide shrink-0">
           NEW

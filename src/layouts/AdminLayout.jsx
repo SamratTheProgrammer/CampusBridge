@@ -256,7 +256,7 @@ const AdminLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <button 
               className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"

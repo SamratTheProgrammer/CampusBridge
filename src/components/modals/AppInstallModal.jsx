@@ -22,9 +22,8 @@ const AppInstallModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null
 
-  const apkUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/downloads/CampusBridge.apk` 
-    : '/downloads/CampusBridge.apk'
+  const PRODUCTION_BASE_URL = 'https://campus-bridge-x5rl.vercel.app'
+  const apkUrl = `${PRODUCTION_BASE_URL}/downloads/CampusBridge.apk`
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&format=svg&data=${encodeURIComponent(apkUrl)}`
 
   const handleCopyLink = () => {

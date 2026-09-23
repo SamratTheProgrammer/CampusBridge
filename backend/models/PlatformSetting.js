@@ -38,6 +38,13 @@ const platformSettingSchema = new mongoose.Schema(
       enableGoogleCalendar: { type: Boolean, default: false },
       googleAnalyticsTrackingId: { type: String, default: '' },
       slackWebhookUrl: { type: String, default: '' }
+    },
+    appBannerSettings: {
+      showLandingAnnouncement: { type: Boolean, default: true },
+      showDashboardBanner: { type: Boolean, default: true },
+      announcementText: { type: String, default: '🚀 CampusBridge Mobile App is now officially live on Android & iOS!' },
+      apkDownloadUrl: { type: String, default: 'https://campus-bridge-x5rl.vercel.app/downloads/CampusBridge.apk' },
+      appVersion: { type: String, default: 'v1.0.0' }
     }
   },
   { timestamps: true }

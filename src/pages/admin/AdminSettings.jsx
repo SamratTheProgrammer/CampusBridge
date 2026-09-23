@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Settings, Shield, Key, Mail, Lock, Sliders, Globe, Eye, Sun, Moon, MonitorSmartphone, PartyPopper, Sparkles, Flame, Palette, Flag, CheckCircle2, Check } from 'lucide-react'
+import { Settings, Shield, Key, Mail, Lock, Sliders, Globe, Eye, Sun, Moon, MonitorSmartphone, PartyPopper, Sparkles, Flame, Palette, Flag, CheckCircle2, Check, Smartphone, Download, QrCode, ExternalLink } from 'lucide-react'
 import { useTheme } from '../../components/ThemeProvider'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
@@ -75,9 +75,21 @@ const AdminSettings = () => {
   })
   const [isIntegrationLoading, setIsIntegrationLoading] = useState(false)
 
+  // Mobile App & Banner Settings State
+  const [appBannerSettings, setAppBannerSettings] = useState({
+    showLandingAnnouncement: true,
+    showDashboardBanner: true,
+    announcementText: '🚀 CampusBridge Mobile App is now officially live on Android & iOS!',
+    apkDownloadUrl: 'https://campus-bridge-x5rl.vercel.app/downloads/CampusBridge.apk',
+    appVersion: 'v1.0.0'
+  })
+  const [isAppBannerLoading, setIsAppBannerLoading] = useState(false)
+
   useEffect(() => {
     if (activeTab === 'Appearance') {
       fetchGlobalThemeSettings()
+    } else if (activeTab === 'Mobile App & Banners') {
+      fetchAppBannerSettings()
     } else if (activeTab === 'Authentication') {
       fetchAuthSettings()
     } else if (activeTab === 'Email & Notifications') {
@@ -380,6 +392,56 @@ const AdminSettings = () => {
     setIntegrationSettings(prev => ({ ...prev, [name]: value }))
   }
 
+  // App Banner API Handlers
+  const fetchAppBannerSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/settings/app-banner`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.appBannerSettings) {
+          setAppBannerSettings(prev => ({ ...prev, ...data.appBannerSettings }))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching app banner settings:', error)
+    }
+  }
+
+  const handleUpdateAppBannerSettings = async (e) => {
+    e.preventDefault()
+    setIsAppBannerLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/settings/app-banner`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appBannerSettings })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setAppBannerSettings(prev => ({ ...prev, ...data.appBannerSettings }))
+          toast.success('Mobile App & Banner settings saved successfully!')
+        }
+      } else {
+        toast.error('Failed to update app banner settings')
+      }
+    } catch (error) {
+      console.error('Error updating app banner settings:', error)
+      toast.error('Server error updating settings')
+    } finally {
+      setIsAppBannerLoading(false)
+    }
+  }
+
+  const handleAppBannerToggle = (key) => {
+    setAppBannerSettings(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handleAppBannerInputChange = (e) => {
+    const { name, value } = e.target
+    setAppBannerSettings(prev => ({ ...prev, [name]: value }))
+  }
+
   const handleSave = (e) => {
     e.preventDefault()
     toast.success('Settings updated successfully!')
@@ -388,6 +450,7 @@ const AdminSettings = () => {
   const tabs = [
     { name: 'General', icon: Sliders },
     { name: 'Appearance', icon: Eye },
+    { name: 'Mobile App & Banners', icon: Smartphone },
     { name: 'Authentication', icon: Shield },
     { name: 'Email & Notifications', icon: Mail },
     { name: 'Security', icon: Lock },
@@ -1014,6 +1077,138 @@ const AdminSettings = () => {
               >
                 {isIntegrationLoading ? 'Saving...' : 'Save Settings'}
               </button>
+            </form>
+          ) : activeTab === 'Mobile App & Banners' ? (
+            <form onSubmit={handleUpdateAppBannerSettings} className="space-y-6">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Control the visibility and text of mobile app announcements across the landing page and user dashboards.
+                </p>
+              </div>
+
+              {/* Toggles */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Banner Visibility</h3>
+                
+                <div className="flex items-center justify-between p-4 bg-muted/40 border border-border/50 rounded-xl">
+                  <div>
+                    <h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-purple-500" /> Landing Page Announcement Bar
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Show top gradient banner on the home landing page informing visitors about the mobile app.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAppBannerToggle('showLandingAnnouncement')}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                      appBannerSettings.showLandingAnnouncement ? 'bg-primary' : 'bg-muted-foreground/30'
+                    }`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
+                      appBannerSettings.showLandingAnnouncement ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/40 border border-border/50 rounded-xl">
+                  <div>
+                    <h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <Smartphone className="w-4 h-4 text-indigo-500" /> Dashboard App Download Banner
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Show interactive download banner with QR code trigger inside student and mentor feeds.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAppBannerToggle('showDashboardBanner')}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                      appBannerSettings.showDashboardBanner ? 'bg-primary' : 'bg-muted-foreground/30'
+                    }`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
+                      appBannerSettings.showDashboardBanner ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Text & URLs */}
+              <div className="pt-4 border-t border-border/40 space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Banner Details & URLs</h3>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Announcement Headline Text
+                  </label>
+                  <input 
+                    type="text"
+                    name="announcementText"
+                    value={appBannerSettings.announcementText}
+                    onChange={handleAppBannerInputChange}
+                    placeholder="e.g. 🚀 CampusBridge Mobile App is now officially live on Android & iOS!"
+                    className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">Displayed in the top announcement bar on the home page.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                      Direct APK Download URL
+                    </label>
+                    <input 
+                      type="url"
+                      name="apkDownloadUrl"
+                      value={appBannerSettings.apkDownloadUrl}
+                      onChange={handleAppBannerInputChange}
+                      placeholder="https://campus-bridge-x5rl.vercel.app/downloads/CampusBridge.apk"
+                      className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">Target URL for direct download and phone QR scanner.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                      Current App Version
+                    </label>
+                    <input 
+                      type="text"
+                      name="appVersion"
+                      value={appBannerSettings.appVersion}
+                      onChange={handleAppBannerInputChange}
+                      placeholder="v1.0.0"
+                      className="w-full px-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">Version tag shown in download modals and footers.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview */}
+              <div className="pt-4 border-t border-border/40">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Live Announcement Bar Preview</h3>
+                <div className="bg-gradient-to-r from-purple-700 via-indigo-600 to-purple-800 text-white py-2.5 px-4 rounded-xl shadow-md flex items-center justify-between text-xs sm:text-sm">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 shrink-0" />
+                    <span className="font-semibold">{appBannerSettings.announcementText || 'CampusBridge Mobile App is now live!'}</span>
+                    <span className="bg-white text-purple-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">NEW</span>
+                  </div>
+                  <span className="text-xs text-white/80 underline cursor-pointer">Preview</span>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit"
+                  disabled={isAppBannerLoading}
+                  className="bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all text-sm shadow-md shadow-primary/10 disabled:opacity-70 cursor-pointer active:scale-95"
+                >
+                  {isAppBannerLoading ? 'Saving...' : 'Save App Banner Settings'}
+                </button>
+              </div>
             </form>
           ) : (
             <div className="py-12 text-center text-muted-foreground text-sm">

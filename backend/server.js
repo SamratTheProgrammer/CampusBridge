@@ -186,6 +186,23 @@ app.get('/', (req, res) => {
   res.status(200).json({ message: 'CampusBridge API is running!' });
 });
 
+// Direct APK Download Endpoint with explicit package-archive MIME type to prevent mobile browsers from unpacking
+app.get(['/api/app/download', '/api/downloads/apk', '/downloads/CampusBridge.apk'], (req, res) => {
+  const apkPath = path.resolve(__dirname, '../public/downloads/CampusBridge.apk');
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', 'attachment; filename="CampusBridge.apk"');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.sendFile(apkPath, (err) => {
+    if (err) {
+      console.error('Failed to send APK:', err);
+      if (!res.headersSent) {
+        res.status(404).json({ success: false, message: 'CampusBridge.apk not found on server' });
+      }
+    }
+  });
+});
+
 app.get('/api/settings/public', async (req, res) => {
   try {
     const setting = await PlatformSetting.findOne();
@@ -199,6 +216,13 @@ app.get('/api/settings/public', async (req, res) => {
       securitySettings: {
         sessionTimeoutValue: setting?.securitySettings?.sessionTimeoutValue || 60,
         sessionTimeoutUnit: setting?.securitySettings?.sessionTimeoutUnit || 'days'
+      },
+      appBannerSettings: setting?.appBannerSettings || {
+        showLandingAnnouncement: true,
+        showDashboardBanner: true,
+        announcementText: '🚀 CampusBridge Mobile App is now officially live on Android & iOS!',
+        apkDownloadUrl: 'https://campus-bridge-x5rl.vercel.app/downloads/CampusBridge.apk',
+        appVersion: 'v1.0.0'
       }
     });
   } catch (error) {

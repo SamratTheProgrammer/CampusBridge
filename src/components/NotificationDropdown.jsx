@@ -368,7 +368,7 @@ const NotificationDropdown = () => {
     : notifications;
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative z-50" ref={dropdownRef}>
       {/* Bell Trigger Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
@@ -391,7 +391,7 @@ const NotificationDropdown = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="fixed top-16 right-2 left-2 sm:absolute sm:top-full sm:right-0 sm:left-auto mt-2 w-auto sm:w-[380px] bg-card border border-border/80 rounded-2xl shadow-2xl z-[100] overflow-hidden"
+            className="fixed top-16 right-2 left-2 sm:absolute sm:top-full sm:right-0 sm:left-auto mt-2 w-auto sm:w-[380px] bg-card border border-border/80 rounded-2xl shadow-2xl z-[200] overflow-hidden"
           >
             {isSettingsOpen ? (
               // Settings View

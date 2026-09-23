@@ -43,6 +43,7 @@ import {
   Copy,
   Upload,
   ChevronDown,
+  ArrowLeft,
   MessageSquareOff,
   Eye,
   EyeOff
@@ -1151,7 +1152,7 @@ const DashboardHome = () => {
               ></textarea>
 
               {/* Show emoji trigger inside Start a post textarea */}
-              <div className="absolute right-2.5 bottom-2.5 z-30" ref={emojiPickerRef}>
+              <div className="absolute right-2.5 bottom-2.5 z-10" ref={emojiPickerRef}>
                 <button 
                   type="button" 
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
@@ -1249,7 +1250,7 @@ const DashboardHome = () => {
           )}
 
           <div className="flex items-center justify-between pt-2 gap-2 flex-nowrap relative z-20">
-            <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-wrap sm:flex-nowrap shrink min-w-0 py-0.5 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
+            <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-nowrap shrink min-w-0 py-0.5 overflow-visible ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -1260,7 +1261,7 @@ const DashboardHome = () => {
               />
 
               {/* Merged Media Button (Upload Media or Media URL) */}
-              <div className={`relative ${showMediaDropdown ? 'z-[80]' : 'z-10'}`} ref={mediaDropdownRef}>
+              <div className={`relative shrink-0 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`} ref={mediaDropdownRef}>
                 <button 
                   type="button" 
                   onClick={() => setShowMediaDropdown(!showMediaDropdown)} 
@@ -1270,14 +1271,21 @@ const DashboardHome = () => {
                   title="Attach media (upload file or paste URL)"
                 >
                   <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
-                  <span>Media</span>
+                  <span className="inline">Media</span>
                   <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showMediaDropdown ? 'rotate-180' : ''}`} />
                 </button>
 
                 {showMediaDropdown && (
-                  <div className="absolute left-0 bottom-full mb-2 w-56 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-2xl p-1.5 z-[100] animate-in fade-in zoom-in-95 pointer-events-auto">
-                    <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/40 mb-1">
-                      Select Media Option
+                  <div className="absolute left-0 top-full mt-2 w-56 bg-card/98 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl p-2 z-[100] animate-in fade-in zoom-in-95 pointer-events-auto">
+                    <div className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40 mb-1.5 flex items-center justify-between">
+                      <span>Select Media Option</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowMediaDropdown(false)}
+                        className="text-muted-foreground hover:text-foreground p-0.5 rounded cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
                     <button
                       type="button"
@@ -1320,23 +1328,43 @@ const DashboardHome = () => {
               <button 
                 type="button" 
                 onClick={() => setIsVoiceModalOpen(true)} 
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
                   newPostMedia.some(m => m.type === 'audio') ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 ring-1 ring-purple-500/30' : 'text-purple-600 dark:text-purple-400 hover:text-purple-700'
                 }`}
                 title="Record voice or upload audio"
               >
                 <Mic className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
-                <span className="whitespace-nowrap">Audio</span>
+                <span className="inline">Audio</span>
               </button>
 
-              <button onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-xs sm:text-sm whitespace-nowrap shrink-0">
-                <Palette className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> <span className="hidden sm:inline">Background</span>
+              <button 
+                type="button"
+                onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} 
+                className="flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-xs sm:text-sm whitespace-nowrap shrink-0"
+                title="Background Color"
+              >
+                <Palette className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
+                <span className="hidden sm:inline">Background</span>
               </button>
-              <button onClick={() => setIsEventModalOpen(true)} className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600' : 'hover:bg-muted text-orange-500'}`}>
-                <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> <span className="hidden sm:inline">{newEventDetails.title ? 'Event Attached' : 'Event'}</span>
+
+              <button 
+                type="button"
+                onClick={() => setIsEventModalOpen(true)} 
+                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600' : 'hover:bg-muted text-orange-500'}`}
+                title="Attach Event"
+              >
+                <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
+                <span className="hidden sm:inline">{newEventDetails.title ? 'Event Attached' : 'Event'}</span>
               </button>
-              <button onClick={() => setIsJobModalOpen(true)} className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}>
-                <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
+
+              <button 
+                type="button"
+                onClick={() => setIsJobModalOpen(true)} 
+                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}
+                title="Attach Job"
+              >
+                <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
+                <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
               </button>
             </div>
             <button 
@@ -1352,13 +1380,29 @@ const DashboardHome = () => {
           {showMediaUrlInput && (
             <div className="flex flex-col gap-2 p-3 mt-3 bg-muted/40 rounded-xl border border-purple-500/20 shadow-xs animate-in fade-in duration-200">
               <div className="flex items-center gap-2">
+                {/* Back button to return to Media Selection */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMediaUrlInput(false);
+                    setShowMediaDropdown(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground bg-background hover:bg-muted rounded-lg border border-border/60 transition-all cursor-pointer shrink-0 shadow-2xs"
+                  title="Back to media options"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back</span>
+                </button>
+
+                <div className="w-px h-4 bg-border/60 shrink-0" />
+
                 <LinkIcon className="w-4 h-4 text-purple-500 shrink-0" />
                 <input
                   type="url"
                   value={mediaUrlText}
                   onChange={(e) => setMediaUrlText(e.target.value)}
                   placeholder="Paste image or video URL (https://...)"
-                  className="flex-1 bg-transparent text-xs focus:outline-none text-foreground placeholder:text-muted-foreground"
+                  className="flex-1 bg-transparent text-xs focus:outline-none text-foreground placeholder:text-muted-foreground min-w-0"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -1399,6 +1443,15 @@ const DashboardHome = () => {
                   className="px-3.5 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 shadow-xs"
                 >
                   Attach
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowMediaUrlInput(false)}
+                  className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer shrink-0"
+                  title="Cancel"
+                >
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 

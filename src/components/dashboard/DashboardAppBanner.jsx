@@ -10,17 +10,47 @@ import {
   ChevronRight 
 } from 'lucide-react'
 import AppInstallModal from '../modals/AppInstallModal'
+import API_BASE from '../../utils/api'
 
-const STORAGE_KEY = 'campusbridge_dashboard_app_banner_dismissed'
+const STORAGE_KEY = 'campusbridge_hide_dashboard_app_banner'
 
 const DashboardAppBanner = () => {
   const location = useLocation()
-  const [isDismissed, setIsDismissed] = useState(true) // default true to avoid hydration flicker
+  const [isDismissed, setIsDismissed] = useState(true) // default true to avoid flicker
   const [showModal, setShowModal] = useState(false)
+  const [apkUrl, setApkUrl] = useState('/downloads/CampusBridge.apk')
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(STORAGE_KEY) === 'true'
-    setIsDismissed(dismissed)
+    // Check if dismissed in the current browser session
+    const dismissedInSession = sessionStorage.getItem(STORAGE_KEY) === 'true'
+    if (dismissedInSession) {
+      setIsDismissed(true)
+      return
+    }
+
+    // Fetch dynamic admin settings
+    const checkSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/settings/public`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.appBannerSettings) {
+            if (data.appBannerSettings.showDashboardBanner === false) {
+              setIsDismissed(true)
+              return
+            }
+            if (data.appBannerSettings.apkDownloadUrl) {
+              setApkUrl(data.appBannerSettings.apkDownloadUrl)
+            }
+          }
+        }
+      } catch (err) {
+        // Fallback gracefully to showing banner
+      }
+      setIsDismissed(false)
+    }
+
+    checkSettings()
 
     const handleOpen = () => setShowModal(true)
     window.addEventListener('open-app-install-modal', handleOpen)
@@ -34,7 +64,7 @@ const DashboardAppBanner = () => {
 
   const handleDismiss = () => {
     setIsDismissed(true)
-    localStorage.setItem(STORAGE_KEY, 'true')
+    sessionStorage.setItem(STORAGE_KEY, 'true')
   }
 
   return (
@@ -82,7 +112,7 @@ const DashboardAppBanner = () => {
                 {/* Right Action Buttons */}
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-center pl-1 sm:pl-0">
                   <a
-                    href="/downloads/CampusBridge.apk"
+                    href={apkUrl || "/downloads/CampusBridge.apk"}
                     download="CampusBridge.apk"
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-500/25 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                   >

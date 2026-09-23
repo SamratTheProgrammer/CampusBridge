@@ -1275,6 +1275,51 @@ router.put('/settings/integrations', async (req, res) => {
   }
 });
 
+// Fetch App Banner Settings
+router.get('/settings/app-banner', async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = await PlatformSetting.create({ appBannerSettings: {} });
+    }
+    
+    return res.status(200).json({ 
+      success: true, 
+      appBannerSettings: setting.appBannerSettings || {
+        showLandingAnnouncement: true,
+        showDashboardBanner: true,
+        announcementText: '🚀 CampusBridge Mobile App is now officially live on Android & iOS!',
+        apkDownloadUrl: 'https://campus-bridge-x5rl.vercel.app/downloads/CampusBridge.apk',
+        appVersion: 'v1.0.0'
+      }
+    });
+  } catch (error) {
+    console.error('Fetch App Banner Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch app banner settings' });
+  }
+});
+
+// Update App Banner Settings
+router.put('/settings/app-banner', async (req, res) => {
+  try {
+    const { appBannerSettings } = req.body;
+    
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = new PlatformSetting({ appBannerSettings });
+    } else {
+      setting.appBannerSettings = { ...setting.appBannerSettings, ...appBannerSettings };
+    }
+    
+    await setting.save();
+    
+    return res.status(200).json({ success: true, appBannerSettings: setting.appBannerSettings });
+  } catch (error) {
+    console.error('Update App Banner Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update app banner settings' });
+  }
+});
+
 // --- MODERATION ENDPOINTS ---
 
 const getModelForType = (type) => {
