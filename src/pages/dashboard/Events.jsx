@@ -7,6 +7,7 @@ import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 import { useNavigate } from 'react-router-dom'
 import ShareModal from '../../components/modals/ShareModal'
 import ReviewListModal from '../../components/modals/ReviewListModal'
@@ -61,7 +62,7 @@ const Events = () => {
     e.preventDefault();
     e.stopPropagation();
     setShareConfig({
-      shareUrl: `${window.location.origin}/dashboard/events/${eventId}`,
+      shareUrl: getAppUrl(`/dashboard/events/${eventId}`),
       shareType: 'event',
       itemId: eventId
     });

@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import PostComments from '../../components/PostComments'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import ShareModal from '../../components/modals/ShareModal'
@@ -134,7 +135,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
   const handleShare = () => {
     if (!student) return;
     setShareConfig({
-      shareUrl: `${window.location.origin}/profile/${student.username || student.clerkId}`,
+      shareUrl: getAppUrl(`/profile/${student.username || student.clerkId}`),
       shareType: 'profile',
       itemId: student.username || student.clerkId
     });
@@ -298,7 +299,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
   }
 
   const handleCopyPostLink = (postId) => {
-    const postUrl = `${window.location.origin}/?post=${postId}`;
+    const postUrl = getAppUrl(`/?post=${postId}`);
     navigator.clipboard.writeText(postUrl);
     toast.success('Post link copied to clipboard!');
   };
@@ -320,7 +321,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
 
   const handleSharePost = (postId) => {
     setShareConfig({
-      shareUrl: `${window.location.origin}/?post=${postId}`,
+      shareUrl: getAppUrl(`/?post=${postId}`),
       shareType: 'post',
       itemId: postId
     });

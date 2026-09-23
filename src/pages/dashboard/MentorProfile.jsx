@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import PostComments from '../../components/PostComments'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import ShareModal from '../../components/modals/ShareModal'
@@ -210,7 +211,7 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   const handleShare = () => {
     if (!mentor) return;
     setShareConfig({
-      shareUrl: `${window.location.origin}/profile/${mentor.username || mentor.clerkId || identifier}`,
+      shareUrl: getAppUrl(`/profile/${mentor.username || mentor.clerkId || identifier}`),
       shareType: 'profile',
       itemId: mentor.username || mentor.clerkId || identifier
     });
@@ -291,7 +292,7 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   }
 
   const handleCopyPostLink = (postId) => {
-    const postUrl = `${window.location.origin}/?post=${postId}`;
+    const postUrl = getAppUrl(`/?post=${postId}`);
     navigator.clipboard.writeText(postUrl);
     toast.success('Post link copied to clipboard!');
   };
@@ -313,7 +314,7 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
 
   const handleSharePost = (postId) => {
     setShareConfig({
-      shareUrl: `${window.location.origin}/?post=${postId}`,
+      shareUrl: getAppUrl(`/?post=${postId}`),
       shareType: 'post',
       itemId: postId
     });

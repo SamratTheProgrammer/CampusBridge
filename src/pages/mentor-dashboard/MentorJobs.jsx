@@ -12,6 +12,7 @@ import ModalPortal from '../../components/modals/ModalPortal'
 import ShareModal from '../../components/modals/ShareModal'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 
 // ─── Searchable Company Selector Component ──────────────────────────────────
 const CompanySelector = ({ value, onChange }) => {
@@ -199,7 +200,7 @@ const MentorJobs = () => {
     e.preventDefault();
     e.stopPropagation();
     setShareConfig({
-      shareUrl: `${window.location.origin}/dashboard/jobs/${job._id}`,
+      shareUrl: getAppUrl(`/dashboard/jobs/${job._id}`),
       shareType: 'job',
       itemId: job._id
     });

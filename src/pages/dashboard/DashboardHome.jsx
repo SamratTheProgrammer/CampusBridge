@@ -12,6 +12,7 @@ import FormattedPostText from '../../components/common/FormattedPostText'
 import { formatTime } from '../../utils/dateFormatter'
 import { formatMentorSubtitle } from '../../utils/textFormatters'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
+import { getAppUrl } from '../../utils/appUrl'
 import { 
   Users, 
   FileText, 
@@ -931,7 +932,7 @@ const DashboardHome = () => {
 
   const handleShare = (postId) => {
     setShareConfig({
-      shareUrl: `${window.location.origin}/dashboard?post=${postId}`,
+      shareUrl: getAppUrl(`/dashboard?post=${postId}`),
       shareType: 'post',
       itemId: postId
     });

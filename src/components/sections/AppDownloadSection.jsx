@@ -1,13 +1,12 @@
 import React, { useState } from 'react'
 import { Download, Smartphone, Apple, ShieldCheck, Bell, Video, MessageSquare, QrCode, CheckCircle, ExternalLink, X, ArrowDownToLine } from 'lucide-react'
+import { getAppUrl } from '../../utils/appUrl'
 
 const AppDownloadSection = () => {
   const [showIosModal, setShowIosModal] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
 
-  const downloadUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/downloads/CampusBridge.apk` 
-    : '/downloads/CampusBridge.apk'
+  const downloadUrl = getAppUrl('/downloads/CampusBridge.apk')
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(downloadUrl)

@@ -13,6 +13,7 @@ import ShareModal from '../../components/modals/ShareModal'
 import ImageCropModal from '../../components/ImageCropModal'
 import defaultPP from '../../assets/default_pp.png'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 
 const MentorSessions = () => {
   const { user } = useUser()
@@ -26,7 +27,7 @@ const MentorSessions = () => {
     e.preventDefault();
     e.stopPropagation();
     setShareConfig({
-      shareUrl: `${window.location.origin}/dashboard/events/${event._id}`,
+      shareUrl: getAppUrl(`/dashboard/events/${event._id}`),
       shareType: 'event',
       itemId: event._id
     });

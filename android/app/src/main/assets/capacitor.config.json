@@ -4,9 +4,20 @@
 	"webDir": "dist",
 	"bundledWebRuntime": false,
 	"server": {
+		"url": "https://campus-bridge-x5rl.vercel.app",
 		"androidScheme": "https",
 		"iosScheme": "https",
-		"cleartext": true
+		"cleartext": true,
+		"allowNavigation": [
+			"campus-bridge-x5rl.vercel.app",
+			"*.vercel.app",
+			"*.clerk.accounts.dev",
+			"clerk.accounts.dev",
+			"*.accounts.dev",
+			"accounts.google.com",
+			"*.google.com",
+			"*.gstatic.com"
+		]
 	},
 	"plugins": {
 		"SplashScreen": {

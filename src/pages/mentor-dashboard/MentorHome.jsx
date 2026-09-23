@@ -20,6 +20,7 @@ import { formatTime } from '../../utils/dateFormatter'
 import { formatRoleSubtitle } from '../../utils/textFormatters'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
+import { getAppUrl } from '../../utils/appUrl'
 import { 
   Users, 
   FileText, 
@@ -843,7 +844,7 @@ const MentorHome = () => {
   }
 
   const handleShare = (postId) => {
-    navigator.clipboard.writeText(`${window.location.origin}/dashboard?post=${postId}`)
+    navigator.clipboard.writeText(getAppUrl(`/dashboard?post=${postId}`))
     toast.success('Link copied to clipboard!')
   }
 

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 import ShareModal from '../../components/modals/ShareModal'
 
 const Jobs = () => {
@@ -21,7 +22,7 @@ const Jobs = () => {
     e.preventDefault();
     e.stopPropagation();
     setShareConfig({
-      shareUrl: `${window.location.origin}/dashboard/jobs/${jobId}`,
+      shareUrl: getAppUrl(`/dashboard/jobs/${jobId}`),
       shareType: 'job',
       itemId: jobId
     });

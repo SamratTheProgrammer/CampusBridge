@@ -10,6 +10,7 @@ import PostComments from '../../components/PostComments'
 import { motion, AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 import { useNavigate } from 'react-router-dom'
 import defaultPP from '../../assets/default_pp.png'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
@@ -599,7 +600,7 @@ const MyProfile = () => {
 
   const handleShare = () => {
     setShareConfig({
-      shareUrl: `${window.location.origin}/profile/${dbUser?.username || dbUser?.clerkId || user?.id}`,
+      shareUrl: getAppUrl(`/profile/${dbUser?.username || dbUser?.clerkId || user?.id}`),
       shareType: 'profile',
       itemId: dbUser?.username || dbUser?.clerkId || user?.id
     });
@@ -607,7 +608,7 @@ const MyProfile = () => {
   };
 
   const handleCopyPostLink = (postId) => {
-    const postUrl = `${window.location.origin}/?post=${postId}`;
+    const postUrl = getAppUrl(`/?post=${postId}`);
     navigator.clipboard.writeText(postUrl);
     toast.success('Post link copied to clipboard!');
   };
@@ -629,7 +630,7 @@ const MyProfile = () => {
 
   const handleSharePost = (postId) => {
     setShareConfig({
-      shareUrl: `${window.location.origin}/?post=${postId}`,
+      shareUrl: getAppUrl(`/?post=${postId}`),
       shareType: 'post',
       itemId: postId
     });

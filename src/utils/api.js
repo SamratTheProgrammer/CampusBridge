@@ -1,11 +1,12 @@
 import { Capacitor } from '@capacitor/core';
+import { PRODUCTION_URL } from './appUrl';
 
 const getApiBase = () => {
-  if (import.meta.env.VITE_BACKEND_URL) {
+  if (import.meta.env.VITE_BACKEND_URL && !import.meta.env.VITE_BACKEND_URL.includes('localhost')) {
     return import.meta.env.VITE_BACKEND_URL;
   }
-  if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
-    return 'https://campus-bridge-x5rl.vercel.app';
+  if (typeof window !== 'undefined' && (Capacitor.isNativePlatform() || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return PRODUCTION_URL;
   }
   return '';
 };

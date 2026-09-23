@@ -10,6 +10,7 @@ import { X, Upload, Link as LinkIcon, FileText } from 'lucide-react'
 import emailjs from '@emailjs/browser'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 import ModalPortal from '../../components/modals/ModalPortal'
 import ShareModal from '../../components/modals/ShareModal'
 
@@ -159,7 +160,7 @@ const JobDetails = () => {
 
   const handleShare = () => {
     setShareConfig({
-      shareUrl: `${window.location.origin}/dashboard/jobs/${id}`,
+      shareUrl: getAppUrl(`/dashboard/jobs/${id}`),
       shareType: 'job',
       itemId: id
     })

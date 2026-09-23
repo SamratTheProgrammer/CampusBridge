@@ -1,6 +1,7 @@
 import React from 'react';
 import RouteIntegrityLoader from '../../components/RouteIntegrityLoader';
 import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
+import { getAppUrl } from '../../utils/appUrl';
 
 const SSOCallback = () => {
   return (
@@ -11,8 +12,8 @@ const SSOCallback = () => {
       />
       <div className="hidden">
         <AuthenticateWithRedirectCallback 
-          signInForceRedirectUrl="/sync-user" 
-          signUpForceRedirectUrl="/sync-user" 
+          signInForceRedirectUrl={getAppUrl('/sync-user')} 
+          signUpForceRedirectUrl={getAppUrl('/sync-user')} 
         />
       </div>
     </div>

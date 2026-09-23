@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, GraduationCap, Building2, Loader2 } from 'lucide-react'
 import { useSignIn, useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
+import { getAppUrl } from '../../utils/appUrl'
 
 const Login = () => {
   const location = useLocation()
@@ -74,8 +75,8 @@ const Login = () => {
       }
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/sync-user`,
+        redirectUrl: getAppUrl('/sso-callback'),
+        redirectUrlComplete: getAppUrl('/sync-user'),
       })
     } catch (err) {
       setIsGoogleLoading(false)
