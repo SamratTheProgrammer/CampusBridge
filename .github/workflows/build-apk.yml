@@ -59,13 +59,21 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           cat android/local.properties
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" "build-tools;36.0.0" "platforms;android-34" "build-tools;34.0.0" || true
 
       - name: Build Debug Android APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle.log
+
+      - name: Upload Gradle Failure Log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-failure-log
+          path: android/gradle.log
+          retention-days: 7
 
       - name: Verify APK Binary
         run: |
