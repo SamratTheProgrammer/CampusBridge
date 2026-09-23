@@ -13,6 +13,20 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>CampusBridge</title>
+    <script>
+      (function() {
+        try {
+          var isMobileApp = (typeof window !== 'undefined' && (
+            navigator.userAgent.indexOf('CampusBridgeMobile') !== -1 ||
+            navigator.userAgent.indexOf('Capacitor') !== -1 ||
+            (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+          ));
+          if (isMobileApp) {
+            document.documentElement.classList.add('cb-capacitor-app');
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body style="margin: 0; background-color: #0a0f1d; color: #ffffff;">
     <div id="root">

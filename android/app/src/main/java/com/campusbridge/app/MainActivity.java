@@ -15,7 +15,7 @@ public class MainActivity extends BridgeActivity {
                 if (ua != null) {
                     // Strips Android WebView indicators (; wv) and Version/X.X so Google OAuth succeeds seamlessly
                     String cleanUa = ua.replaceAll("; wv\\)", ")").replaceAll("Version/[0-9.]+\\s", "");
-                    settings.setUserAgentString(cleanUa);
+                    settings.setUserAgentString(cleanUa + " CampusBridgeMobile");
                 }
             }
         } catch (Exception e) {

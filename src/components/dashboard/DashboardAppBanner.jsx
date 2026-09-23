@@ -57,6 +57,22 @@ const DashboardAppBanner = () => {
     return () => window.removeEventListener('open-app-install-modal', handleOpen)
   }, [])
 
+  // Only display on dashboard routes, never on public or other routes
+  const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/mentor-dashboard')
+  if (!isDashboardRoute) {
+    return null
+  }
+
+  // Never display inside the native mobile app itself (user is already on the mobile app)
+  const isMobileApp = typeof window !== 'undefined' && (
+    document.documentElement.classList.contains('cb-capacitor-app') ||
+    navigator.userAgent.includes('CampusBridgeMobile') ||
+    window.Capacitor?.isNativePlatform?.()
+  )
+  if (isMobileApp) {
+    return null
+  }
+
   // Never display inside the full-screen messages/chat route
   if (location.pathname.includes('/messages')) {
     return <AppInstallModal isOpen={showModal} onClose={() => setShowModal(false)} />

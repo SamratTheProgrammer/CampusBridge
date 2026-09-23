@@ -12,6 +12,8 @@ const PushNotificationPrompt = () => {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !user?.id) return
+    const isDashboard = window.location.pathname.startsWith('/dashboard') || window.location.pathname.startsWith('/mentor-dashboard')
+    if (!isDashboard) return
     if (!isPushSupported()) return
 
     // If permission is already granted, silently ensure this device is registered with backend

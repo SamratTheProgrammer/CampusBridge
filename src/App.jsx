@@ -177,7 +177,6 @@ function RootIndex() {
   return (
     <PageTransition>
       <div className="flex flex-col min-h-screen">
-        <AppAnnouncementBar />
         <Navbar />
         <main className="flex-1">
           <LandingPage />

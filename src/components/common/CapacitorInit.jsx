@@ -88,7 +88,8 @@ const CapacitorInit = () => {
         await StatusBar.setBackgroundColor({
           color: isDark ? '#0a0f1d' : '#ffffff',
         });
-        await StatusBar.setOverlaysWebView({ overlay: true });
+        await StatusBar.setOverlaysWebView({ overlay: false });
+        await StatusBar.show();
       } catch (err) {
         console.warn('Status bar update error:', err);
       }

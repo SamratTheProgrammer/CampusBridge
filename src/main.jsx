@@ -6,7 +6,13 @@ import App from './App.jsx'
 import { Capacitor } from '@capacitor/core'
 
 try {
-  if (Capacitor.isNativePlatform()) {
+  const isNative = Capacitor.isNativePlatform() || 
+                   (typeof window !== 'undefined' && (
+                     window.Capacitor?.isNativePlatform?.() || 
+                     navigator.userAgent.includes('CampusBridgeMobile') ||
+                     navigator.userAgent.includes('Capacitor')
+                   ));
+  if (isNative) {
     document.documentElement.classList.add('cb-capacitor-app')
     document.body.classList.add('cb-capacitor-app')
   }
