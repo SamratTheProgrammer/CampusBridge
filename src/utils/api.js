@@ -5,7 +5,7 @@ const getApiBase = () => {
     return import.meta.env.VITE_BACKEND_URL;
   }
   if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
-    return 'http://localhost:5001';
+    return 'https://campus-bridge-x5rl.vercel.app';
   }
   return '';
 };

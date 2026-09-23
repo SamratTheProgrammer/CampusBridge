@@ -30,11 +30,7 @@ import { DynamicLayoutWrapper, ProfileDispatcher } from './components/UnifiedPro
 import { ProfileDataProvider } from './context/ProfileDataContext'
 import ringtoneService from './utils/ringtone'
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
-
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key")
-}
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_dG91Y2hpbmctYmFzcy04MC5jbGVyay5hY2NvdW50cy5kZXYk'
 
 // Dashboard Layout & Pages
 import DashboardLayout from './layouts/DashboardLayout'
@@ -172,12 +168,9 @@ function RootIndex() {
         return <Navigate to="/dashboard" replace />
       }
     } else if (isLoaded) {
-      // isLoaded is true but user is not signed in: clear stale cache and show landing page
+      // isLoaded is true but user is not signed in: clear stale cache
       localStorage.removeItem('campusbridge_logged_in')
       localStorage.removeItem('campusbridge_user_role')
-    } else {
-      // Still loading auth without cache - return null instead of blocking loader
-      return null
     }
   }
 
@@ -210,6 +203,7 @@ function AnimatedRoutes() {
       <Routes location={location} key={getRouteKey(location.pathname)}>
         {/* Smart Root Index Route (Instant Auth Resume) */}
         <Route path="/" element={<RootIndex />} />
+        <Route path="/index.html" element={<RootIndex />} />
 
         <Route path="/login" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><Login /></main><Footer /></div></PageTransition>} />
         <Route path="/signup" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><SignUp /></main><Footer /></div></PageTransition>} />
