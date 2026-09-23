@@ -82,18 +82,28 @@ const DashboardAppBanner = () => {
               {/* Subtle ambient background glow */}
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/15 rounded-full blur-2xl pointer-events-none" />
               
+              {/* Top-right corner close button for clean layout on all screen sizes */}
+              <button
+                onClick={handleDismiss}
+                aria-label="Dismiss banner"
+                className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 p-1.5 rounded-xl hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer z-20"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 {/* Left Info Group */}
-                <div className="flex items-start sm:items-center gap-3 min-w-0">
-                  <div className="relative w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/20">
+                <div className="flex items-start sm:items-center gap-3 min-w-0 pr-7 sm:pr-0">
+                  <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25">
                     <Smartphone className="w-5 h-5" />
                     <span className="absolute -top-1 -right-1 flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 ring-2 ring-background" />
                     </span>
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/30">
                         <Sparkles className="w-2.5 h-2.5" /> Mobile App Launched
@@ -109,12 +119,12 @@ const DashboardAppBanner = () => {
                   </div>
                 </div>
 
-                {/* Right Action Buttons */}
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center pl-1 sm:pl-0">
+                {/* Action Buttons: Full-width 50/50 split on phone, compact on desktop */}
+                <div className="flex items-center gap-2 w-full sm:w-auto pt-0.5 sm:pt-0 shrink-0">
                   <a
                     href={apkUrl || "/downloads/CampusBridge.apk"}
                     download="CampusBridge.apk"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-500/25 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-500/25 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                   >
                     <ArrowDownToLine className="w-3.5 h-3.5" />
                     <span>Download APK</span>
@@ -122,19 +132,10 @@ const DashboardAppBanner = () => {
 
                   <button
                     onClick={() => setShowModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border/70 hover:bg-muted/70 text-foreground text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap"
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2 rounded-xl border border-border/70 hover:bg-muted/70 bg-card/60 text-foreground text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
                   >
-                    <QrCode className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Scan QR /</span> iOS
-                  </button>
-
-                  <button
-                    onClick={handleDismiss}
-                    aria-label="Dismiss banner"
-                    className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0 ml-1"
-                    title="Dismiss"
-                  >
-                    <X className="w-4 h-4" />
+                    <QrCode className="w-3.5 h-3.5 text-purple-500" />
+                    <span>Scan QR / iOS</span>
                   </button>
                 </div>
               </div>
