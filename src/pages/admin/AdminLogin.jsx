@@ -10,7 +10,6 @@ const AdminLogin = () => {
   const [email, setEmail] = useState('admin@campusbridge.com')
   const [password, setPassword] = useState('Admin@12345')
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
@@ -75,15 +74,20 @@ const AdminLogin = () => {
         expiryTime = now.getTime();
       }
 
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('adminToken', data.token)
-      storage.setItem('adminUser', JSON.stringify(data.user))
+      // Strictly save in sessionStorage so closing the tab requires re-login
+      sessionStorage.setItem('adminToken', data.token)
+      sessionStorage.setItem('adminUser', JSON.stringify(data.user))
       
       if (expiryTime) {
-        storage.setItem('adminTokenExpiry', expiryTime.toString());
+        sessionStorage.setItem('adminTokenExpiry', expiryTime.toString());
       } else {
-        storage.removeItem('adminTokenExpiry');
+        sessionStorage.removeItem('adminTokenExpiry');
       }
+
+      // Clear any persistent tokens in localStorage
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      localStorage.removeItem('adminTokenExpiry');
 
       toast.success(data.message || `Successfully logged in`)
       navigate('/admin')
@@ -167,20 +171,9 @@ const AdminLogin = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 text-muted-foreground cursor-pointer select-none">
-                Remember me
-              </label>
-            </div>
+          <div className="flex items-center text-xs text-muted-foreground/80 py-1">
+            <Lock className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+            <span>Admin session terminates when page/tab is closed</span>
           </div>
 
           <div>

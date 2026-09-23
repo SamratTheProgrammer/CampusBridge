@@ -18,6 +18,7 @@ import PlatformPreview from '../components/sections/PlatformPreview'
 import FAQ from '../components/sections/FAQ'
 import Newsletter from '../components/sections/Newsletter'
 import ContactSection from '../components/sections/ContactSection'
+import FinalCTA from '../components/sections/FinalCTA'
 import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 import API_BASE from '../utils/api'
 
@@ -29,7 +30,12 @@ const LandingPage = () => {
   useEffect(() => {
     if (!isLoaded) return
 
-    const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken')
+    // Clean up any stale admin token from localStorage
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('adminUser')
+    localStorage.removeItem('adminTokenExpiry')
+
+    const adminToken = sessionStorage.getItem('adminToken')
     if (adminToken) {
       navigate('/admin', { replace: true })
       return
@@ -95,7 +101,7 @@ const LandingPage = () => {
       }
     }
   }, [location.hash])
-  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken')
+  const adminToken = sessionStorage.getItem('adminToken')
   if (isLoaded && (isSignedIn || adminToken)) {
     return <RouteIntegrityLoader />
   }

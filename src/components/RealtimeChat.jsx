@@ -1,4 +1,5 @@
-import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
@@ -82,8 +83,14 @@ const RealtimeChat = () => {
   const voiceRecorderRef = useRef(null);
   const voiceStreamRef = useRef(null);
   const voiceChunksRef = useRef([]);
-  const voiceTimerRef = useRef(null);
   const [deleteModalMsg, setDeleteModalMsg] = useState(null);
+
+  // WhatsApp-style Undo Delete State
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [undoSecondsLeft, setUndoSecondsLeft] = useState(5);
+  const pendingDeleteTimeoutRef = useRef(null);
+  const pendingDeleteIntervalRef = useRef(null);
+  const pendingDeleteRef = useRef(null);
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -330,6 +337,11 @@ const RealtimeChat = () => {
       setMessages((prev) => prev.map((m) => String(m._id) === String(messageId) ? { ...m, text: newText, isEdited: true, editedAt } : m));
     };
 
+    const handleMessageRestoredEveryone = ({ messageId, message: restoredMsg }) => {
+      setMessages((prev) => prev.map((m) => String(m._id) === String(messageId) ? (restoredMsg || { ...m, isDeleted: false }) : m));
+      fetchContacts();
+    };
+
     socket.on('receive_message', handleReceiveMessage);
     socket.on('new_message', handleReceiveMessage);
     socket.on('user_typing', handleUserTyping);
@@ -338,6 +350,7 @@ const RealtimeChat = () => {
     socket.on('message_deleted_for_me', handleMessageDeletedMe);
     socket.on('message_deleted_for_everyone', handleMessageDeletedEveryone);
     socket.on('message_edited', handleMessageEdited);
+    socket.on('message_restored_everyone', handleMessageRestoredEveryone);
 
     return () => {
       socket.emit('leave_room', { conversationId });
@@ -349,6 +362,7 @@ const RealtimeChat = () => {
       socket.off('message_deleted_for_me', handleMessageDeletedMe);
       socket.off('message_deleted_for_everyone', handleMessageDeletedEveryone);
       socket.off('message_edited', handleMessageEdited);
+      socket.off('message_restored_everyone', handleMessageRestoredEveryone);
     };
   }, [activeContact, user]);
 
@@ -579,14 +593,78 @@ const RealtimeChat = () => {
     e.target.value = '';
   };
 
-  const handleDeleteMessage = async (messageId, type) => {
+  // Commit permanent message deletion to socket and database
+  const commitDelete = useCallback(async (itemToCommit) => {
+    const item = itemToCommit || pendingDeleteRef.current;
+    if (!item) return;
+
+    if (pendingDeleteTimeoutRef.current) {
+      clearTimeout(pendingDeleteTimeoutRef.current);
+      pendingDeleteTimeoutRef.current = null;
+    }
+    if (pendingDeleteIntervalRef.current) {
+      clearInterval(pendingDeleteIntervalRef.current);
+      pendingDeleteIntervalRef.current = null;
+    }
+
+    pendingDeleteRef.current = null;
+    setPendingDelete(null);
+
+    const { message, type, conversationId } = item;
+    const messageId = message._id;
+
+    // 1. Socket emit
+    socket.emit('delete_message', {
+      messageId,
+      type,
+      userId: user.id,
+      conversationId
+    });
+
+    // 2. REST API persistence
+    try {
+      await fetch(`${API_BASE}/api/messages/${messageId}?type=${type}&userId=${user.id}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.error('Error committing message deletion:', err);
+    }
+
+    // 3. Re-fetch contacts to ensure server-side consistency
+    fetchContacts();
+  }, [user?.id, fetchContacts]);
+
+  // Handle Delete with WhatsApp-style Undo window (5 seconds)
+  const handleDeleteMessage = (messageOrId, type = 'me') => {
+    let targetMsg = null;
+    if (typeof messageOrId === 'object' && messageOrId !== null) {
+      targetMsg = messageOrId;
+    } else {
+      targetMsg = messages.find((m) => String(m._id) === String(messageOrId));
+    }
+    if (!targetMsg) return;
+
+    const messageId = targetMsg._id;
+
+    // If another deletion was already pending, commit it immediately before starting this one
+    if (pendingDeleteRef.current) {
+      commitDelete(pendingDeleteRef.current);
+    }
+
     // 1. Optimistic local messages update
     if (type === 'everyone') {
-      setMessages((prev) => prev.map((m) => String(m._id) === String(messageId) ? { ...m, isDeleted: true, text: '', attachment: null } : m));
+      setMessages((prev) =>
+        prev.map((m) =>
+          String(m._id) === String(messageId)
+            ? { ...m, isDeleted: true, text: '', attachment: null }
+            : m
+        )
+      );
     } else {
       setMessages((prev) => prev.filter((m) => String(m._id) !== String(messageId)));
     }
     setActiveMessageMenu(null);
+    setDeleteModalMsg(null);
 
     // 2. Immediately recalculate sidebar snippet for active contact
     if (activeContact) {
@@ -621,27 +699,107 @@ const RealtimeChat = () => {
       }));
     }
 
-    // 3. Socket emit
+    // 3. Store pending delete item for 5-second Undo
     const convId = activeContact?.conversationId || getConvId(user.id, activeContact?.clerkId);
-    socket.emit('delete_message', {
-      messageId,
+    const newPending = {
+      message: { ...targetMsg },
       type,
-      userId: user.id,
-      conversationId: convId
-    });
+      conversationId: convId,
+      originalIndex: messages.findIndex((m) => String(m._id) === String(messageId))
+    };
 
-    // 4. REST API persistence
-    try {
-      await fetch(`${API_BASE}/api/messages/${messageId}?type=${type}&userId=${user.id}`, {
-        method: 'DELETE'
+    pendingDeleteRef.current = newPending;
+    setPendingDelete(newPending);
+    setUndoSecondsLeft(5);
+
+    // 4. Start 5-second countdown & commit timer
+    if (pendingDeleteIntervalRef.current) clearInterval(pendingDeleteIntervalRef.current);
+    pendingDeleteIntervalRef.current = setInterval(() => {
+      setUndoSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(pendingDeleteIntervalRef.current);
+          pendingDeleteIntervalRef.current = null;
+          return 0;
+        }
+        return prev - 1;
       });
-    } catch (err) {
-      console.error('Error deleting message:', err);
+    }, 1000);
+
+    if (pendingDeleteTimeoutRef.current) clearTimeout(pendingDeleteTimeoutRef.current);
+    pendingDeleteTimeoutRef.current = setTimeout(() => {
+      commitDelete(newPending);
+    }, 5000);
+  };
+
+  // Undo Delete: restore the message to the chat
+  const handleUndoDelete = () => {
+    const item = pendingDeleteRef.current;
+    if (!item) return;
+
+    if (pendingDeleteTimeoutRef.current) {
+      clearTimeout(pendingDeleteTimeoutRef.current);
+      pendingDeleteTimeoutRef.current = null;
+    }
+    if (pendingDeleteIntervalRef.current) {
+      clearInterval(pendingDeleteIntervalRef.current);
+      pendingDeleteIntervalRef.current = null;
     }
 
-    // 5. Re-fetch contacts to ensure server-side consistency
+    const { message, originalIndex } = item;
+
+    // Restore message in messages state
+    setMessages((prev) => {
+      const exists = prev.some((m) => String(m._id) === String(message._id));
+      if (exists) {
+        return prev.map((m) => String(m._id) === String(message._id) ? message : m);
+      }
+      const copy = [...prev];
+      if (originalIndex >= 0 && originalIndex <= copy.length) {
+        copy.splice(originalIndex, 0, message);
+      } else {
+        copy.push(message);
+        copy.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+      }
+      return copy;
+    });
+
+    pendingDeleteRef.current = null;
+    setPendingDelete(null);
+
+    // Recalculate sidebar snippet
     fetchContacts();
+
+    toast.success('Message restored');
   };
+
+  // Dismiss Undo banner immediately committing deletion
+  const handleDismissUndo = () => {
+    if (pendingDeleteRef.current) {
+      commitDelete(pendingDeleteRef.current);
+    }
+  };
+
+  // Commit any pending message deletion on contact switch
+  useEffect(() => {
+    return () => {
+      if (pendingDeleteRef.current) {
+        commitDelete(pendingDeleteRef.current);
+      }
+    };
+  }, [activeContact?.clerkId, commitDelete]);
+
+  // Commit on window unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (pendingDeleteRef.current) {
+        commitDelete(pendingDeleteRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [commitDelete]);
 
   // Block / Unblock User
   const toggleBlockUser = async () => {
@@ -1500,6 +1658,44 @@ const RealtimeChat = () => {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* WhatsApp-Style Undo Delete Snackbar */}
+          {pendingDelete && (
+            <div className="mx-2 sm:mx-4 mb-2 p-2.5 sm:p-3 bg-zinc-900/95 dark:bg-zinc-800/95 text-white rounded-2xl shadow-2xl border border-zinc-700/60 backdrop-blur-md flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 z-30 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs sm:text-sm font-semibold truncate text-zinc-100">
+                    {pendingDelete.type === 'everyone' ? 'Message deleted for everyone' : 'Message deleted for me'}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 flex items-center gap-1">
+                    Undo available for <span className="font-bold text-amber-400 font-mono">{undoSecondsLeft}s</span>
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleUndoDelete}
+                  className="px-3.5 py-1.5 bg-primary text-primary-foreground text-xs sm:text-sm font-bold rounded-xl hover:bg-primary/90 active:scale-95 transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDismissUndo}
+                  className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                  title="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Input Footer */}
           <div className="p-2.5 sm:p-4 bg-card/90 backdrop-blur border-t border-border/40 shrink-0 w-full max-w-full min-w-0">
             {editingMessage && (
@@ -1682,12 +1878,12 @@ const RealtimeChat = () => {
           <div className="bg-card border border-border/50 rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6">
               <h2 className="text-lg font-bold text-foreground mb-1">Delete message?</h2>
-              <p className="text-sm text-muted-foreground mb-6">This action cannot be undone.</p>
+              <p className="text-sm text-muted-foreground mb-6">You will have 5 seconds to undo this deletion.</p>
               
               <div className="flex flex-col gap-2">
                 {deleteModalMsg.senderClerkId === user.id && !deleteModalMsg.isDeleted && (
                   <button 
-                    onClick={() => { handleDeleteMessage(deleteModalMsg._id, 'everyone'); setDeleteModalMsg(null); }}
+                    onClick={() => handleDeleteMessage(deleteModalMsg, 'everyone')}
                     className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold py-3 rounded-xl transition-colors text-sm"
                   >
                     Delete for everyone
@@ -1695,7 +1891,7 @@ const RealtimeChat = () => {
                 )}
                 
                 <button 
-                  onClick={() => { handleDeleteMessage(deleteModalMsg._id, 'me'); setDeleteModalMsg(null); }}
+                  onClick={() => handleDeleteMessage(deleteModalMsg, 'me')}
                   className="w-full bg-muted/50 hover:bg-muted text-foreground font-bold py-3 rounded-xl transition-colors text-sm"
                 >
                   Delete for me

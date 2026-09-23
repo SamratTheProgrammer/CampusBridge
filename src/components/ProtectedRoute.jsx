@@ -18,8 +18,8 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   const [isRoleLoading, setIsRoleLoading] = useState(justAuthenticated || (isSignedIn && !initialRole))
   const location = useLocation()
 
-  // Admin session check via standalone admin login
-  const hasAdminToken = allowedRoles.includes('admin') && (!!localStorage.getItem('adminToken') || !!sessionStorage.getItem('adminToken'))
+  // Admin session check via standalone admin login - strictly sessionStorage only
+  const hasAdminToken = allowedRoles.includes('admin') && !!sessionStorage.getItem('adminToken')
 
   useEffect(() => {
     let isMounted = true
@@ -108,8 +108,11 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
     return <BlockedUserScreen blockReason={blockReason} />
   }
 
-  // 2. Unauthenticated check -> Redirect to /login
+  // 2. Unauthenticated check -> Redirect unauthenticated admin access to "/" (home page), others to /login
   if (!isSignedIn || !user) {
+    if (allowedRoles.includes('admin')) {
+      return <Navigate to="/" replace />
+    }
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
@@ -123,14 +126,14 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
       if (userRole === 'mentor') {
         const subPath = location.pathname.startsWith('/dashboard')
           ? location.pathname.replace(/^\/dashboard\/?/, '')
-          : location.pathname.replace(/^\//, '');
+          : '';
         return <Navigate to={`/mentor-dashboard${subPath ? `/${subPath}` : ''}${search}`} replace />
       } else if (userRole === 'admin') {
         return <Navigate to={`/admin${search}`} replace />
       } else {
         const subPath = location.pathname.startsWith('/mentor-dashboard')
           ? location.pathname.replace(/^\/mentor-dashboard\/?/, '')
-          : location.pathname.replace(/^\//, '');
+          : '';
         return <Navigate to={`/dashboard${subPath ? `/${subPath}` : ''}${search}`} replace />
       }
     }

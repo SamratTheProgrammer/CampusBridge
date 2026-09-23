@@ -433,6 +433,58 @@ router.delete('/:messageId', async (req, res) => {
   }
 });
 
+// Restore deleted message (Undo delete)
+router.post('/:messageId/restore', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { userId, type, originalText, originalAttachment } = req.body;
+
+    let message = null;
+    if (mongoose.Types.ObjectId.isValid(messageId)) {
+      message = await Message.findById(messageId);
+    } else {
+      message = await Message.findOne({ _id: messageId });
+    }
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    const io = req.app?.get('io') || req.io;
+
+    if (type === 'me') {
+      message.deletedFor = message.deletedFor.filter(id => id !== userId);
+      await message.save();
+      if (io) {
+        io.to(message.conversationId).emit('message_restored_me', {
+          messageId: message._id.toString(),
+          userId,
+          conversationId: message.conversationId
+        });
+      }
+    } else if (type === 'everyone') {
+      if (message.senderClerkId === userId) {
+        message.isDeleted = false;
+        if (originalText !== undefined) message.text = originalText;
+        if (originalAttachment !== undefined) message.attachment = originalAttachment;
+        await message.save();
+
+        if (io) {
+          io.to(message.conversationId).emit('message_restored_everyone', {
+            messageId: message._id.toString(),
+            message,
+            conversationId: message.conversationId
+          });
+        }
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Message restored', data: message });
+  } catch (error) {
+    console.error('Error restoring message:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Share an item (post, job, event) via chat
 router.post('/share', async (req, res) => {
   try {

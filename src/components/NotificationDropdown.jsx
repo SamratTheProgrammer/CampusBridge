@@ -45,7 +45,7 @@ const NotificationDropdown = () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const adminToken = sessionStorage.getItem('adminToken');
       const isAdminPath = window.location.pathname.includes('/admin');
       const isAdmin = !!adminToken && isAdminPath;
       const currentUserId = isAdmin ? 'admin' : user?.id;
@@ -199,7 +199,7 @@ const NotificationDropdown = () => {
 
   useEffect(() => {
     const handleNewNotification = (notification) => {
-      const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const adminToken = sessionStorage.getItem('adminToken');
       const isAdminPath = window.location.pathname.includes('/admin');
       const isAdmin = !!adminToken && isAdminPath;
       const currentUserId = isAdmin ? 'admin' : user?.id;
@@ -311,8 +311,8 @@ const NotificationDropdown = () => {
   };
 
   const handleMarkAllRead = async () => {
-    const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-    const isAdmin = !!adminToken;
+    const adminToken = sessionStorage.getItem('adminToken');
+    const isAdmin = !!adminToken && window.location.pathname.includes('/admin');
     const currentUserId = isAdmin ? 'admin' : user?.id;
     if (!currentUserId) return;
     try {
@@ -341,8 +341,8 @@ const NotificationDropdown = () => {
   };
 
   const handleClearAll = async () => {
-    const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-    const isAdmin = !!adminToken;
+    const adminToken = sessionStorage.getItem('adminToken');
+    const isAdmin = !!adminToken && window.location.pathname.includes('/admin');
     const currentUserId = isAdmin ? 'admin' : user?.id;
     if (!currentUserId) return;
     try {

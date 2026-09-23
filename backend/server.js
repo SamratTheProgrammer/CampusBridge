@@ -379,6 +379,41 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle Message Restore (Undo delete)
+  socket.on('restore_message', async ({ messageId, type, userId, originalText, originalAttachment, conversationId }) => {
+    try {
+      let message = null;
+      if (mongoose.Types.ObjectId.isValid(messageId)) {
+        message = await Message.findById(messageId);
+      } else {
+        message = await Message.findOne({ _id: messageId });
+      }
+      if (!message) return;
+
+      const convId = conversationId || message.conversationId;
+
+      if (type === 'me') {
+        message.deletedFor = message.deletedFor.filter(id => id !== userId);
+        await message.save();
+        socket.emit('message_restored_me', { messageId, conversationId: convId });
+      } else if (type === 'everyone') {
+        if (message.senderClerkId === userId) {
+          message.isDeleted = false;
+          if (originalText !== undefined) message.text = originalText;
+          if (originalAttachment !== undefined) message.attachment = originalAttachment;
+          await message.save();
+          io.to(convId).emit('message_restored_everyone', { 
+            messageId: message._id.toString(), 
+            message, 
+            conversationId: convId 
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Socket restore_message error:', err);
+    }
+  });
+
   // Handle Message Edit
   socket.on('edit_message', async ({ messageId, newText, userId, conversationId }) => {
     try {

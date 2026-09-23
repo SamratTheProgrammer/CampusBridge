@@ -27,7 +27,7 @@ export const getProfilePath = (target, role = 'student') => {
  */
 export const getAdminToken = () => {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') || '';
+  return sessionStorage.getItem('adminToken') || '';
 };
 
 /**

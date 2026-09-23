@@ -53,7 +53,7 @@ const Login = () => {
       const cachedRole = localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role')
       const role = cachedRole || user.publicMetadata?.role || user.unsafeMetadata?.role || selectedRole
       const fromPath = location.state?.from?.pathname || (typeof location.state?.from === 'string' ? location.state.from : null)
-      if (fromPath && !(role === 'mentor' && fromPath.startsWith('/dashboard'))) {
+      if (fromPath && !fromPath.startsWith('/admin') && !(role === 'mentor' && fromPath.startsWith('/dashboard'))) {
         navigate(fromPath, { replace: true })
       } else if (role === 'mentor') {
         navigate('/mentor-dashboard', { replace: true })
