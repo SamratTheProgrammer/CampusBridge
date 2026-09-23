@@ -273,6 +273,22 @@ const RealtimeChat = () => {
 
     // Socket Event Listeners
     const handleReceiveMessage = (msg) => {
+      // Ignore duplicate text messages generated for calls (only show the red/call_log card)
+      if (msg.type !== 'call_log' && typeof msg.text === 'string') {
+        const t = msg.text.trim().toLowerCase();
+        if (
+          t === 'missed video call' ||
+          t === 'missed voice call' ||
+          t === 'declined video call' ||
+          t === 'declined voice call' ||
+          t.startsWith('video call •') ||
+          t.startsWith('voice call •')
+        ) {
+          fetchContacts();
+          return;
+        }
+      }
+
       const activeConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
       const isForActiveContact =
         msg.conversationId === activeConvId ||
@@ -593,8 +609,15 @@ const RealtimeChat = () => {
     e.target.value = '';
   };
 
+  const userRef = useRef(user);
+  const fetchContactsRef = useRef(fetchContacts);
+  useEffect(() => {
+    userRef.current = user;
+    fetchContactsRef.current = fetchContacts;
+  });
+
   // Commit permanent message deletion to socket and database
-  const commitDelete = useCallback(async (itemToCommit) => {
+  const commitDelete = (itemToCommit) => {
     const item = itemToCommit || pendingDeleteRef.current;
     if (!item) return;
 
@@ -612,27 +635,26 @@ const RealtimeChat = () => {
 
     const { message, type, conversationId } = item;
     const messageId = message._id;
+    const currentUserId = userRef.current?.id;
 
     // 1. Socket emit
     socket.emit('delete_message', {
       messageId,
       type,
-      userId: user.id,
+      userId: currentUserId,
       conversationId
     });
 
     // 2. REST API persistence
-    try {
-      await fetch(`${API_BASE}/api/messages/${messageId}?type=${type}&userId=${user.id}`, {
-        method: 'DELETE'
-      });
-    } catch (err) {
+    fetch(`${API_BASE}/api/messages/${messageId}?type=${type}&userId=${currentUserId}`, {
+      method: 'DELETE'
+    }).catch((err) => {
       console.error('Error committing message deletion:', err);
-    }
+    });
 
     // 3. Re-fetch contacts to ensure server-side consistency
-    fetchContacts();
-  }, [user?.id, fetchContacts]);
+    if (fetchContactsRef.current) fetchContactsRef.current();
+  };
 
   // Handle Delete with WhatsApp-style Undo window (5 seconds)
   const handleDeleteMessage = (messageOrId, type = 'me') => {
@@ -640,11 +662,11 @@ const RealtimeChat = () => {
     if (typeof messageOrId === 'object' && messageOrId !== null) {
       targetMsg = messageOrId;
     } else {
-      targetMsg = messages.find((m) => String(m._id) === String(messageOrId));
+      targetMsg = messages.find((m) => String(m._id || m.id) === String(messageOrId));
     }
     if (!targetMsg) return;
 
-    const messageId = targetMsg._id;
+    const messageId = targetMsg._id || targetMsg.id;
 
     // If another deletion was already pending, commit it immediately before starting this one
     if (pendingDeleteRef.current) {
@@ -655,13 +677,13 @@ const RealtimeChat = () => {
     if (type === 'everyone') {
       setMessages((prev) =>
         prev.map((m) =>
-          String(m._id) === String(messageId)
+          String(m._id || m.id) === String(messageId)
             ? { ...m, isDeleted: true, text: '', attachment: null }
             : m
         )
       );
     } else {
-      setMessages((prev) => prev.filter((m) => String(m._id) !== String(messageId)));
+      setMessages((prev) => prev.filter((m) => String(m._id || m.id) !== String(messageId)));
     }
     setActiveMessageMenu(null);
     setDeleteModalMsg(null);
@@ -749,9 +771,10 @@ const RealtimeChat = () => {
 
     // Restore message in messages state
     setMessages((prev) => {
-      const exists = prev.some((m) => String(m._id) === String(message._id));
+      const targetId = message._id || message.id;
+      const exists = prev.some((m) => String(m._id || m.id) === String(targetId));
       if (exists) {
-        return prev.map((m) => String(m._id) === String(message._id) ? message : m);
+        return prev.map((m) => String(m._id || m.id) === String(targetId) ? message : m);
       }
       const copy = [...prev];
       if (originalIndex >= 0 && originalIndex <= copy.length) {
@@ -779,16 +802,18 @@ const RealtimeChat = () => {
     }
   };
 
-  // Commit any pending message deletion on contact switch
+  // Commit any pending message deletion ONLY when actually switching to another contact
+  const prevContactIdRef = useRef(activeContact?.clerkId);
   useEffect(() => {
-    return () => {
+    if (prevContactIdRef.current && prevContactIdRef.current !== activeContact?.clerkId) {
       if (pendingDeleteRef.current) {
         commitDelete(pendingDeleteRef.current);
       }
-    };
-  }, [activeContact?.clerkId, commitDelete]);
+    }
+    prevContactIdRef.current = activeContact?.clerkId;
+  }, [activeContact?.clerkId]);
 
-  // Commit on window unload
+  // Commit on window unload & unmount
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (pendingDeleteRef.current) {
@@ -798,8 +823,11 @@ const RealtimeChat = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (pendingDeleteRef.current) {
+        commitDelete(pendingDeleteRef.current);
+      }
     };
-  }, [commitDelete]);
+  }, []);
 
   // Block / Unblock User
   const toggleBlockUser = async () => {
@@ -1386,6 +1414,21 @@ const RealtimeChat = () => {
                   </div>
                 );
                 
+                // Never display duplicate text bubbles for calls (only show the red/call_log card)
+                if (msg.type !== 'call_log' && typeof msg.text === 'string') {
+                  const t = msg.text.trim().toLowerCase();
+                  if (
+                    t === 'missed video call' ||
+                    t === 'missed voice call' ||
+                    t === 'declined video call' ||
+                    t === 'declined voice call' ||
+                    t.startsWith('video call •') ||
+                    t.startsWith('voice call •')
+                  ) {
+                    return null;
+                  }
+                }
+
                 if (msg.type === 'call_log') {
                   const isMissed = msg.callInfo?.status === 'missed' || msg.callInfo?.status === 'rejected';
                   return (
@@ -1414,18 +1457,36 @@ const RealtimeChat = () => {
                           </div>
 
                           <div className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-2xl border text-xs shadow-sm ${
-                            isMissed
-                              ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
-                              : 'bg-primary/10 border-primary/20 text-foreground'
+                            isMe
+                              ? 'bg-purple-500/10 dark:bg-purple-950/40 border-purple-500/30 text-purple-400 dark:text-purple-300'
+                              : isMissed
+                              ? 'bg-red-500/10 dark:bg-red-950/40 border-red-500/30 text-red-500 dark:text-red-400'
+                              : 'bg-emerald-500/10 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-500 dark:text-emerald-400'
                           }`}>
                             <div className={`p-2.5 rounded-full shrink-0 ${
-                              isMissed ? 'bg-red-500/20 text-red-500' : 'bg-primary/20 text-primary'
+                              isMe
+                                ? 'bg-purple-500/20 text-purple-400'
+                                : isMissed
+                                ? 'bg-red-500/20 text-red-500'
+                                : 'bg-emerald-500/20 text-emerald-500'
                             }`}>
                               {msg.callInfo?.callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-xs sm:text-sm truncate">{msg.text}</p>
-                              <span className="text-[10px] text-muted-foreground">{formatMessageTime(msg.createdAt)}</span>
+                              <p className={`font-semibold text-xs sm:text-sm truncate ${
+                                isMe
+                                  ? 'text-purple-400 dark:text-purple-300'
+                                  : isMissed
+                                  ? 'text-red-500 dark:text-red-400'
+                                  : 'text-foreground'
+                              }`}>{msg.text}</p>
+                              <span className={`text-[10px] ${
+                                isMe
+                                  ? 'text-purple-400/70 dark:text-purple-300/70'
+                                  : isMissed
+                                  ? 'text-red-400/70'
+                                  : 'text-muted-foreground'
+                              }`}>{formatMessageTime(msg.createdAt)}</span>
                             </div>
                             <button
                               onClick={() => {
@@ -1433,9 +1494,13 @@ const RealtimeChat = () => {
                                   detail: { targetPartner: activeContact, type: msg.callInfo?.callType || 'video' }
                                 }));
                               }}
-                              className="px-2.5 py-1 bg-background border border-border/50 hover:bg-muted rounded-lg text-[11px] font-semibold text-foreground transition-colors shrink-0 shadow-xs"
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors shrink-0 shadow-xs cursor-pointer ${
+                                isMe
+                                  ? 'bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30 text-purple-200'
+                                  : 'bg-background border border-border/50 hover:bg-muted text-foreground'
+                              }`}
                             >
-                              Call Back
+                              {isMe ? 'Call Again' : 'Call Back'}
                             </button>
                           </div>
                         </div>
@@ -1658,40 +1723,52 @@ const RealtimeChat = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* WhatsApp-Style Undo Delete Snackbar */}
+          {/* WhatsApp-Style Floating Undo Delete Snackbar */}
           {pendingDelete && (
-            <div className="mx-2 sm:mx-4 mb-2 p-2.5 sm:p-3 bg-zinc-900/95 dark:bg-zinc-800/95 text-white rounded-2xl shadow-2xl border border-zinc-700/60 backdrop-blur-md flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 z-30 shrink-0">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
-                  <Trash2 className="w-3.5 h-3.5" />
+            <div className="relative shrink-0 z-40">
+              <div className="absolute bottom-2 left-3 right-3 sm:left-6 sm:right-6 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-auto">
+                <div className="bg-zinc-900/95 dark:bg-zinc-800/95 text-white rounded-2xl shadow-2xl border border-zinc-700/60 backdrop-blur-md p-3 flex items-center justify-between gap-3 relative overflow-hidden">
+                  {/* Visual Timer Progress Bar */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-zinc-800">
+                    <div
+                      className="h-full bg-amber-400 transition-all duration-1000 ease-linear rounded-b-2xl"
+                      style={{ width: `${(undoSecondsLeft / 5) * 100}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                      <Trash2 className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs sm:text-sm font-semibold truncate text-zinc-100">
+                        {pendingDelete.type === 'everyone' ? 'Message deleted for everyone' : 'Message deleted for me'}
+                      </span>
+                      <span className="text-[11px] text-zinc-400 flex items-center gap-1.5">
+                        Undo available for <span className="font-bold text-amber-400 font-mono bg-amber-400/10 px-1.5 py-0.5 rounded">{undoSecondsLeft}s</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleUndoDelete}
+                      className="px-3.5 py-1.5 bg-primary text-primary-foreground text-xs sm:text-sm font-bold rounded-xl hover:bg-primary/90 active:scale-95 transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Undo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDismissUndo}
+                      className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                      title="Dismiss"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs sm:text-sm font-semibold truncate text-zinc-100">
-                    {pendingDelete.type === 'everyone' ? 'Message deleted for everyone' : 'Message deleted for me'}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 flex items-center gap-1">
-                    Undo available for <span className="font-bold text-amber-400 font-mono">{undoSecondsLeft}s</span>
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleUndoDelete}
-                  className="px-3.5 py-1.5 bg-primary text-primary-foreground text-xs sm:text-sm font-bold rounded-xl hover:bg-primary/90 active:scale-95 transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Undo
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDismissUndo}
-                  className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-                  title="Dismiss"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
               </div>
             </div>
           )}

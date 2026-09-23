@@ -228,13 +228,8 @@ const VideoCallModal = ({ currentUser }) => {
       });
 
       if (res.ok) {
-        const callLogMsg = await res.json();
-        socket.emit('send_message', {
-          senderClerkId: currentUser.id,
-          recipientClerkId: partner.clerkId,
-          conversationId: callLogMsg.conversationId,
-          text: callLogMsg.text
-        });
+        // Backend /api/messages/call-log automatically broadcasts the call_log message
+        // via socket directly, avoiding duplicate text-type message bubbles.
       }
     } catch (err) {
       console.error('Error saving call log:', err);

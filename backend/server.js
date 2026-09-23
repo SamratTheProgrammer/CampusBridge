@@ -115,6 +115,7 @@ const emitToUserSockets = (userId, eventName, data) => {
     });
   }
 };
+app.set('emitToUserSockets', emitToUserSockets);
 
 // Middleware
 app.use(cors({

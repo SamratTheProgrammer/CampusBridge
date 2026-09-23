@@ -94,7 +94,20 @@ router.get('/conversations/:clerkId', async (req, res) => {
         const conversationId = Message.getConversationId(clerkId, partnerId);
         const lastMessage = await Message.findOne({ 
           conversationId,
-          deletedFor: { $ne: clerkId }
+          deletedFor: { $ne: clerkId },
+          $nor: [
+            {
+              type: 'text',
+              text: {
+                $in: [
+                  'Missed video call',
+                  'Missed voice call',
+                  'Declined video call',
+                  'Declined voice call'
+                ]
+              }
+            }
+          ]
         }).sort({ createdAt: -1 });
         const unreadCount = await Message.countDocuments({
           conversationId,
@@ -179,7 +192,39 @@ router.get('/:conversationId', async (req, res) => {
       query.deletedFor = { $ne: userId };
     }
     const messages = await Message.find(query).sort({ createdAt: 1 });
-    res.status(200).json(messages);
+
+    // Clean up / filter out redundant duplicate text messages created by call logging bug
+    const isCallLogDuplicateText = (m) => {
+      if (m.type !== 'call_log' && typeof m.text === 'string') {
+        const t = m.text.trim().toLowerCase();
+        return (
+          t === 'missed video call' ||
+          t === 'missed voice call' ||
+          t === 'declined video call' ||
+          t === 'declined voice call' ||
+          t.startsWith('video call •') ||
+          t.startsWith('voice call •')
+        );
+      }
+      return false;
+    };
+
+    // Purge duplicate text messages from DB in background
+    Message.deleteMany({
+      conversationId,
+      type: 'text',
+      text: {
+        $in: [
+          'Missed video call',
+          'Missed voice call',
+          'Declined video call',
+          'Declined voice call'
+        ]
+      }
+    }).catch(() => {});
+
+    const cleanMessages = messages.filter((m) => !isCallLogDuplicateText(m));
+    res.status(200).json(cleanMessages);
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ message: 'Server error' });
@@ -302,6 +347,36 @@ router.post('/call-log', async (req, res) => {
     });
 
     await callLogMessage.save();
+
+    const io = req.app?.get('io') || req.io;
+    const emitToUserSockets = req.app?.get('emitToUserSockets');
+
+    if (io) {
+      io.to(conversationId).emit('receive_message', callLogMessage);
+    }
+    if (emitToUserSockets) {
+      emitToUserSockets(recipientClerkId, 'receive_message', callLogMessage);
+      emitToUserSockets(senderClerkId, 'receive_message', callLogMessage);
+
+      const sender = await User.findOne({ clerkId: senderClerkId });
+      const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'Someone';
+      const isVideo = (callType || 'video') === 'video';
+      const displaySnippet = `${isVideo ? '📹' : '📞'} ${text}`;
+
+      emitToUserSockets(recipientClerkId, 'update_sidebar', {
+        ...callLogMessage.toObject(),
+        lastMessage: displaySnippet,
+        senderName,
+        senderImage: sender?.imageUrl
+      });
+      emitToUserSockets(senderClerkId, 'update_sidebar', {
+        ...callLogMessage.toObject(),
+        lastMessage: displaySnippet,
+        senderName,
+        senderImage: sender?.imageUrl
+      });
+    }
+
     res.status(201).json(callLogMessage);
   } catch (error) {
     console.error('Error saving call log:', error);
