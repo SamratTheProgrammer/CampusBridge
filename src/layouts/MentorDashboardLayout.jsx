@@ -17,6 +17,7 @@ import ReviewModal from '../components/modals/ReviewModal'
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 import AnnouncementModal from '../components/dashboard/AnnouncementModal'
+import DashboardAppBanner from '../components/dashboard/DashboardAppBanner'
 
 const MentorDashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -601,6 +602,9 @@ const MentorDashboardLayout = () => {
             </div>
           </div>
         </header>
+
+        {/* Mobile App Launch Notification Banner */}
+        <DashboardAppBanner />
 
         {/* Official Administrative Warning Banner for Mentor */}
         {warnings.length > 0 && (

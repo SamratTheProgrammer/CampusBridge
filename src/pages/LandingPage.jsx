@@ -20,7 +20,6 @@ import FAQ from '../components/sections/FAQ'
 import Newsletter from '../components/sections/Newsletter'
 import ContactSection from '../components/sections/ContactSection'
 import FinalCTA from '../components/sections/FinalCTA'
-import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 import API_BASE from '../utils/api'
 
 const LandingPage = () => {
@@ -109,18 +108,6 @@ const LandingPage = () => {
       }
     }
   }, [location.hash])
-  const adminToken = typeof window !== 'undefined' && sessionStorage.getItem('adminToken')
-  const cachedLogin = typeof window !== 'undefined' && (
-    localStorage.getItem('campusbridge_logged_in') === 'true' || 
-    !!localStorage.getItem('campusbridge_user_role')
-  )
-  const initialRoutedState = typeof window !== 'undefined' && (
-    sessionStorage.getItem('campusbridge_tab_initialized') === 'true' ||
-    sessionStorage.getItem('campusbridge_viewing_home') === 'true'
-  )
-  if (!initialRoutedState && ((!isLoaded && cachedLogin) || (isLoaded && (isSignedIn || adminToken)))) {
-    return <RouteIntegrityLoader title="Resuming your session..." subtitle="Connecting to your dashboard..." />
-  }
 
   return (
     <div className="w-full overflow-hidden">

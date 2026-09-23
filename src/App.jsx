@@ -138,9 +138,19 @@ function RootIndex() {
 
   // Only auto-redirect on the very first launch in this tab session
   if (!initialRouted && (cachedLogin || (isLoaded && isSignedIn))) {
-    // If Clerk is still loading, display RouteIntegrityLoader - NEVER flash the LandingPage!
-    if (!isLoaded) {
-      return <RouteIntegrityLoader title="Resuming your session..." subtitle="Connecting to your dashboard..." />
+    // If cached login exists, navigate directly and automatically without blocking
+    if (cachedLogin) {
+      sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+      const role = localStorage.getItem('campusbridge_user_role') || 
+                   sessionStorage.getItem('campusbridge_user_role') || 
+                   'student'
+      if (role === 'mentor') {
+        return <Navigate to="/mentor-dashboard" replace />
+      } else if (role === 'admin') {
+        return <Navigate to="/admin" replace />
+      } else {
+        return <Navigate to="/dashboard" replace />
+      }
     }
 
     if (isSignedIn && user) {
@@ -160,10 +170,13 @@ function RootIndex() {
       } else {
         return <Navigate to="/dashboard" replace />
       }
-    } else {
+    } else if (isLoaded) {
       // isLoaded is true but user is not signed in: clear stale cache and show landing page
       localStorage.removeItem('campusbridge_logged_in')
       localStorage.removeItem('campusbridge_user_role')
+    } else {
+      // Still loading auth without cache - return null instead of blocking loader
+      return null
     }
   }
 

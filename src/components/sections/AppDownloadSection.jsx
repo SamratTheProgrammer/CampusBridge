@@ -159,18 +159,18 @@ const AppDownloadSection = () => {
               </div>
 
               {/* Smartphone Frame Mockup */}
-              <div className="w-[280px] sm:w-[310px] rounded-[42px] p-3 bg-zinc-900 border-4 border-zinc-700/60 shadow-2xl relative overflow-hidden">
+              <div className="w-[280px] sm:w-[310px] rounded-[42px] p-3 bg-slate-100 dark:bg-zinc-900 border-4 border-slate-300/80 dark:border-zinc-700/60 shadow-2xl shadow-purple-500/10 dark:shadow-2xl relative overflow-hidden transition-colors duration-300">
                 {/* Speaker & Camera Notch */}
-                <div className="w-24 h-4 bg-zinc-800 rounded-full mx-auto mb-2 flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-zinc-700" />
-                  <div className="w-8 h-1 bg-zinc-700 rounded-full" />
+                <div className="w-24 h-4 bg-slate-200 dark:bg-zinc-800 rounded-full mx-auto mb-2 flex items-center justify-center gap-2 transition-colors">
+                  <div className="w-2 h-2 rounded-full bg-slate-400 dark:bg-zinc-700" />
+                  <div className="w-8 h-1 bg-slate-300 dark:bg-zinc-700 rounded-full" />
                 </div>
 
                 {/* Mobile Screen Simulator */}
-                <div className="bg-zinc-950 rounded-[30px] overflow-hidden border border-zinc-800 text-white p-3.5 space-y-3 relative font-sans text-xs">
+                <div className="bg-white dark:bg-zinc-950 rounded-[30px] overflow-hidden border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-white p-3.5 space-y-3 relative font-sans text-xs shadow-inner transition-colors duration-300">
                   {/* Status Bar */}
-                  <div className="flex items-center justify-between text-[10px] text-zinc-400 px-1 pt-0.5">
-                    <span className="font-semibold text-zinc-200">9:41</span>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400 px-1 pt-0.5">
+                    <span className="font-semibold text-slate-800 dark:text-zinc-200">9:41</span>
                     <div className="flex items-center gap-1">
                       <span>5G</span>
                       <span>100%</span>
@@ -178,24 +178,24 @@ const AppDownloadSection = () => {
                   </div>
 
                   {/* App Header */}
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-800 pt-1">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800 pt-1">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
                         CB
                       </div>
                       <div>
-                        <p className="font-bold text-zinc-100 text-xs leading-none">CampusBridge</p>
-                        <p className="text-[9px] text-emerald-400 font-medium leading-tight mt-0.5">• Online</p>
+                        <p className="font-bold text-slate-900 dark:text-zinc-100 text-xs leading-none">CampusBridge</p>
+                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium leading-tight mt-0.5">• Online</p>
                       </div>
                     </div>
-                    <div className="w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-300">
+                    <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-zinc-300">
                       <Bell className="w-3.5 h-3.5" />
                     </div>
                   </div>
 
                   {/* Active Chat Item */}
                   <div className="space-y-2">
-                    <div className="bg-purple-950/60 border border-purple-500/30 rounded-xl p-2.5">
+                    <div className="bg-purple-50/90 dark:bg-purple-950/60 border border-purple-200/90 dark:border-purple-500/30 rounded-xl p-2.5 shadow-xs">
                       <div className="flex items-center gap-2">
                         <img 
                           src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
@@ -203,47 +203,47 @@ const AppDownloadSection = () => {
                           className="w-7 h-7 rounded-full object-cover ring-1 ring-purple-400"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-zinc-100 truncate">Dr. Sarah Johnson</p>
-                          <p className="text-[9px] text-purple-300">Senior AI Mentor</p>
+                          <p className="text-[11px] font-bold text-slate-900 dark:text-zinc-100 truncate">Dr. Sarah Johnson</p>
+                          <p className="text-[9px] text-purple-600 dark:text-purple-300 font-medium">Senior AI Mentor</p>
                         </div>
-                        <span className="text-[8px] bg-purple-500/30 text-purple-300 px-1.5 py-0.5 rounded font-bold uppercase">ALUMNI</span>
+                        <span className="text-[8px] bg-purple-200/80 dark:bg-purple-500/30 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold uppercase">ALUMNI</span>
                       </div>
-                      <p className="text-[10px] text-zinc-300 mt-2 bg-purple-900/40 p-1.5 rounded-lg border border-purple-500/20">
+                      <p className="text-[10px] text-slate-700 dark:text-zinc-300 mt-2 bg-white/95 dark:bg-purple-900/40 p-1.5 rounded-lg border border-purple-200/80 dark:border-purple-500/20 shadow-xs">
                         "Your resume looks great! Let's do a quick video call at 4 PM to review."
                       </p>
                     </div>
 
                     {/* Voice Note Simulation */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-2 flex items-center gap-2">
+                    <div className="bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-2 flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-white text-[9px]">
                         ▶
                       </div>
-                      <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                         <div className="w-2/3 h-full bg-gradient-to-r from-purple-500 to-indigo-500" />
                       </div>
-                      <span className="text-[9px] font-mono text-zinc-400">0:14</span>
+                      <span className="text-[9px] font-mono text-slate-500 dark:text-zinc-400">0:14</span>
                     </div>
 
                     {/* Call Incoming Simulation */}
-                    <div className="bg-emerald-950/50 border border-emerald-500/30 rounded-xl p-2 flex items-center justify-between">
+                    <div className="bg-emerald-50/90 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-500/30 rounded-xl p-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                           <Video className="w-3 h-3" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-zinc-100 leading-none">Mentorship Session</p>
-                          <p className="text-[8px] text-emerald-400 mt-0.5">Incoming WebRTC Video...</p>
+                          <p className="text-[10px] font-bold text-slate-900 dark:text-zinc-100 leading-none">Mentorship Session</p>
+                          <p className="text-[8px] text-emerald-600 dark:text-emerald-400 mt-0.5 font-medium">Incoming WebRTC Video...</p>
                         </div>
                       </div>
-                      <span className="text-[9px] bg-emerald-500 text-black font-bold px-2 py-0.5 rounded-md shadow-xs">
+                      <span className="text-[9px] bg-emerald-500 hover:bg-emerald-600 text-white dark:text-black font-bold px-2 py-0.5 rounded-md shadow-xs transition-colors">
                         Accept
                       </span>
                     </div>
                   </div>
 
                   {/* Bottom Navigation Mockup */}
-                  <div className="pt-2 border-t border-zinc-800/80 flex justify-around text-zinc-500 text-[10px]">
-                    <span className="text-purple-400 font-bold">Home</span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-zinc-800/80 flex justify-around text-slate-400 dark:text-zinc-500 text-[10px]">
+                    <span className="text-purple-600 dark:text-purple-400 font-bold">Home</span>
                     <span>Chat</span>
                     <span>Mentors</span>
                     <span>Jobs</span>

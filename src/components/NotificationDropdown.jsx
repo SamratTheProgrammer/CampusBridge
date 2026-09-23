@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User, ArrowLeft, Volume2, AlertTriangle } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User, ArrowLeft, Volume2, AlertTriangle, Smartphone } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -532,6 +532,31 @@ const NotificationDropdown = () => {
 
             {/* List */}
             <div className="max-h-[360px] overflow-y-auto overscroll-contain divide-y divide-border/30">
+              {/* Featured Mobile App Announcement Card */}
+              <div 
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open-app-install-modal'))
+                  setIsOpen(false)
+                }}
+                className="p-3 bg-gradient-to-r from-purple-500/10 via-indigo-500/5 to-purple-600/10 hover:from-purple-500/15 hover:to-indigo-500/15 transition-all cursor-pointer flex gap-3 items-center border-b border-purple-500/20 group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-purple-500 text-white rounded font-sans">NEW</span>
+                    <span className="text-xs font-bold text-foreground truncate">CampusBridge Mobile App</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+                    Download Android APK (7.2MB) & iOS PWA
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-1 rounded-lg shrink-0 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                  Get App →
+                </span>
+              </div>
+
               {filteredNotifications.length > 0 ? (
                 filteredNotifications.map((n) => (
                   <div 

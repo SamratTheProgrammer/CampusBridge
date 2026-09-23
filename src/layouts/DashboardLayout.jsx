@@ -17,6 +17,7 @@ import ReviewModal from '../components/modals/ReviewModal'
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 import AnnouncementModal from '../components/dashboard/AnnouncementModal'
+import DashboardAppBanner from '../components/dashboard/DashboardAppBanner'
 
 const DashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -493,6 +494,9 @@ const DashboardLayout = () => {
             </div>
           </div>
         </header>
+
+        {/* Mobile App Launch Notification Banner */}
+        <DashboardAppBanner />
 
         {/* Page Content */}
         <main className={`flex-1 ${

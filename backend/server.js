@@ -48,7 +48,6 @@ const allowedOrigins = [
   'http://192.168.209.1:5173',
   'http://10.83.114.85:5173',
   'https://campus-bridge-x5rl.vercel.app',
-  'http://172.22.87.198:5173/',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
