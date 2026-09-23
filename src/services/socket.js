@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { Capacitor } from '@capacitor/core';
 
 const getSocketUrl = () => {
   if (import.meta.env.VITE_SOCKET_URL) {
@@ -7,7 +8,7 @@ const getSocketUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL) {
     return import.meta.env.VITE_BACKEND_URL;
   }
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
     return window.location.origin;
   }
   return 'http://localhost:5001';

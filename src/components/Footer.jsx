@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Shield } from 'lucide-react'
+import { Shield, Smartphone, Apple, Download } from 'lucide-react'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
 import footerBg from '../assets/footer-logo.png'
@@ -13,7 +13,7 @@ const Footer = () => {
     >
       <div className="absolute inset-0 bg-background/90 dark:bg-background/80 pointer-events-none"></div>
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 mb-12">
           {/* Brand & Socials */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center ">
@@ -57,7 +57,7 @@ const Footer = () => {
             <ul className="space-y-3">
               <li><Link to="/about" className="text-muted-foreground hover:text-primary transition-colors text-sm">About</Link></li>
               <li><Link to="/careers" className="text-muted-foreground hover:text-primary transition-colors text-sm">Careers</Link></li>
-              <li><a href="/#contact-us" className="text-muted-foreground hover:text-primary transition-colors text-sm">Contact</a></li>
+              <li><Link to="/#contact" onClick={() => { sessionStorage.setItem('campusbridge_tab_initialized', 'true'); sessionStorage.setItem('campusbridge_viewing_home', 'true'); }} className="text-muted-foreground hover:text-primary transition-colors text-sm">Contact Us</Link></li>
               <li>
                 <Link to="/admin/login" className="text-muted-foreground hover:text-primary transition-colors text-sm flex items-center gap-1.5 font-medium">
                   <Shield className="w-3.5 h-3.5 text-primary" /> Admin Portal
@@ -70,7 +70,7 @@ const Footer = () => {
             <h3 className="font-semibold text-foreground mb-4">Resources</h3>
             <ul className="space-y-3">
               <li><Link to="/blog" className="text-muted-foreground hover:text-primary transition-colors text-sm">Blog</Link></li>
-              <li><Link to="/help" className="text-muted-foreground hover:text-primary transition-colors text-sm">Help Center</Link></li>
+              <li><Link to="/#contact" onClick={() => { sessionStorage.setItem('campusbridge_tab_initialized', 'true'); sessionStorage.setItem('campusbridge_viewing_home', 'true'); }} className="text-muted-foreground hover:text-primary transition-colors text-sm">Help Center & Support</Link></li>
               <li><Link to="/guidelines" className="text-muted-foreground hover:text-primary transition-colors text-sm">Community Guidelines</Link></li>
             </ul>
           </div>
@@ -83,11 +83,49 @@ const Footer = () => {
               <li><Link to="/cookies" className="text-muted-foreground hover:text-primary transition-colors text-sm">Cookie Policy</Link></li>
             </ul>
           </div>
+
+          {/* Mobile App Download Column */}
+          <div>
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-primary" /> Mobile App
+            </h3>
+            <div className="space-y-2.5">
+              <a
+                href="/downloads/CampusBridge.apk"
+                download="CampusBridge.apk"
+                className="group p-2.5 rounded-xl bg-card border border-border/70 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all flex items-center gap-2.5 text-left"
+              >
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Download className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-tight">Android APK</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">Direct v1.0.0 (28MB)</p>
+                </div>
+              </a>
+
+              <a
+                href="/#download-app"
+                className="group p-2.5 rounded-xl bg-card border border-border/70 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all flex items-center gap-2.5 text-left"
+              >
+                <div className="w-7 h-7 rounded-lg bg-foreground/10 text-foreground flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Apple className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-tight">iOS / iPhone</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">TestFlight & Web App</p>
+                </div>
+              </a>
+            </div>
+          </div>
         </div>
 
         <div className="border-t pt-8 flex flex-col md:flex-row items-center justify-between text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} CampusBridge. All rights reserved.</p>
           <div className="flex gap-4 mt-4 md:mt-0 items-center">
+            <Link to="/#download-app" className="hover:text-primary transition-colors flex items-center gap-1 font-medium">
+              <Smartphone className="w-3.5 h-3.5" /> Get App
+            </Link>
             <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
             <Link to="/admin/login" className="hover:text-primary transition-colors flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all">

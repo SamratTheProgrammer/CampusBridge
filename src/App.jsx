@@ -15,13 +15,17 @@ import Footer from './components/Footer'
 import PageTransition from './components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
-import { ClerkProvider } from '@clerk/clerk-react'
+import { ClerkProvider, useUser } from '@clerk/clerk-react'
 import ErrorBoundary from './components/ErrorBoundary'
+import RouteIntegrityLoader from './components/RouteIntegrityLoader'
 import EventPopup from './components/EventPopup'
 import IndependenceDayConfetti from './components/IndependenceDayConfetti'
 import HoliSplashAnimation from './components/HoliSplashAnimation'
 import DiwaliFireworks from './components/DiwaliFireworks'
 import SessionManager from './components/SessionManager'
+import PushNotificationPrompt from './components/common/PushNotificationPrompt'
+import CapacitorInit from './components/common/CapacitorInit'
+import AppAnnouncementBar from './components/common/AppAnnouncementBar'
 import { DynamicLayoutWrapper, ProfileDispatcher } from './components/UnifiedProfileRoute'
 import { ProfileDataProvider } from './context/ProfileDataContext'
 
@@ -87,7 +91,10 @@ function ScrollToHash() {
     if (hash) {
       const targetId = hash.replace('#', '')
       const scrollToTarget = () => {
-        const element = document.getElementById(targetId)
+        let element = document.getElementById(targetId)
+        if (!element && (targetId === 'contact' || targetId === 'contact-us')) {
+          element = document.getElementById('contact') || document.getElementById('contact-us')
+        }
         if (element) {
           const offset = 80
           const bodyRect = document.body.getBoundingClientRect().top
@@ -98,12 +105,80 @@ function ScrollToHash() {
       }
       scrollToTarget()
       const timer = setTimeout(scrollToTarget, 200)
-      return () => clearTimeout(timer)
+      const timer2 = setTimeout(scrollToTarget, 500)
+      return () => {
+        clearTimeout(timer)
+        clearTimeout(timer2)
+      }
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [hash, pathname])
   return null
+}
+
+function RootIndex() {
+  const { isLoaded, isSignedIn, user } = useUser()
+  const cachedLogin = typeof window !== 'undefined' && (
+    localStorage.getItem('campusbridge_logged_in') === 'true' || 
+    !!localStorage.getItem('campusbridge_user_role')
+  )
+  const adminToken = typeof window !== 'undefined' && sessionStorage.getItem('adminToken')
+
+  if (adminToken) {
+    return <Navigate to="/admin" replace />
+  }
+
+  // Check if initial routing in this browser tab session has already happened
+  // OR if the user is explicitly viewing home
+  const initialRouted = typeof window !== 'undefined' && (
+    sessionStorage.getItem('campusbridge_tab_initialized') === 'true' ||
+    sessionStorage.getItem('campusbridge_viewing_home') === 'true'
+  )
+
+  // Only auto-redirect on the very first launch in this tab session
+  if (!initialRouted && (cachedLogin || (isLoaded && isSignedIn))) {
+    // If Clerk is still loading, display RouteIntegrityLoader - NEVER flash the LandingPage!
+    if (!isLoaded) {
+      return <RouteIntegrityLoader title="Resuming your session..." subtitle="Connecting to your dashboard..." />
+    }
+
+    if (isSignedIn && user) {
+      sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+      localStorage.setItem('campusbridge_logged_in', 'true')
+      const role = localStorage.getItem('campusbridge_user_role') || 
+                   sessionStorage.getItem('campusbridge_user_role') || 
+                   user.publicMetadata?.role || 
+                   user.unsafeMetadata?.role || 
+                   'student'
+      localStorage.setItem('campusbridge_user_role', role)
+
+      if (role === 'mentor') {
+        return <Navigate to="/mentor-dashboard" replace />
+      } else if (role === 'admin') {
+        return <Navigate to="/admin" replace />
+      } else {
+        return <Navigate to="/dashboard" replace />
+      }
+    } else {
+      // isLoaded is true but user is not signed in: clear stale cache and show landing page
+      localStorage.removeItem('campusbridge_logged_in')
+      localStorage.removeItem('campusbridge_user_role')
+    }
+  }
+
+  return (
+    <PageTransition>
+      <div className="flex flex-col min-h-screen">
+        <AppAnnouncementBar />
+        <Navbar />
+        <main className="flex-1">
+          <LandingPage />
+        </main>
+        <Footer />
+      </div>
+    </PageTransition>
+  )
 }
 
 function AnimatedRoutes() {
@@ -119,18 +194,8 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={getRouteKey(location.pathname)}>
-        {/* Public Routes with Navbar and Footer */}
-        <Route path="/" element={
-          <PageTransition>
-            <div className="flex flex-col min-h-screen">
-              <Navbar />
-              <main className="flex-1">
-                <LandingPage />
-              </main>
-              <Footer />
-            </div>
-          </PageTransition>
-        } />
+        {/* Smart Root Index Route (Instant Auth Resume) */}
+        <Route path="/" element={<RootIndex />} />
 
         <Route path="/login" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><Login /></main><Footer /></div></PageTransition>} />
         <Route path="/signup" element={<PageTransition><div className="flex flex-col min-h-screen"><Navbar /><main className="flex-1"><SignUp /></main><Footer /></div></PageTransition>} />
@@ -296,6 +361,7 @@ function App() {
       <ThemeProvider defaultTheme="system" storageKey="campusbridge-theme">
         <ProfileDataProvider>
           <Router>
+            <CapacitorInit />
             <SessionManager />
             <ScrollToHash />
             <ErrorBoundary>
@@ -306,6 +372,7 @@ function App() {
             <HoliSplashWrapper />
             <DiwaliWrapper />
             <SharedItemViewer />
+            <PushNotificationPrompt />
             <Toaster position="bottom-right" />
           </Router>
         </ProfileDataProvider>

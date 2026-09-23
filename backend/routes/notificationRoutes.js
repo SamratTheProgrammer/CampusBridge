@@ -77,12 +77,15 @@ export const createNotificationHelper = async ({ recipientClerkId, senderClerkId
     }
 
     // Web Push Logic
-    if (recipientInfo.user && recipientInfo.user.pushEnabled && recipientInfo.user.pushSubscriptions && recipientInfo.user.pushSubscriptions.length > 0) {
+    const isPushAllowed = recipientInfo.user && recipientInfo.user.pushEnabled !== false;
+    if (isPushAllowed && Array.isArray(recipientInfo.user.pushSubscriptions) && recipientInfo.user.pushSubscriptions.length > 0) {
       const payload = JSON.stringify({
-        title: notification.title,
-        body: notification.message,
+        title: notification.title || 'CampusBridge',
+        body: notification.message || 'You have a new update.',
         url: notification.link || '/',
-        icon: '/favicon.png'
+        icon: '/icon-192x192.png',
+        badge: '/icon-192x192.png',
+        tag: `cb-${notification.type || 'alert'}-${Date.now()}`
       });
 
       const validSubscriptions = [];
@@ -97,7 +100,7 @@ export const createNotificationHelper = async ({ recipientClerkId, senderClerkId
             subsChanged = true;
           } else {
             validSubscriptions.push(sub);
-            console.error('Web push error:', err);
+            console.error('Web push error:', err?.message || err);
           }
         }
       }

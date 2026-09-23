@@ -97,6 +97,20 @@ const StudentProfileGuard = ({ children }) => {
               >
                 Complete Profile Now
               </button>
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => {
+                    setShowModal(false);
+                    sessionStorage.setItem('campusbridge_tab_initialized', 'true');
+                    sessionStorage.setItem('campusbridge_viewing_home', 'true');
+                    navigate('/#contact');
+                  }}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                >
+                  Need help? Contact Support
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

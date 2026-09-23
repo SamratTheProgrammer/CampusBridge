@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Moon, Sun, Menu, X, Search } from 'lucide-react'
+import { Moon, Sun, Menu, X, Search, HelpCircle } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import ThemeToggle from './ThemeToggle'
 import { useUser, useClerk } from '@clerk/clerk-react'
@@ -28,6 +28,7 @@ const Navbar = () => {
     { name: 'Events', path: '/#events', id: 'events' },
     { name: 'Resources', path: '/#resources', id: 'resources' },
     { name: 'About', path: '/#about', id: 'about' },
+    { name: 'Contact', path: '/#contact', id: 'contact' },
   ]
 
   // Handle scroll detection and active nav link
@@ -108,7 +109,14 @@ const Navbar = () => {
 
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <Link to="/" className="flex items-center">
+              <Link 
+                to="/" 
+                className="flex items-center"
+                onClick={() => {
+                  sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+                  sessionStorage.setItem('campusbridge_viewing_home', 'true')
+                }}
+              >
                 <img src={logoLight} alt="CampusBridge" className="h-12 md:h-12 w-auto block dark:hidden" />
                 <img src={logoDark} alt="CampusBridge" className="h-12 md:h-12 w-auto hidden dark:block" />
               </Link>
@@ -160,7 +168,7 @@ const Navbar = () => {
                 <div className="relative">
                   <button 
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center gap-2 p-1 pl-3 pr-1 rounded-full border border-border/50 hover:bg-muted transition-colors"
+                    className="flex items-center gap-2 p-1 pl-3 pr-1 rounded-full border border-border/50 hover:bg-muted transition-colors cursor-pointer"
                   >
                     <span className="text-sm font-medium hidden sm:block">{user.firstName}</span>
                     <img 
@@ -169,44 +177,49 @@ const Navbar = () => {
                       className="w-8 h-8 rounded-full object-cover"
                     />
                   </button>
-                  
-                  <AnimatePresence>
-                    {isProfileOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg overflow-hidden flex flex-col py-1"
-                      >
-                        <div className="px-4 py-2 border-b border-border/50">
-                          <p className="text-sm font-medium">{user.fullName}</p>
-                          <p className="text-xs text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</p>
-                        </div>
-                        <Link 
-                          to={(localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
-                          className="px-4 py-2 text-sm hover:bg-muted transition-colors font-medium text-primary"
-                          onClick={() => {
-                            sessionStorage.setItem('campusbridge_just_authenticated', 'true')
-                            setIsProfileOpen(false)
-                          }}
+                    
+                    <AnimatePresence>
+                      {isProfileOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg overflow-hidden flex flex-col py-1 z-50"
                         >
-                          Go to Dashboard
-                        </Link>
-                        <button 
-                          onClick={() => {
-                            sessionStorage.removeItem('campusbridge_user_role')
-                            localStorage.removeItem('campusbridge_user_role')
-                            signOut({ redirectUrl: '/login' })
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors mt-1"
-                        >
-                          Sign Out
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                          <div className="px-4 py-2 border-b border-border/50">
+                            <p className="text-sm font-medium">{user.fullName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</p>
+                          </div>
+                          <Link 
+                            to={(localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'} 
+                            className="px-4 py-2 text-sm hover:bg-muted transition-colors font-medium text-primary"
+                            onClick={() => {
+                              sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+                              sessionStorage.removeItem('campusbridge_viewing_home')
+                              sessionStorage.setItem('campusbridge_just_authenticated', 'true')
+                              setIsProfileOpen(false)
+                            }}
+                          >
+                            Go to Dashboard
+                          </Link>
+                          <button 
+                            onClick={() => {
+                              sessionStorage.removeItem('campusbridge_tab_initialized')
+                              sessionStorage.removeItem('campusbridge_viewing_home')
+                              sessionStorage.removeItem('campusbridge_user_role')
+                              localStorage.removeItem('campusbridge_user_role')
+                              localStorage.removeItem('campusbridge_logged_in')
+                              signOut({ redirectUrl: '/login' })
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors mt-1 cursor-pointer"
+                          >
+                            Sign Out
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
               ) : (
                 <>
                   <Link to="/login" className="text-sm font-medium hover:text-primary transition-colors">
@@ -270,6 +283,8 @@ const Navbar = () => {
                         to={(localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role) === 'mentor' ? '/mentor-dashboard' : '/dashboard'}
                         className="w-full text-center py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-colors"
                         onClick={() => {
+                          sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+                          sessionStorage.removeItem('campusbridge_viewing_home')
                           sessionStorage.setItem('campusbridge_just_authenticated', 'true')
                           setIsMobileMenuOpen(false)
                         }}
@@ -279,8 +294,11 @@ const Navbar = () => {
                       <button
                         onClick={() => {
                           setIsMobileMenuOpen(false)
+                          sessionStorage.removeItem('campusbridge_tab_initialized')
+                          sessionStorage.removeItem('campusbridge_viewing_home')
                           sessionStorage.removeItem('campusbridge_user_role')
                           localStorage.removeItem('campusbridge_user_role')
+                          localStorage.removeItem('campusbridge_logged_in')
                           signOut({ redirectUrl: '/login' })
                         }}
                         className="w-full text-center py-2 text-sm font-medium text-destructive border border-destructive/20 rounded-md hover:bg-destructive/10 transition-colors"

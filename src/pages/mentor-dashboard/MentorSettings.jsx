@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { 
   Bell, Lock, User, Save, Globe, Shield, CreditCard, Loader2, AtSign, Check, 
   AlertCircle, Laptop, Smartphone, MapPin, Trash2, Plus, Briefcase, GraduationCap, 
   FileText, ExternalLink, Sparkles, X, UploadCloud, Award, Edit2, Sun, Moon, MonitorSmartphone, Palette,
-  CheckCircle2, Link as LinkIcon
+  CheckCircle2, Link as LinkIcon, HelpCircle, Mail, MessageSquare, Headphones
 } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
@@ -599,6 +600,14 @@ const MentorSettings = () => {
           >
             <Lock className="w-4 h-4 shrink-0" /> 
             <span>Privacy & Security</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('help')}
+            className={`flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all text-left whitespace-nowrap shrink-0 ${activeTab === 'help' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+          >
+            <HelpCircle className="w-4 h-4 shrink-0" /> 
+            <span>Help & Support</span>
           </button>
         </div>
 
@@ -1431,6 +1440,85 @@ const MentorSettings = () => {
                       Delete Account
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'help' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="border-b border-border/40 pb-4">
+                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <HelpCircle className="w-5 h-5 text-primary" />
+                  Mentor Support & Contact Us
+                </h2>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Need help with verification approval, session scheduling, or mentee inquiries? Contact our admin team directly.
+                </p>
+              </div>
+
+              {/* Direct Contact Card */}
+              <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-6 sm:p-8 space-y-4">
+                <div className="flex items-start justify-between flex-wrap gap-4">
+                  <div className="space-y-1">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+                      <MessageSquare className="w-3.5 h-3.5" /> Mentor Priority Desk
+                    </span>
+                    <h3 className="text-xl font-extrabold text-foreground pt-1">Direct Contact Form</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground max-w-xl">
+                      Send a priority support message directly to CampusBridge administrators regarding your mentor account, verification status, or feedback.
+                    </p>
+                  </div>
+                  <Link
+                    to="/#contact"
+                    onClick={() => {
+                      sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+                      sessionStorage.setItem('campusbridge_viewing_home', 'true')
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:bg-primary/90 transition-all cursor-pointer"
+                  >
+                    Open Contact Us Form
+                    <ExternalLink className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Support Channels Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-card border border-border/60 rounded-2xl p-5 space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-foreground">Official Mentor Support Email</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Direct communication for profile verification assistance, payouts, and enterprise inquiries.
+                  </p>
+                  <a
+                    href="mailto:campusbridgeofficial3@gmail.com"
+                    className="text-xs font-semibold text-primary hover:underline block pt-1 break-all"
+                  >
+                    campusbridgeofficial3@gmail.com
+                  </a>
+                </div>
+
+                <div className="bg-card border border-border/60 rounded-2xl p-5 space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    <Headphones className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-foreground">Mentor Guidelines & FAQs</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Find common answers regarding mentorship sessions, student communications, and requirements.
+                  </p>
+                  <Link
+                    to="/#faq"
+                    onClick={() => {
+                      sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+                      sessionStorage.setItem('campusbridge_viewing_home', 'true')
+                    }}
+                    className="text-xs font-semibold text-primary hover:underline block pt-1"
+                  >
+                    View FAQs & Answers &rarr;
+                  </Link>
                 </div>
               </div>
             </div>

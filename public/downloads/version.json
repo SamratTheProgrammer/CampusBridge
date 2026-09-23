@@ -1,0 +1,28 @@
+{
+  "appName": "CampusBridge",
+  "version": "1.0.0",
+  "buildNumber": 1,
+  "releaseDate": "2026-09-23",
+  "platforms": {
+    "android": {
+      "package": "com.campusbridge.app",
+      "apkFilename": "CampusBridge.apk",
+      "downloadUrl": "/downloads/CampusBridge.apk",
+      "size": "28.4 MB",
+      "minSdkVersion": 22,
+      "targetSdkVersion": 34
+    },
+    "ios": {
+      "bundleId": "com.campusbridge.app",
+      "minIosVersion": "14.0",
+      "testFlightUrl": "https://testflight.apple.com/join/campusbridge"
+    }
+  },
+  "releaseNotes": [
+    "Native Android and iOS mobile app powered by Capacitor",
+    "Real-time Socket.IO chat and audio/video calling support",
+    "Push notifications for instant messaging and call alerts",
+    "Dynamic dark/light theme status bar synchronization",
+    "Safe-area insets and hardware back button handling"
+  ]
+}

@@ -1,11 +1,16 @@
-/**
- * Central API configuration utility.
- * Reads VITE_BACKEND_URL from environment and provides the base URL for all API calls.
- * In development, Vite proxy handles routing so this can be empty.
- * In production (Vercel), this should point to the deployed backend URL.
- */
+import { Capacitor } from '@capacitor/core';
 
-const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
+const getApiBase = () => {
+  if (import.meta.env.VITE_BACKEND_URL) {
+    return import.meta.env.VITE_BACKEND_URL;
+  }
+  if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+    return 'http://localhost:5001';
+  }
+  return '';
+};
+
+const API_BASE = getApiBase();
 
 /**
  * Returns the full API URL by prepending the backend base URL.

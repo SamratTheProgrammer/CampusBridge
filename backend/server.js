@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 import userRoutes from './routes/userRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import pushRoutes from './routes/pushRoutes.js';
@@ -47,6 +48,7 @@ const allowedOrigins = [
   'http://192.168.209.1:5173',
   'http://10.83.114.85:5173',
   'https://campus-bridge-x5rl.vercel.app',
+  'http://172.22.87.198:5173/',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
@@ -205,9 +207,16 @@ app.get('/api/settings/public', async (req, res) => {
   }
 });
 
+// Encrypt / hash sensitive identifiers (User IDs and Socket IDs) for security and privacy
+export const encryptId = (id) => {
+  if (!id) return '';
+  const secret = process.env.ID_ENCRYPTION_KEY || 'cb_secure_socket_salt_2026';
+  return 'enc_' + crypto.createHmac('sha256', secret).update(String(id)).digest('hex').substring(0, 10);
+};
+
 // Socket.io Real-Time Live Chat & WebRTC Calling Connection
 io.on('connection', (socket) => {
-  console.log(`Socket connected: ${socket.id}`);
+  console.log('Socket connected');
 
   // Send initial online users list immediately to newly connected socket
   socket.emit('online_users_update', getOnlineUserIds());
@@ -216,7 +225,6 @@ io.on('connection', (socket) => {
   socket.on('register_user', async (userId) => {
     if (userId) {
       registerUserSocket(userId, socket);
-      console.log(`Registered user ${userId} to socket ${socket.id}`);
       io.emit('online_users_update', getOnlineUserIds());
       
       // Mark all undelivered messages to this user as delivered
@@ -244,7 +252,6 @@ io.on('connection', (socket) => {
       registerUserSocket(userId, socket);
       io.emit('online_users_update', getOnlineUserIds());
     }
-    console.log(`User ${userId} joined room ${conversationId}`);
   });
 
   // User leaves a room
@@ -268,7 +275,6 @@ io.on('connection', (socket) => {
       });
 
       if (isBlocked) {
-        console.log(`Message blocked between ${senderClerkId} and ${recipientClerkId}`);
         return;
       }
 
@@ -465,6 +471,17 @@ io.on('connection', (socket) => {
     };
 
     emitToUserSockets(recipientClerkId, 'incoming_call', callPayload);
+
+    // Also trigger push notification so user gets alert on phone even when app is closed
+    createNotificationHelper({
+      recipientClerkId,
+      senderClerkId: callerClerkId,
+      type: 'call',
+      title: `Incoming ${callType === 'audio' ? 'Voice' : 'Video'} Call 📞`,
+      message: `${callerName || 'Someone'} is calling you on CampusBridge`,
+      link: '/dashboard/messages',
+      io
+    }).catch(e => console.error('Call push notification error:', e));
   });
 
   // Answer Call
@@ -520,7 +537,7 @@ io.on('connection', (socket) => {
     if (changed) {
       io.emit('online_users_update', getOnlineUserIds());
     }
-    console.log(`Socket disconnected: ${socket.id}`);
+    console.log('Socket disconnected');
   });
 });
 

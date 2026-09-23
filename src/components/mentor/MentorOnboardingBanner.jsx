@@ -114,6 +114,21 @@ const MentorOnboardingBanner = ({ completeness, verificationStatus, onGoToSettin
           </div>
         </div>
       )}
+
+      {/* Help & Support link */}
+      <div className="pt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground border-t border-border/30">
+        <span>Need assistance with your verification or account setup?</span>
+        <button
+          onClick={() => {
+            sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+            sessionStorage.setItem('campusbridge_viewing_home', 'true')
+            navigate('/#contact')
+          }}
+          className="text-primary font-bold hover:underline cursor-pointer"
+        >
+          Contact Admin & Support &rarr;
+        </button>
+      </div>
     </div>
   )
 }

@@ -13,6 +13,7 @@ import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import ShareModal from '../../components/modals/ShareModal'
+import LikesModal from '../../components/modals/LikesModal'
 import defaultPP from '../../assets/default_pp.png'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
@@ -51,6 +52,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [shareConfig, setShareConfig] = useState(null)
+  const [likesModalPost, setLikesModalPost] = useState(null)
 
   // Real-time synchronization of posts, comments, likes for this student
   useRealtimePosts({ setPosts, userFilterId: student?.clerkId })
@@ -1149,9 +1151,12 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
 
                 <div className="px-4 sm:px-5 py-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/40 pb-3 mb-2">
-                    <div className="flex items-center gap-2">
+                    <div 
+                      className="flex items-center gap-2 cursor-pointer hover:underline"
+                      onClick={() => post.likes?.length > 0 && setLikesModalPost(post)}
+                    >
                       <span className="bg-rose-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
-                      <span className="font-medium text-foreground/80">{renderLikesText(post.likes, post.hideLikes)}</span>
+                      <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes, post.hideLikes)}</span>
                     </div>
                     <span className="cursor-pointer hover:underline flex items-center gap-1.5" onClick={() => setActiveCommentPostId(showComments ? null : post._id)}>
                       {post.commentsDisabled ? (
@@ -1325,6 +1330,14 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
       shareUrl={shareConfig?.shareUrl} 
       shareType={shareConfig?.shareType} 
       itemId={shareConfig?.itemId} 
+    />
+
+    <LikesModal 
+      isOpen={!!likesModalPost} 
+      onClose={() => setLikesModalPost(null)} 
+      post={likesModalPost} 
+      currentUserId={user?.id}
+      currentUserRole="mentor"
     />
     </div>
     </>

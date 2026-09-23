@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw } from 'lucide-react';
+import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw, Plus } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
@@ -121,6 +121,8 @@ const RealtimeChat = () => {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
+  const mobileActionMenuRef = useRef(null);
+  const [showMobileActionMenu, setShowMobileActionMenu] = useState(false);
 
   // Auto-scroll to bottom of message list
   const scrollToBottom = () => {
@@ -136,6 +138,9 @@ const RealtimeChat = () => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setShowMoreMenu(false);
+      }
+      if (mobileActionMenuRef.current && !mobileActionMenuRef.current.contains(e.target)) {
+        setShowMobileActionMenu(false);
       }
       if (!e.target.closest('.message-context-menu') && !e.target.closest('.message-menu-trigger')) {
         setActiveMessageMenu(null);
@@ -1093,7 +1098,7 @@ const RealtimeChat = () => {
   };
 
   return (
-    <div className="w-full max-w-full min-w-0 md:max-w-7xl md:mx-auto h-[calc(100dvh-4rem)] md:h-[calc(100dvh-8.5rem)] flex bg-card md:border border-0 md:border-border/50 rounded-none md:rounded-2xl md:shadow-lg overflow-hidden">
+    <div className="w-full h-full max-w-full min-w-0 flex flex-1 bg-card border-0 overflow-hidden">
       
       {/* Left Contacts Sidebar */}
       <div className={`w-full max-w-full min-w-0 md:w-72 lg:w-80 xl:w-96 border-r border-border/40 flex-col h-full bg-card shrink-0 ${activeContact && isMobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
@@ -1435,7 +1440,7 @@ const RealtimeChat = () => {
                     <React.Fragment key={msg._id || Math.random()}>
                       {renderDateSeparator}
                       <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
-                        <div className={`flex items-start gap-1.5 sm:gap-2 max-w-[92%] sm:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className={`flex items-start gap-1.5 sm:gap-2 max-w-[92%] sm:max-w-[80%] md:max-w-[65%] lg:max-w-[50%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                           {/* Call Log Context Menu */}
                           <div className={`relative opacity-50 hover:opacity-100 transition-opacity flex items-center ${isMe ? 'pr-2' : 'pl-2'} mt-2`}>
                             <button 
@@ -1513,7 +1518,7 @@ const RealtimeChat = () => {
                   <React.Fragment key={msg._id || Math.random()}>
                     {renderDateSeparator}
                     <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
-                      <div className={`flex items-start gap-1.5 sm:gap-2 max-w-[92%] sm:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className={`flex items-start gap-1.5 sm:gap-2 max-w-[92%] sm:max-w-[80%] md:max-w-[65%] lg:max-w-[50%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                       {/* Message Bubble Context Menu */}
                       <div className={`relative opacity-50 hover:opacity-100 transition-opacity flex items-center ${isMe ? 'pr-2' : 'pl-2'} mt-2`}>
                         <button onClick={(e) => { e.stopPropagation(); setActiveMessageMenu(activeMessageMenu === msg._id ? null : msg._id); }} className="message-menu-trigger p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors">
@@ -1628,7 +1633,7 @@ const RealtimeChat = () => {
                                       navigate(`?${msg.share.type}=${msg.share.itemId}`);
                                     }
                                   }}
-                                  className={`mb-2 p-3 sm:p-3.5 rounded-2xl border cursor-pointer hover:opacity-95 transition-all flex flex-col gap-2 ${
+                                  className={`mb-2 p-3 sm:p-3.5 rounded-2xl border cursor-pointer hover:opacity-95 transition-all flex flex-col gap-2 w-full max-w-sm sm:max-w-md ${
                                     isMe 
                                       ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/15' 
                                       : 'bg-card border-border/70 hover:border-primary/40 shadow-sm'
@@ -1852,24 +1857,74 @@ const RealtimeChat = () => {
             ) : (
               <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isCurrentPartnerBlocked}
-                  className="p-2 sm:p-3 bg-muted/40 hover:bg-muted text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center shrink-0 cursor-pointer"
-                  title="Attach file or audio"
-                >
-                  <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsShareProfileModalOpen(true)}
-                  disabled={isCurrentPartnerBlocked}
-                  className="p-2 sm:p-3 bg-muted/40 hover:bg-muted hover:text-primary text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center shrink-0 cursor-pointer"
-                  title="Share profile in chat"
-                >
-                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
+
+                {/* Mobile: Unified Plus (+) Action Menu */}
+                <div className="relative block sm:hidden" ref={mobileActionMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileActionMenu(!showMobileActionMenu)}
+                    disabled={isCurrentPartnerBlocked}
+                    className={`p-2 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground rounded-xl transition-all disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center shrink-0 cursor-pointer active:scale-95 ${
+                      showMobileActionMenu ? 'bg-primary/20 text-primary ring-1 ring-primary/40' : ''
+                    }`}
+                    title="Add attachment or share"
+                  >
+                    <Plus className={`w-4 h-4 transition-transform duration-200 ${showMobileActionMenu ? 'rotate-45' : ''}`} />
+                  </button>
+
+                  {showMobileActionMenu && (
+                    <div className="absolute left-0 bottom-full mb-2 w-48 bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileActionMenu(false);
+                          fileInputRef.current?.click();
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0">
+                          <Paperclip className="w-4 h-4" />
+                        </div>
+                        <span>Attach File / Media</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileActionMenu(false);
+                          setIsShareProfileModalOpen(true);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0">
+                          <UserPlus className="w-4 h-4" />
+                        </div>
+                        <span>Share Profile</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Desktop: Separate Buttons */}
+                <div className="hidden sm:flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isCurrentPartnerBlocked}
+                    className="p-3 bg-muted/40 hover:bg-muted text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[46px] w-[46px] flex items-center justify-center shrink-0 cursor-pointer"
+                    title="Attach file or audio"
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsShareProfileModalOpen(true)}
+                    disabled={isCurrentPartnerBlocked}
+                    className="p-3 bg-muted/40 hover:bg-muted hover:text-primary text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[46px] w-[46px] flex items-center justify-center shrink-0 cursor-pointer"
+                    title="Share profile in chat"
+                  >
+                    <UserPlus className="w-5 h-5" />
+                  </button>
+                </div>
                 <div className="flex-1 relative flex items-center min-w-0">
                   <input
                     type="text"

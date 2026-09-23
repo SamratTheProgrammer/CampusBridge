@@ -18,7 +18,8 @@ import {
   ChevronRight,
   Lock,
   ShieldCheck,
-  Compass
+  Compass,
+  HelpCircle
 } from 'lucide-react'
 import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
@@ -106,7 +107,15 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
   return (
     <div className={`border-r border-border/40 bg-card flex flex-col h-full w-full relative transition-all duration-300 sidebar-container`}>
       <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between'}`}>
-        <Link to="/" onClick={() => onClose && onClose()} className="flex items-center gap-2 overflow-hidden">
+        <Link 
+          to="/" 
+          onClick={() => {
+            sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+            sessionStorage.setItem('campusbridge_viewing_home', 'true')
+            if (onClose) onClose()
+          }} 
+          className="flex items-center gap-2 overflow-hidden"
+        >
           {isCollapsed ? (
             <img src={logoIcon} alt="CampusBridge" className="w-10 h-10 object-contain shrink-0 mx-auto" />
           ) : (
@@ -181,11 +190,31 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
         </div>
       )}
 
-      <div className={`p-4 border-t border-border/40 ${isCollapsed ? 'flex justify-center' : ''}`}>
+      <div className={`p-4 border-t border-border/40 space-y-1.5 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <Link
+          to="/#contact"
+          onClick={() => {
+            sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+            sessionStorage.setItem('campusbridge_viewing_home', 'true')
+            if (onClose) onClose()
+          }}
+          title={isCollapsed ? 'Contact Us & Support' : undefined}
+          className={`flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all text-left
+            ${isCollapsed ? 'justify-center px-0 w-full' : 'px-3 w-full'}
+          `}
+        >
+          <HelpCircle className="w-5 h-5 shrink-0 text-primary" />
+          {!isCollapsed && <span>Contact Us & Support</span>}
+        </Link>
+
         <button
           onClick={() => {
             if (onClose) onClose()
+            sessionStorage.removeItem('campusbridge_tab_initialized')
+            sessionStorage.removeItem('campusbridge_viewing_home')
             sessionStorage.removeItem('campusbridge_user_role')
+            localStorage.removeItem('campusbridge_logged_in')
+            localStorage.removeItem('campusbridge_user_role')
             signOut({ redirectUrl: '/login' })
           }}
           title={isCollapsed ? 'Logout' : undefined}

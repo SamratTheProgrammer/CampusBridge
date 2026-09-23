@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import API_BASE from '../utils/api'
 import { formatTime } from '../utils/dateFormatter'
 import ModalPortal from './modals/ModalPortal'
+import { subscribeUserToPush, requestAndSubscribePush, sendTestPush } from '../utils/pushManager'
 
 const NotificationDropdown = () => {
   const { user } = useUser();
@@ -85,16 +86,7 @@ const NotificationDropdown = () => {
     }
   }, [user]);
 
-  const urlBase64ToUint8Array = (base64String) => {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  };
+  const [isTestingPush, setIsTestingPush] = useState(false);
 
   const handleTogglePush = async () => {
     if (!user?.id) return;
@@ -102,44 +94,43 @@ const NotificationDropdown = () => {
     try {
       const newPref = !pushEnabled;
       
-      // Update DB preference
-      await fetch(`${API_BASE}/api/push/preferences`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clerkId: user.id, pushEnabled: newPref })
-      });
-      
-      setPushEnabled(newPref);
-
-      if (newPref && 'serviceWorker' in navigator && 'PushManager' in window) {
-        const registration = await navigator.serviceWorker.ready;
-        let subscription = await registration.pushManager.getSubscription();
-        
-        if (!subscription) {
-          const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
-          });
+      if (newPref) {
+        const success = await requestAndSubscribePush(user.id);
+        if (success) {
+          setPushEnabled(true);
+          toast.success("Push notifications enabled! You'll receive alerts even when the app is closed.");
         }
-        
-        // Send to backend
-        await fetch(`${API_BASE}/api/push/subscribe`, {
-          method: 'POST',
+      } else {
+        await fetch(`${API_BASE}/api/push/preferences`, {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clerkId: user.id, subscription })
+          body: JSON.stringify({ clerkId: user.id, pushEnabled: false })
         });
-        toast.success('Push notifications enabled!');
-      } else if (!newPref && 'serviceWorker' in navigator && 'PushManager' in window) {
+        setPushEnabled(false);
         toast.success('Push notifications disabled.');
       }
     } catch (err) {
       console.error('Error toggling push notifications:', err);
-      toast.error('Failed to update push settings. Make sure your browser allows notifications.');
-      // Revert state if failed
-      setPushEnabled(prev => !prev);
+      toast.error(err.message || 'Failed to update push settings.');
     } finally {
       setIsPushLoading(false);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    if (!user?.id) return;
+    setIsTestingPush(true);
+    try {
+      const res = await sendTestPush(user.id);
+      if (res?.success) {
+        toast.success('Test notification sent! Check your notification tray.');
+      } else {
+        toast.error(res?.error || 'Make sure notifications are enabled on this device.');
+      }
+    } catch (e) {
+      toast.error('Failed to send test notification');
+    } finally {
+      setIsTestingPush(false);
     }
   };
 
@@ -432,6 +423,16 @@ const NotificationDropdown = () => {
                     <div>
                       <h4 className="text-sm font-semibold text-foreground">Push Notifications</h4>
                       <p className="text-xs text-muted-foreground mt-1">Receive notifications on your device even when the app is closed.</p>
+                      {pushEnabled && (
+                        <button
+                          onClick={handleSendTestNotification}
+                          disabled={isTestingPush}
+                          className="mt-2 text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        >
+                          <Bell className="w-3 h-3" />
+                          {isTestingPush ? 'Sending test...' : 'Send Test Notification to this Device'}
+                        </button>
+                      )}
                     </div>
                     <button
                       onClick={handleTogglePush}

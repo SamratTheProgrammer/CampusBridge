@@ -15,6 +15,7 @@ import UpcomingEvents from '../components/sections/UpcomingEvents'
 import Communities from '../components/sections/Communities'
 import SuccessStories from '../components/sections/SuccessStories'
 import PlatformPreview from '../components/sections/PlatformPreview'
+import AppDownloadSection from '../components/sections/AppDownloadSection'
 import FAQ from '../components/sections/FAQ'
 import Newsletter from '../components/sections/Newsletter'
 import ContactSection from '../components/sections/ContactSection'
@@ -38,6 +39,13 @@ const LandingPage = () => {
     const adminToken = sessionStorage.getItem('adminToken')
     if (adminToken) {
       navigate('/admin', { replace: true })
+      return
+    }
+
+    // If user is intentionally viewing the landing page in this tab session or tab is initialized, remain here
+    const initialRouted = sessionStorage.getItem('campusbridge_tab_initialized') === 'true' ||
+                          sessionStorage.getItem('campusbridge_viewing_home') === 'true'
+    if (initialRouted) {
       return
     }
 
@@ -101,9 +109,17 @@ const LandingPage = () => {
       }
     }
   }, [location.hash])
-  const adminToken = sessionStorage.getItem('adminToken')
-  if (isLoaded && (isSignedIn || adminToken)) {
-    return <RouteIntegrityLoader />
+  const adminToken = typeof window !== 'undefined' && sessionStorage.getItem('adminToken')
+  const cachedLogin = typeof window !== 'undefined' && (
+    localStorage.getItem('campusbridge_logged_in') === 'true' || 
+    !!localStorage.getItem('campusbridge_user_role')
+  )
+  const initialRoutedState = typeof window !== 'undefined' && (
+    sessionStorage.getItem('campusbridge_tab_initialized') === 'true' ||
+    sessionStorage.getItem('campusbridge_viewing_home') === 'true'
+  )
+  if (!initialRoutedState && ((!isLoaded && cachedLogin) || (isLoaded && (isSignedIn || adminToken)))) {
+    return <RouteIntegrityLoader title="Resuming your session..." subtitle="Connecting to your dashboard..." />
   }
 
   return (
@@ -122,6 +138,7 @@ const LandingPage = () => {
       <div id="resources"><Communities /></div>
       <SuccessStories />
       <PlatformPreview />
+      <AppDownloadSection />
       <div id="faq"><FAQ /></div>
       <Newsletter />
       <div id="contact"><ContactSection /></div>

@@ -43,11 +43,19 @@ const SessionManager = () => {
       toast.error('Session expired due to inactivity.');
       sessionStorage.removeItem('campusbridge_user_role');
       localStorage.removeItem('campusbridge_user_role');
+      localStorage.removeItem('campusbridge_logged_in');
       localStorage.removeItem('lastActivity');
       await signOut();
       navigate('/login');
     }
   }, [isSignedIn, signOut, navigate]);
+
+  // Sync login status flag whenever signed in
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      localStorage.setItem('campusbridge_logged_in', 'true');
+    }
+  }, [isLoaded, isSignedIn]);
 
   // Handle activity and check timeout
   useEffect(() => {

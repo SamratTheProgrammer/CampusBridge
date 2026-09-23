@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CampusBridge</string>
+    <string name="title_activity_main">CampusBridge</string>
+    <string name="package_name">com.campusbridge.app</string>
+    <string name="custom_url_scheme">com.campusbridge.app</string>
+</resources>

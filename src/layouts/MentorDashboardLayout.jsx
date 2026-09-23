@@ -39,6 +39,10 @@ const MentorDashboardLayout = () => {
   const { user, isLoaded, isSignedIn } = useUser()
 
   useEffect(() => {
+    sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+  }, [])
+
+  useEffect(() => {
     localStorage.setItem('sidebarCollapsed', isCollapsed)
   }, [isCollapsed])
 
@@ -349,7 +353,7 @@ const MentorDashboardLayout = () => {
   const hasResults = filteredMentors.length > 0 || filteredStudents.length > 0 || filteredJobs.length > 0 || filteredEvents.length > 0
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className={`min-h-screen bg-background flex ${location.pathname.includes('/messages') ? 'h-screen max-h-screen overflow-hidden' : ''}`}>
         {/* Sidebar for Desktop */}
         <div className={`hidden md:block fixed inset-y-0 left-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} z-40`}>
           <MentorSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
@@ -369,9 +373,9 @@ const MentorDashboardLayout = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
+        <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen ${location.pathname.includes('/messages') ? 'h-screen max-h-screen overflow-hidden' : ''} min-w-0 transition-all duration-300`}>
           {/* Top Header */}
-          <header className={`md:sticky md:top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
+          <header className={`md:sticky md:top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between shrink-0 ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
             <div className="flex items-center gap-4 flex-1">
               <button 
                 className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
@@ -649,12 +653,13 @@ const MentorDashboardLayout = () => {
 
         {/* Page Content */}
         <main className={`flex-1 ${
-          location.pathname.includes('/messages') || 
-          location.pathname.includes('/profile') || 
-          location.pathname.includes('/mentor/') || 
-          location.pathname.includes('/student/') 
-            ? 'p-0 sm:p-6 md:p-8' 
-            : 'p-3 sm:p-6 md:p-8'
+          location.pathname.includes('/messages')
+            ? 'p-0 flex flex-col h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden'
+            : location.pathname.includes('/profile') || 
+              location.pathname.includes('/mentor/') || 
+              location.pathname.includes('/student/') 
+              ? 'p-0 sm:p-6 md:p-8' 
+              : 'p-3 sm:p-6 md:p-8'
         } min-w-0`}>
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>

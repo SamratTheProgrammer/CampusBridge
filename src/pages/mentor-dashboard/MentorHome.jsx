@@ -7,6 +7,7 @@ import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import PostComments from '../../components/PostComments'
 import ImageCropModal from '../../components/ImageCropModal'
 import ModalPortal from '../../components/modals/ModalPortal'
+import LikesModal from '../../components/modals/LikesModal'
 import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import MentorOnboardingBanner from '../../components/mentor/MentorOnboardingBanner'
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
@@ -151,6 +152,9 @@ const MentorHome = () => {
       }
       if (newPostEmojiPickerRef.current && !newPostEmojiPickerRef.current.contains(e.target)) {
         setShowNewPostEmojiPicker(false)
+      }
+      if (mediaDropdownRef.current && !mediaDropdownRef.current.contains(e.target)) {
+        setShowMediaDropdown(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -301,45 +305,129 @@ const MentorHome = () => {
     }
   }, []);
 
-  const handleTouchStart = (e) => {
-    if (feedScrollRef.current && feedScrollRef.current.scrollTop <= 0) {
-      touchStartYRef.current = e.touches[0].clientY;
-      setIsPulling(true);
-    } else {
-      setIsPulling(false);
-    }
-  };
+  const isPullRefreshingRef = useRef(false);
+  useEffect(() => {
+    isPullRefreshingRef.current = isPullRefreshing;
+  }, [isPullRefreshing]);
 
-  const handleTouchMove = (e) => {
-    if (!isPulling || isPullRefreshing) return;
-    if (feedScrollRef.current && feedScrollRef.current.scrollTop <= 0) {
+  const isFeedAtTop = useCallback(() => {
+    const elScroll = feedScrollRef.current ? feedScrollRef.current.scrollTop : 0;
+    const winScroll = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+    return elScroll <= 0 && winScroll <= 0;
+  }, []);
+
+  const triggerFeedReload = useCallback(() => {
+    if (isPullRefreshingRef.current) return;
+    setIsPullRefreshing(true);
+    setPullDistance(56);
+    fetchPosts({ shuffle: true }).finally(() => {
+      setTimeout(() => {
+        setPullDistance(0);
+        setIsPullRefreshing(false);
+      }, 500);
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = feedScrollRef.current;
+    if (!el) return;
+
+    let touchStartY = 0;
+    let isPullingTouch = false;
+
+    const onTouchStart = (e) => {
+      if (isPullRefreshingRef.current) return;
+      if (isFeedAtTop() && e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+        isPullingTouch = true;
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (!isPullingTouch || isPullRefreshingRef.current) return;
       const currentY = e.touches[0].clientY;
-      const diff = currentY - touchStartYRef.current;
-      if (diff > 0) {
+      const diff = currentY - touchStartY;
+
+      if (diff > 0 && isFeedAtTop()) {
+        if (e.cancelable) e.preventDefault();
         const distance = Math.min(diff * 0.45, 80);
         setPullDistance(distance);
       } else {
         setPullDistance(0);
       }
-    }
-  };
+    };
 
-  const handleTouchEnd = () => {
-    if (!isPulling || isPullRefreshing) return;
-    setIsPulling(false);
-    if (pullDistance >= 55) {
-      setIsPullRefreshing(true);
-      setPullDistance(60);
-      fetchPosts({ shuffle: true }).finally(() => {
-        setTimeout(() => {
-          setPullDistance(0);
-          setIsPullRefreshing(false);
-        }, 400);
+    const onTouchEnd = () => {
+      if (!isPullingTouch) return;
+      isPullingTouch = false;
+      setPullDistance((prev) => {
+        if (prev >= 48 && !isPullRefreshingRef.current) {
+          triggerFeedReload();
+          return 56;
+        }
+        return 0;
       });
-    } else {
-      setPullDistance(0);
-    }
-  };
+    };
+
+    // Mouse drag support for desktop / laptop testing
+    let mouseStartY = 0;
+    let isMouseDown = false;
+
+    const onMouseDown = (e) => {
+      if (e.button !== 0 || isPullRefreshingRef.current) return;
+      if (e.target.closest('input, textarea, button, select, a, [contenteditable="true"], .no-pull')) return;
+      if (isFeedAtTop()) {
+        mouseStartY = e.clientY;
+        isMouseDown = true;
+      }
+    };
+
+    const onMouseMove = (e) => {
+      if (!isMouseDown || isPullRefreshingRef.current) return;
+      if (!isFeedAtTop()) {
+        isMouseDown = false;
+        setPullDistance(0);
+        return;
+      }
+      const diff = e.clientY - mouseStartY;
+      if (diff > 5) {
+        const distance = Math.min(diff * 0.45, 80);
+        setPullDistance(distance);
+      } else {
+        setPullDistance(0);
+      }
+    };
+
+    const onMouseUp = () => {
+      if (!isMouseDown) return;
+      isMouseDown = false;
+      setPullDistance((prev) => {
+        if (prev >= 48 && !isPullRefreshingRef.current) {
+          triggerFeedReload();
+          return 56;
+        }
+        return 0;
+      });
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    el.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+
+      el.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isFeedAtTop, triggerFeedReload]);
 
   // Fetch Upcoming Sessions
   const fetchSessions = async () => {
@@ -701,7 +789,13 @@ const MentorHome = () => {
         if (hasLiked) {
           newLikes = safeLikes.filter(like => (like.clerkId || like) !== user.id)
         } else {
-          newLikes = [...safeLikes, { clerkId: user.id, name: user.fullName || 'You', image: user.imageUrl, role: user.publicMetadata?.role || 'student' }]
+          newLikes = [...safeLikes, { 
+            clerkId: user.id, 
+            name: user.fullName || 'You', 
+            image: user.imageUrl, 
+            role: user.publicMetadata?.role || 'mentor',
+            username: user.username || user.id
+          }]
         }
         return { ...p, likes: newLikes }
       }
@@ -895,25 +989,41 @@ const MentorHome = () => {
       {/* Main Column (Feed) */}
       <div 
         ref={feedScrollRef} 
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="col-span-1 md:col-span-6 space-y-6 md:h-full md:overflow-y-auto scrollbar-none pb-20 overscroll-contain"
+        className="col-span-1 md:col-span-6 space-y-6 md:h-full md:overflow-y-auto scrollbar-none pb-20 overscroll-contain relative touch-pan-y"
       >
-        {/* Instagram-style Pull to Refresh Indicator */}
+        {/* Instagram/Twitter-style Floating Pull to Refresh Indicator */}
         {(pullDistance > 0 || isPullRefreshing) && (
-        <div 
-          className="w-full overflow-hidden transition-all duration-300 flex items-center justify-center opacity-100 mb-2"
-          style={{ height: isPullRefreshing ? '52px' : `${pullDistance}px` }}
-        >
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-md text-xs font-semibold text-foreground">
-            <RotateCw 
-              className={`w-4 h-4 text-primary ${isPullRefreshing ? 'animate-spin' : ''}`} 
-              style={{ transform: isPullRefreshing ? 'none' : `rotate(${Math.min(pullDistance * 5, 360)}deg)` }}
-            />
-            <span>{isPullRefreshing ? 'Reloading feed...' : pullDistance >= 55 ? 'Release to reload' : 'Pull down to reload'}</span>
+          <div 
+            className="w-full flex items-center justify-center pointer-events-none select-none z-30 transition-all duration-150 ease-out mb-2"
+            style={{
+              height: isPullRefreshing ? '48px' : `${Math.max(pullDistance, 0)}px`,
+              opacity: isPullRefreshing ? 1 : Math.min(pullDistance / 20, 1)
+            }}
+          >
+            <div 
+              className={`flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 dark:bg-zinc-900/95 backdrop-blur-md border shadow-lg text-xs font-semibold transition-all duration-150 ${
+                pullDistance >= 48 || isPullRefreshing 
+                  ? 'border-primary ring-2 ring-primary/25 text-primary scale-100 shadow-primary/10' 
+                  : 'border-border/80 text-muted-foreground scale-95'
+              }`}
+            >
+              <RotateCw 
+                className={`w-4 h-4 shrink-0 transition-transform duration-100 ${
+                  isPullRefreshing ? 'animate-spin text-primary' : 'text-primary'
+                }`} 
+                style={{ 
+                  transform: isPullRefreshing ? 'none' : `rotate(${Math.min(pullDistance * 6, 360)}deg)` 
+                }}
+              />
+              <span className="truncate">
+                {isPullRefreshing 
+                  ? 'Reloading feed...' 
+                  : pullDistance >= 48 
+                  ? 'Release to reload' 
+                  : 'Pull down to reload'}
+              </span>
+            </div>
           </div>
-        </div>
         )}
 
         {/* Create Post with Drag & Drop */}
@@ -954,35 +1064,37 @@ const MentorHome = () => {
                 style={selectedGradient ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : {}}
               ></textarea>
 
-              {/* Show emoji trigger inside Start a post textarea when user begins typing */}
-              {newPostContent.length > 0 && (
-                <div className="absolute right-2.5 bottom-2.5 z-20" ref={newPostEmojiPickerRef}>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowNewPostEmojiPicker(!showNewPostEmojiPicker)} 
-                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                      showNewPostEmojiPicker 
-                        ? 'bg-amber-500/20 text-amber-500 ring-1 ring-amber-500/30' 
-                        : selectedGradient 
-                          ? 'text-white/80 hover:text-white hover:bg-white/10' 
-                          : 'text-muted-foreground hover:text-amber-500 hover:bg-muted'
-                    }`}
-                    title="Insert emoji"
-                  >
-                    <Smile className="w-5 h-5" />
-                  </button>
+              {/* Show emoji trigger inside Start a post textarea */}
+              <div className="absolute right-2.5 bottom-2.5 z-30" ref={newPostEmojiPickerRef}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowNewPostEmojiPicker(!showNewPostEmojiPicker)} 
+                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    showNewPostEmojiPicker 
+                      ? 'bg-amber-500/20 text-amber-500 ring-1 ring-amber-500/30' 
+                      : selectedGradient 
+                        ? 'text-white/80 hover:text-white hover:bg-white/10' 
+                        : 'text-muted-foreground hover:text-amber-500 hover:bg-muted'
+                  }`}
+                  title="Insert emoji"
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
 
-                  {showNewPostEmojiPicker && (
-                    <div className="absolute right-0 bottom-full mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95">
-                      <EmojiPicker
-                        onEmojiClick={handleEmojiClick}
-                        theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
-                        lazyLoadEmojis={true}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+                {showNewPostEmojiPicker && (
+                  <div className="absolute right-0 top-full mt-2 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/60 bg-card animate-in fade-in zoom-in-95">
+                    <EmojiPicker
+                      onEmojiClick={handleEmojiClick}
+                      theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                      lazyLoadEmojis={true}
+                      previewConfig={{ showPreview: false }}
+                      width={typeof window !== 'undefined' ? Math.min(320, window.innerWidth - 32) : 320}
+                      height={360}
+                      searchPlaceHolder="Search emoji..."
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           
@@ -1050,8 +1162,8 @@ const MentorHome = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 gap-2 flex-nowrap">
-            <div className="flex items-center gap-1 sm:gap-1.5 relative overflow-x-auto scrollbar-none flex-nowrap shrink min-w-0 py-0.5">
+          <div className="flex items-center justify-between pt-2 gap-2 flex-nowrap relative z-20">
+            <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-wrap sm:flex-nowrap shrink min-w-0 py-0.5 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -1062,7 +1174,7 @@ const MentorHome = () => {
               />
 
               {/* Merged Media Button (Upload Media or Media URL) */}
-              <div className="relative" ref={mediaDropdownRef}>
+              <div className={`relative ${showMediaDropdown ? 'z-[80]' : 'z-10'}`} ref={mediaDropdownRef}>
                 <button 
                   type="button" 
                   onClick={() => setShowMediaDropdown(!showMediaDropdown)} 
@@ -1077,54 +1189,44 @@ const MentorHome = () => {
                 </button>
 
                 {showMediaDropdown && (
-                  <>
-                    {/* Invisible backdrop to close dropdown when clicking outside */}
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowMediaDropdown(false);
-                      }} 
-                    />
-                    <div className="absolute left-0 bottom-full mb-2 w-56 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95">
-                      <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/40 mb-1">
-                        Select Media Option
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowMediaDropdown(false);
-                          fileInputRef.current?.click();
-                          setSelectedGradient('');
-                        }}
-                        className="w-full px-2.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted/80 rounded-lg flex items-center gap-2.5 transition-colors cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                          <Upload className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-foreground">Upload File</div>
-                          <div className="text-[10px] text-muted-foreground">From this device</div>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowMediaDropdown(false);
-                          setShowMediaUrlInput(true);
-                        }}
-                        className="w-full px-2.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted/80 rounded-lg flex items-center gap-2.5 transition-colors cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                          <LinkIcon className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-foreground">Media URL</div>
-                          <div className="text-[10px] text-muted-foreground">Image or video link</div>
-                        </div>
-                      </button>
+                  <div className="absolute left-0 bottom-full mb-2 w-56 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-2xl p-1.5 z-[100] animate-in fade-in zoom-in-95 pointer-events-auto">
+                    <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/40 mb-1">
+                      Select Media Option
                     </div>
-                  </>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMediaDropdown(false);
+                        fileInputRef.current?.click();
+                        setSelectedGradient('');
+                      }}
+                      className="w-full px-2.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted/80 rounded-lg flex items-center gap-2.5 transition-colors cursor-pointer group"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <Upload className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-foreground">Upload File</div>
+                        <div className="text-[10px] text-muted-foreground">From this device</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMediaDropdown(false);
+                        setShowMediaUrlInput(true);
+                      }}
+                      className="w-full px-2.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted/80 rounded-lg flex items-center gap-2.5 transition-colors cursor-pointer group"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <LinkIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-foreground">Media URL</div>
+                        <div className="text-[10px] text-muted-foreground">Image or video link</div>
+                      </div>
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -1834,50 +1936,13 @@ const MentorHome = () => {
       </AnimatePresence>
 
       {/* Likes Modal */}
-      <AnimatePresence>
-        {likesModalPost && (
-          <ModalPortal>
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setLikesModalPost(null)}>
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-xl w-full max-w-sm flex flex-col max-h-[80vh]"
-            >
-              <div className="flex items-center justify-between p-4 border-b border-border/40 bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <span className="bg-rose-500 text-white rounded-full p-1.5"><Heart className="w-4 h-4 fill-current" /></span>
-                  <h3 className="font-bold text-foreground">Likes</h3>
-                </div>
-                <button onClick={() => setLikesModalPost(null)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                {likesModalPost.likes.map((like, i) => (
-                  <div key={like.clerkId || i} className="flex items-center gap-3">
-                    <img 
-                      src={like.image || getAvatarFallback(like.name)} 
-                      alt={like.name} 
-                      className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50" 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm text-foreground truncate">{like.name}</h4>
-                      <p className="text-xs text-muted-foreground truncate capitalize">{like.role}</p>
-                    </div>
-                    <button className="px-3 py-1 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium rounded-full transition-colors">
-                      View
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-          </ModalPortal>
-        )}
-      </AnimatePresence>
+      <LikesModal 
+        isOpen={!!likesModalPost} 
+        onClose={() => setLikesModalPost(null)} 
+        post={likesModalPost} 
+        currentUserId={user?.id}
+        currentUserRole="mentor"
+      />
 
       {/* Lightbox / Image Viewer */}
       <ImageViewerModal 

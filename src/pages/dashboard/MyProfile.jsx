@@ -19,6 +19,7 @@ import FormattedPostText from '../../components/common/FormattedPostText'
 import { downloadMediaFile } from '../../utils/downloadHelper'
 import ModalPortal from '../../components/modals/ModalPortal'
 import ShareModal from '../../components/modals/ShareModal'
+import LikesModal from '../../components/modals/LikesModal'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
@@ -1597,6 +1598,14 @@ const MyProfile = () => {
         shareUrl={shareConfig?.shareUrl} 
         shareType={shareConfig?.shareType} 
         itemId={shareConfig?.itemId} 
+      />
+
+      <LikesModal 
+        isOpen={!!likesModalPost} 
+        onClose={() => setLikesModalPost(null)} 
+        post={likesModalPost} 
+        currentUserId={user?.id}
+        currentUserRole={isMentorUser ? 'mentor' : 'student'}
       />
     </div>
   )

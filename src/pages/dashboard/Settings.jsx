@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2, Sun, Moon, MonitorSmartphone, Palette } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2, Sun, Moon, MonitorSmartphone, Palette, HelpCircle, Mail, MessageSquare, ExternalLink, Headphones } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import SettingsSkeleton from '../../components/skeletons/SettingsSkeleton'
 import toast from 'react-hot-toast'
@@ -539,6 +540,7 @@ const Settings = () => {
     { id: 'resume', label: 'Resume/Docs', icon: FileText },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'privacy', label: 'Privacy & Security', icon: Lock },
+    { id: 'help', label: 'Help & Support', icon: HelpCircle },
   ]
 
   const isBasicComplete = Boolean(
@@ -1703,6 +1705,85 @@ const Settings = () => {
                       Delete Account
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'help' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="border-b border-border/40 pb-4">
+                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <HelpCircle className="w-5 h-5 text-primary" />
+                  Help, Support & Contact Us
+                </h2>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Need assistance with your account, profile verification, or mentorship? Our team is here to assist you.
+                </p>
+              </div>
+
+              {/* Direct Contact Card */}
+              <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-6 sm:p-8 space-y-4">
+                <div className="flex items-start justify-between flex-wrap gap-4">
+                  <div className="space-y-1">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+                      <MessageSquare className="w-3.5 h-3.5" /> 24/7 Support Desk
+                    </span>
+                    <h3 className="text-xl font-extrabold text-foreground pt-1">Direct Contact Form</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground max-w-xl">
+                      Send a direct query or ticket to the CampusBridge administration. We typically reply within 24 hours.
+                    </p>
+                  </div>
+                  <Link
+                    to="/#contact"
+                    onClick={() => {
+                      sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+                      sessionStorage.setItem('campusbridge_viewing_home', 'true')
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:bg-primary/90 transition-all cursor-pointer"
+                  >
+                    Open Contact Us Form
+                    <ExternalLink className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Support Channels Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-card border border-border/60 rounded-2xl p-5 space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-foreground">Official Support Email</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    You can email our support team directly for account or technical inquiries.
+                  </p>
+                  <a
+                    href="mailto:campusbridgeofficial3@gmail.com"
+                    className="text-xs font-semibold text-primary hover:underline block pt-1 break-all"
+                  >
+                    campusbridgeofficial3@gmail.com
+                  </a>
+                </div>
+
+                <div className="bg-card border border-border/60 rounded-2xl p-5 space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    <Headphones className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-foreground">Frequently Asked Questions</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Check out common questions regarding bookings, mentor calls, and profiles.
+                  </p>
+                  <Link
+                    to="/#faq"
+                    onClick={() => {
+                      sessionStorage.setItem('campusbridge_tab_initialized', 'true')
+                      sessionStorage.setItem('campusbridge_viewing_home', 'true')
+                    }}
+                    className="text-xs font-semibold text-primary hover:underline block pt-1"
+                  >
+                    View FAQs & Answers &rarr;
+                  </Link>
                 </div>
               </div>
             </div>
