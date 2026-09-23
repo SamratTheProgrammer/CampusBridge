@@ -40,13 +40,22 @@ jobs:
           cache: 'npm'
 
       - name: Install NPM Dependencies
-        run: npm install
+        run: |
+          npm install --include=dev --legacy-peer-deps
 
       - name: Build Web Application
-        run: npm run build
+        run: |
+          npm run build
 
       - name: Sync Capacitor Android
-        run: npx cap sync android
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          npx --yes @capacitor/cli sync android --verbose
+
+      - name: Configure Android SDK Path
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          cat android/local.properties
 
       - name: Build Debug Android APK
         working-directory: android
@@ -56,10 +65,11 @@ jobs:
 
       - name: Verify APK Binary
         run: |
-          echo "Verifying generated APK file..."
+          echo "Verifying compiled APK file..."
           ls -lh android/app/build/outputs/apk/debug/
           test -f android/app/build/outputs/apk/debug/app-debug.apk
           cp android/app/build/outputs/apk/debug/app-debug.apk public/downloads/CampusBridge.apk
+          ls -lh public/downloads/CampusBridge.apk
 
       - name: Commit and Push Compiled APK to Main
         run: |
