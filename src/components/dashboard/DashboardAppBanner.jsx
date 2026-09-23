@@ -108,13 +108,13 @@ const DashboardAppBanner = () => {
                       <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/30">
                         <Sparkles className="w-2.5 h-2.5" /> Mobile App Launched
                       </span>
-                      <span className="text-[11px] text-muted-foreground hidden lg:inline">• Android APK (7.2MB) & iOS PWA</span>
+                      <span className="text-[11px] text-muted-foreground hidden lg:inline">• Available for Android & iOS</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold text-foreground mt-0.5 leading-snug">
                       CampusBridge is now available for your phone!
                     </p>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight hidden sm:block mt-0.5">
-                      Get instant push notifications, 1-on-1 WebRTC mentorship calls, and real-time chat directly on your mobile.
+                      Get instant push notifications, 1-on-1 mentorship calls, and real-time chat directly on your mobile.
                     </p>
                   </div>
                 </div>

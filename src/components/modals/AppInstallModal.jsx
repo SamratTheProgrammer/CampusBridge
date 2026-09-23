@@ -55,7 +55,7 @@ const AppInstallModal = ({ isOpen, onClose }) => {
                 <h3 className="text-base sm:text-lg font-bold text-foreground leading-tight">
                   CampusBridge Mobile App
                 </h3>
-                <p className="text-xs text-muted-foreground">Version 1.0.0 • Native Capacitor Experience</p>
+                <p className="text-xs text-muted-foreground">Version 1.0.0 • Official Mobile App</p>
               </div>
             </div>
             <button
@@ -235,7 +235,7 @@ const AppInstallModal = ({ isOpen, onClose }) => {
               </div>
               <div className="p-2 rounded-xl bg-muted/30">
                 <Video className="w-4 h-4 mx-auto text-emerald-500 mb-1" />
-                <p className="text-[10px] font-bold text-foreground">WebRTC Calls</p>
+                <p className="text-[10px] font-bold text-foreground">Live Video Calls</p>
               </div>
               <div className="p-2 rounded-xl bg-muted/30">
                 <Zap className="w-4 h-4 mx-auto text-amber-500 mb-1" />

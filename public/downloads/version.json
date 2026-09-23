@@ -19,8 +19,8 @@
     }
   },
   "releaseNotes": [
-    "Native Android and iOS mobile app powered by Capacitor",
-    "Real-time Socket.IO chat and audio/video calling support",
+    "Official CampusBridge mobile app for Android and iOS devices",
+    "Real-time messaging, mentorship matching and audio/video calling",
     "Push notifications for instant messaging and call alerts",
     "Dynamic dark/light theme status bar synchronization",
     "Safe-area insets and hardware back button handling"

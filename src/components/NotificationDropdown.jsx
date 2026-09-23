@@ -549,7 +549,7 @@ const NotificationDropdown = () => {
                     <span className="text-xs font-bold text-foreground truncate">CampusBridge Mobile App</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
-                    Download Android APK (7.2MB) & iOS PWA
+                    Download for Android & iOS devices
                   </p>
                 </div>
                 <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-1 rounded-lg shrink-0 group-hover:bg-purple-600 group-hover:text-white transition-colors">

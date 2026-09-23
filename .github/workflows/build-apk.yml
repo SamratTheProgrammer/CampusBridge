@@ -84,7 +84,7 @@ jobs:
         with:
           tag_name: v1.0.0-apk
           name: "CampusBridge Android App v1.0.0"
-          body: "Official Android APK release package for CampusBridge. Compiled with Capacitor native runtime."
+          body: "Official Android APK release package for CampusBridge."
           draft: false
           prerelease: false
           files: android/app/build/outputs/apk/debug/app-debug.apk

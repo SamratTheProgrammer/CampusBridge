@@ -60,7 +60,7 @@ const AppDownloadSection = () => {
                     <Video className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs sm:text-sm font-semibold text-foreground">WebRTC Video & Audio</h4>
+                    <h4 className="text-xs sm:text-sm font-semibold text-foreground">Live Video & Voice Calls</h4>
                     <p className="text-[11px] text-muted-foreground">Crystal-clear 1-on-1 mentorship calling with zero latency.</p>
                   </div>
                 </div>
@@ -80,8 +80,8 @@ const AppDownloadSection = () => {
                     <ShieldCheck className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs sm:text-sm font-semibold text-foreground">100% Native & Secure</h4>
-                    <p className="text-[11px] text-muted-foreground">Powered by Capacitor with gesture navigation & safe-areas.</p>
+                    <h4 className="text-xs sm:text-sm font-semibold text-foreground">Smooth & Secure</h4>
+                    <p className="text-[11px] text-muted-foreground">Gesture navigation, instant push notifications & secure storage.</p>
                   </div>
                 </div>
               </div>
@@ -143,8 +143,8 @@ const AppDownloadSection = () => {
                   ⚡
                 </div>
                 <div className="text-left pr-2">
-                  <p className="text-[11px] font-bold text-foreground leading-tight">100% Native Feel</p>
-                  <p className="text-[9px] text-muted-foreground leading-tight">Capacitor Powered</p>
+                  <p className="text-[11px] font-bold text-foreground leading-tight">Fast & Smooth</p>
+                  <p className="text-[9px] text-muted-foreground leading-tight">Mobile Optimized</p>
                 </div>
               </div>
 
@@ -153,8 +153,8 @@ const AppDownloadSection = () => {
                   🎥
                 </div>
                 <div className="text-left pr-2">
-                  <p className="text-[11px] font-bold text-foreground leading-tight">WebRTC Calling</p>
-                  <p className="text-[9px] text-muted-foreground leading-tight">Video & Voice Mentorship</p>
+                  <p className="text-[11px] font-bold text-foreground leading-tight">Live Video Calling</p>
+                  <p className="text-[9px] text-muted-foreground leading-tight">1-on-1 Mentorship Calls</p>
                 </div>
               </div>
 
@@ -232,7 +232,7 @@ const AppDownloadSection = () => {
                         </div>
                         <div>
                           <p className="text-[10px] font-bold text-slate-900 dark:text-zinc-100 leading-none">Mentorship Session</p>
-                          <p className="text-[8px] text-emerald-600 dark:text-emerald-400 mt-0.5 font-medium">Incoming WebRTC Video...</p>
+                          <p className="text-[8px] text-emerald-600 dark:text-emerald-400 mt-0.5 font-medium">Incoming Live Video Call...</p>
                         </div>
                       </div>
                       <span className="text-[9px] bg-emerald-500 hover:bg-emerald-600 text-white dark:text-black font-bold px-2 py-0.5 rounded-md shadow-xs transition-colors">
