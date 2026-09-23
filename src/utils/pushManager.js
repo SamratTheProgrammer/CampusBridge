@@ -1,4 +1,5 @@
 import API_BASE from './api';
+import ringtoneService from './ringtone';
 
 // Helper to convert base64 VAPID public key to Uint8Array
 export const urlBase64ToUint8Array = (base64String) => {
@@ -112,4 +113,79 @@ export const sendTestPush = async (userId) => {
     console.error('sendTestPush error:', err);
     return { error: err.message };
   }
+};
+
+// Send a direct browser notification with optional sound
+export const sendBrowserNotification = async (title, options = {}) => {
+  const {
+    body = 'You have a new update.',
+    icon = '/icon-192x192.png',
+    url = '/dashboard',
+    tag,
+    playSound = true,
+    onClick
+  } = options;
+
+  // 1. Play sound if requested and enabled
+  if (playSound) {
+    try {
+      const soundEnabled = localStorage.getItem('campusbridge_notification_sound') !== 'false';
+      if (soundEnabled) {
+        ringtoneService.playNotificationSound();
+      }
+    } catch (e) {
+      console.warn('Could not play notification sound:', e);
+    }
+  }
+
+  // 2. Request permission if currently 'default'
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    let perm = Notification.permission;
+    if (perm === 'default') {
+      try {
+        perm = await Notification.requestPermission();
+      } catch (e) {}
+    }
+
+    if (perm === 'granted') {
+      try {
+        const notif = new Notification(title, {
+          body,
+          icon,
+          badge: '/icon-192x192.png',
+          tag: tag || ('cb-notif-' + Date.now()),
+          data: { url }
+        });
+
+        notif.onclick = () => {
+          window.focus();
+          if (onClick) {
+            onClick();
+          } else if (url && window.location.pathname !== url) {
+            window.location.href = url;
+          }
+          notif.close();
+        };
+
+        return notif;
+      } catch (err) {
+        // Fallback for environments where new Notification() fails (some mobile browsers)
+        if ('serviceWorker' in navigator) {
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            await reg.showNotification(title, {
+              body,
+              icon,
+              badge: '/icon-192x192.png',
+              tag: tag || ('cb-notif-' + Date.now()),
+              data: { url }
+            });
+          } catch (swErr) {
+            console.warn('ServiceWorker showNotification fallback error:', swErr);
+          }
+        }
+      }
+    }
+  }
+  return null;
 };

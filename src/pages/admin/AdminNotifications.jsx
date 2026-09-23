@@ -1,13 +1,41 @@
-import React, { useState } from 'react'
-import { Plus, Trash2, Bell, Check, Clock } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Trash2, Bell, Check, Clock, Volume2, VolumeX, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import ringtoneService from '../../utils/ringtone'
+import { sendBrowserNotification } from '../../utils/pushManager'
 
 const AdminNotifications = () => {
   const [notifications, setNotifications] = useState([])
+  const [soundEnabled, setSoundEnabled] = useState(
+    localStorage.getItem('campusbridge_notification_sound') !== 'false'
+  )
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+
+  useEffect(() => {
+    const onSoundChange = (e) => {
+      if (typeof e.detail === 'boolean') {
+        setSoundEnabled(e.detail)
+      }
+    }
+    window.addEventListener('campusbridge_notification_sound_change', onSoundChange)
+    return () => window.removeEventListener('campusbridge_notification_sound_change', onSoundChange)
+  }, [])
+
+  const handleToggleSound = () => {
+    const next = !soundEnabled
+    setSoundEnabled(next)
+    localStorage.setItem('campusbridge_notification_sound', next.toString())
+    window.dispatchEvent(new CustomEvent('campusbridge_notification_sound_change', { detail: next }))
+    if (next) {
+      try { ringtoneService.playNotificationSound(true) } catch(e){}
+      toast.success('Notification sound turned ON 🔔')
+    } else {
+      toast.success('Notification sound turned OFF 🔕')
+    }
+  }
 
   const confirmDelete = (id, title) => {
     setDeleteTarget({ id, title })
@@ -24,15 +52,27 @@ const AdminNotifications = () => {
 
   const handleCreate = () => {
     const title = prompt('Enter Notification Title:')
+    if (!title) return
     const audience = prompt('Enter Target Audience (Students, Mentor, All Users):', 'All Users')
-    const type = prompt('Enter Delivery Type (In-App, Email):', 'In-App')
-    if (title) {
-      setNotifications([
-        ...notifications,
-        { id: notifications.length + 1, title, audience, type, sent: 'Today', status: 'Sent' }
-      ])
-      toast.success('Notification sent!')
+    const type = prompt('Enter Delivery Type (In-App, Browser, Email):', 'In-App & Browser')
+    
+    setNotifications([
+      ...notifications,
+      { id: notifications.length + 1, title, audience, type, sent: 'Just now', status: 'Sent' }
+    ])
+
+    // Play notification sound if enabled
+    if (soundEnabled) {
+      ringtoneService.playNotificationSound(true)
     }
+
+    // Trigger browser notification
+    sendBrowserNotification(title, {
+      body: `Audience: ${audience} | Sent via CampusBridge Admin`,
+      playSound: false // sound already triggered above
+    })
+
+    toast.success(soundEnabled ? 'Notification sent with sound alert! 🔔' : 'Notification sent (sound muted) 🔕')
   }
 
   return (
@@ -43,12 +83,26 @@ const AdminNotifications = () => {
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Notifications</h1>
           <p className="text-muted-foreground text-sm mt-1">Send, schedule, and review system announcements and user broadcasts.</p>
         </div>
-        <button 
-          onClick={handleCreate}
-          className="bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 flex items-center gap-2 transition-all shadow-md shadow-primary/10 text-sm self-start sm:self-auto"
-        >
-          <Plus className="w-4.5 h-4.5" /> New Notification
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleToggleSound}
+            className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+              soundEnabled
+                ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
+                : 'bg-rose-500/10 text-rose-500 border-rose-500/30 hover:bg-rose-500/20'
+            }`}
+            title={soundEnabled ? 'Notification Sound is ON - click to mute' : 'Notification Sound is OFF - click to unmute'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            <span>Sound: {soundEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+          <button 
+            onClick={handleCreate}
+            className="bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 flex items-center gap-2 transition-all shadow-md shadow-primary/10 text-sm self-start sm:self-auto cursor-pointer"
+          >
+            <Plus className="w-4.5 h-4.5" /> New Notification
+          </button>
+        </div>
       </div>
 
       {/* Notifications Table */}

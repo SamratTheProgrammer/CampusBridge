@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2, Sun, Moon, MonitorSmartphone, Palette, HelpCircle, Mail, MessageSquare, ExternalLink, Headphones } from 'lucide-react'
+import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2, Sun, Moon, MonitorSmartphone, Palette, HelpCircle, Mail, MessageSquare, ExternalLink, Headphones, Volume2, VolumeX } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import SettingsSkeleton from '../../components/skeletons/SettingsSkeleton'
 import toast from 'react-hot-toast'
@@ -14,6 +14,7 @@ import { calculateStudentProfileProgress, getStudentMissingItems } from '../../u
 import API_BASE from '../../utils/api'
 import { useTheme } from '../../components/ThemeProvider'
 import { useProfileData } from '../../context/ProfileDataContext'
+import ringtoneService from '../../utils/ringtone'
 const JOB_TITLES = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
   "Mobile Developer", "iOS Developer", "Android Developer", "Web Developer",
@@ -193,8 +194,24 @@ const Settings = () => {
   const handleNotificationSoundToggle = (val) => {
     setNotificationSound(val)
     localStorage.setItem('campusbridge_notification_sound', val.toString())
-    toast.success(val ? 'Notification sound enabled' : 'Notification sound disabled')
+    window.dispatchEvent(new CustomEvent('campusbridge_notification_sound_change', { detail: val }))
+    if (val) {
+      try { ringtoneService.playNotificationSound(true) } catch(e){}
+      toast.success('Notification sound turned ON 🔔')
+    } else {
+      toast.success('Notification sound turned OFF 🔕')
+    }
   }
+
+  useEffect(() => {
+    const onSoundChange = (e) => {
+      if (typeof e.detail === 'boolean') {
+        setNotificationSound(e.detail)
+      }
+    }
+    window.addEventListener('campusbridge_notification_sound_change', onSoundChange)
+    return () => window.removeEventListener('campusbridge_notification_sound_change', onSoundChange)
+  }, [])
   
   const fileInputRef = useRef(null)
   const resumeInputRef = useRef(null)
@@ -813,17 +830,42 @@ const Settings = () => {
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${chatNotifs ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
-                <div className="sm:col-span-2 mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between">
+                <div className="sm:col-span-2 mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h4 className="text-sm font-semibold text-foreground">General Notification Sound</h4>
-                    <p className="text-xs text-muted-foreground mt-1">Play sound for system notifications.</p>
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      {notificationSound ? <Volume2 className="w-4 h-4 text-primary" /> : <VolumeX className="w-4 h-4 text-rose-500" />}
+                      General Notification Sound
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        notificationSound ? 'bg-primary/10 text-primary' : 'bg-rose-500/10 text-rose-500'
+                      }`}>
+                        {notificationSound ? 'ON' : 'OFF'}
+                      </span>
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-1">Play chime sound when notifications and alerts are sent or received.</p>
                   </div>
-                  <button 
-                    onClick={() => handleNotificationSoundToggle(!notificationSound)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${notificationSound ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationSound ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          ringtoneService.playNotificationSound(true)
+                          toast.success('Playing sound preview 🔔')
+                        } catch (e) {}
+                      }}
+                      className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 bg-primary/5 hover:bg-primary/10 px-2.5 py-1.5 rounded-lg border border-primary/20 transition-colors"
+                      title="Test Notification Sound"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" /> Test Sound
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => handleNotificationSoundToggle(!notificationSound)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${notificationSound ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      title={notificationSound ? 'Click to turn sound OFF' : 'Click to turn sound ON'}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationSound ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
                 </div>
               <div className="space-y-4 sm:col-span-2 mt-4 pt-4 border-t border-border/40">
                   <div className="flex items-center justify-between">

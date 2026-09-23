@@ -44,8 +44,23 @@ self.addEventListener('push', function(event) {
     ]
   };
 
+  // Broadcast to open client tabs so active windows play notification sound if enabled
+  const broadcastSound = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+    for (let i = 0; i < clientList.length; i++) {
+      clientList[i].postMessage({
+        type: 'CAMPUSBRIDGE_PLAY_NOTIFICATION_SOUND',
+        data: data
+      });
+    }
+  }).catch(function(err) {
+    console.debug('SW broadcast sound error:', err);
+  });
+
   event.waitUntil(
-    self.registration.showNotification(data.title || 'CampusBridge', options)
+    Promise.all([
+      self.registration.showNotification(data.title || 'CampusBridge', options),
+      broadcastSound
+    ])
   );
 });
 

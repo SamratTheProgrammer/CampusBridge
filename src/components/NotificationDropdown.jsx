@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User, ArrowLeft, Volume2, AlertTriangle, Smartphone } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserPlus, CheckCircle2, XCircle, Heart, MessageSquare, Calendar, Sparkles, X, Settings, User, ArrowLeft, Volume2, VolumeX, AlertTriangle, Smartphone } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import API_BASE from '../utils/api'
 import { formatTime } from '../utils/dateFormatter'
 import ModalPortal from './modals/ModalPortal'
-import { subscribeUserToPush, requestAndSubscribePush, sendTestPush } from '../utils/pushManager'
+import { subscribeUserToPush, requestAndSubscribePush, sendTestPush, sendBrowserNotification } from '../utils/pushManager'
 
 const NotificationDropdown = () => {
   const { user } = useUser();
@@ -28,17 +28,38 @@ const NotificationDropdown = () => {
   const [warningModal, setWarningModal] = useState({ isOpen: false, notification: null });
   const dropdownRef = useRef(null);
 
+  // Sync sound toggle across tabs and other setting pages
+  useEffect(() => {
+    const handleSoundChange = (e) => {
+      if (typeof e.detail === 'boolean') {
+        setSoundEnabled(e.detail);
+      }
+    };
+    window.addEventListener('campusbridge_notification_sound_change', handleSoundChange);
+    return () => window.removeEventListener('campusbridge_notification_sound_change', handleSoundChange);
+  }, []);
+
   const handleToggleSound = () => {
     const newSound = !soundEnabled;
     setSoundEnabled(newSound);
     localStorage.setItem('campusbridge_notification_sound', newSound.toString());
+    window.dispatchEvent(new CustomEvent('campusbridge_notification_sound_change', { detail: newSound }));
     if (newSound) {
       try {
-        ringtoneService.playNotificationSound();
+        ringtoneService.playNotificationSound(true); // force sound preview
       } catch (e) {}
-      toast.success('Notification sound enabled');
+      toast.success('Notification sound turned ON 🔔');
     } else {
-      toast.success('Notification sound disabled');
+      toast.success('Notification sound turned OFF 🔕');
+    }
+  };
+
+  const handleTestSound = () => {
+    try {
+      ringtoneService.playNotificationSound(true);
+      toast.success('Playing notification sound preview 🔔');
+    } catch (e) {
+      toast.error('Could not play sound');
     }
   };
 
@@ -118,17 +139,70 @@ const NotificationDropdown = () => {
   };
 
   const handleSendTestNotification = async () => {
-    if (!user?.id) return;
     setIsTestingPush(true);
     try {
-      const res = await sendTestPush(user.id);
-      if (res?.success) {
-        toast.success('Test notification sent! Check your notification tray.');
-      } else {
-        toast.error(res?.error || 'Make sure notifications are enabled on this device.');
+      const isSoundOn = localStorage.getItem('campusbridge_notification_sound') !== 'false';
+
+      // 1. Play sound chime if sound is enabled
+      if (isSoundOn) {
+        try {
+          ringtoneService.playNotificationSound(true);
+        } catch (e) {}
       }
+
+      // 2. Request browser permission and trigger native browser notification
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        let perm = Notification.permission;
+        if (perm === 'default') {
+          try {
+            perm = await Notification.requestPermission();
+          } catch (e) {}
+        }
+
+        if (perm === 'granted') {
+          try {
+            const testNotif = new Notification('CampusBridge Notification 🔔', {
+              body: isSoundOn 
+                ? 'Browser notification sent with sound alert!' 
+                : 'Browser notification sent (sound muted).',
+              icon: '/icon-192x192.png',
+              badge: '/icon-192x192.png',
+              tag: 'cb-test-' + Date.now()
+            });
+            testNotif.onclick = () => {
+              window.focus();
+              testNotif.close();
+            };
+          } catch (notifErr) {
+            if ('serviceWorker' in navigator) {
+              try {
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification('CampusBridge Notification 🔔', {
+                  body: isSoundOn 
+                    ? 'Browser notification sent with sound alert!' 
+                    : 'Browser notification sent (sound muted).',
+                  icon: '/icon-192x192.png',
+                  badge: '/icon-192x192.png',
+                  tag: 'cb-test-' + Date.now()
+                });
+              } catch (swErr) {}
+            }
+          }
+        }
+      }
+
+      // 3. Send test push via backend if user is logged in
+      if (user?.id) {
+        await sendTestPush(user.id);
+      }
+
+      toast.success(
+        isSoundOn 
+          ? 'Browser notification sent with sound! 🔔' 
+          : 'Browser notification sent (sound is muted) 🔕'
+      );
     } catch (e) {
-      toast.error('Failed to send test notification');
+      toast.error('Failed to send test notification: ' + (e?.message || 'Error'));
     } finally {
       setIsTestingPush(false);
     }
@@ -200,12 +274,42 @@ const NotificationDropdown = () => {
       setNotifications(prev => [notification, ...prev]);
       setUnreadCount(prev => prev + 1);
       
+      // Play sound if enabled
       try {
-        const soundEnabled = localStorage.getItem('campusbridge_notification_sound') !== 'false';
-        if (soundEnabled) {
+        const isSoundOn = localStorage.getItem('campusbridge_notification_sound') !== 'false';
+        if (isSoundOn) {
           ringtoneService.playNotificationSound();
         }
       } catch(e){}
+
+      // Native browser notification for background/system alerts
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          const bNotif = new Notification(notification.title || 'CampusBridge', {
+            body: notification.message || 'You have a new notification',
+            icon: notification.senderImage || '/icon-192x192.png',
+            badge: '/icon-192x192.png',
+            tag: `cb-${notification._id || Date.now()}`
+          });
+          bNotif.onclick = () => {
+            window.focus();
+            if (notification.link) {
+              navigateNotification(notification.link, notification);
+            }
+            bNotif.close();
+          };
+        } catch (err) {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification(notification.title || 'CampusBridge', {
+                body: notification.message || 'You have a new notification',
+                icon: notification.senderImage || '/icon-192x192.png',
+                tag: `cb-${notification._id || Date.now()}`
+              });
+            }).catch(() => {});
+          }
+        }
+      }
 
       toast.custom(
         (t) => (
@@ -450,25 +554,42 @@ const NotificationDropdown = () => {
                   </div>
 
                   {/* Notification Sound */}
-                  <div className="flex items-start justify-between gap-4 pt-4 border-t border-border/40">
-                    <div>
-                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                        <Volume2 className="w-4 h-4 text-primary" /> Notification Sound
-                      </h4>
-                      <p className="text-xs text-muted-foreground mt-1">Play sound alert when new notifications arrive.</p>
-                    </div>
-                    <button
-                      onClick={handleToggleSound}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none transition-colors ${
-                        soundEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          soundEnabled ? 'translate-x-2' : '-translate-x-2'
+                  <div className="pt-4 border-t border-border/40 space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                          {soundEnabled ? <Volume2 className="w-4 h-4 text-primary" /> : <VolumeX className="w-4 h-4 text-rose-500" />}
+                          Notification Sound
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            soundEnabled ? 'bg-primary/10 text-primary' : 'bg-rose-500/10 text-rose-500'
+                          }`}>
+                            {soundEnabled ? 'ON' : 'OFF'}
+                          </span>
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-1">Play sound alert when new notifications arrive or are sent.</p>
+                      </div>
+                      <button
+                        onClick={handleToggleSound}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none transition-colors ${
+                          soundEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
                         }`}
-                      />
-                    </button>
+                        title={soundEnabled ? 'Click to turn sound OFF' : 'Click to turn sound ON'}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            soundEnabled ? 'translate-x-2' : '-translate-x-2'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleTestSound}
+                        className="text-xs font-semibold text-primary hover:underline flex items-center gap-1.5 cursor-pointer bg-primary/5 hover:bg-primary/10 px-2.5 py-1.5 rounded-lg border border-primary/20 transition-colors"
+                      >
+                        <Volume2 className="w-3.5 h-3.5" /> Test Sound Chime
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -486,6 +607,17 @@ const NotificationDropdown = () => {
                 )}
               </div>
               <div className="flex items-center gap-1">
+                <button
+                  onClick={handleToggleSound}
+                  className={`p-1.5 text-xs rounded-lg transition-colors flex items-center justify-center cursor-pointer ${
+                    soundEnabled 
+                      ? 'text-primary hover:bg-primary/10' 
+                      : 'text-rose-500 hover:bg-rose-500/10'
+                  }`}
+                  title={soundEnabled ? 'Notification Sound: ON (Click to mute)' : 'Notification Sound: OFF (Click to unmute)'}
+                >
+                  {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                </button>
                 <button 
                   onClick={() => setIsSettingsOpen(true)}
                   className="p-1.5 text-xs text-muted-foreground hover:bg-muted rounded-lg transition-colors"

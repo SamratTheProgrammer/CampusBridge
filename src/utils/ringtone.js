@@ -41,9 +41,14 @@ class RingtoneService {
     this._playAudio(ringSound, true, 0.4);
   }
 
-  // Play a one-shot notification sound for chat messages
-  playNotificationSound() {
+  // Play a one-shot notification sound for notifications and messages
+  playNotificationSound(force = false) {
     try {
+      const soundEnabled = typeof window !== 'undefined'
+        ? localStorage.getItem('campusbridge_notification_sound') !== 'false'
+        : true;
+      if (!force && !soundEnabled) return;
+
       if (this.notificationAudio) {
         this.notificationAudio.pause();
         this.notificationAudio.currentTime = 0;

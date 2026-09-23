@@ -28,6 +28,7 @@ import CapacitorInit from './components/common/CapacitorInit'
 import AppAnnouncementBar from './components/common/AppAnnouncementBar'
 import { DynamicLayoutWrapper, ProfileDispatcher } from './components/UnifiedProfileRoute'
 import { ProfileDataProvider } from './context/ProfileDataContext'
+import ringtoneService from './utils/ringtone'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -366,6 +367,20 @@ function App() {
           console.log('ServiceWorker registration failed: ', err);
         }
       );
+
+      // Listen for notification sound triggers from service worker
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'CAMPUSBRIDGE_PLAY_NOTIFICATION_SOUND') {
+          try {
+            const isSoundOn = localStorage.getItem('campusbridge_notification_sound') !== 'false';
+            if (isSoundOn) {
+              ringtoneService.playNotificationSound();
+            }
+          } catch (e) {
+            console.debug('Error playing SW notification sound:', e);
+          }
+        }
+      });
     }
   }, []);
 
