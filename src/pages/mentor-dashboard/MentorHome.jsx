@@ -1034,6 +1034,8 @@ const MentorHome = () => {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm relative transition-all ${
+            (showNewPostEmojiPicker || showMediaDropdown) ? 'z-[60]' : 'z-10'
+          } ${
             isDragging ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''
           }`}
         >
@@ -1051,7 +1053,7 @@ const MentorHome = () => {
               className="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => navigate('/mentor-dashboard/profile')}
             />
-            <div className={`flex-1 rounded-xl relative ${selectedGradient || 'bg-background border border-border/50'}`}>
+            <div className={`flex-1 rounded-xl relative ${selectedGradient || 'bg-background border border-border/50'} ${showNewPostEmojiPicker ? 'z-[70]' : 'z-10'}`}>
               <textarea 
                 value={newPostContent}
                 onChange={e => setNewPostContent(e.target.value)}
@@ -1067,10 +1069,13 @@ const MentorHome = () => {
               ></textarea>
 
               {/* Show emoji trigger inside Start a post textarea */}
-              <div className="absolute right-2.5 bottom-2.5 z-10" ref={newPostEmojiPickerRef}>
+              <div className="absolute right-2.5 bottom-2.5 z-40" ref={newPostEmojiPickerRef}>
                 <button 
                   type="button" 
-                  onClick={() => setShowNewPostEmojiPicker(!showNewPostEmojiPicker)} 
+                  onClick={() => {
+                    setShowNewPostEmojiPicker(!showNewPostEmojiPicker);
+                    setShowMediaDropdown(false);
+                  }} 
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     showNewPostEmojiPicker 
                       ? 'bg-amber-500/20 text-amber-500 ring-1 ring-amber-500/30' 
@@ -1084,7 +1089,7 @@ const MentorHome = () => {
                 </button>
 
                 {showNewPostEmojiPicker && (
-                  <div className="absolute right-0 top-full mt-2 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/60 bg-card animate-in fade-in zoom-in-95">
+                  <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl overflow-hidden border border-border/60 bg-card animate-in fade-in zoom-in-95">
                     <EmojiPicker
                       onEmojiClick={handleEmojiClick}
                       theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
@@ -1164,7 +1169,7 @@ const MentorHome = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 gap-2 flex-nowrap relative z-20">
+          <div className={`flex items-center justify-between pt-2 gap-2 flex-nowrap relative ${showNewPostEmojiPicker ? 'z-0' : 'z-20'}`}>
             <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-nowrap overflow-visible shrink min-w-0 py-0.5 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
               <input 
                 type="file" 
@@ -1179,7 +1184,10 @@ const MentorHome = () => {
               <div className={`relative shrink-0 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`} ref={mediaDropdownRef}>
                 <button 
                   type="button" 
-                  onClick={() => setShowMediaDropdown(!showMediaDropdown)} 
+                  onClick={() => {
+                    setShowMediaDropdown(!showMediaDropdown);
+                    setShowNewPostEmojiPicker(false);
+                  }} 
                   className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
                     showMediaDropdown ? 'bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/30' : 'text-blue-500'
                   }`}

@@ -30,12 +30,7 @@ const LandingPage = () => {
   useEffect(() => {
     if (!isLoaded) return
 
-    // Clean up any stale admin token from localStorage
-    localStorage.removeItem('adminToken')
-    localStorage.removeItem('adminUser')
-    localStorage.removeItem('adminTokenExpiry')
-
-    const adminToken = sessionStorage.getItem('adminToken')
+    const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken')
     if (adminToken) {
       navigate('/admin', { replace: true })
       return

@@ -69,25 +69,27 @@ const AdminLogin = () => {
       let expiryTime = null;
       if (timeoutUnit !== 'never') {
         const now = new Date();
-        if (timeoutUnit === 'days') now.setDate(now.getDate() + parseInt(timeoutValue));
-        if (timeoutUnit === 'months') now.setMonth(now.getMonth() + parseInt(timeoutValue));
+        const val = parseInt(timeoutValue, 10) || 60;
+        if (timeoutUnit === 'minutes') now.setMinutes(now.getMinutes() + val);
+        else if (timeoutUnit === 'days') now.setDate(now.getDate() + val);
+        else if (timeoutUnit === 'months') now.setMonth(now.getMonth() + val);
+        else now.setDate(now.getDate() + 30);
         expiryTime = now.getTime();
       }
 
-      // Strictly save in sessionStorage so closing the tab requires re-login
-      sessionStorage.setItem('adminToken', data.token)
-      sessionStorage.setItem('adminUser', JSON.stringify(data.user))
+      // Save token in both sessionStorage and localStorage for seamless persistence
+      sessionStorage.setItem('adminToken', data.token);
+      sessionStorage.setItem('adminUser', JSON.stringify(data.user));
+      localStorage.setItem('adminToken', data.token);
+      localStorage.setItem('adminUser', JSON.stringify(data.user));
       
       if (expiryTime) {
         sessionStorage.setItem('adminTokenExpiry', expiryTime.toString());
+        localStorage.setItem('adminTokenExpiry', expiryTime.toString());
       } else {
         sessionStorage.removeItem('adminTokenExpiry');
+        localStorage.removeItem('adminTokenExpiry');
       }
-
-      // Clear any persistent tokens in localStorage
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminUser');
-      localStorage.removeItem('adminTokenExpiry');
 
       toast.success(data.message || `Successfully logged in`)
       navigate('/admin')

@@ -43,6 +43,7 @@ const PORT = process.env.PORT || 5001;
 const server = http.createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5001',
   'http://192.168.56.1:5173',
   'http://192.168.242.1:5173',
   'http://192.168.209.1:5173',
@@ -51,9 +52,17 @@ const allowedOrigins = [
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
+const corsOriginHandler = (origin, callback) => {
+  // Allow mobile apps (no origin header), known origins, and any Vercel preview/production domains
+  if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    return callback(null, true);
+  }
+  return callback(null, true);
+};
+
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: corsOriginHandler,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
   }
@@ -120,7 +129,7 @@ app.set('emitToUserSockets', emitToUserSockets);
 
 // Middleware
 app.use(cors({
-  origin: allowedOrigins,
+  origin: corsOriginHandler,
   credentials: true
 }));
 
@@ -227,6 +236,18 @@ app.get('/api/settings/public', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch public settings' });
+  }
+});
+
+app.get(['/api/settings/theme', '/api/theme'], async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    return res.status(200).json({ 
+      success: true, 
+      globalTheme: setting?.globalTheme || 'none'
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch theme' });
   }
 });
 

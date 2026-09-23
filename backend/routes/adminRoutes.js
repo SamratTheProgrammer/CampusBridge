@@ -73,6 +73,42 @@ router.get('/me', requireAdmin, async (req, res) => {
   });
 });
 
+// Helper to determine suggested theme based on Indian calendar
+function getSuggestedHolidayTheme() {
+  const now = new Date();
+  const m = now.getMonth() + 1; // 1-12
+  const d = now.getDate();
+
+  if (m === 1 && d >= 20 && d <= 31) return { theme: 'independence', name: 'Republic Day' };
+  if (m === 3) return { theme: 'holi', name: 'Holi' };
+  if (m === 8 && d >= 10 && d <= 20) return { theme: 'independence', name: 'Independence Day' };
+  if (m === 10 || m === 11) return { theme: 'diwali', name: 'Diwali' };
+  
+  return null;
+}
+
+// Get Global Theme Setting (Publicly accessible so ThemeProvider works for all visitors and users)
+router.get('/settings/theme', async (req, res) => {
+  try {
+    let setting = await PlatformSetting.findOne();
+    if (!setting) {
+      setting = await PlatformSetting.create({ globalTheme: 'none' });
+    }
+    
+    const suggestion = getSuggestedHolidayTheme();
+    
+    return res.status(200).json({ 
+      success: true, 
+      globalTheme: setting.globalTheme,
+      suggestedTheme: suggestion ? suggestion.theme : null,
+      holidayName: suggestion ? suggestion.name : null
+    });
+  } catch (error) {
+    console.error('Fetch Theme Setting Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch theme setting' });
+  }
+});
+
 // Apply requireAdmin middleware to ALL following admin routes
 router.use(requireAdmin);
 
@@ -900,55 +936,30 @@ router.delete('/companies/:id', async (req, res) => {
   }
 });
 
-// Helper to determine suggested theme based on Indian calendar
-function getSuggestedHolidayTheme() {
-  const now = new Date();
-  const m = now.getMonth() + 1; // 1-12
-  const d = now.getDate();
-
-  if (m === 1 && d >= 20 && d <= 31) return { theme: 'independence', name: 'Republic Day' };
-  if (m === 3) return { theme: 'holi', name: 'Holi' };
-  if (m === 8 && d >= 10 && d <= 20) return { theme: 'independence', name: 'Independence Day' };
-  if (m === 10 || m === 11) return { theme: 'diwali', name: 'Diwali' };
-  
-  return null;
-}
-
-// Get Global Theme Setting
-router.get('/settings/theme', async (req, res) => {
-  try {
-    let setting = await PlatformSetting.findOne();
-    if (!setting) {
-      setting = await PlatformSetting.create({ globalTheme: 'none' });
-    }
-    
-    const suggestion = getSuggestedHolidayTheme();
-    
-    return res.status(200).json({ 
-      success: true, 
-      globalTheme: setting.globalTheme,
-      suggestedTheme: suggestion ? suggestion.theme : null,
-      holidayName: suggestion ? suggestion.name : null
-    });
-  } catch (error) {
-    console.error('Fetch Theme Setting Error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to fetch theme setting' });
-  }
-});
-
 // Update Global Theme Setting
 router.put('/settings/theme', async (req, res) => {
   try {
     const { globalTheme } = req.body;
+    const normalizedTheme = (globalTheme === 'system' || !globalTheme) ? 'none' : globalTheme;
     
     let setting = await PlatformSetting.findOne();
     if (!setting) {
-      setting = new PlatformSetting({ globalTheme });
+      setting = new PlatformSetting({ globalTheme: normalizedTheme });
     } else {
-      setting.globalTheme = globalTheme;
+      setting.globalTheme = normalizedTheme;
     }
     
     await setting.save();
+    
+    // Broadcast real-time theme change to all connected clients
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('global_theme_changed', { globalTheme: setting.globalTheme });
+      }
+    } catch (ioErr) {
+      console.warn('Socket emit theme change error:', ioErr);
+    }
     
     return res.status(200).json({ success: true, globalTheme: setting.globalTheme });
   } catch (error) {

@@ -120,7 +120,7 @@ function RootIndex() {
     localStorage.getItem('campusbridge_logged_in') === 'true' || 
     !!localStorage.getItem('campusbridge_user_role')
   )
-  const adminToken = typeof window !== 'undefined' && sessionStorage.getItem('adminToken')
+  const adminToken = typeof window !== 'undefined' && (sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken'))
 
   if (adminToken) {
     return <Navigate to="/admin" replace />
@@ -342,16 +342,6 @@ function DiwaliWrapper() {
 
 function App() {
   useEffect(() => {
-    // Admin sessions are strictly per-session (sessionStorage).
-    // Wipe any legacy admin tokens from localStorage so closing the page always requires re-login.
-    try {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminUser');
-      localStorage.removeItem('adminTokenExpiry');
-    } catch (e) {
-      // ignore
-    }
-
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(
         (registration) => {

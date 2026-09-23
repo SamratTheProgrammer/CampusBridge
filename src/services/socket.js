@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 import { Capacitor } from '@capacitor/core';
-import { PRODUCTION_URL } from '../utils/appUrl';
+import { PRODUCTION_BACKEND_URL } from '../utils/appUrl';
 
 const getSocketUrl = () => {
   if (import.meta.env.VITE_SOCKET_URL && !import.meta.env.VITE_SOCKET_URL.includes('localhost')) {
@@ -9,13 +9,12 @@ const getSocketUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL && !import.meta.env.VITE_BACKEND_URL.includes('localhost')) {
     return import.meta.env.VITE_BACKEND_URL;
   }
-  if (typeof window !== 'undefined') {
-    if (Capacitor.isNativePlatform() || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return PRODUCTION_URL;
-    }
-    return window.location.origin;
+  // Local development on desktop
+  if (import.meta.env.DEV && typeof window !== 'undefined' && !Capacitor.isNativePlatform() && window.location.hostname === 'localhost') {
+    return 'http://localhost:5001';
   }
-  return PRODUCTION_URL;
+  // Production Web & Mobile App: connect to Render backend
+  return PRODUCTION_BACKEND_URL;
 };
 
 export const socket = io(getSocketUrl(), {

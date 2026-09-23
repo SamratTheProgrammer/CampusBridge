@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Settings, Shield, Key, Mail, Lock, Sliders, Globe, Eye, Sun, Moon, MonitorSmartphone, PartyPopper, Sparkles, Flame, Palette, Flag, CheckCircle2, Check, Smartphone, Download, QrCode, ExternalLink } from 'lucide-react'
 import { useTheme } from '../../components/ThemeProvider'
 import toast from 'react-hot-toast'
-import API_BASE from '../../utils/api'
+import API_BASE, { getAdminHeaders } from '../../utils/api'
 
 const AdminSettings = () => {
   const [activeTab, setActiveTab] = useState('General')
@@ -105,7 +105,9 @@ const AdminSettings = () => {
 
   const fetchGlobalThemeSettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings/theme`)
+      const res = await fetch(`${API_BASE}/api/admin/settings/theme`, {
+        headers: getAdminHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
@@ -129,7 +131,7 @@ const AdminSettings = () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/settings/theme`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ globalTheme: normalized })
       })
       if (res.ok) {
@@ -142,7 +144,8 @@ const AdminSettings = () => {
           toast.success(`Global theme updated to ${display}!`)
         }
       } else {
-        toast.error('Failed to update global theme')
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.message || 'Failed to update global theme')
       }
     } catch (error) {
       console.error('Error updating global theme:', error)
@@ -154,7 +157,9 @@ const AdminSettings = () => {
 
   const fetchAuthSettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings/auth`)
+      const res = await fetch(`${API_BASE}/api/admin/settings/auth`, {
+        headers: getAdminHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.authSettings) {
@@ -172,7 +177,7 @@ const AdminSettings = () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/settings/auth`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ authSettings })
       })
       if (res.ok) {
@@ -182,7 +187,8 @@ const AdminSettings = () => {
           toast.success('Authentication settings updated!')
         }
       } else {
-        toast.error('Failed to update auth settings')
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.message || 'Failed to update auth settings')
       }
     } catch (error) {
       console.error('Error updating auth settings:', error)
@@ -198,7 +204,9 @@ const AdminSettings = () => {
 
   const fetchEmailSettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings/email`)
+      const res = await fetch(`${API_BASE}/api/admin/settings/email`, {
+        headers: getAdminHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.emailSettings) {
@@ -216,7 +224,7 @@ const AdminSettings = () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/settings/email`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ emailSettings })
       })
       if (res.ok) {
@@ -226,7 +234,8 @@ const AdminSettings = () => {
           toast.success('Email & Notification settings updated!')
         }
       } else {
-        toast.error('Failed to update email settings')
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.message || 'Failed to update email settings')
       }
     } catch (error) {
       console.error('Error updating email settings:', error)
@@ -247,7 +256,9 @@ const AdminSettings = () => {
 
   const fetchSecuritySettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings/security`)
+      const res = await fetch(`${API_BASE}/api/admin/settings/security`, {
+        headers: getAdminHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.securitySettings) {
@@ -265,7 +276,7 @@ const AdminSettings = () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/settings/security`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ securitySettings })
       })
       if (res.ok) {
@@ -275,7 +286,8 @@ const AdminSettings = () => {
           toast.success('Security settings updated!')
         }
       } else {
-        toast.error('Failed to update security settings')
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.message || 'Failed to update security settings')
       }
     } catch (error) {
       console.error('Error updating security settings:', error)
@@ -296,7 +308,9 @@ const AdminSettings = () => {
 
   const fetchPrivacySettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings/privacy`)
+      const res = await fetch(`${API_BASE}/api/admin/settings/privacy`, {
+        headers: getAdminHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.privacySettings) {
@@ -314,7 +328,7 @@ const AdminSettings = () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/settings/privacy`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ privacySettings })
       })
       if (res.ok) {
@@ -324,7 +338,8 @@ const AdminSettings = () => {
           toast.success('Privacy settings updated!')
         }
       } else {
-        toast.error('Failed to update privacy settings')
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.message || 'Failed to update privacy settings')
       }
     } catch (error) {
       console.error('Error updating privacy settings:', error)
@@ -345,7 +360,9 @@ const AdminSettings = () => {
 
   const fetchIntegrationSettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings/integrations`)
+      const res = await fetch(`${API_BASE}/api/admin/settings/integrations`, {
+        headers: getAdminHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.integrationSettings) {
@@ -363,7 +380,7 @@ const AdminSettings = () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/settings/integrations`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ integrationSettings })
       })
       if (res.ok) {
@@ -373,7 +390,8 @@ const AdminSettings = () => {
           toast.success('Integration settings updated!')
         }
       } else {
-        toast.error('Failed to update integration settings')
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.message || 'Failed to update integration settings')
       }
     } catch (error) {
       console.error('Error updating integration settings:', error)
@@ -395,7 +413,9 @@ const AdminSettings = () => {
   // App Banner API Handlers
   const fetchAppBannerSettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings/app-banner`)
+      const res = await fetch(`${API_BASE}/api/admin/settings/app-banner`, {
+        headers: getAdminHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.appBannerSettings) {
@@ -413,7 +433,7 @@ const AdminSettings = () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/settings/app-banner`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ appBannerSettings })
       })
       if (res.ok) {
@@ -423,7 +443,8 @@ const AdminSettings = () => {
           toast.success('Mobile App & Banner settings saved successfully!')
         }
       } else {
-        toast.error('Failed to update app banner settings')
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.message || 'Failed to update app banner settings')
       }
     } catch (error) {
       console.error('Error updating app banner settings:', error)

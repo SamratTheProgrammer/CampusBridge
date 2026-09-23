@@ -1117,6 +1117,8 @@ const DashboardHome = () => {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm relative transition-all ${
+            (showEmojiPicker || showMediaDropdown) ? 'z-[60]' : 'z-10'
+          } ${
             isDragging ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''
           }`}
         >
@@ -1137,7 +1139,7 @@ const DashboardHome = () => {
                 navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
               }}
             />
-            <div className={`flex-1 rounded-xl relative ${selectedGradient || 'bg-background border border-border/50'}`}>
+            <div className={`flex-1 rounded-xl relative ${selectedGradient || 'bg-background border border-border/50'} ${showEmojiPicker ? 'z-[70]' : 'z-10'}`}>
               <textarea 
                 value={newPostContent}
                 onChange={e => setNewPostContent(e.target.value)}
@@ -1153,10 +1155,13 @@ const DashboardHome = () => {
               ></textarea>
 
               {/* Show emoji trigger inside Start a post textarea */}
-              <div className="absolute right-2.5 bottom-2.5 z-10" ref={emojiPickerRef}>
+              <div className="absolute right-2.5 bottom-2.5 z-40" ref={emojiPickerRef}>
                 <button 
                   type="button" 
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                  onClick={() => {
+                    setShowEmojiPicker(!showEmojiPicker);
+                    setShowMediaDropdown(false);
+                  }} 
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     showEmojiPicker 
                       ? 'bg-amber-500/20 text-amber-500 ring-1 ring-amber-500/30' 
@@ -1170,7 +1175,7 @@ const DashboardHome = () => {
                 </button>
 
                 {showEmojiPicker && (
-                  <div className="absolute right-0 top-full mt-2 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/60 bg-card animate-in fade-in zoom-in-95">
+                  <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl overflow-hidden border border-border/60 bg-card animate-in fade-in zoom-in-95">
                     <EmojiPicker
                       onEmojiClick={handleEmojiClick}
                       theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
@@ -1250,7 +1255,7 @@ const DashboardHome = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 gap-2 flex-nowrap relative z-20">
+          <div className={`flex items-center justify-between pt-2 gap-2 flex-nowrap relative ${showEmojiPicker ? 'z-0' : 'z-20'}`}>
             <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-nowrap shrink min-w-0 py-0.5 overflow-visible ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
               <input 
                 type="file" 
@@ -1265,7 +1270,10 @@ const DashboardHome = () => {
               <div className={`relative shrink-0 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`} ref={mediaDropdownRef}>
                 <button 
                   type="button" 
-                  onClick={() => setShowMediaDropdown(!showMediaDropdown)} 
+                  onClick={() => {
+                    setShowMediaDropdown(!showMediaDropdown);
+                    setShowEmojiPicker(false);
+                  }} 
                   className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
                     showMediaDropdown ? 'bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/30' : 'text-blue-500'
                   }`}

@@ -18,8 +18,8 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   const [isRoleLoading, setIsRoleLoading] = useState(justAuthenticated || (isSignedIn && !initialRole))
   const location = useLocation()
 
-  // Admin session check via standalone admin login - strictly sessionStorage only
-  const hasAdminToken = allowedRoles.includes('admin') && !!sessionStorage.getItem('adminToken')
+  // Admin session check via standalone admin login - checks both sessionStorage and localStorage
+  const hasAdminToken = allowedRoles.includes('admin') && !!(sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken'))
 
   useEffect(() => {
     let isMounted = true
@@ -93,9 +93,12 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
     }
   }, [isLoaded, isSignedIn, user, justAuthenticated])
 
-  // Admin session check via standalone admin login
-  if (hasAdminToken) {
-    return <Outlet />
+  // Admin route check: If route requires 'admin', check standalone admin token
+  if (allowedRoles.includes('admin')) {
+    if (hasAdminToken) {
+      return <Outlet />
+    }
+    return <Navigate to="/admin/login" replace />
   }
 
   // 1. Loading state while checking authentication and role - show RouteIntegrityLoader to avoid UI flash

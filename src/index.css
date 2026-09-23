@@ -395,6 +395,43 @@ body::-webkit-scrollbar {
   --sal: env(safe-area-inset-left, 0px);
 }
 
+/* Mobile App ONLY Status Bar Gap (time, tower, battery space) */
+/* Strictly active when running in native mobile app, never in web app */
+html.cb-capacitor-app {
+  --cb-status-bar-gap: max(env(safe-area-inset-top, 0px), 36px);
+}
+
+/* Solid background shield behind the native status bar icons (time, battery, tower) */
+html.cb-capacitor-app::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--cb-status-bar-gap);
+  background-color: hsl(var(--background));
+  z-index: 99999;
+  pointer-events: none;
+}
+
+html.cb-capacitor-app body {
+  padding-top: var(--cb-status-bar-gap) !important;
+  box-sizing: border-box;
+}
+
+/* Keep sticky headers positioned right under the status bar gap */
+html.cb-capacitor-app header.sticky,
+html.cb-capacitor-app nav.sticky,
+html.cb-capacitor-app .sticky.top-0 {
+  top: var(--cb-status-bar-gap) !important;
+}
+
+/* Sidebars and mobile drawers */
+html.cb-capacitor-app .sidebar-container,
+html.cb-capacitor-app div[class*="fixed inset-y-0"] {
+  top: var(--cb-status-bar-gap) !important;
+}
+
 body {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 import API_BASE from "../utils/api"
+import { socket } from "../services/socket"
 
 const initialState = {
   theme: "system",
@@ -54,7 +55,22 @@ export function ThemeProvider({
     fetchGlobalTheme();
     // Poll every 5 minutes
     const interval = setInterval(fetchGlobalTheme, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+
+    // Real-time socket listener for instant theme changes across all clients
+    const handleGlobalThemeChange = (data) => {
+      if (data && data.globalTheme) {
+        const normalized = data.globalTheme === 'system' ? 'none' : data.globalTheme;
+        localStorage.setItem(globalStorageKey, normalized);
+        setGlobalThemeState(normalized);
+      }
+    };
+
+    socket.on('global_theme_changed', handleGlobalThemeChange);
+
+    return () => {
+      clearInterval(interval);
+      socket.off('global_theme_changed', handleGlobalThemeChange);
+    };
   }, [globalStorageKey]);
 
   useEffect(() => {

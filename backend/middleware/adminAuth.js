@@ -8,10 +8,10 @@ const ADMIN_SECRET = process.env.CLERK_SECRET_KEY || process.env.ADMIN_PASSWORD 
 /**
  * Generate a cryptographically signed admin token with HMAC-SHA256 signature
  */
-export const generateAdminToken = (adminData) => {
+export const generateAdminToken = (adminData, expiresInMs = 30 * 24 * 60 * 60 * 1000) => {
   const payload = Buffer.from(JSON.stringify({
     ...adminData,
-    exp: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+    exp: Date.now() + expiresInMs // 30 days default
   })).toString('base64url');
 
   const signature = crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest('base64url');

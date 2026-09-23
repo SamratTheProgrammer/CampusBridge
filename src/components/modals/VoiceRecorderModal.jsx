@@ -172,8 +172,8 @@ const VoiceRecorderModal = ({ isOpen, onClose, onAudioReady }) => {
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="bg-card border border-border/60 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="bg-card border border-border/60 rounded-3xl w-full max-w-[calc(100vw-24px)] sm:max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
           
           {/* Header */}
           <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border/50">
@@ -218,7 +218,7 @@ const VoiceRecorderModal = ({ isOpen, onClose, onAudioReady }) => {
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {activeTab === 'record' ? (
               <div className="flex flex-col items-center justify-center py-4 space-y-6">
                 
@@ -280,22 +280,24 @@ const VoiceRecorderModal = ({ isOpen, onClose, onAudioReady }) => {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-3 w-full pt-2">
+                <div className="grid grid-cols-2 gap-2.5 w-full pt-2">
                   {isRecording ? (
                     <>
                       <button
                         type="button"
                         onClick={handleDiscard}
-                        className="flex-1 py-3 px-4 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-2xl flex items-center justify-center gap-2 transition-colors text-sm"
+                        className="w-full py-3 px-3 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-2xl flex items-center justify-center gap-1.5 transition-colors text-xs sm:text-sm min-w-0"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" /> Cancel
+                        <Trash2 className="w-4 h-4 text-red-500 shrink-0" />
+                        <span className="truncate">Cancel</span>
                       </button>
                       <button
                         type="button"
                         onClick={stopRecording}
-                        className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md text-sm animate-pulse"
+                        className="w-full py-3 px-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-2xl flex items-center justify-center gap-1.5 transition-all shadow-md text-xs sm:text-sm animate-pulse min-w-0"
                       >
-                        <Square className="w-4 h-4 fill-white" /> Done Recording
+                        <Square className="w-3.5 h-3.5 fill-white shrink-0" />
+                        <span className="truncate">Done Recording</span>
                       </button>
                     </>
                   ) : previewUrl ? (
@@ -303,25 +305,27 @@ const VoiceRecorderModal = ({ isOpen, onClose, onAudioReady }) => {
                       <button
                         type="button"
                         onClick={handleDiscard}
-                        className="flex-1 py-3 px-4 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-2xl flex items-center justify-center gap-2 transition-colors text-sm"
+                        className="w-full py-3 px-3 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-2xl flex items-center justify-center gap-1.5 transition-colors text-xs sm:text-sm min-w-0"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" /> Re-record
+                        <Trash2 className="w-4 h-4 text-red-500 shrink-0" />
+                        <span className="truncate">Re-record</span>
                       </button>
                       <button
                         type="button"
                         onClick={handleConfirm}
-                        className="flex-1 py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md text-sm"
+                        className="w-full py-3 px-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl flex items-center justify-center gap-1.5 transition-all shadow-md text-xs sm:text-sm min-w-0"
                       >
-                        <Check className="w-4 h-4" /> Attach Audio
+                        <Check className="w-4 h-4 shrink-0" />
+                        <span className="truncate">Attach Audio</span>
                       </button>
                     </>
                   ) : (
                     <button
                       type="button"
                       onClick={startRecording}
-                      className="w-full py-3.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md text-sm hover:scale-[1.02] active:scale-[0.98]"
+                      className="col-span-2 w-full py-3.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md text-sm hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      <Mic className="w-5 h-5" /> Start Recording
+                      <Mic className="w-5 h-5 shrink-0" /> Start Recording
                     </button>
                   )}
                 </div>

@@ -53,16 +53,11 @@ const AdminLayout = () => {
     let isMounted = true
 
     const verifyAdminSession = async () => {
-      // Ensure no persistent token remains in localStorage
-      localStorage.removeItem('adminToken')
-      localStorage.removeItem('adminUser')
-      localStorage.removeItem('adminTokenExpiry')
-
-      const token = sessionStorage.getItem('adminToken')
-      const expiry = sessionStorage.getItem('adminTokenExpiry')
+      const token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken')
+      const expiry = sessionStorage.getItem('adminTokenExpiry') || localStorage.getItem('adminTokenExpiry')
 
       if (!token) {
-        if (isMounted) navigate('/', { replace: true })
+        if (isMounted) navigate('/admin/login', { replace: true })
         return
       }
 
@@ -72,8 +67,11 @@ const AdminLayout = () => {
           sessionStorage.removeItem('adminToken')
           sessionStorage.removeItem('adminUser')
           sessionStorage.removeItem('adminTokenExpiry')
+          localStorage.removeItem('adminToken')
+          localStorage.removeItem('adminUser')
+          localStorage.removeItem('adminTokenExpiry')
           toast.error('Session expired. Please log in again.')
-          if (isMounted) navigate('/', { replace: true })
+          if (isMounted) navigate('/admin/login?expired=true', { replace: true })
           return
         }
       }
@@ -87,7 +85,7 @@ const AdminLayout = () => {
         })
         if (res.ok) {
           if (isMounted) setIsVerifying(false)
-        } else {
+        } else if (res.status === 401) {
           // Token is rejected (e.g. backend restarted with different key or expired)
           sessionStorage.removeItem('adminToken')
           sessionStorage.removeItem('adminUser')
@@ -96,7 +94,10 @@ const AdminLayout = () => {
           localStorage.removeItem('adminUser')
           localStorage.removeItem('adminTokenExpiry')
           toast.error('Admin session invalid. Please log in.')
-          if (isMounted) navigate('/', { replace: true })
+          if (isMounted) navigate('/admin/login?invalid=true', { replace: true })
+        } else {
+          // Non-401 server error; allow viewing with existing token
+          if (isMounted) setIsVerifying(false)
         }
       } catch (err) {
         // Network failure; allow viewing with existing token if present
@@ -136,7 +137,7 @@ const AdminLayout = () => {
     localStorage.removeItem('adminUser')
     localStorage.removeItem('adminTokenExpiry')
     toast.success('Admin logged out successfully')
-    navigate('/')
+    navigate('/admin/login')
   }
 
   if (isVerifying) {

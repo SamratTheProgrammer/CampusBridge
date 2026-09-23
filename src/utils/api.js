@@ -1,24 +1,19 @@
 import { Capacitor } from '@capacitor/core';
-import { PRODUCTION_URL } from './appUrl';
+import { getApiBaseUrl, PRODUCTION_BACKEND_URL } from './appUrl';
 
-const getApiBase = () => {
-  if (import.meta.env.VITE_BACKEND_URL && !import.meta.env.VITE_BACKEND_URL.includes('localhost')) {
-    return import.meta.env.VITE_BACKEND_URL;
-  }
-  if (typeof window !== 'undefined' && (Capacitor.isNativePlatform() || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return PRODUCTION_URL;
-  }
-  return '';
-};
-
-const API_BASE = getApiBase();
+const API_BASE = getApiBaseUrl();
 
 /**
  * Returns the full API URL by prepending the backend base URL.
  * @param {string} path - The API path starting with /api/...
  * @returns {string} Full URL
  */
-export const apiUrl = (path) => `${API_BASE}${path}`;
+export const apiUrl = (path) => {
+  if (!path) return API_BASE;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) return cleanPath;
+  return `${API_BASE}${cleanPath}`;
+};
 
 export const getProfilePath = (target, role = 'student') => {
   if (!target) return '#';
@@ -33,7 +28,7 @@ export const getProfilePath = (target, role = 'student') => {
  */
 export const getAdminToken = () => {
   if (typeof window === 'undefined') return '';
-  return sessionStorage.getItem('adminToken') || '';
+  return sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
 };
 
 /**
@@ -63,8 +58,24 @@ if (typeof window !== 'undefined' && !window.__campusBridgeFetchPatched) {
   window.fetch = async (input, init = {}) => {
     let url = typeof input === 'string' ? input : input?.url;
 
+    // Automatically route relative /api calls to API_BASE if configured
+    if (url && typeof url === 'string' && url.startsWith('/api') && API_BASE) {
+      const fullUrl = `${API_BASE}${url}`;
+      input = typeof input === 'string' ? fullUrl : new Request(fullUrl, input);
+      url = fullUrl;
+    }
+
     // Check if this is an admin request requiring admin authorization
-    if (url && (url.includes('/api/admin') || url.includes('admin_override=true')) && !url.includes('/api/admin/login')) {
+    // Only GET /api/admin/settings/theme is public (ThemeProvider); PUT requires admin token!
+    const isMethodGet = !init.method || init.method.toUpperCase() === 'GET';
+    const isPublicThemeGet = url && url.includes('/api/admin/settings/theme') && isMethodGet;
+
+    if (
+      url && 
+      (url.includes('/api/admin') || url.includes('admin_override=true')) && 
+      !url.includes('/api/admin/login') &&
+      !isPublicThemeGet
+    ) {
       const token = getAdminToken();
       if (token) {
         if (init.headers instanceof Headers) {
@@ -96,7 +107,8 @@ if (typeof window !== 'undefined' && !window.__campusBridgeFetchPatched) {
         response.status === 401 && 
         url && 
         (url.includes('/api/admin') || url.includes('admin_override=true')) && 
-        !url.includes('/api/admin/login')
+        !url.includes('/api/admin/login') &&
+        !isPublicThemeGet
       ) {
         // If user is currently in the admin section, clear invalid/expired token and redirect to login
         if (window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {

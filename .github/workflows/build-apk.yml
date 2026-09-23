@@ -48,7 +48,7 @@ jobs:
           npm run build
         env:
           VITE_CLERK_PUBLISHABLE_KEY: pk_test_dG91Y2hpbmctYmFzcy04MC5jbGVyay5hY2NvdW50cy5kZXYk
-          VITE_BACKEND_URL: https://campus-bridge-x5rl.vercel.app
+          VITE_BACKEND_URL: https://campusbridge-pdtz.onrender.com
           VITE_VAPID_PUBLIC_KEY: BMlhL-j5mjXka7n5XD9rXg7qXLPVB1xXvoFS2oCblFkbROvg77ugGmZoJC50KIElNv0oP-2YyyVRFXWrA3AeFeI
 
 

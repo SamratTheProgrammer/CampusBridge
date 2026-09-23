@@ -21,6 +21,10 @@ const CapacitorInit = () => {
       return;
     }
 
+    // Mark native app environment for mobile-specific top gap and safe areas
+    document.documentElement.classList.add('cb-capacitor-app');
+    document.body.classList.add('cb-capacitor-app');
+
     // Hide native splash screen once React has mounted
     const hideSplash = async () => {
       try {
@@ -84,7 +88,7 @@ const CapacitorInit = () => {
         await StatusBar.setBackgroundColor({
           color: isDark ? '#0a0f1d' : '#ffffff',
         });
-        await StatusBar.setOverlaysWebView({ overlay: false });
+        await StatusBar.setOverlaysWebView({ overlay: true });
       } catch (err) {
         console.warn('Status bar update error:', err);
       }

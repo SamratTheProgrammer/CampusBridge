@@ -4,7 +4,6 @@ const platformSettingSchema = new mongoose.Schema(
   {
     globalTheme: {
       type: String,
-      enum: ['system', 'none', 'diwali', 'holi', 'independence'],
       default: 'none',
     },
     authSettings: {
@@ -23,7 +22,7 @@ const platformSettingSchema = new mongoose.Schema(
       requireTwoFactorAuth: { type: Boolean, default: false },
       enforceStrongPasswords: { type: Boolean, default: true },
       sessionTimeoutValue: { type: Number, default: 60 },
-      sessionTimeoutUnit: { type: String, enum: ['days', 'months', 'never'], default: 'days' },
+      sessionTimeoutUnit: { type: String, default: 'days' },
       maxFailedLoginAttempts: { type: Number, default: 5 },
       allowedIPRanges: { type: String, default: '' }
     },
