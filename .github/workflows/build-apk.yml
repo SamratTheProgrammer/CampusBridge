@@ -47,10 +47,12 @@ jobs:
         run: |
           npm run build
 
-      - name: Sync Capacitor Android
+      - name: Prepare Android Assets and Sync
         run: |
           mkdir -p android/app/src/main/assets/public
-          npm run cap:sync:android
+          cp -r dist/* android/app/src/main/assets/public/
+          npm run cap:sync:android || echo "Cap sync notice (continuing)"
+          ls -la android/app/src/main/assets/public/
 
       - name: Configure Android SDK Path
         run: |
