@@ -41,7 +41,7 @@ jobs:
 
       - name: Install NPM Dependencies
         run: |
-          npm install --include=dev --legacy-peer-deps
+          npm install
 
       - name: Build Web Application
         run: |
@@ -50,7 +50,7 @@ jobs:
       - name: Sync Capacitor Android
         run: |
           mkdir -p android/app/src/main/assets/public
-          npx --yes @capacitor/cli sync android --verbose
+          npm run cap:sync:android
 
       - name: Configure Android SDK Path
         run: |

@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "cap:sync": "npm run build && cap sync",
+    "cap:sync:android": "cap sync android",
     "cap:android": "npm run build && cap sync android && cap open android",
     "cap:ios": "npm run build && cap sync ios && cap open ios"
   },
