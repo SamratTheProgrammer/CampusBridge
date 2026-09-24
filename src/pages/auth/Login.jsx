@@ -75,8 +75,8 @@ const Login = () => {
       }
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: getAppUrl('/sso-callback'),
-        redirectUrlComplete: getAppUrl('/sync-user'),
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/sync-user',
       })
     } catch (err) {
       setIsGoogleLoading(false)

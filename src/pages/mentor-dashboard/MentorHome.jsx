@@ -111,10 +111,7 @@ const MentorHome = () => {
   const [isFetchingCompanies, setIsFetchingCompanies] = useState(false)
   const [mediaType, setMediaType] = useState('image') // 'image' or 'video'
 
-  const [recentApps, setRecentApps] = useState([
-    { id: 1, title: 'Frontend Developer Intern', company: 'Google', companyLogo: '', applicants: 12 },
-    { id: 2, title: 'Backend SDE', company: 'Microsoft', companyLogo: '', applicants: 8 },
-  ])
+  const [recentApps, setRecentApps] = useState([])
   
   // Post Creation State
   const [newPostContent, setNewPostContent] = useState('')
@@ -232,7 +229,11 @@ const MentorHome = () => {
             companyLogo: j.companyLogo || '',
             applicants: Array.isArray(j.applicants) ? j.applicants.length : (j.applicants || 0)
           })).slice(0, 3))
+        } else {
+          setRecentApps([])
         }
+      } else {
+        setRecentApps([])
       }
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -1942,30 +1943,49 @@ const MentorHome = () => {
             <h3 className="font-bold text-foreground">Recent Job Apps</h3>
           </div>
           <div className="space-y-3.5 max-h-[300px] overflow-y-auto scrollbar-none pr-1">
-            {recentApps.map(job => {
-              const companyName = job.company || 'Company';
-              return (
-                <div key={job.id} className="flex items-center justify-between gap-3 group">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <img 
-                      src={getCompanyLogo(companyName, job.companyLogo)} 
-                      alt={companyName}
-                      onError={(e) => handleImageError(e, companyName)}
-                      className="w-10 h-10 rounded-xl object-contain bg-muted/60 p-1.5 border border-border/50 shrink-0 shadow-xs"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-medium text-sm text-foreground truncate group-hover:text-primary transition-colors">{job.title}</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {job.company ? `${job.company} • ` : ''}{job.applicants} applicants
-                      </p>
+            {isLoadingProfile ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 animate-pulse">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-muted/60 shrink-0" />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="h-3.5 bg-muted/60 rounded w-28" />
+                        <div className="h-2.5 bg-muted/50 rounded w-20" />
+                      </div>
                     </div>
+                    <div className="h-4 w-8 bg-muted/50 rounded shrink-0" />
                   </div>
-                  <Link to="/mentor-dashboard/jobs" className="text-xs font-semibold text-primary hover:underline shrink-0">
-                    View
-                  </Link>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            ) : recentApps.length > 0 ? (
+              recentApps.map(job => {
+                const companyName = job.company || 'Company';
+                return (
+                  <div key={job.id} className="flex items-center justify-between gap-3 group">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <img 
+                        src={getCompanyLogo(companyName, job.companyLogo)} 
+                        alt={companyName}
+                        onError={(e) => handleImageError(e, companyName)}
+                        className="w-10 h-10 rounded-xl object-contain bg-muted/60 p-1.5 border border-border/50 shrink-0 shadow-xs"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-sm text-foreground truncate group-hover:text-primary transition-colors">{job.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {job.company ? `${job.company} • ` : ''}{job.applicants} applicants
+                        </p>
+                      </div>
+                    </div>
+                    <Link to="/mentor-dashboard/jobs" className="text-xs font-semibold text-primary hover:underline shrink-0">
+                      View
+                    </Link>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No job applications posted yet.</p>
+            )}
           </div>
           <Link to="/mentor-dashboard/jobs" className="inline-block mt-4 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
             Manage Jobs →

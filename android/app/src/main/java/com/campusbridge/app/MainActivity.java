@@ -41,7 +41,7 @@ public class MainActivity extends BridgeActivity {
                 String ua = settings.getUserAgentString();
                 if (ua != null) {
                     String cleanUa = ua.replaceAll("; wv\\)", ")").replaceAll("Version/[0-9.]+\\s", "");
-                    settings.setUserAgentString(cleanUa + " CampusBridgeMobile");
+                    settings.setUserAgentString(cleanUa);
                 }
 
                 // 4. Override WebChromeClient to grant WebRTC audio & video permissions inside WebView

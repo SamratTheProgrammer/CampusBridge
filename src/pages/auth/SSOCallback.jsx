@@ -12,8 +12,8 @@ const SSOCallback = () => {
       />
       <div className="hidden">
         <AuthenticateWithRedirectCallback 
-          signInForceRedirectUrl={getAppUrl('/sync-user')} 
-          signUpForceRedirectUrl={getAppUrl('/sync-user')} 
+          signInForceRedirectUrl="/sync-user" 
+          signUpForceRedirectUrl="/sync-user" 
         />
       </div>
     </div>
