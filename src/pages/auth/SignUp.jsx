@@ -19,9 +19,7 @@ const SignUp = () => {
       const role = user.publicMetadata?.role || user.unsafeMetadata?.role || selectedRole || sessionStorage.getItem('campusbridge_user_role') || 'student'
       if (role === 'mentor') {
         navigate('/mentor-dashboard', { replace: true })
-      } else if (role === 'admin') {
-        navigate('/admin', { replace: true })
-      } else {
+      } else if (role !== 'admin') {
         navigate('/dashboard', { replace: true })
       }
     }

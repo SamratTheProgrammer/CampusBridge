@@ -30,12 +30,6 @@ const LandingPage = () => {
   useEffect(() => {
     if (!isLoaded) return
 
-    const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken')
-    if (adminToken) {
-      navigate('/admin', { replace: true })
-      return
-    }
-
     // If user is intentionally viewing the landing page in this tab session or tab is initialized, remain here
     const initialRouted = sessionStorage.getItem('campusbridge_tab_initialized') === 'true' ||
                           sessionStorage.getItem('campusbridge_viewing_home') === 'true'
@@ -43,14 +37,13 @@ const LandingPage = () => {
       return
     }
 
+    // Default NEVER redirects to admin; admin is only accessible via /admin URL
     if (isSignedIn && user) {
       const cachedRole = localStorage.getItem('campusbridge_user_role') || sessionStorage.getItem('campusbridge_user_role') || user.publicMetadata?.role || user.unsafeMetadata?.role
       if (cachedRole) {
         if (cachedRole === 'mentor') {
           navigate('/mentor-dashboard', { replace: true })
-        } else if (cachedRole === 'admin') {
-          navigate('/admin', { replace: true })
-        } else {
+        } else if (cachedRole !== 'admin') {
           navigate('/dashboard', { replace: true })
         }
         return
@@ -75,9 +68,7 @@ const LandingPage = () => {
           sessionStorage.setItem('campusbridge_user_role', role)
           if (role === 'mentor') {
             navigate('/mentor-dashboard', { replace: true })
-          } else if (role === 'admin') {
-            navigate('/admin', { replace: true })
-          } else {
+          } else if (role !== 'admin') {
             navigate('/dashboard', { replace: true })
           }
         }

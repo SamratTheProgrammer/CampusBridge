@@ -120,11 +120,6 @@ function RootIndex() {
     localStorage.getItem('campusbridge_logged_in') === 'true' || 
     !!localStorage.getItem('campusbridge_user_role')
   )
-  const adminToken = typeof window !== 'undefined' && (sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken'))
-
-  if (adminToken) {
-    return <Navigate to="/admin" replace />
-  }
 
   // Check if initial routing in this browser tab session has already happened
   // OR if the user is explicitly viewing home
@@ -133,7 +128,8 @@ function RootIndex() {
     sessionStorage.getItem('campusbridge_viewing_home') === 'true'
   )
 
-  // Only auto-redirect on the very first launch in this tab session
+  // Only auto-redirect students/mentors on the very first launch in this tab session
+  // Default NEVER redirects to admin; admin is only accessible via /admin URL
   if (!initialRouted && (cachedLogin || (isLoaded && isSignedIn))) {
     // If cached login exists, navigate directly and automatically without blocking
     if (cachedLogin) {
@@ -143,9 +139,7 @@ function RootIndex() {
                    'student'
       if (role === 'mentor') {
         return <Navigate to="/mentor-dashboard" replace />
-      } else if (role === 'admin') {
-        return <Navigate to="/admin" replace />
-      } else {
+      } else if (role !== 'admin') {
         return <Navigate to="/dashboard" replace />
       }
     }
@@ -162,9 +156,7 @@ function RootIndex() {
 
       if (role === 'mentor') {
         return <Navigate to="/mentor-dashboard" replace />
-      } else if (role === 'admin') {
-        return <Navigate to="/admin" replace />
-      } else {
+      } else if (role !== 'admin') {
         return <Navigate to="/dashboard" replace />
       }
     } else if (isLoaded) {
