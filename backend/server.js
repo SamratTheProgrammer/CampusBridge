@@ -601,6 +601,15 @@ setInterval(() => {
   io.emit('online_users_update', getOnlineUserIds());
 }, 5000);
 
+// Process-level safety against transient socket drops (ECONNRESET, TLS errors)
+process.on('uncaughtException', (err) => {
+  console.error('Server process caught exception (preventing crash):', err?.message || err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Server process caught unhandled rejection (preventing crash):', reason?.message || reason);
+});
+
 // Handle server startup errors gracefully
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
@@ -610,21 +619,41 @@ server.on('error', (err) => {
   }
 });
 
-// Connect to MongoDB & Start Server
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    // Start background cron jobs
-    startEventReminderJob();
-    startJobReminderJob();
-    if (!process.env.VERCEL) {
-      server.listen(PORT, () => {
-        console.log(`Server running with Socket.io & WebRTC Video/Audio calling on port ${PORT}`);
-      });
-    }
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err);
+// Start HTTP & Socket server immediately so Vite proxy never gets ECONNREFUSED
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`Server running with Socket.io & WebRTC Video/Audio calling on port ${PORT}`);
   });
+}
+
+// Resilient MongoDB connection & auto-reconnect handling
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error (reconnecting):', err?.message || err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('MongoDB disconnected. Attempting to reconnect...');
+});
+
+mongoose.connection.on('connected', () => {
+  console.log('Connected to MongoDB');
+  startEventReminderJob();
+  startJobReminderJob();
+});
+
+const connectMongoWithRetry = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      retryWrites: true,
+    });
+  } catch (err) {
+    console.error('MongoDB initial connection failed (retrying in 5s):', err?.message || err);
+    setTimeout(connectMongoWithRetry, 5000);
+  }
+};
+
+connectMongoWithRetry();
 
 export default app;
