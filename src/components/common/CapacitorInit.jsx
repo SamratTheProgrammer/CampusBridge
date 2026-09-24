@@ -5,6 +5,7 @@ import { App as CapApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { useTheme } from '../ThemeProvider';
+import { socket } from '../../services/socket';
 import toast from 'react-hot-toast';
 
 const ROOT_PATHS = ['/', '/dashboard', '/mentor-dashboard', '/admin', '/login', '/signup'];
@@ -68,9 +69,31 @@ const CapacitorInit = () => {
 
     setupBackListener();
 
+    // Reconnect Socket & restore RTC signaling when app resumes from background
+    let appStateListener = null;
+    const setupAppStateListener = async () => {
+      try {
+        appStateListener = await CapApp.addListener('appStateChange', ({ isActive }) => {
+          if (isActive) {
+            if (!socket.connected) {
+              socket.connect();
+            }
+            window.dispatchEvent(new CustomEvent('capacitor-app-resumed'));
+          }
+        });
+      } catch (err) {
+        console.warn('AppState listener error:', err);
+      }
+    };
+
+    setupAppStateListener();
+
     return () => {
       if (backListener && typeof backListener.remove === 'function') {
         backListener.remove();
+      }
+      if (appStateListener && typeof appStateListener.remove === 'function') {
+        appStateListener.remove();
       }
     };
   }, [navigate]);

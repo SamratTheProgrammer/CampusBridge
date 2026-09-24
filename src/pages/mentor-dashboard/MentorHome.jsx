@@ -1836,7 +1836,20 @@ const MentorHome = () => {
             <h3 className="font-bold text-foreground">Mentorship Requests</h3>
           </div>
           <div className="space-y-4 max-h-[320px] overflow-y-auto scrollbar-none pr-1">
-            {pendingRequestsList.map(req => (
+            {isLoadingProfile ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex gap-3 items-start animate-pulse border-b border-border/30 pb-3 last:border-0 last:pb-0">
+                    <div className="w-10 h-10 rounded-full bg-muted/60 shrink-0" />
+                    <div className="flex-1 space-y-2 pt-0.5">
+                      <div className="h-3.5 bg-muted/60 rounded w-28" />
+                      <div className="h-2.5 bg-muted/50 rounded w-36" />
+                      <div className="h-6 bg-muted/50 rounded-lg w-full mt-2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : pendingRequestsList.map(req => (
               <div key={req._id} className="flex gap-3 items-start border-b border-border/30 pb-3 last:border-0 last:pb-0">
                 <img 
                   src={req.targetUser?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.targetUser?.name}`} 
@@ -1896,7 +1909,17 @@ const MentorHome = () => {
             <h3 className="font-bold text-foreground">Upcoming Sessions</h3>
           </div>
           <div className="space-y-4 max-h-[260px] overflow-y-auto scrollbar-none pr-1">
-            {upcomingSessions.length > 0 ? upcomingSessions.map(session => (
+            {isLoadingProfile ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="animate-pulse border-l-2 border-primary/30 pl-3 py-1 space-y-2">
+                    <div className="h-3.5 bg-muted/60 rounded w-24" />
+                    <div className="h-3 bg-muted/50 rounded w-32" />
+                    <div className="h-2.5 bg-muted/40 rounded w-28" />
+                  </div>
+                ))}
+              </div>
+            ) : upcomingSessions.length > 0 ? upcomingSessions.map(session => (
               <div key={session._id} className="group border-l-2 border-primary pl-3 py-1 cursor-pointer" onClick={() => navigate('/mentor-dashboard/sessions')}>
                 <h4 className="font-semibold text-sm text-foreground">{session.type}</h4>
                 <p className="text-xs text-foreground/80 mt-0.5">with {session.student?.firstName} {session.student?.lastName}</p>

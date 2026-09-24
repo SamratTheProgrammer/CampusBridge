@@ -85,6 +85,7 @@ const DashboardHome = () => {
   const [posts, setPosts] = useState([])
   const [recommendedMentors, setRecommendedMentors] = useState([])
   const [recentJobs, setRecentJobs] = useState([])
+  const [isLoadingWidgets, setIsLoadingWidgets] = useState(true)
   const [connections, setConnections] = useState({})
   const [isConnecting, setIsConnecting] = useState(null)
   
@@ -432,6 +433,8 @@ const DashboardHome = () => {
       }
     } catch (err) {
       console.error('Error fetching data:', err)
+    } finally {
+      setIsLoadingWidgets(false)
     }
   }
 
@@ -1974,7 +1977,20 @@ const DashboardHome = () => {
             )}
           </div>
           <div className={`flex flex-col gap-4 overflow-y-auto scrollbar-none pr-1 transition-all ${showAllMentors ? 'max-h-[360px]' : ''}`}>
-            {recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 0 ? (
+            {isLoadingWidgets ? (
+              <div className="flex flex-col gap-4">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex gap-3 items-start animate-pulse">
+                    <div className="w-10 h-10 rounded-full bg-muted/60 shrink-0 border border-border/40" />
+                    <div className="flex-1 min-w-0 space-y-2 pt-0.5">
+                      <div className="h-3.5 bg-muted/60 rounded w-28" />
+                      <div className="h-2.5 bg-muted/50 rounded w-36" />
+                      <div className="h-6 bg-muted/60 rounded-full w-20 mt-1" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').length > 0 ? (
               (showAllMentors
                 ? recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted')
                 : recommendedMentors.filter(m => m.clerkId !== user?.id && connections[m.clerkId] !== 'accepted').slice(0, 2)
@@ -2037,7 +2053,20 @@ const DashboardHome = () => {
             )}
           </div>
           <div className={`flex flex-col gap-3.5 overflow-y-auto scrollbar-none pr-1 transition-all ${showAllJobs ? 'max-h-[340px]' : ''}`}>
-            {recentJobs.length > 0 ? (
+            {isLoadingWidgets ? (
+              <div className="flex flex-col gap-3.5">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex items-start gap-3 animate-pulse">
+                    <div className="w-12 h-12 rounded-xl bg-muted/60 shrink-0 border border-border/40" />
+                    <div className="flex-1 min-w-0 space-y-2 pt-0.5">
+                      <div className="h-3.5 bg-muted/60 rounded w-32" />
+                      <div className="h-2.5 bg-muted/50 rounded w-24" />
+                      <div className="h-2 bg-muted/40 rounded w-20 mt-1" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recentJobs.length > 0 ? (
               (showAllJobs ? recentJobs : recentJobs.slice(0, 2)).map(job => {
                 const companyName = job.company || job.postedBy?.company || job.postedBy?.firstName || 'Company';
                 return (

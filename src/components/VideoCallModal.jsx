@@ -118,10 +118,11 @@ const VideoCallModal = ({ currentUser }) => {
   useEffect(() => {
     if (currentUser?.id) {
       const register = () => {
-        if (socket.connected) {
-          socket.emit('register_user', currentUser.id);
-          socket.emit('get_online_users');
+        if (!socket.connected) {
+          socket.connect();
         }
+        socket.emit('register_user', currentUser.id);
+        socket.emit('get_online_users');
       };
       register();
       socket.on('connect', register);
@@ -129,10 +130,16 @@ const VideoCallModal = ({ currentUser }) => {
       const handleOnlineUsers = (users) => setOnlineUsers(users);
       socket.on('online_users_update', handleOnlineUsers);
       
+      const onResume = () => {
+        register();
+      };
+      window.addEventListener('capacitor-app-resumed', onResume);
+
       const interval = setInterval(register, 3000);
       return () => {
         socket.off('connect', register);
         socket.off('online_users_update', handleOnlineUsers);
+        window.removeEventListener('capacitor-app-resumed', onResume);
         clearInterval(interval);
       };
     }
@@ -1107,7 +1114,7 @@ const VideoCallModal = ({ currentUser }) => {
                 autoPlay
                 playsInline
                 className={`w-full h-full object-cover ${
-                  callType === 'video' && callState === 'connected' ? 'block' : 'hidden'
+                  callType === 'video' && callState === 'connected' ? 'block' : 'invisible absolute opacity-0 pointer-events-none w-0 h-0'
                 }`}
               />
 

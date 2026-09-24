@@ -1,3 +1,8 @@
+import dns from 'dns';
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+} catch (e) {}
+
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -49,12 +54,16 @@ const allowedOrigins = [
   'http://192.168.209.1:5173',
   'http://10.83.114.85:5173',
   'https://campus-bridge-x5rl.vercel.app',
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+  'ionic://localhost',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 const corsOriginHandler = (origin, callback) => {
-  // Allow mobile apps (no origin header), known origins, and any Vercel preview/production domains
-  if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+  // Allow mobile apps (no origin header, localhost, capacitor://), known origins, and any Vercel preview/production domains
+  if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.startsWith('capacitor://') || origin.startsWith('http://localhost') || origin.startsWith('https://localhost')) {
     return callback(null, true);
   }
   return callback(null, true);
@@ -62,7 +71,9 @@ const corsOriginHandler = (origin, callback) => {
 
 const io = new Server(server, {
   cors: {
-    origin: corsOriginHandler,
+    origin: (origin, callback) => {
+      callback(null, true);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
   }
