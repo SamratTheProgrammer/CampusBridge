@@ -1431,11 +1431,12 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
 
                     return (
                       <>
-                        {visualFiles.length > 0 && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                        {(visualFiles.length > 0 || post.linkPreview) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
                           <FeedMediaGrid 
                             mediaFiles={visualFiles} 
                             imageUrl={visualFiles[0]?.url} 
                             mediaType={visualFiles[0]?.mediaType}
+                            linkPreview={post.linkPreview}
                             onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
                             onImageClick={(files, idx) => setViewerData({ files, index: idx })}
                           />

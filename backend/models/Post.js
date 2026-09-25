@@ -29,9 +29,32 @@ const postSchema = new mongoose.Schema({
   },
   mediaFiles: [{
     url: String,
-    mediaType: String, // 'image', 'video', or 'audio'
-    duration: Number
+    mediaType: String, // 'image', 'video', 'audio', 'youtube', 'drive', 'instagram', 'facebook', 'link'
+    duration: Number,
+    title: String,
+    description: String,
+    thumbnailUrl: String,
+    siteName: String,
+    domain: String,
+    embedUrl: String,
+    driveFileId: String,
+    driveFileType: String,
+    author: String
   }],
+  linkPreview: {
+    url: String,
+    title: String,
+    description: String,
+    image: String,
+    thumbnailUrl: String,
+    siteName: String,
+    domain: String,
+    mediaType: String,
+    embedUrl: String,
+    driveFileId: String,
+    driveFileType: String,
+    author: String
+  },
   likes: [{
     type: String, // clerkId of the user who liked
   }],

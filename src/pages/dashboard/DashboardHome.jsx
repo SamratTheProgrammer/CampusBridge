@@ -62,6 +62,15 @@ import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
 import VoiceRecorderModal from '../../components/modals/VoiceRecorderModal'
 import { downloadMediaFile } from '../../utils/downloadHelper'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
+import LinkPreviewCard from '../../components/LinkPreviewCard'
+import { 
+  fetchLinkMetadata, 
+  getInstantUrlPreview, 
+  detectMediaType, 
+  findFirstUrl 
+} from '../../utils/linkDetector'
+import { FaYoutube, FaGoogleDrive, FaInstagram, FaFacebook } from 'react-icons/fa'
+import { Globe } from 'lucide-react'
 
 const indianCities = [
   "Agra", "Ahmedabad", "Ajmer", "Aligarh", "Allahabad", "Amritsar", "Aurangabad",
@@ -100,6 +109,11 @@ const DashboardHome = () => {
   const [showMediaUrlInput, setShowMediaUrlInput] = useState(false)
   const [mediaUrlText, setMediaUrlText] = useState('')
   const [mediaUrlType, setMediaUrlType] = useState('auto') // 'auto' | 'image' | 'video'
+  const [activeUrlPreview, setActiveUrlPreview] = useState(null)
+  const [isFetchingUrlPreview, setIsFetchingUrlPreview] = useState(false)
+  const [attachedLinkPreview, setAttachedLinkPreview] = useState(null)
+  const [detectedContentUrl, setDetectedContentUrl] = useState(null)
+  const [dismissedDetectedUrl, setDismissedDetectedUrl] = useState(null)
   const [selectedGradient, setSelectedGradient] = useState('')
   const [showGradients, setShowGradients] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
@@ -599,16 +613,100 @@ const DashboardHome = () => {
     setSelectedGradient('');
   }
 
-  const handleAddMediaUrl = () => {
+  // Live metadata lookup when typing or pasting in the Media URL field
+  useEffect(() => {
+    const trimmed = mediaUrlText.trim()
+    if (!trimmed || !/^https?:\/\//i.test(trimmed)) {
+      setActiveUrlPreview(null)
+      setIsFetchingUrlPreview(false)
+      return
+    }
+
+    // Instant local preview first so user sees immediate feedback
+    const instant = getInstantUrlPreview(trimmed)
+    if (instant) {
+      setActiveUrlPreview(instant)
+    }
+
+    const timer = setTimeout(async () => {
+      setIsFetchingUrlPreview(true)
+      try {
+        const metadata = await fetchLinkMetadata(trimmed)
+        if (metadata) {
+          setActiveUrlPreview(metadata)
+        }
+      } catch (err) {
+        console.error('Failed to fetch link metadata', err)
+      } finally {
+        setIsFetchingUrlPreview(false)
+      }
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [mediaUrlText])
+
+  // Automatic link detection in post content textarea
+  useEffect(() => {
+    if (attachedLinkPreview || newPostMedia.length > 0) {
+      setDetectedContentUrl(null)
+      return
+    }
+    const foundUrl = findFirstUrl(newPostContent)
+    if (foundUrl && foundUrl !== dismissedDetectedUrl) {
+      setDetectedContentUrl(foundUrl)
+    } else if (!foundUrl) {
+      setDetectedContentUrl(null)
+    }
+  }, [newPostContent, attachedLinkPreview, newPostMedia.length, dismissedDetectedUrl])
+
+  const handleAddMediaUrl = async () => {
     const trimmed = mediaUrlText.trim()
     if (!trimmed) return
-    const determinedType = mediaUrlType === 'auto' ? detectMediaTypeFromUrl(trimmed) : mediaUrlType
-    setNewPostMedia(prev => [
-      ...prev,
-      { url: trimmed, previewUrl: trimmed, type: determinedType }
-    ])
+
+    let previewToAttach = activeUrlPreview
+    if (!previewToAttach) {
+      previewToAttach = await fetchLinkMetadata(trimmed) || getInstantUrlPreview(trimmed) || { url: trimmed, mediaType: 'link', title: trimmed }
+    }
+
+    if (previewToAttach.mediaType === 'image') {
+      setNewPostMedia(prev => [
+        ...prev,
+        { url: trimmed, previewUrl: trimmed, type: 'image' }
+      ])
+      toast.success('Attached image from URL!')
+    } else if (previewToAttach.mediaType === 'video') {
+      setNewPostMedia(prev => [
+        ...prev,
+        { url: trimmed, previewUrl: trimmed, type: 'video' }
+      ])
+      toast.success('Attached video from URL!')
+    } else {
+      // YouTube, Google Drive, Instagram, Facebook, or Web Link
+      setAttachedLinkPreview(previewToAttach)
+      setNewPostMedia(prev => [
+        ...prev,
+        {
+          url: previewToAttach.url || trimmed,
+          previewUrl: previewToAttach.thumbnailUrl || previewToAttach.image || previewToAttach.url,
+          type: previewToAttach.mediaType,
+          mediaType: previewToAttach.mediaType,
+          title: previewToAttach.title,
+          description: previewToAttach.description,
+          thumbnailUrl: previewToAttach.thumbnailUrl || previewToAttach.image,
+          siteName: previewToAttach.siteName,
+          domain: previewToAttach.domain,
+          embedUrl: previewToAttach.embedUrl,
+          driveFileType: previewToAttach.driveFileType,
+          driveFileId: previewToAttach.driveFileId,
+          author: previewToAttach.author
+        }
+      ])
+      toast.success(`Attached ${previewToAttach.mediaType ? previewToAttach.mediaType.toUpperCase() : 'link'} preview!`)
+    }
+
     setSelectedGradient('')
     setMediaUrlText('')
+    setActiveUrlPreview(null)
     setShowMediaUrlInput(false)
   }
 
@@ -684,6 +782,7 @@ const DashboardHome = () => {
     // 1. Snapshot all post payload data immediately
     const contentToSubmit = newPostContent
     const mediaToSubmit = [...newPostMedia]
+    const linkPreviewToSubmit = attachedLinkPreview ? { ...attachedLinkPreview } : null
     const gradientToSubmit = selectedGradient
     const eventToSubmit = newEventDetails.title ? { ...newEventDetails } : null
     const jobToSubmit = newJobDetails.title ? { ...newJobDetails } : null
@@ -691,6 +790,9 @@ const DashboardHome = () => {
     // 2. Clear post creation box instantly so user can do other work (Facebook / Instagram style)
     setNewPostContent('')
     setNewPostMedia([])
+    setAttachedLinkPreview(null)
+    setActiveUrlPreview(null)
+    setDetectedContentUrl(null)
     setMediaUrlText('')
     setShowMediaUrlInput(false)
     setSelectedGradient('')
@@ -730,7 +832,20 @@ const DashboardHome = () => {
                 return
               }
             } else if (item.url) {
-              uploadedMediaFiles.push({ url: item.url, mediaType: item.type || 'image', duration: item.duration || 0 })
+              uploadedMediaFiles.push({ 
+                url: item.url, 
+                mediaType: item.type || item.mediaType || 'image', 
+                duration: item.duration || 0,
+                title: item.title,
+                description: item.description,
+                thumbnailUrl: item.thumbnailUrl,
+                siteName: item.siteName,
+                domain: item.domain,
+                embedUrl: item.embedUrl,
+                driveFileType: item.driveFileType,
+                driveFileId: item.driveFileId,
+                author: item.author
+              })
             }
           }
         }
@@ -752,18 +867,27 @@ const DashboardHome = () => {
           companyLogo: jobToSubmit.companyLogo
         } : undefined
 
+        const finalLinkPreview = linkPreviewToSubmit || (
+          uploadedMediaFiles.find(m => ['youtube', 'drive', 'instagram', 'facebook', 'link'].includes(m.mediaType)) || undefined
+        )
+
+        const firstVisualUrl = uploadedMediaFiles.length > 0 
+          ? (uploadedMediaFiles[0].thumbnailUrl || uploadedMediaFiles[0].url) 
+          : (finalLinkPreview?.thumbnailUrl || null)
+
         const res = await fetch(`${API_BASE}/api/posts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             authorClerkId: user.id,
             content: contentToSubmit,
-            imageUrl: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].url : null,
+            imageUrl: firstVisualUrl,
             mediaFiles: uploadedMediaFiles,
+            linkPreview: finalLinkPreview || undefined,
             bgGradient: gradientToSubmit,
             eventDetails: eventToSubmit || undefined,
             jobDetails: jobPayload,
-            mediaType: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].mediaType : null
+            mediaType: uploadedMediaFiles.length > 0 ? uploadedMediaFiles[0].mediaType : (finalLinkPreview?.mediaType || null)
           })
         })
 
@@ -1195,8 +1319,63 @@ const DashboardHome = () => {
               </div>
             </div>
           </div>
+
+          {/* Smart Link Detection Suggestion Card */}
+          {detectedContentUrl && !attachedLinkPreview && newPostMedia.length === 0 && (
+            <div className="mb-4 flex items-center justify-between gap-2 p-2.5 bg-purple-500/10 border border-purple-500/25 rounded-xl text-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 min-w-0">
+                <LinkIcon className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                <span className="text-foreground truncate">
+                  Link detected: <span className="font-semibold text-purple-600 dark:text-purple-400">{detectedContentUrl}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const urlToFetch = detectedContentUrl;
+                    setDismissedDetectedUrl(urlToFetch);
+                    setDetectedContentUrl(null);
+                    const toastId = toast.loading('Fetching link preview...');
+                    try {
+                      const metadata = await fetchLinkMetadata(urlToFetch) || getInstantUrlPreview(urlToFetch);
+                      if (metadata) {
+                        setAttachedLinkPreview(metadata);
+                        setNewPostMedia(prev => [
+                          ...prev,
+                          {
+                            url: metadata.url || urlToFetch,
+                            previewUrl: metadata.thumbnailUrl || metadata.image || urlToFetch,
+                            type: metadata.mediaType,
+                            ...metadata
+                          }
+                        ]);
+                        toast.success('Attached link preview!', { id: toastId });
+                      }
+                    } catch {
+                      toast.error('Could not load preview', { id: toastId });
+                    }
+                  }}
+                  className="px-2.5 py-1 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all text-[11px] cursor-pointer"
+                >
+                  Add Preview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDismissedDetectedUrl(detectedContentUrl);
+                    setDetectedContentUrl(null);
+                  }}
+                  className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                  title="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
           
-          {showGradients && newPostMedia.length === 0 && (
+          {showGradients && newPostMedia.length === 0 && !attachedLinkPreview && (
             <div className="flex gap-2 mb-4 p-2 bg-muted/50 rounded-lg overflow-x-auto">
               <button 
                 onClick={() => setSelectedGradient('')} 
@@ -1212,12 +1391,25 @@ const DashboardHome = () => {
             </div>
           )}
 
-          {newPostMedia.length > 0 && !selectedGradient && (
+          {(newPostMedia.length > 0 || attachedLinkPreview) && !selectedGradient && (
             <div className="mt-4 space-y-3">
+              {/* Attached Rich Link Preview Card (YouTube, Drive, Instagram, Facebook, Web Link) */}
+              {attachedLinkPreview && (
+                <div className="relative group">
+                  <LinkPreviewCard 
+                    preview={attachedLinkPreview} 
+                    onRemove={() => {
+                      setAttachedLinkPreview(null);
+                      setNewPostMedia(prev => prev.filter(m => m.url !== attachedLinkPreview.url));
+                    }} 
+                  />
+                </div>
+              )}
+
               {/* Images and Videos Grid */}
-              {newPostMedia.filter(m => m.type !== 'audio').length > 0 && (
+              {newPostMedia.filter(m => m.type !== 'audio' && (!attachedLinkPreview || m.url !== attachedLinkPreview.url)).length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {newPostMedia.filter(m => m.type !== 'audio').map((media, index) => (
+                  {newPostMedia.filter(m => m.type !== 'audio' && (!attachedLinkPreview || m.url !== attachedLinkPreview.url)).map((media, index) => (
                     <div key={index} className="relative group">
                       <button 
                         onClick={() => {
@@ -1390,9 +1582,9 @@ const DashboardHome = () => {
             </button>
           </div>
 
-          {/* Direct Media (Image or Video) URL input card */}
+          {/* Direct Media (Image or Video) or Link Preview URL input card */}
           {showMediaUrlInput && (
-            <div className="flex flex-col gap-2.5 p-3 sm:p-3.5 mt-3 bg-muted/40 dark:bg-muted/20 rounded-xl border border-purple-500/25 shadow-xs animate-in fade-in duration-200">
+            <div className="flex flex-col gap-3 p-3.5 sm:p-4 mt-3 bg-muted/40 dark:bg-muted/20 rounded-2xl border border-purple-500/25 shadow-xs animate-in fade-in duration-200">
               {/* Header with Back button and Cancel/Close */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -1410,13 +1602,17 @@ const DashboardHome = () => {
                   </button>
                   <span className="text-xs font-semibold text-foreground flex items-center gap-1.5 truncate">
                     <LinkIcon className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                    <span>Add Media via URL</span>
+                    <span>Add Media or Link Preview</span>
                   </span>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setShowMediaUrlInput(false)}
+                  onClick={() => {
+                    setShowMediaUrlInput(false);
+                    setMediaUrlText('');
+                    setActiveUrlPreview(null);
+                  }}
                   className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer shrink-0"
                   title="Cancel"
                 >
@@ -1424,14 +1620,36 @@ const DashboardHome = () => {
                 </button>
               </div>
 
+              {/* Supported Platforms Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="px-2 py-0.5 rounded-full bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center gap-1 border border-red-600/20">
+                  <FaYoutube className="w-2.5 h-2.5" /> YouTube
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-600/10 text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 border border-blue-600/20">
+                  <FaGoogleDrive className="w-2.5 h-2.5" /> Google Drive
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-pink-600/10 text-pink-600 dark:text-pink-400 font-medium flex items-center gap-1 border border-pink-600/20">
+                  <FaInstagram className="w-2.5 h-2.5" /> Instagram
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 dark:text-blue-400 font-medium flex items-center gap-1 border border-blue-500/20">
+                  <FaFacebook className="w-2.5 h-2.5" /> Facebook
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 border border-emerald-600/20">
+                  <ImageIcon className="w-2.5 h-2.5" /> Photos / Videos
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-purple-600/10 text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1 border border-purple-600/20">
+                  <Globe className="w-2.5 h-2.5" /> Web Links
+                </span>
+              </div>
+
               {/* Dedicated, clear URL input field */}
-              <div className="relative flex items-center w-full bg-background rounded-lg border border-border/80 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all px-3 py-1.5 sm:py-2 shadow-2xs">
+              <div className="relative flex items-center w-full bg-background rounded-xl border border-border/80 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all px-3 py-2 shadow-2xs">
                 <LinkIcon className="w-4 h-4 text-purple-500 shrink-0 mr-2 opacity-80" />
                 <input
                   type="url"
                   value={mediaUrlText}
                   onChange={(e) => setMediaUrlText(e.target.value)}
-                  placeholder="Paste direct image or video link (e.g. https://...)"
+                  placeholder="Paste any link (YouTube, Drive, Instagram, Facebook, Photo, Video, or Article)..."
                   className="flex-1 bg-transparent text-xs sm:text-sm focus:outline-none text-foreground placeholder:text-muted-foreground/70 min-w-0"
                   autoFocus
                   onKeyDown={(e) => {
@@ -1441,10 +1659,16 @@ const DashboardHome = () => {
                     }
                   }}
                 />
-                {mediaUrlText && (
+                {isFetchingUrlPreview && (
+                  <Loader2 className="w-4 h-4 text-purple-500 animate-spin shrink-0 ml-1.5" />
+                )}
+                {mediaUrlText && !isFetchingUrlPreview && (
                   <button
                     type="button"
-                    onClick={() => setMediaUrlText('')}
+                    onClick={() => {
+                      setMediaUrlText('');
+                      setActiveUrlPreview(null);
+                    }}
                     className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer shrink-0 ml-1"
                     title="Clear text"
                   >
@@ -1453,68 +1677,38 @@ const DashboardHome = () => {
                 )}
               </div>
 
-              {/* Type Selection and Attach Action Row */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                {/* Format Selector Pills */}
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-[11px] font-medium text-muted-foreground shrink-0">Type:</span>
-                  <div className="inline-flex items-center p-0.5 bg-background rounded-lg border border-border/70 text-[11px] font-medium shadow-2xs">
-                    <button
-                      type="button"
-                      onClick={() => setMediaUrlType('auto')}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                        mediaUrlType === 'auto'
-                          ? 'bg-purple-600 text-white shadow-xs font-semibold'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Auto
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMediaUrlType('image')}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                        mediaUrlType === 'image'
-                          ? 'bg-purple-600 text-white shadow-xs font-semibold'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Image
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMediaUrlType('video')}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                        mediaUrlType === 'video'
-                          ? 'bg-purple-600 text-white shadow-xs font-semibold'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Video
-                    </button>
+              {/* Live Preview Card while typing or pasting */}
+              {activeUrlPreview && (
+                <div className="rounded-xl overflow-hidden border border-border/60 bg-background/50 p-2 shadow-xs">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 px-1 flex items-center gap-1.5">
+                    <span>Live Preview:</span>
+                    <span className="text-purple-600 font-semibold">{activeUrlPreview.mediaType?.toUpperCase()}</span>
                   </div>
+                  <LinkPreviewCard preview={activeUrlPreview} compact={false} />
+                </div>
+              )}
+
+              {/* Action Buttons Row */}
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <div className="text-[11px] text-muted-foreground truncate">
+                  {mediaUrlText.trim() ? (
+                    <span className="text-purple-600 dark:text-purple-400 font-medium">
+                      Press Attach to add preview to post
+                    </span>
+                  ) : (
+                    <span>Paste any link above to automatically load thumbnail & preview</span>
+                  )}
                 </div>
 
-                {/* Attach Button */}
                 <button
                   type="button"
                   onClick={handleAddMediaUrl}
                   disabled={!mediaUrlText.trim()}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs active:scale-95"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs active:scale-95 shrink-0"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Attach Media</span>
+                  <span>Attach to Post</span>
                 </button>
-              </div>
-
-              {/* Helper Info & Live Type Detection */}
-              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-muted-foreground px-0.5">
-                <span>Supports direct links to images (.jpg, .png, etc.) and videos (.mp4, .webm, etc.)</span>
-                {mediaUrlText.trim() && (
-                  <span className="font-medium text-purple-600 dark:text-purple-400 capitalize bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20">
-                    Detected: {mediaUrlType === 'auto' ? detectMediaTypeFromUrl(mediaUrlText.trim()) : mediaUrlType}
-                  </span>
-                )}
               </div>
             </div>
           )}
@@ -1904,11 +2098,12 @@ const DashboardHome = () => {
 
                     return (
                       <>
-                        {visualFiles.length > 0 && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
+                        {(visualFiles.length > 0 || post.linkPreview) && !post.bgGradient && (!post.eventDetails || !post.eventDetails.title) && (
                           <FeedMediaGrid 
                             mediaFiles={visualFiles} 
                             imageUrl={visualFiles[0]?.url} 
                             mediaType={visualFiles[0]?.mediaType}
+                            linkPreview={post.linkPreview}
                             onContainerClick={() => navigate(`?post=${post._id}`, { state: { postData: post } })}
                             onImageClick={(files, idx) => setViewerData({ files, index: idx })}
                           />

@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import { createNotificationHelper } from './notificationRoutes.js';
 import { escapeRegex } from '../utils/regexHelper.js';
 import { verifyAdminToken } from '../middleware/adminAuth.js';
+import { fetchUrlMetadata } from '../utils/linkPreviewHelper.js';
 
 const router = express.Router();
 
@@ -211,6 +212,21 @@ router.get('/user/:clerkId', async (req, res) => {
   }
 });
 
+// Fetch rich link preview metadata for URLs (YouTube, Drive, FB, Insta, web links)
+router.get('/link-preview', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ success: false, message: 'URL query parameter is required' });
+    }
+    const metadata = await fetchUrlMetadata(url);
+    res.status(200).json(metadata);
+  } catch (error) {
+    console.error('Error fetching link preview:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to fetch link metadata' });
+  }
+});
+
 // Get a single post by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -265,10 +281,10 @@ router.get('/:id', async (req, res) => {
 // Create a new post
 router.post('/', async (req, res) => {
   try {
-    const { authorClerkId, content, imageUrl, mediaFiles, bgGradient, eventDetails, jobDetails, mediaType } = req.body;
+    const { authorClerkId, content, imageUrl, mediaFiles, bgGradient, eventDetails, jobDetails, mediaType, linkPreview } = req.body;
 
-    if (!authorClerkId || (!content && !imageUrl && (!mediaFiles || mediaFiles.length === 0) && !eventDetails && !jobDetails)) {
-      return res.status(400).json({ message: 'Author and content/event/job/media are required' });
+    if (!authorClerkId || (!content && !imageUrl && (!mediaFiles || mediaFiles.length === 0) && !eventDetails && !jobDetails && !linkPreview)) {
+      return res.status(400).json({ message: 'Author and content/event/job/media/link are required' });
     }
 
     const post = new Post({
@@ -276,6 +292,7 @@ router.post('/', async (req, res) => {
       content: content || '',
       imageUrl,
       mediaFiles: mediaFiles || [],
+      linkPreview: linkPreview || undefined,
       bgGradient,
       eventDetails,
       jobDetails,
