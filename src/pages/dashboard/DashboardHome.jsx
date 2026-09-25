@@ -47,7 +47,8 @@ import {
   ArrowLeft,
   MessageSquareOff,
   Eye,
-  EyeOff
+  EyeOff,
+  Check
 } from 'lucide-react'
 import EmojiPicker from 'emoji-picker-react'
 import API_BASE from '../../utils/api'
@@ -568,16 +569,16 @@ const DashboardHome = () => {
   const detectMediaTypeFromUrl = (url) => {
     if (!url) return 'image'
     const cleanUrl = url.split('?')[0].toLowerCase()
-    const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.webm', '.aac']
-    if (audioExtensions.some(ext => cleanUrl.endsWith(ext)) || cleanUrl.includes('/audio/')) {
-      return 'audio'
-    }
     const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.m4v', '.mkv']
     if (videoExtensions.some(ext => cleanUrl.endsWith(ext))) {
       return 'video'
     }
     if (cleanUrl.includes('/video/') || cleanUrl.includes('/videos/') || cleanUrl.includes('video/upload')) {
       return 'video'
+    }
+    const audioExtensions = ['.mp3', '.wav', '.oga', '.m4a', '.aac', '.flac']
+    if (audioExtensions.some(ext => cleanUrl.endsWith(ext)) || cleanUrl.includes('/audio/')) {
+      return 'audio'
     }
     return 'image'
   }
@@ -606,6 +607,7 @@ const DashboardHome = () => {
       ...prev,
       { url: trimmed, previewUrl: trimmed, type: determinedType }
     ])
+    setSelectedGradient('')
     setMediaUrlText('')
     setShowMediaUrlInput(false)
   }
@@ -1388,74 +1390,29 @@ const DashboardHome = () => {
             </button>
           </div>
 
-          {/* Direct Media (Image or Video) URL input bar */}
+          {/* Direct Media (Image or Video) URL input card */}
           {showMediaUrlInput && (
-            <div className="flex flex-col gap-2 p-3 mt-3 bg-muted/40 rounded-xl border border-purple-500/20 shadow-xs animate-in fade-in duration-200">
-              <div className="flex items-center gap-2">
-                {/* Back button to return to Media Selection */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMediaUrlInput(false);
-                    setShowMediaDropdown(true);
-                  }}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground bg-background hover:bg-muted rounded-lg border border-border/60 transition-all cursor-pointer shrink-0 shadow-2xs"
-                  title="Back to media options"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Back</span>
-                </button>
-
-                <div className="w-px h-4 bg-border/60 shrink-0" />
-
-                <LinkIcon className="w-4 h-4 text-purple-500 shrink-0" />
-                <input
-                  type="url"
-                  value={mediaUrlText}
-                  onChange={(e) => setMediaUrlText(e.target.value)}
-                  placeholder="Paste image or video URL (https://...)"
-                  className="flex-1 bg-transparent text-xs focus:outline-none text-foreground placeholder:text-muted-foreground min-w-0"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddMediaUrl();
-                    }
-                  }}
-                />
-
-                {/* Type Selection Pills */}
-                <div className="flex items-center gap-0.5 bg-background/80 p-0.5 rounded-lg border border-border/60 text-[11px] font-medium shrink-0">
+            <div className="flex flex-col gap-2.5 p-3 sm:p-3.5 mt-3 bg-muted/40 dark:bg-muted/20 rounded-xl border border-purple-500/25 shadow-xs animate-in fade-in duration-200">
+              {/* Header with Back button and Cancel/Close */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <button
                     type="button"
-                    onClick={() => setMediaUrlType('auto')}
-                    className={`px-2 py-0.5 rounded-md transition-all ${mediaUrlType === 'auto' ? 'bg-purple-600 text-white shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => {
+                      setShowMediaUrlInput(false);
+                      setShowMediaDropdown(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground bg-background hover:bg-muted rounded-lg border border-border/70 transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+                    title="Back to media options"
                   >
-                    Auto
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setMediaUrlType('image')}
-                    className={`px-2 py-0.5 rounded-md transition-all ${mediaUrlType === 'image' ? 'bg-purple-600 text-white shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    Image
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMediaUrlType('video')}
-                    className={`px-2 py-0.5 rounded-md transition-all ${mediaUrlType === 'video' ? 'bg-purple-600 text-white shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    Video
-                  </button>
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5 truncate">
+                    <LinkIcon className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                    <span>Add Media via URL</span>
+                  </span>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleAddMediaUrl}
-                  disabled={!mediaUrlText.trim()}
-                  className="px-3.5 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 shadow-xs"
-                >
-                  Attach
-                </button>
 
                 <button
                   type="button"
@@ -1467,11 +1424,95 @@ const DashboardHome = () => {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+              {/* Dedicated, clear URL input field */}
+              <div className="relative flex items-center w-full bg-background rounded-lg border border-border/80 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all px-3 py-1.5 sm:py-2 shadow-2xs">
+                <LinkIcon className="w-4 h-4 text-purple-500 shrink-0 mr-2 opacity-80" />
+                <input
+                  type="url"
+                  value={mediaUrlText}
+                  onChange={(e) => setMediaUrlText(e.target.value)}
+                  placeholder="Paste direct image or video link (e.g. https://...)"
+                  className="flex-1 bg-transparent text-xs sm:text-sm focus:outline-none text-foreground placeholder:text-muted-foreground/70 min-w-0"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddMediaUrl();
+                    }
+                  }}
+                />
+                {mediaUrlText && (
+                  <button
+                    type="button"
+                    onClick={() => setMediaUrlText('')}
+                    className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer shrink-0 ml-1"
+                    title="Clear text"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Type Selection and Attach Action Row */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                {/* Format Selector Pills */}
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-[11px] font-medium text-muted-foreground shrink-0">Type:</span>
+                  <div className="inline-flex items-center p-0.5 bg-background rounded-lg border border-border/70 text-[11px] font-medium shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setMediaUrlType('auto')}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        mediaUrlType === 'auto'
+                          ? 'bg-purple-600 text-white shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Auto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaUrlType('image')}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        mediaUrlType === 'image'
+                          ? 'bg-purple-600 text-white shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Image
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaUrlType('video')}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        mediaUrlType === 'video'
+                          ? 'bg-purple-600 text-white shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Video
+                    </button>
+                  </div>
+                </div>
+
+                {/* Attach Button */}
+                <button
+                  type="button"
+                  onClick={handleAddMediaUrl}
+                  disabled={!mediaUrlText.trim()}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs active:scale-95"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Attach Media</span>
+                </button>
+              </div>
+
+              {/* Helper Info & Live Type Detection */}
+              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-muted-foreground px-0.5">
                 <span>Supports direct links to images (.jpg, .png, etc.) and videos (.mp4, .webm, etc.)</span>
                 {mediaUrlText.trim() && (
-                  <span className="font-semibold text-purple-600 dark:text-purple-400 capitalize">
-                    Will attach as: {mediaUrlType === 'auto' ? detectMediaTypeFromUrl(mediaUrlText.trim()) : mediaUrlType}
+                  <span className="font-medium text-purple-600 dark:text-purple-400 capitalize bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20">
+                    Detected: {mediaUrlType === 'auto' ? detectMediaTypeFromUrl(mediaUrlText.trim()) : mediaUrlType}
                   </span>
                 )}
               </div>
