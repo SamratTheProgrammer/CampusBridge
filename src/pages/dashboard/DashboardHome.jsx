@@ -774,7 +774,7 @@ const DashboardHome = () => {
   }, [])
 
   const handleCreatePost = () => {
-    if (!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title) {
+    if (!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title && !attachedLinkPreview) {
       toast.error('Post cannot be empty')
       return
     }
@@ -1575,7 +1575,7 @@ const DashboardHome = () => {
             </div>
             <button 
               onClick={handleCreatePost}
-              disabled={!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title}
+              disabled={!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title && !attachedLinkPreview}
               className="bg-primary text-primary-foreground px-4 sm:px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 shrink-0 ml-2 cursor-pointer active:scale-95"
             >
               Post

@@ -6,6 +6,7 @@ import {
   isGoogleDriveUrl, 
   isInstagramUrl, 
   isFacebookUrl,
+  isReelUrl,
   getInstantUrlPreview 
 } from '../utils/linkDetector';
 
@@ -18,8 +19,8 @@ const optimizeUrl = (url) => {
 
 const isRichLinkItem = (file) => {
   if (!file || !file.url) return false;
-  if (['youtube', 'drive', 'instagram', 'facebook', 'link'].includes(file.mediaType)) return true;
-  if (isYouTubeUrl(file.url) || isGoogleDriveUrl(file.url) || isInstagramUrl(file.url) || isFacebookUrl(file.url)) {
+  if (['youtube', 'drive', 'instagram', 'facebook', 'reel', 'link'].includes(file.mediaType)) return true;
+  if (isYouTubeUrl(file.url) || isGoogleDriveUrl(file.url) || isInstagramUrl(file.url) || isFacebookUrl(file.url) || isReelUrl(file.url)) {
     return true;
   }
   return false;

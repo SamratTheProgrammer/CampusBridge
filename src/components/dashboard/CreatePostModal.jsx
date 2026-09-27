@@ -3,6 +3,7 @@ import { X, Image as ImageIcon, Video, UserPlus, MapPin, Smile, MoreHorizontal, 
 import toast from 'react-hot-toast'
 import EmojiPicker from 'emoji-picker-react'
 import { useTheme } from '../ThemeProvider'
+import { getInstantUrlPreview } from '../../utils/linkDetector'
 
 const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
   const [content, setContent] = useState('')
@@ -104,7 +105,7 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
                 <X className="w-4 h-4" />
               </button>
               {media.url ? (
-                <img src={media.url} alt="Attached" className="max-h-[240px] w-auto max-w-full object-contain rounded-lg" />
+                <img src={media.thumbnailUrl || media.previewUrl || media.url} alt="Attached" className="max-h-[240px] w-auto max-w-full object-contain rounded-lg" />
               ) : media instanceof File && media.type.startsWith('image/') ? (
                 <img src={URL.createObjectURL(media)} alt="Attached" className="max-h-[240px] w-auto max-w-full object-contain rounded-lg" />
               ) : (
@@ -207,13 +208,19 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
                 type="url"
                 value={mediaUrlInput}
                 onChange={(e) => setMediaUrlInput(e.target.value)}
-                placeholder="Paste image URL (https://...)"
+                placeholder="Paste media or reel URL (YouTube, Instagram, Facebook, Reel, Image)..."
                 className="flex-1 bg-transparent text-xs focus:outline-none text-foreground placeholder:text-muted-foreground"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     if (mediaUrlInput.trim()) {
-                      setMedia({ url: mediaUrlInput.trim(), name: 'Linked Image' });
+                      const preview = getInstantUrlPreview(mediaUrlInput.trim());
+                      setMedia({ 
+                        url: mediaUrlInput.trim(), 
+                        previewUrl: preview?.thumbnailUrl || mediaUrlInput.trim(), 
+                        thumbnailUrl: preview?.thumbnailUrl,
+                        name: preview?.title || 'Linked Media' 
+                      });
                       setShowUrlInput(false);
                       setMediaUrlInput('');
                     }
@@ -224,7 +231,13 @@ const CreatePostModal = ({ isOpen, onClose, initialMedia }) => {
                 type="button"
                 onClick={() => {
                   if (mediaUrlInput.trim()) {
-                    setMedia({ url: mediaUrlInput.trim(), name: 'Linked Image' });
+                    const preview = getInstantUrlPreview(mediaUrlInput.trim());
+                    setMedia({ 
+                      url: mediaUrlInput.trim(), 
+                      previewUrl: preview?.thumbnailUrl || mediaUrlInput.trim(), 
+                      thumbnailUrl: preview?.thumbnailUrl,
+                      name: preview?.title || 'Linked Media' 
+                    });
                     setShowUrlInput(false);
                     setMediaUrlInput('');
                   }

@@ -7,13 +7,20 @@
 const decodeHtmlEntities = (str) => {
   if (!str) return '';
   return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, dec) => {
+      try { return String.fromCharCode(parseInt(dec, 10)); } catch { return ''; }
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+      try { return String.fromCharCode(parseInt(hex, 16)); } catch { return ''; }
+    })
     .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&#x27;/g, "'")
     .replace(/&#x2F;/g, '/')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
     .replace(/&nbsp;/g, ' ')
     .trim();
 };
@@ -128,23 +135,96 @@ export const parseGoogleDriveUrl = (url) => {
 };
 
 /**
+ * Reel & Video Poster SVG generator
+ */
+export const generateReelPosterSvg = ({ platform = 'instagram' } = {}) => {
+  const isInsta = platform === 'instagram';
+  const isFb = platform === 'facebook';
+
+  const gradientDef = isInsta ? `
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#fd1d1d" stop-opacity="0.32" />
+      <stop offset="35%" stop-color="#833ab4" stop-opacity="0.22" />
+      <stop offset="70%" stop-color="#f58529" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#07080b" stop-opacity="0" />
+    </radialGradient>
+  ` : isFb ? `
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#1877f2" stop-opacity="0.35" />
+      <stop offset="50%" stop-color="#0d234a" stop-opacity="0.20" />
+      <stop offset="100%" stop-color="#07080b" stop-opacity="0" />
+    </radialGradient>
+  ` : `
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.35" />
+      <stop offset="50%" stop-color="#4f46e5" stop-opacity="0.20" />
+      <stop offset="100%" stop-color="#07080b" stop-opacity="0" />
+    </radialGradient>
+  `;
+
+  // Subtle watermark icon at center (opacity 0.12)
+  const watermark = isInsta ? `
+    <g transform="translate(365, 190) scale(3)" opacity="0.12" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </g>
+  ` : isFb ? `
+    <g transform="translate(365, 190) scale(3)" opacity="0.12" fill="#ffffff">
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </g>
+  ` : `
+    <g transform="translate(365, 190) scale(3)" opacity="0.12" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </g>
+  `;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+    <defs>
+      ${gradientDef}
+      <linearGradient id="cardBg" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#13151c" />
+        <stop offset="100%" stop-color="#07080b" />
+      </linearGradient>
+    </defs>
+    <rect width="800" height="450" fill="url(#cardBg)" />
+    <rect width="800" height="450" fill="url(#bgGlow)" />
+    <g opacity="0.04" stroke="#ffffff" stroke-width="1">
+      <line x1="0" y1="112" x2="800" y2="112" />
+      <line x1="0" y1="225" x2="800" y2="225" />
+      <line x1="0" y1="337" x2="800" y2="337" />
+      <line x1="200" y1="0" x2="200" y2="450" />
+      <line x1="400" y1="0" x2="400" y2="450" />
+      <line x1="600" y1="0" x2="600" y2="450" />
+    </g>
+    ${watermark}
+  </svg>`.trim();
+};
+
+export const generateReelPosterUrl = (options) => {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(generateReelPosterSvg(options))}`;
+};
+
+/**
  * Instagram detection and extraction
  */
 export const parseInstagramUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
-  const instaRegex = /(?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:p|reel|tv)\/([a-zA-Z0-9_-]+)/i;
+  const instaRegex = /(?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:p|reel|reels|tv)\/([a-zA-Z0-9_-]+)/i;
   const match = url.match(instaRegex);
   if (!match || !match[1]) return null;
 
   const shortcode = match[1];
-  const isReel = url.includes('/reel/');
+  const isReel = url.includes('/reel/') || url.includes('/reels/');
+  const title = isReel ? (shortcode ? `Instagram Reel • @${shortcode}` : 'Instagram Reel') : 'Instagram Post';
 
   return {
     mediaType: 'instagram',
     shortcode,
     isReel,
     url,
-    title: isReel ? 'Instagram Reel' : 'Instagram Post',
+    title,
+    thumbnailUrl: generateReelPosterUrl({ platform: 'instagram', shortcode, isReel, title }),
     embedUrl: `https://www.instagram.com/p/${shortcode}/embed`,
     siteName: 'Instagram',
     domain: 'instagram.com'
@@ -159,18 +239,45 @@ export const parseFacebookUrl = (url) => {
   const fbRegex = /(?:https?:\/\/)?(?:www\.|m\.)?(?:facebook\.com|fb\.watch)/i;
   if (!fbRegex.test(url)) return null;
 
-  const isVideo = url.includes('/videos/') || url.includes('/watch') || url.includes('/reel/') || url.includes('fb.watch');
+  const isVideo = url.includes('/videos/') || url.includes('/watch') || url.includes('/reel') || url.includes('/reels') || url.includes('fb.watch');
+  const isReel = url.includes('/reel') || url.includes('/reels') || url.includes('fb.watch');
+  const title = isReel ? 'Facebook Reel' : (isVideo ? 'Facebook Video' : 'Facebook Post');
 
   return {
     mediaType: 'facebook',
     isVideo,
+    isReel,
     url,
-    title: isVideo ? 'Facebook Video' : 'Facebook Post',
+    title,
+    thumbnailUrl: generateReelPosterUrl({ platform: 'facebook', isReel, title }),
     embedUrl: isVideo
       ? `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&width=500`
       : `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url)}&show_text=true&width=500`,
     siteName: 'Facebook',
     domain: 'facebook.com'
+  };
+};
+
+/**
+ * Generic Reel / Video detection
+ */
+export const parseReelUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  const isReel = /(?:reel|reels|shorts|tiktok\.com)/i.test(url);
+  if (!isReel) return null;
+
+  const domain = getDomain(url);
+  const title = `${domain ? (domain.charAt(0).toUpperCase() + domain.slice(1).split('.')[0]) : 'Reel'} Video`;
+
+  return {
+    mediaType: 'reel',
+    isReel: true,
+    url,
+    title,
+    thumbnailUrl: generateReelPosterUrl({ platform: 'reel', isReel: true, title }),
+    embedUrl: url,
+    siteName: domain || 'Reel',
+    domain: domain || 'reels'
   };
 };
 
@@ -205,6 +312,7 @@ export const parseDirectMediaUrl = (url) => {
     return {
       mediaType: 'video',
       url,
+      thumbnailUrl: generateReelPosterUrl({ platform: 'reel', isReel: true, title: 'Video File' }),
       title: 'Video',
       siteName: getDomain(url),
       domain: getDomain(url)
@@ -267,19 +375,77 @@ export const fetchUrlMetadata = async (targetUrl) => {
     return { success: true, ...driveData };
   }
 
+  // Helper to scrape OpenGraph with bot headers
+  const tryScrapeOg = async (url) => {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(3000)
+      });
+      if (!res.ok) return null;
+      const html = await res.text();
+      const ogImg = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                    html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i) ||
+                    html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
+      const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+                      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i) ||
+                      html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      return {
+        image: ogImg ? decodeHtmlEntities(ogImg[1].trim()) : null,
+        title: ogTitle ? decodeHtmlEntities(ogTitle[1].trim()) : null
+      };
+    } catch {
+      return null;
+    }
+  };
+
   // 3. Instagram
   const instaData = parseInstagramUrl(formattedUrl);
   if (instaData) {
+    const scraped = await tryScrapeOg(formattedUrl);
+    if (scraped?.image) {
+      instaData.thumbnailUrl = scraped.image;
+      instaData.image = scraped.image;
+    }
+    if (scraped?.title && !scraped.title.toLowerCase().includes('login • instagram')) {
+      instaData.title = scraped.title;
+    }
     return { success: true, ...instaData };
   }
 
   // 4. Facebook
   const fbData = parseFacebookUrl(formattedUrl);
   if (fbData) {
+    const scraped = await tryScrapeOg(formattedUrl);
+    if (scraped?.image) {
+      fbData.thumbnailUrl = scraped.image;
+      fbData.image = scraped.image;
+    }
+    if (scraped?.title && !scraped.title.toLowerCase().includes('log into facebook')) {
+      fbData.title = scraped.title;
+    }
     return { success: true, ...fbData };
   }
 
-  // 5. Direct Media (Images, Videos, Audio)
+  // 5. Generic Reel / Shorts
+  const reelData = parseReelUrl(formattedUrl);
+  if (reelData) {
+    const scraped = await tryScrapeOg(formattedUrl);
+    if (scraped?.image) {
+      reelData.thumbnailUrl = scraped.image;
+      reelData.image = scraped.image;
+    }
+    if (scraped?.title) {
+      reelData.title = scraped.title;
+    }
+    return { success: true, ...reelData };
+  }
+
+  // 6. Direct Media (Images, Videos, Audio)
   const directData = parseDirectMediaUrl(formattedUrl);
   if (directData) {
     return { success: true, ...directData };
