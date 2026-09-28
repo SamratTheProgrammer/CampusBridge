@@ -21,6 +21,7 @@ import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
 import API_BASE from '../../utils/api'
 import { useTheme } from '../../components/ThemeProvider'
 import { useProfileData } from '../../context/ProfileDataContext'
+import DeviceSessionsManager from '../../components/settings/DeviceSessionsManager'
 
 const MentorSettings = () => {
   const { user, isLoaded } = useUser()
@@ -1425,49 +1426,8 @@ const MentorSettings = () => {
                   </div>
                 </div>
 
-                {/* Active Sessions */}
-                <div className="flex gap-4 p-4 bg-muted/30 border border-border/40 rounded-xl">
-                  <Laptop className="w-5 h-5 text-primary shrink-0" />
-                  <div className="w-full min-w-0">
-                    <h4 className="font-semibold text-sm text-foreground">Active Devices</h4>
-                    <p className="text-xs text-muted-foreground mt-1 mb-4">Devices that are currently logged into your account.</p>
-                    <div className="space-y-3">
-                      {sessions?.map(session => (
-                        <div key={session.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 bg-background border border-border/50 rounded-lg">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {session.latestActivity?.isMobile ? <Smartphone className="w-4 h-4 text-muted-foreground shrink-0" /> : <Laptop className="w-4 h-4 text-muted-foreground shrink-0" />}
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground flex items-center flex-wrap gap-1.5 sm:gap-2">
-                                <span className="truncate min-w-0">{session.id === currentSession?.id 
-                                  ? `${currentDeviceInfo.browser} on ${currentDeviceInfo.os}`
-                                  : `${session.latestActivity?.browserName || 'Unknown Browser'} on ${session.latestActivity?.deviceType || 'Unknown Device'}`
-                                }</span>
-                                {session.id === currentSession?.id && <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0">This Device</span>}
-                              </p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <MapPin className="w-3 h-3 shrink-0" />
-                                <span className="truncate min-w-0">{session.id === currentSession?.id 
-                                  ? `${currentDeviceInfo.city}, ${currentDeviceInfo.country} • ${currentDeviceInfo.ip}`
-                                  : `${session.latestActivity?.city ? `${session.latestActivity.city}, ` : ''}${session.latestActivity?.country || 'Unknown Location'} • ${session.latestActivity?.ipAddress || 'IP Hidden'}`
-                                }</span>
-                              </p>
-                            </div>
-                          </div>
-                          {session.id !== currentSession?.id && (
-                            <button onClick={async () => {
-                              try {
-                                await session.revoke();
-                                toast.success("Session revoked successfully");
-                              } catch(e) {
-                                toast.error("Failed to revoke session");
-                              }
-                            }} className="text-xs font-medium text-destructive hover:underline px-2 py-1">Revoke</button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                {/* Active Sessions & Multi-device Management */}
+                <DeviceSessionsManager />
 
                 {/* Delete Account */}
                 <div className="flex gap-4 p-4 border border-destructive/30 bg-destructive/5 rounded-xl mt-8">

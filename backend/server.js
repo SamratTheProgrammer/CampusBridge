@@ -32,6 +32,7 @@ import supportRoutes from './routes/supportRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import announcementRoutes from './routes/announcementRoutes.js';
+import deviceSessionRoutes from './routes/deviceSessionRoutes.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
 import Block from './models/Block.js';
@@ -138,6 +139,67 @@ const emitToUserSockets = (userId, eventName, data) => {
 };
 app.set('emitToUserSockets', emitToUserSockets);
 
+// Map of sessionId -> Set of active socket.ids to track device sessions
+const sessionSockets = new Map();
+
+const registerSessionSocket = (sessionId, socket) => {
+  if (!sessionId || !socket?.id) return;
+  socket.sessionId = sessionId;
+  if (!sessionSockets.has(sessionId)) {
+    sessionSockets.set(sessionId, new Set());
+  }
+  const set = sessionSockets.get(sessionId);
+  if (set instanceof Set) {
+    set.add(socket.id);
+  }
+};
+
+const unregisterSessionSocket = (socket) => {
+  const socketId = socket?.id;
+  const sessionId = socket?.sessionId;
+
+  if (sessionId && sessionSockets.has(sessionId)) {
+    const set = sessionSockets.get(sessionId);
+    if (set instanceof Set) {
+      set.delete(socketId);
+      if (set.size === 0) {
+        sessionSockets.delete(sessionId);
+      }
+    }
+  }
+
+  for (const [sId, set] of sessionSockets.entries()) {
+    if (set instanceof Set && set.has(socketId)) {
+      set.delete(socketId);
+      if (set.size === 0) {
+        sessionSockets.delete(sId);
+      }
+    }
+  }
+};
+
+const disconnectDeviceSession = (sessionId, disconnectData) => {
+  if (!sessionId) return 0;
+  let count = 0;
+  const set = sessionSockets.get(sessionId);
+  if (set instanceof Set && set.size > 0) {
+    set.forEach((sockId) => {
+      io.to(sockId).emit('session_disconnected', disconnectData);
+      count++;
+    });
+  }
+  return count;
+};
+
+const isSessionOnline = (sessionId) => {
+  const set = sessionSockets.get(sessionId);
+  return !!(set && set.size > 0);
+};
+
+app.set('disconnectDeviceSession', disconnectDeviceSession);
+app.set('isSessionOnline', isSessionOnline);
+app.set('sessionSockets', sessionSockets);
+
 // Middleware
 app.use(cors({
   origin: corsOriginHandler,
@@ -196,6 +258,7 @@ app.use('/api/support', supportRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/device-sessions', deviceSessionRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {
@@ -293,6 +356,34 @@ io.on('connection', (socket) => {
       } catch (err) {
         console.error('Error updating delivery status:', err);
       }
+    }
+  });
+
+  // Register device session socket
+  socket.on('register_session', ({ userId, sessionId, deviceInfo }) => {
+    if (userId) {
+      registerUserSocket(userId, socket);
+    }
+    if (sessionId) {
+      registerSessionSocket(sessionId, socket);
+    }
+    io.emit('online_users_update', getOnlineUserIds());
+  });
+
+  // Real-time revoke device session
+  socket.on('revoke_device_session', async ({ clerkId, sessionIdToRevoke, currentDeviceInfo }) => {
+    try {
+      disconnectDeviceSession(sessionIdToRevoke, {
+        sessionId: sessionIdToRevoke,
+        reason: 'remote_logout',
+        title: 'Session Disconnected',
+        message: 'Your account was logged out from another device.',
+        revokedBy: currentDeviceInfo,
+        revokedAt: new Date()
+      });
+      emitToUserSockets(clerkId, 'device_sessions_updated', { revokedSessionId: sessionIdToRevoke });
+    } catch (err) {
+      console.error('Socket revoke_device_session error:', err);
     }
   });
 
@@ -588,6 +679,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    unregisterSessionSocket(socket);
     const changed = unregisterSocket(socket);
     if (changed) {
       io.emit('online_users_update', getOnlineUserIds());
