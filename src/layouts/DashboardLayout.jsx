@@ -5,6 +5,7 @@ import PageTransition from '../components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
 import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2 } from 'lucide-react'
 import ThemeToggle from '../components/ThemeToggle'
+import LanguageSwitcher from '../components/common/LanguageSwitcher'
 import { useUser } from '@clerk/clerk-react'
 import NotificationDropdown from '../components/NotificationDropdown'
 import VideoCallModal from '../components/VideoCallModal'
@@ -467,6 +468,7 @@ const DashboardLayout = () => {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
+            <LanguageSwitcher />
             <ThemeToggle />
             <NotificationDropdown />
             <div className="flex items-center gap-2 sm:gap-3 pl-1.5 sm:pl-4 border-l border-border/50 ml-1 sm:ml-2 shrink-0">

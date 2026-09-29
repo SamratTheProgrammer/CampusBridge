@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2, Sun, Moon, MonitorSmartphone, Palette, HelpCircle, Mail, MessageSquare, ExternalLink, Headphones, Volume2, VolumeX } from 'lucide-react'
+import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2, Sun, Moon, MonitorSmartphone, Palette, HelpCircle, Mail, MessageSquare, ExternalLink, Headphones, Volume2, VolumeX, Languages } from 'lucide-react'
 import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
 import SettingsSkeleton from '../../components/skeletons/SettingsSkeleton'
 import toast from 'react-hot-toast'
@@ -16,6 +16,8 @@ import { useTheme } from '../../components/ThemeProvider'
 import { useProfileData } from '../../context/ProfileDataContext'
 import ringtoneService from '../../utils/ringtone'
 import DeviceSessionsManager from '../../components/settings/DeviceSessionsManager'
+import TranslationLanguageSetting from '../../components/settings/TranslationLanguageSetting'
+import LanguagesManager from '../../components/settings/LanguagesManager'
 const JOB_TITLES = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
   "Mobile Developer", "iOS Developer", "Android Developer", "Web Developer",
@@ -147,10 +149,13 @@ const Settings = () => {
   const [resumeUrl, setResumeUrl] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [ageVisibility, setAgeVisibility] = useState('private')
+  const [dobVisibility, setDobVisibility] = useState('public')
+  const [dobFormat, setDobFormat] = useState('full')
   const [gender, setGender] = useState('Prefer not to say')
   const [experience, setExperience] = useState([])
   const [education, setEducation] = useState([])
   const [skills, setSkills] = useState([])
+  const [languages, setLanguages] = useState([])
   const [newSkill, setNewSkill] = useState('')
   const [usernameValue, setUsernameValue] = useState('')
   const [usernameError, setUsernameError] = useState('')
@@ -331,8 +336,11 @@ const Settings = () => {
       setExperience(mongoProfile?.experience?.length ? mongoProfile.experience : (user.unsafeMetadata?.experience || []));
       setEducation(mongoProfile?.education?.length ? mongoProfile.education : (user.unsafeMetadata?.education || []));
       setSkills(mongoProfile?.skills?.length ? mongoProfile.skills : (user.unsafeMetadata?.skills || []));
+      setLanguages(Array.isArray(mongoProfile?.languages) ? mongoProfile.languages : (user.unsafeMetadata?.languages || []));
       setDateOfBirth(mongoProfile?.dateOfBirth || '');
       if (mongoProfile?.ageVisibility) setAgeVisibility(mongoProfile.ageVisibility);
+      if (mongoProfile?.dobVisibility) setDobVisibility(mongoProfile.dobVisibility);
+      if (mongoProfile?.dobFormat) setDobFormat(mongoProfile.dobFormat);
       if (mongoProfile?.gender) setGender(mongoProfile.gender);
       if (mongoProfile?.profileVisibility) setProfileVisibility(mongoProfile.profileVisibility);
       
@@ -434,7 +442,10 @@ const Settings = () => {
             resumeUrl,
             experience,
             education,
-            skills
+            skills,
+            languages,
+            dobVisibility,
+            dobFormat
           }
         });
       } catch (clerkErr) {
@@ -459,9 +470,12 @@ const Settings = () => {
           experience,
           education,
           skills,
+          languages,
           imageUrl: user.imageUrl,
           dateOfBirth,
           ageVisibility,
+          dobVisibility,
+          dobFormat,
           gender,
           profileVisibility
         })
@@ -554,9 +568,9 @@ const Settings = () => {
     { id: 'basic', label: 'Basic Info', icon: User },
     { id: 'experience', label: 'Experience', icon: Briefcase },
     { id: 'education', label: 'Education', icon: GraduationCap },
-    { id: 'skills', label: 'Skills', icon: Code },
+    { id: 'skills', label: 'Skills & Languages', icon: Code },
     { id: 'resume', label: 'Resume/Docs', icon: FileText },
-    { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'appearance', label: 'Appearance & Language', icon: Globe },
     { id: 'privacy', label: 'Privacy & Security', icon: Lock },
     { id: 'help', label: 'Help & Support', icon: HelpCircle },
   ]
@@ -750,16 +764,59 @@ const Settings = () => {
                   <label className="text-sm font-medium text-foreground mb-1.5 block">Address</label>
                   <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Kolkata" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">Date of Birth</label>
-                  <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">Age Visibility</label>
-                  <select value={ageVisibility} onChange={(e) => setAgeVisibility(e.target.value)} className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all">
-                    <option value="public">Public</option>
-                    <option value="private">Private (Hidden)</option>
-                  </select>
+                <div className="space-y-2 sm:col-span-2 bg-muted/20 border border-border/50 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-semibold text-foreground">
+                      Age Settings
+                    </label>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">Date of Birth</label>
+                      <input 
+                        type="date" 
+                        value={dateOfBirth} 
+                        onChange={(e) => setDateOfBirth(e.target.value)} 
+                        className="w-full bg-background border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-xs sm:text-sm text-foreground transition-all" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">Birthday Wishes / Visibility</label>
+                      <select 
+                        value={dobVisibility} 
+                        onChange={(e) => setDobVisibility(e.target.value)} 
+                        className="w-full bg-background border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-xs sm:text-sm text-foreground transition-all cursor-pointer"
+                      >
+                        <option value="public">Public (Everyone)</option>
+                        <option value="connections">Connections Only</option>
+                        <option value="private">Private (Only me)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">Date Display Format</label>
+                      <select 
+                        value={dobFormat} 
+                        onChange={(e) => setDobFormat(e.target.value)} 
+                        className="w-full bg-background border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-xs sm:text-sm text-foreground transition-all cursor-pointer"
+                      >
+                        <option value="full">Full Date (Day, Month & Year)</option>
+                        <option value="day_month">Day & Month only (Hide year)</option>
+                        <option value="hidden">Hide Date completely</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">Age Display</label>
+                      <select 
+                        value={ageVisibility} 
+                        onChange={(e) => setAgeVisibility(e.target.value)} 
+                        className="w-full bg-background border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-xs sm:text-sm text-foreground transition-all cursor-pointer"
+                      >
+                        <option value="public">Show Age (e.g. 21 yrs)</option>
+                        <option value="private">Hide Age</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1.5 block">Gender</label>
@@ -1458,6 +1515,14 @@ const Settings = () => {
                     <p className="text-sm text-muted-foreground italic">No skills added yet.</p>
                   )}
                 </div>
+
+                {/* --- LANGUAGES KNOWN (+10% Profile Completion) --- */}
+                <div className="pt-6 border-t border-border/40">
+                  <LanguagesManager 
+                    languages={languages} 
+                    onChange={setLanguages} 
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1642,6 +1707,9 @@ const Settings = () => {
                     : 'The standard CampusBridge purple theme is currently active platform-wide. When college festivals or national holidays occur, special celebrations and festive accents will illuminate the app automatically.'}
                 </p>
               </div>
+
+              {/* Feed & Post Caption Translation Preference */}
+              <TranslationLanguageSetting />
             </div>
           )}
 

@@ -1,7 +1,7 @@
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import React, { useState, useEffect, useCallback } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, Languages } from 'lucide-react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -20,12 +20,16 @@ import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
 import FormattedPostText from '../../components/common/FormattedPostText'
+import PostCaption from '../../components/common/PostCaption'
 import { downloadMediaFile } from '../../utils/downloadHelper'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ReviewModal from '../../components/modals/ReviewModal'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
+import BirthdayBanner, { checkIsBirthdayToday } from '../../components/common/BirthdayBanner'
+import { getProficiencyBadgeClass } from '../../components/settings/LanguagesManager'
+
 const MentorProfile = ({ initialUser, isAdmin = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -525,6 +529,13 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
 
   return (
     <div className="w-full max-w-6xl mx-auto sm:pb-8">
+      {/* Facebook-style Birthday Celebratory Banner */}
+      <BirthdayBanner 
+        user={mentor} 
+        currentUser={user} 
+        isOwnProfile={isOwner} 
+      />
+
       {/* Cover & Header Section */}
       <div className="bg-card border-x-0 border-t-0 sm:border border-border/50 rounded-none sm:rounded-2xl overflow-hidden mb-6 shadow-sm relative">
         {!isAdminView && (
@@ -714,6 +725,37 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                     })()}
                   </span>
                 )}
+                {/* Age Display */}
+                {mentor?.dateOfBirth && (mentor?.ageVisibility !== 'private' || isOwner) && (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-primary" />
+                    {Math.floor((new Date() - new Date(mentor.dateOfBirth).getTime()) / 3.15576e+10)} years old
+                    {mentor?.ageVisibility === 'private' && isOwner && (
+                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border/50">Private</span>
+                    )}
+                  </span>
+                )}
+                {/* Birthday Display */}
+                {mentor?.dateOfBirth && (isOwner || mentor?.dobVisibility === 'public' || (mentor?.dobVisibility === 'connections' && connectionStatus === 'accepted')) && mentor?.dobFormat !== 'hidden' && (
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-sm">🎂</span>
+                    {(() => {
+                      const d = new Date(mentor.dateOfBirth);
+                      if (isNaN(d.getTime())) return null;
+                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                      if (mentor?.dobFormat === 'day_month') {
+                        return `Birthday: ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+                      }
+                      return `Born: ${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+                    })()}
+                  </span>
+                )}
+                {/* Birthday Today Badge */}
+                {checkIsBirthdayToday(mentor?.dateOfBirth) && (
+                  <span className="px-2 py-0.5 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-600 dark:text-pink-400 text-xs font-bold flex items-center gap-1 animate-pulse">
+                    🎈 Birthday Today!
+                  </span>
+                )}
                 <button 
                   onClick={() => {
                     setActiveTab('reviews');
@@ -882,6 +924,32 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                     {skill}
                   </span>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Languages Known Card */}
+          {mentor.languages && mentor.languages.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <Languages className="w-5 h-5 text-primary" />
+                Languages Known
+              </h2>
+              <div className="flex flex-wrap gap-2.5">
+                {mentor.languages.map((item, idx) => {
+                  const langName = typeof item === 'object' ? item.language : item;
+                  const prof = typeof item === 'object' ? item.proficiency : null;
+                  return (
+                    <div key={idx} className="bg-muted border border-border/50 rounded-xl px-3.5 py-1.5 flex items-center gap-2">
+                      <span className="text-xs font-bold text-foreground">{langName}</span>
+                      {prof && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${getProficiencyBadgeClass(prof)}`}>
+                          {prof}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1142,7 +1210,7 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                 id={`post-${post._id}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+                className="bg-card border border-border/50 rounded-2xl shadow-sm"
               >
                 <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between mb-4">
@@ -1285,16 +1353,8 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                         <button onClick={() => handleSaveEdit(post._id)} className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg transition-colors">Save</button>
                       </div>
                     </div>
-                  ) : post.bgGradient ? (
-                    <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
-                      <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
-                        <FormattedPostText text={post.content} isGradient={true} />
-                      </h2>
-                    </div>
                   ) : (
-                    <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                      <FormattedPostText text={post.content} />
-                    </p>
+                    <PostCaption content={post.content} bgGradient={post.bgGradient} />
                   )}
 
                   {post.eventDetails && post.eventDetails.title && (

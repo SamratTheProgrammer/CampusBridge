@@ -340,6 +340,9 @@ router.put('/:clerkId/profile', async (req, res) => {
       role,
       dateOfBirth,
       ageVisibility,
+      dobVisibility,
+      dobFormat,
+      languages,
       gender
     } = req.body;
 
@@ -391,6 +394,9 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (profileVisibility !== undefined) targetUser.profileVisibility = profileVisibility;
     if (dateOfBirth !== undefined) targetUser.dateOfBirth = dateOfBirth;
     if (ageVisibility !== undefined) targetUser.ageVisibility = ageVisibility;
+    if (dobVisibility !== undefined) targetUser.dobVisibility = dobVisibility;
+    if (dobFormat !== undefined) targetUser.dobFormat = dobFormat;
+    if (languages !== undefined) targetUser.languages = languages;
     if (gender !== undefined) targetUser.gender = gender;
 
     // Manual role update (admin role can only be assigned via secured admin routes)
@@ -512,6 +518,46 @@ router.put('/:clerkId/warnings/:warningId/dismiss', async (req, res) => {
   } catch (err) {
     console.error('Error dismissing warning:', err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Wish happy birthday to a user
+router.post('/:identifier/wish-birthday', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const { senderClerkId, customMessage } = req.body;
+
+    if (!senderClerkId) {
+      return res.status(400).json({ success: false, message: 'senderClerkId is required' });
+    }
+
+    const isObjectId = mongoose.Types.ObjectId.isValid(identifier);
+    const targetUser = await User.findOne(
+      isObjectId ? { $or: [{ clerkId: identifier }, { username: identifier }, { _id: identifier }] } : { $or: [{ clerkId: identifier }, { username: identifier }] }
+    );
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const senderUser = await User.findOne({ clerkId: senderClerkId });
+    const senderName = senderUser ? `${senderUser.firstName} ${senderUser.lastName || ''}`.trim() : 'A friend';
+
+    // Create birthday wish notification
+    await createNotificationHelper({
+      recipientClerkId: targetUser.clerkId,
+      senderClerkId,
+      type: 'birthday_wish',
+      title: '🎉 Birthday Wish!',
+      message: customMessage || `${senderName} wished you a very Happy Birthday! 🎂✨`,
+      link: senderUser?.username ? `/profile/${senderUser.username}` : `/profile/${senderClerkId}`,
+      io: req.io
+    });
+
+    return res.status(200).json({ success: true, message: 'Birthday wish sent successfully! 🎈' });
+  } catch (error) {
+    console.error('Error wishing birthday:', error);
+    return res.status(500).json({ success: false, message: 'Failed to send birthday wish' });
   }
 });
 

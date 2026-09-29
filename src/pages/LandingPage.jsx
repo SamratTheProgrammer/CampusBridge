@@ -96,7 +96,7 @@ const LandingPage = () => {
   }, [location.hash])
 
   return (
-    <div className="w-full overflow-hidden">
+    <div className="w-full overflow-hidden bg-background text-foreground">
       <div id="home"><HeroSection /></div>
       <TrustedBy />
       <Statistics />

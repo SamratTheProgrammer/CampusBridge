@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Heart, MessageCircle, Share2, MoreHorizontal, Image as ImageIcon, Briefcase, Calendar as CalendarIcon, FileText } from 'lucide-react'
 import FormattedPostText from '../../components/common/FormattedPostText'
+import PostCaption from '../../components/common/PostCaption'
 
 const MentorPosts = () => {
   const [posts, setPosts] = useState([])
@@ -53,7 +54,7 @@ const MentorPosts = () => {
               id={`post-${post.id}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+              className="bg-card border border-border/50 rounded-2xl shadow-sm"
             >
               <div className="p-4 sm:p-5">
                 <div className="flex items-start justify-between mb-4">
@@ -70,9 +71,7 @@ const MentorPosts = () => {
                   </button>
                 </div>
                 
-                <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                  <FormattedPostText text={post.content} />
-                </p>
+                <PostCaption content={post.content} />
               </div>
               
               <div className="px-4 sm:px-5 py-3">

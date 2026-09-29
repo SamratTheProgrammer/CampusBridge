@@ -45,18 +45,25 @@ export const calculateProfileCompleteness = (userDoc) => {
     missingFields.push('Skills & Years of Experience (+15%)')
   }
 
-  // 5. Work Experience (20%)
-  if (Array.isArray(userDoc.experience) && userDoc.experience.length > 0) {
-    score += 20
+  // 5. Languages Known (10%)
+  if (Array.isArray(userDoc.languages) && userDoc.languages.length > 0) {
+    score += 10
   } else {
-    missingFields.push('Work Experience Details (+20%)')
+    missingFields.push('Languages Known (+10%)')
   }
 
-  // 6. Education Credentials (20%)
-  if (Array.isArray(userDoc.education) && userDoc.education.length > 0) {
-    score += 20
+  // 6. Work Experience (15%)
+  if (Array.isArray(userDoc.experience) && userDoc.experience.length > 0) {
+    score += 15
   } else {
-    missingFields.push('Education History (+20%)')
+    missingFields.push('Work Experience Details (+15%)')
+  }
+
+  // 7. Education Credentials (15%)
+  if (Array.isArray(userDoc.education) && userDoc.education.length > 0) {
+    score += 15
+  } else {
+    missingFields.push('Education History (+15%)')
   }
 
   return {

@@ -24,11 +24,18 @@
           if (isMobileApp) {
             document.documentElement.classList.add('cb-capacitor-app');
           }
+          var savedSiteLang = localStorage.getItem('campusbridge_site_lang');
+          if (savedSiteLang && savedSiteLang !== 'en') {
+            document.cookie = 'googtrans=/en/' + savedSiteLang + '; path=/;';
+          } else {
+            var past = 'Thu, 01 Jan 1970 00:00:00 UTC';
+            document.cookie = 'googtrans=; expires=' + past + '; path=/;';
+          }
         } catch(e) {}
       })();
     </script>
   </head>
-  <body style="margin: 0; background-color: #0a0f1d; color: #ffffff;">
+  <body style="margin: 0;">
     <div id="root">
       <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #0a0f1d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <img src="/icon-192x192.png" alt="CampusBridge" style="width: 80px; height: 80px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 12px 30px rgba(0,0,0,0.5);" />
@@ -38,6 +45,38 @@
         </style>
       </div>
     </div>
+    <div id="google_translate_element" style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0.01; overflow: hidden; pointer-events: none;"></div>
+    <script type="text/javascript">
+      window.googleTranslateElementInit = function() {
+        try {
+          if (window.google && window.google.translate) {
+            new window.google.translate.TranslateElement({
+              pageLanguage: 'en',
+              includedLanguages: 'hi,bn,en,mr,te,ta,gu,ur,kn,ml,pa,es,fr,de,ja,ar,ru,zh-CN',
+              autoDisplay: false
+            }, 'google_translate_element');
+
+            var savedLang = localStorage.getItem('campusbridge_site_lang');
+            if (savedLang && savedLang !== 'en') {
+              var attempts = 0;
+              var pollCombo = setInterval(function() {
+                var select = document.querySelector('.goog-te-combo');
+                if (select) {
+                  clearInterval(pollCombo);
+                  if (select.value !== savedLang) {
+                    select.value = savedLang;
+                    select.dispatchEvent(new Event('change'));
+                  }
+                }
+                attempts++;
+                if (attempts > 50) clearInterval(pollCombo);
+              }, 100);
+            }
+          }
+        } catch(e) {}
+      };
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

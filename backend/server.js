@@ -33,12 +33,14 @@ import searchRoutes from './routes/searchRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import announcementRoutes from './routes/announcementRoutes.js';
 import deviceSessionRoutes from './routes/deviceSessionRoutes.js';
+import translateRoutes from './routes/translateRoutes.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
 import Block from './models/Block.js';
 import PlatformSetting from './models/PlatformSetting.js';
 import { startEventReminderJob } from './jobs/eventReminder.js';
 import { startJobReminderJob } from './jobs/jobReminder.js';
+import { startBirthdayReminderJob } from './jobs/birthdayReminder.js';
 
 // Load env vars from the parent directory's .env file
 dotenv.config({ path: '../.env' });
@@ -259,6 +261,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/device-sessions', deviceSessionRoutes);
+app.use('/api/translate', translateRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {
@@ -731,6 +734,7 @@ mongoose.connection.on('connected', () => {
   console.log('Connected to MongoDB');
   startEventReminderJob();
   startJobReminderJob();
+  startBirthdayReminderJob(io);
 });
 
 const connectMongoWithRetry = async () => {

@@ -486,7 +486,9 @@ const MentorJobs = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredJobs.map((job) => (
+            {filteredJobs.map((job) => {
+              const isExpired = Boolean(job.deadline && new Date() > new Date(job.deadline));
+              return (
               <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
                 <div>
                   <div className="flex justify-between items-start mb-4">
@@ -506,14 +508,20 @@ const MentorJobs = () => {
                         </p>
                       </div>
                     </div>
-                    {job.active ? (
-                      <span className="bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Active</span>
+                    {isExpired ? (
+                      <span className="bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
+                      </span>
+                    ) : job.active ? (
+                      <span className="bg-green-500/10 text-green-500 border border-green-500/20 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Active
+                      </span>
                     ) : (
-                      <span className="bg-muted text-muted-foreground text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Closed</span>
+                      <span className="bg-muted text-muted-foreground border border-border/50 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Closed</span>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="w-4 h-4 text-primary" />
                       <span className="truncate">{job.location}</span>
@@ -529,6 +537,20 @@ const MentorJobs = () => {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="w-4 h-4 text-primary" />
                       <span>{job.applicants?.length || 0} applied</span>
+                    </div>
+                    <div className={`col-span-2 flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${
+                      isExpired 
+                        ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' 
+                        : 'bg-primary/5 text-primary border-primary/20'
+                    }`}>
+                      <Calendar className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        {job.deadline 
+                          ? (isExpired 
+                              ? `Expired on ${new Date(job.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` 
+                              : `Last Date: ${new Date(job.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+                          : 'Last Date: Open until filled'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -569,7 +591,8 @@ const MentorJobs = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
 
             {filteredJobs.length === 0 && (
               <div className="col-span-full py-12 text-center text-muted-foreground bg-card border border-border/40 rounded-2xl">
@@ -614,11 +637,17 @@ const MentorJobs = () => {
                       </div>
 
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                          job.type === 'Internship' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                        }`}>
-                          {job.type}
-                        </span>
+                        {isDeadlinePassed ? (
+                          <span className="bg-red-500/10 text-red-500 border border-red-500/20 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
+                          </span>
+                        ) : (
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            job.type === 'Internship' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                          }`}>
+                            {job.type}
+                          </span>
+                        )}
                         {isMine && (
                           <span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.2 rounded">
                             Yours

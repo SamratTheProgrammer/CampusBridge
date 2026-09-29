@@ -10,6 +10,7 @@ export const calculateStudentProfileProgress = (mongoData, clerkUser) => {
   const aboutMe = mongoData?.aboutMe || clerkUser.unsafeMetadata?.aboutMe || '';
   
   const skills = mongoData?.skills?.length ? mongoData.skills : (clerkUser.unsafeMetadata?.skills || []);
+  const languages = mongoData?.languages?.length ? mongoData.languages : (clerkUser.unsafeMetadata?.languages || []);
   const education = mongoData?.education?.length ? mongoData.education : (clerkUser.unsafeMetadata?.education || []);
   const experience = mongoData?.experience?.length ? mongoData.experience : (clerkUser.unsafeMetadata?.experience || []);
   const resumeUrl = mongoData?.resumeUrl || clerkUser.unsafeMetadata?.resumeUrl || '';
@@ -17,7 +18,7 @@ export const calculateStudentProfileProgress = (mongoData, clerkUser) => {
   let score = 0;
   
   // Weights (Total: 100%)
-  // 1. Resume Upload (20%) - Core requirement for job, internship & mentorship matching!
+  // 1. Resume Upload (20%)
   if (resumeUrl && resumeUrl.trim()) score += 20;
 
   // 2. Profile Photo (15%)
@@ -29,14 +30,17 @@ export const calculateStudentProfileProgress = (mongoData, clerkUser) => {
   // 4. Education History (15%)
   if (education.length > 0) score += 15;
 
-  // 5. Technical Skills (15%)
-  if (skills.length > 0) score += 15;
+  // 5. Technical Skills (10%)
+  if (skills.length > 0) score += 10;
 
-  // 6. About Me / Bio (10%)
+  // 6. Languages Known (10%)
+  if (languages.length > 0) score += 10;
+
+  // 7. About Me / Bio (10%)
   if (aboutMe.trim() && aboutMe.trim().length >= 10) score += 10;
 
-  // 7. Experience / Projects / Contact (10%)
-  if (experience.length > 0 || (location.trim() && (phone.trim() || address.trim()))) score += 10;
+  // 8. Experience / Projects / Contact (5%)
+  if (experience.length > 0 || (location.trim() && (phone.trim() || address.trim()))) score += 5;
 
   return Math.min(100, score);
 };
@@ -50,6 +54,7 @@ export const getStudentMissingItems = (mongoData, clerkUser) => {
   const headline = mongoData?.headline || clerkUser.unsafeMetadata?.headline || '';
   const aboutMe = mongoData?.aboutMe || clerkUser.unsafeMetadata?.aboutMe || '';
   const skills = mongoData?.skills?.length ? mongoData.skills : (clerkUser.unsafeMetadata?.skills || []);
+  const languages = mongoData?.languages?.length ? mongoData.languages : (clerkUser.unsafeMetadata?.languages || []);
   const education = mongoData?.education?.length ? mongoData.education : (clerkUser.unsafeMetadata?.education || []);
   const experience = mongoData?.experience?.length ? mongoData.experience : (clerkUser.unsafeMetadata?.experience || []);
 
@@ -66,13 +71,16 @@ export const getStudentMissingItems = (mongoData, clerkUser) => {
     missing.push('Education History (+15%)');
   }
   if (!skills || skills.length === 0) {
-    missing.push('Skills (+15%)');
+    missing.push('Skills (+10%)');
+  }
+  if (!languages || languages.length === 0) {
+    missing.push('Languages Known (+10%)');
   }
   if (!aboutMe || aboutMe.trim().length < 10) {
     missing.push('About Me Bio (+10%)');
   }
   if (!experience || experience.length === 0) {
-    missing.push('Experience / Projects (+10%)');
+    missing.push('Experience / Contact (+5%)');
   }
 
   return missing;

@@ -61,6 +61,16 @@ const userSchema = new mongoose.Schema({
     enum: ['public', 'private'],
     default: 'private',
   },
+  dobVisibility: {
+    type: String,
+    enum: ['public', 'private', 'connections'],
+    default: 'public',
+  },
+  dobFormat: {
+    type: String,
+    enum: ['full', 'day_month', 'hidden'],
+    default: 'full',
+  },
   gender: {
     type: String,
     enum: ['Male', 'Female', 'Other', 'Prefer not to say'],
@@ -92,6 +102,14 @@ const userSchema = new mongoose.Schema({
   }],
   skills: [{
     type: String
+  }],
+  languages: [{
+    language: String,
+    proficiency: {
+      type: String,
+      enum: ['Basic', 'Intermediate', 'Advanced', 'Native', 'Fluent'],
+      default: 'Intermediate'
+    }
   }],
   createdAt: {
     type: Date,

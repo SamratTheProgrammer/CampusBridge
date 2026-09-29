@@ -13,6 +13,7 @@ import ImageViewerModal from './ImageViewerModal';
 import ModalPortal from './modals/ModalPortal';
 import { socket } from '../services/socket';
 import FormattedPostText from './common/FormattedPostText';
+import PostCaption from './common/PostCaption';
 import AudioPlayerWidget from './common/AudioPlayerWidget';
 
 const optimizeUrl = (url) => {
@@ -762,9 +763,7 @@ const SharedItemViewer = () => {
                                   </button>
                                 </span>
                               ) : (
-                                <span className="text-sm text-white md:text-foreground whitespace-pre-wrap leading-relaxed drop-shadow-md md:drop-shadow-none">
-                                  <FormattedPostText text={data.content} />
-                                </span>
+                                <PostCaption content={data.content} textClassName="text-white md:text-foreground drop-shadow-md md:drop-shadow-none" />
                               )}
                             </div>
                           )}

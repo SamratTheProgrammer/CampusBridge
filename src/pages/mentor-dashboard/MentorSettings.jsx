@@ -22,6 +22,8 @@ import API_BASE from '../../utils/api'
 import { useTheme } from '../../components/ThemeProvider'
 import { useProfileData } from '../../context/ProfileDataContext'
 import DeviceSessionsManager from '../../components/settings/DeviceSessionsManager'
+import TranslationLanguageSetting from '../../components/settings/TranslationLanguageSetting'
+import LanguagesManager from '../../components/settings/LanguagesManager'
 
 const MentorSettings = () => {
   const { user, isLoaded } = useUser()
@@ -50,12 +52,15 @@ const MentorSettings = () => {
   const [yearsOfExperience, setYearsOfExperience] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [ageVisibility, setAgeVisibility] = useState('private')
+  const [dobVisibility, setDobVisibility] = useState('public')
+  const [dobFormat, setDobFormat] = useState('full')
   const [gender, setGender] = useState('Prefer not to say')
   
-  // Work Experience, Education, Skills, Resume State
+  // Work Experience, Education, Skills, Languages, Resume State
   const [experienceList, setExperienceList] = useState([])
   const [educationList, setEducationList] = useState([])
   const [skillsList, setSkillsList] = useState([])
+  const [languagesList, setLanguagesList] = useState([])
   const [resumeUrl, setResumeUrl] = useState('')
   const [isUploadingResume, setIsUploadingResume] = useState(false)
 
@@ -227,9 +232,12 @@ const MentorSettings = () => {
         setExperienceList(Array.isArray(mongoProfile.experience) ? mongoProfile.experience : []);
         setEducationList(Array.isArray(mongoProfile.education) ? mongoProfile.education : []);
         setSkillsList(Array.isArray(mongoProfile.skills) ? mongoProfile.skills : []);
+        setLanguagesList(Array.isArray(mongoProfile.languages) ? mongoProfile.languages : []);
         setResumeUrl(mongoProfile.resumeUrl || '');
         setDateOfBirth(mongoProfile.dateOfBirth || '');
         if (mongoProfile.ageVisibility) setAgeVisibility(mongoProfile.ageVisibility);
+        if (mongoProfile.dobVisibility) setDobVisibility(mongoProfile.dobVisibility);
+        if (mongoProfile.dobFormat) setDobFormat(mongoProfile.dobFormat);
         if (mongoProfile.gender) setGender(mongoProfile.gender);
         if (mongoProfile.profileVisibility) setProfileVisibility(mongoProfile.profileVisibility);
         
@@ -475,9 +483,12 @@ const MentorSettings = () => {
           experience: experienceList,
           education: educationList,
           skills: skillsList,
+          languages: languagesList,
           resumeUrl,
           dateOfBirth,
           ageVisibility,
+          dobVisibility,
+          dobFormat,
           gender,
           profileVisibility
         })
@@ -608,8 +619,8 @@ const MentorSettings = () => {
             onClick={() => setActiveTab('appearance')}
             className={`flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all text-left whitespace-nowrap shrink-0 ${activeTab === 'appearance' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
           >
-            <Palette className="w-4 h-4 shrink-0" /> 
-            <span>Appearance</span>
+            <Globe className="w-4 h-4 shrink-0" /> 
+            <span>Appearance & Language</span>
           </button>
 
           <button 
@@ -813,28 +824,62 @@ const MentorSettings = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Date of Birth</label>
-                    <input 
-                      type="date" 
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                    />
+                <div className="space-y-2 bg-muted/20 border border-border/50 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-semibold text-foreground">
+                      Age Settings
+                    </label>
                   </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">Date of Birth</label>
+                      <input 
+                        type="date" 
+                        value={dateOfBirth} 
+                        onChange={(e) => setDateOfBirth(e.target.value)} 
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">Birthday Visibility</label>
+                      <select 
+                        value={dobVisibility} 
+                        onChange={(e) => setDobVisibility(e.target.value)} 
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      >
+                        <option value="public">Public (Everyone)</option>
+                        <option value="connections">Connections Only</option>
+                        <option value="private">Private (Only me)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">Date Format</label>
+                      <select 
+                        value={dobFormat} 
+                        onChange={(e) => setDobFormat(e.target.value)} 
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      >
+                        <option value="full">Full Date (Day, Month & Year)</option>
+                        <option value="day_month">Day & Month only (Hide year)</option>
+                        <option value="hidden">Hide Date completely</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">Age Display</label>
+                      <select 
+                        value={ageVisibility} 
+                        onChange={(e) => setAgeVisibility(e.target.value)} 
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      >
+                        <option value="public">Show Age (e.g. 26 yrs)</option>
+                        <option value="private">Hide Age</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Age Visibility</label>
-                    <select 
-                      value={ageVisibility}
-                      onChange={(e) => setAgeVisibility(e.target.value)}
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="public">Public</option>
-                      <option value="private">Private (Hidden)</option>
-                    </select>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1.5">Gender</label>
                     <select 
@@ -1206,6 +1251,14 @@ const MentorSettings = () => {
                       </span>
                     ))}
                   </div>
+
+                  {/* Languages Known Manager (+10% Profile Completion) */}
+                  <div className="pt-4 border-t border-border/30">
+                    <LanguagesManager 
+                      languages={languagesList} 
+                      onChange={setLanguagesList} 
+                    />
+                  </div>
                 </div>
 
                 {/* 4. RESUME UPLOAD SECTION */}
@@ -1379,6 +1432,9 @@ const MentorSettings = () => {
                     : 'The standard CampusBridge purple theme is currently active platform-wide. When college festivals or national holidays occur, special celebrations and festive accents will illuminate the app automatically.'}
                 </p>
               </div>
+
+              {/* Feed & Post Caption Translation Preference */}
+              <TranslationLanguageSetting />
             </div>
           )}
 

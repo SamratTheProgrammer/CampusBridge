@@ -29,6 +29,7 @@ import AppAnnouncementBar from './components/common/AppAnnouncementBar'
 import { DynamicLayoutWrapper, ProfileDispatcher } from './components/UnifiedProfileRoute'
 import { ProfileDataProvider } from './context/ProfileDataContext'
 import ringtoneService from './utils/ringtone'
+import GoogleTranslateManager from './components/common/GoogleTranslateManager'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_dG91Y2hpbmctYmFzcy04MC5jbGVyay5hY2NvdW50cy5kZXYk'
 
@@ -168,7 +169,7 @@ function RootIndex() {
 
   return (
     <PageTransition>
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-200">
         <Navbar />
         <main className="flex-1">
           <LandingPage />
@@ -367,6 +368,7 @@ function App() {
             <CapacitorInit />
             <SessionManager />
             <ScrollToHash />
+            <GoogleTranslateManager />
             <ErrorBoundary>
               <AnimatedRoutes />
             </ErrorBoundary>

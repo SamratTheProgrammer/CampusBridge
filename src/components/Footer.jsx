@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Shield, Smartphone, Apple, Download } from 'lucide-react'
+import LanguageSwitcher from './common/LanguageSwitcher'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
 import footerBg from '../assets/footer-logo.png'
@@ -120,9 +121,10 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t pt-8 flex flex-col md:flex-row items-center justify-between text-sm text-muted-foreground">
+        <div className="border-t pt-8 flex flex-col md:flex-row items-center justify-between text-sm text-muted-foreground gap-4">
           <p>&copy; {new Date().getFullYear()} CampusBridge. All rights reserved.</p>
-          <div className="flex gap-4 mt-4 md:mt-0 items-center">
+          <div className="flex flex-wrap gap-4 items-center justify-center md:justify-end">
+            <LanguageSwitcher dropUp={true} />
             <Link to="/#download-app" className="hover:text-primary transition-colors flex items-center gap-1 font-medium">
               <Smartphone className="w-3.5 h-3.5" /> Get App
             </Link>

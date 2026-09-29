@@ -1,14 +1,45 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ShieldAlert, LogOut, KeyRound, MapPin, Clock, ArrowRight } from 'lucide-react';
 import ringtoneService from '../../utils/ringtone';
 
 const SessionDisconnectModal = ({ isOpen, disconnectDetails, onConfirmLogin, onResetPassword }) => {
+  const [countdown, setCountdown] = useState(5);
+  const onConfirmLoginRef = useRef(onConfirmLogin);
+
+  useEffect(() => {
+    onConfirmLoginRef.current = onConfirmLogin;
+  }, [onConfirmLogin]);
+
   useEffect(() => {
     if (isOpen) {
       try {
         ringtoneService.playNotificationSound(true);
       } catch (e) {}
     }
+  }, [isOpen]);
+
+  // 5-second countdown timer to auto-redirect to login page
+  useEffect(() => {
+    if (!isOpen) {
+      setCountdown(5);
+      return;
+    }
+
+    setCountdown(5);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          if (onConfirmLoginRef.current) {
+            onConfirmLoginRef.current();
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -46,13 +77,21 @@ const SessionDisconnectModal = ({ isOpen, disconnectDetails, onConfirmLogin, onR
           Logged Out Remotely
         </h2>
         
-        {/* Bengali & English explanatory text */}
-        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-5">
-          আপনার অ্যাকাউন্টটি অন্য ডিভাইস থেকে ডিসকানেক্ট করা হয়েছে।
-          <span className="block mt-1 font-normal text-muted-foreground/90">
-            Your session on this device was terminated remotely for your account security.
-          </span>
+        {/* Explanatory text */}
+        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
+          Your session on this device was terminated remotely for your account security.
         </p>
+
+        {/* Auto-redirect countdown notice */}
+        <div className="flex items-center justify-center gap-2 mb-5 px-3.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/20 text-xs font-medium text-destructive">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+          </span>
+          <span>
+            Redirecting to login in <strong className="font-bold">{countdown}s</strong>...
+          </span>
+        </div>
 
         {/* Details Card */}
         <div className="bg-muted/40 border border-border/60 rounded-2xl p-4 text-left space-y-2.5 mb-6 text-xs">
@@ -97,7 +136,7 @@ const SessionDisconnectModal = ({ isOpen, disconnectDetails, onConfirmLogin, onR
             onClick={onConfirmLogin}
             className="w-full py-3 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>Log In Again</span>
+            <span>Log In Again ({countdown}s)</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 

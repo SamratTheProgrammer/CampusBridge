@@ -126,11 +126,18 @@ const Jobs = () => {
                     onError={(e) => handleImageError(e, job.company)}
                   />
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full 
-                  ${job.type === 'Internship' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}
-                >
-                  {job.type}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {job.deadline && new Date() > new Date(job.deadline) && (
+                    <span className="bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
+                    </span>
+                  )}
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full 
+                    ${job.type === 'Internship' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}
+                  >
+                    {job.type}
+                  </span>
+                </div>
               </div>
 
               <div className="flex-1">

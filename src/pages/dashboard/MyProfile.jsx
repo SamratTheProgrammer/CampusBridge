@@ -1,6 +1,6 @@
 import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle, Loader2, MessageSquareOff, Eye, EyeOff, Download, Copy } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle, Loader2, MessageSquareOff, Eye, EyeOff, Download, Copy, Languages } from 'lucide-react'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -17,6 +17,7 @@ import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
 import FormattedPostText from '../../components/common/FormattedPostText'
+import PostCaption from '../../components/common/PostCaption'
 import { downloadMediaFile } from '../../utils/downloadHelper'
 import ModalPortal from '../../components/modals/ModalPortal'
 import ShareModal from '../../components/modals/ShareModal'
@@ -25,6 +26,8 @@ import ImageViewerModal from '../../components/ImageViewerModal'
 import { formatTime } from '../../utils/dateFormatter'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import { useProfileData } from '../../context/ProfileDataContext'
+import BirthdayBanner, { checkIsBirthdayToday } from '../../components/common/BirthdayBanner'
+import { getProficiencyBadgeClass } from '../../components/settings/LanguagesManager'
 
 const MyProfile = () => {
   const navigate = useNavigate()
@@ -655,6 +658,12 @@ const MyProfile = () => {
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 sm:pb-8">
+      {/* Facebook-style Birthday Celebratory Banner */}
+      <BirthdayBanner 
+        user={dbUser || mongoProfile || user} 
+        currentUser={user} 
+        isOwnProfile={true} 
+      />
       
       {/* Header Profile Card */}
       <div className="bg-card border-x-0 border-t-0 sm:border border-border/50 rounded-none sm:rounded-2xl overflow-hidden shadow-sm relative">
@@ -779,10 +788,39 @@ const MyProfile = () => {
                   {dbUser?.address || user?.unsafeMetadata?.address}
                 </span>
               )}
-              {dbUser?.dateOfBirth && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
-                  {Math.floor((new Date() - new Date(dbUser.dateOfBirth).getTime()) / 3.15576e+10)} years old {dbUser.ageVisibility === 'private' ? '(Hidden)' : ''}
+              {(dbUser?.dateOfBirth || mongoProfile?.dateOfBirth) && (
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  {Math.floor((new Date() - new Date(dbUser?.dateOfBirth || mongoProfile?.dateOfBirth).getTime()) / 3.15576e+10)} years old
+                  {(dbUser?.ageVisibility || mongoProfile?.ageVisibility) === 'private' && (
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border/50">Private</span>
+                  )}
+                </span>
+              )}
+              {(dbUser?.dateOfBirth || mongoProfile?.dateOfBirth) && (dbUser?.dobFormat || mongoProfile?.dobFormat) !== 'hidden' && (
+                <span className="flex items-center gap-1.5">
+                  <span className="text-sm">🎂</span>
+                  {(() => {
+                    const dob = dbUser?.dateOfBirth || mongoProfile?.dateOfBirth;
+                    const d = new Date(dob);
+                    if (isNaN(d.getTime())) return null;
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const format = dbUser?.dobFormat || mongoProfile?.dobFormat || 'full';
+                    if (format === 'day_month') {
+                      return `Birthday: ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+                    }
+                    return `Born: ${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+                  })()}
+                  {(dbUser?.dobVisibility || mongoProfile?.dobVisibility) && (dbUser?.dobVisibility || mongoProfile?.dobVisibility) !== 'public' && (
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border/50 capitalize">
+                      {dbUser?.dobVisibility || mongoProfile?.dobVisibility}
+                    </span>
+                  )}
+                </span>
+              )}
+              {checkIsBirthdayToday(dbUser?.dateOfBirth || mongoProfile?.dateOfBirth) && (
+                <span className="px-2 py-0.5 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-600 dark:text-pink-400 text-xs font-bold flex items-center gap-1 animate-pulse">
+                  🎈 Birthday Today!
                 </span>
               )}
               {dbUser?.gender && dbUser.gender !== 'Prefer not to say' && (
@@ -856,6 +894,32 @@ const MyProfile = () => {
               )}
             </div>
           </div>
+
+          {/* Languages Known Card */}
+          {((dbUser?.languages || mongoProfile?.languages || user?.unsafeMetadata?.languages) || []).length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                <Languages className="w-5 h-5 text-primary" />
+                Languages Known
+              </h3>
+              <div className="flex flex-wrap gap-2.5">
+                {(dbUser?.languages || mongoProfile?.languages || user?.unsafeMetadata?.languages).map((item, idx) => {
+                  const langName = typeof item === 'object' ? item.language : item;
+                  const prof = typeof item === 'object' ? item.proficiency : null;
+                  return (
+                    <div key={idx} className="bg-muted border border-border/50 rounded-xl px-3.5 py-1.5 flex items-center gap-2">
+                      <span className="text-xs font-bold text-foreground">{langName}</span>
+                      {prof && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${getProficiencyBadgeClass(prof)}`}>
+                          {prof}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {(dbUser?.resumeUrl || user?.unsafeMetadata?.resumeUrl) && (
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
@@ -1142,7 +1206,7 @@ const MyProfile = () => {
                       id={`post-${post._id}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+                      className="bg-card border border-border/50 rounded-2xl shadow-sm"
                     >
                       <div className="p-4 sm:p-5">
                         <div className="flex items-start justify-between mb-4">
@@ -1270,17 +1334,7 @@ const MyProfile = () => {
                           </div>
                         ) : (
                           <>
-                            {post.bgGradient ? (
-                              <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
-                                <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
-                                  <FormattedPostText text={post.content} isGradient={true} />
-                                </h2>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                                <FormattedPostText text={post.content} />
-                              </p>
-                            )}
+                            <PostCaption content={post.content} bgGradient={post.bgGradient} />
                             
                             {post.eventDetails && post.eventDetails.title && (
                               <div 

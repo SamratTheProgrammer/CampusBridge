@@ -16,6 +16,7 @@ import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FeedMediaGrid from '../../components/FeedMediaGrid'
 import ImageViewerModal from '../../components/ImageViewerModal'
 import FormattedPostText from '../../components/common/FormattedPostText'
+import PostCaption from '../../components/common/PostCaption'
 import { formatTime } from '../../utils/dateFormatter'
 import { formatRoleSubtitle } from '../../utils/textFormatters'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
@@ -1361,8 +1362,41 @@ const MentorHome = () => {
             </div>
           )}
 
-          <div className={`flex items-center justify-between pt-2 gap-2 flex-nowrap relative ${showNewPostEmojiPicker ? 'z-0' : 'z-20'}`}>
-            <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-nowrap overflow-visible shrink min-w-0 py-0.5 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
+          {/* Attached Job Preview Card (shown directly below textarea so text appears below) */}
+          {newJobDetails.title && (
+            <div className="mt-3 flex items-start sm:items-center justify-between gap-3 p-3 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-transparent border border-purple-500/30 rounded-xl text-xs animate-in fade-in duration-150">
+              <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 tracking-wider">Attached Job</span>
+                    <span className="text-[10px] text-muted-foreground">• {newJobDetails.role || 'Full-time'}</span>
+                  </div>
+                  <h4 className="font-bold text-foreground text-xs sm:text-sm break-words line-clamp-2 mt-0.5">
+                    {newJobDetails.title} {newJobDetails.company ? <span className="font-normal text-muted-foreground">at {newJobDetails.company}</span> : ''}
+                  </h4>
+                  {newJobDetails.location && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
+                      📍 {newJobDetails.location}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setNewJobDetails({ title: '', company: '', location: '', role: 'Full-time', source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: '', companyLogo: '' })}
+                className="p-1.5 hover:bg-purple-500/20 text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Remove Job"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <div className={`flex items-center justify-between pt-2 gap-2 flex-wrap relative ${showNewPostEmojiPicker ? 'z-0' : 'z-20'}`}>
+            <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-wrap overflow-visible shrink min-w-0 py-0.5 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -1453,7 +1487,7 @@ const MentorHome = () => {
               </button>
 
               <button 
-                type="button"
+                type="button" 
                 onClick={() => { setShowGradients(!showGradients); setNewPostMedia([]); }} 
                 className="flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-xs sm:text-sm whitespace-nowrap shrink-0"
                 title="Background Color"
@@ -1463,19 +1497,20 @@ const MentorHome = () => {
               </button>
 
               <button 
-                type="button"
+                type="button" 
                 onClick={() => setIsJobModalOpen(true)} 
-                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}
+                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600 font-semibold' : 'hover:bg-muted text-purple-500'}`}
                 title="Attach Job"
               >
                 <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
-                <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
+                <span className="hidden sm:inline">Job</span>
+                {newJobDetails.title && <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />}
               </button>
             </div>
             <button 
               onClick={handleCreatePost}
-              disabled={!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title && !attachedLinkPreview}
-              className="bg-primary text-primary-foreground px-4 sm:px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 shrink-0 ml-2 cursor-pointer active:scale-95"
+              disabled={!newPostContent.trim() && newPostMedia.length === 0 && !newJobDetails.title && !attachedLinkPreview}
+              className="bg-primary text-primary-foreground px-4 sm:px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 shrink-0 ml-auto cursor-pointer active:scale-95"
             >
               Post
             </button>
@@ -1638,7 +1673,7 @@ const MentorHome = () => {
                   id={`post-${post._id}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm"
+                  className="bg-card border border-border/50 rounded-2xl shadow-sm"
                 >
                   <div className="p-4 sm:p-5">
                     <div className="flex items-start justify-between mb-4">
@@ -1811,16 +1846,8 @@ const MentorHome = () => {
                           </div>
                         </div>
                       </div>
-                    ) : post.bgGradient ? (
-                      <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
-                        <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
-                          <FormattedPostText text={post.content} isGradient={true} />
-                        </h2>
-                      </div>
                     ) : (
-                      <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                        <FormattedPostText text={post.content} />
-                      </p>
+                      <PostCaption content={post.content} bgGradient={post.bgGradient} />
                     )}
 
                     {post.eventDetails && post.eventDetails.title && (

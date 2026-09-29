@@ -9,6 +9,7 @@ import ImageCropModal from '../../components/ImageCropModal'
 import PeopleYouMayKnow from '../../components/dashboard/PeopleYouMayKnow'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import FormattedPostText from '../../components/common/FormattedPostText'
+import PostCaption from '../../components/common/PostCaption'
 import { formatTime } from '../../utils/dateFormatter'
 import { formatMentorSubtitle } from '../../utils/textFormatters'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
@@ -1452,8 +1453,72 @@ const DashboardHome = () => {
             </div>
           )}
 
-          <div className={`flex items-center justify-between pt-2 gap-2 flex-nowrap relative ${showEmojiPicker ? 'z-0' : 'z-20'}`}>
-            <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-nowrap shrink min-w-0 py-0.5 overflow-visible ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
+          {/* Attached Event Preview Card (shown directly below textarea so text appears below) */}
+          {newEventDetails.title && (
+            <div className="mt-3 flex items-start sm:items-center justify-between gap-3 p-3 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent border border-orange-500/30 rounded-xl text-xs animate-in fade-in duration-150">
+              <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                  <CalendarIcon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] uppercase font-bold text-orange-600 dark:text-orange-400 tracking-wider">Attached Event</span>
+                    <span className="text-[10px] text-muted-foreground">• {newEventDetails.format === 'online' ? 'Online' : 'Offline'}</span>
+                  </div>
+                  <h4 className="font-bold text-foreground text-xs sm:text-sm break-words line-clamp-2 mt-0.5">{newEventDetails.title}</h4>
+                  {newEventDetails.date && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
+                      📅 {new Date(newEventDetails.date).toLocaleDateString()} {newEventDetails.time ? `• ⏰ ${newEventDetails.time}` : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setNewEventDetails({ title: '', type: 'Study Group', format: 'online', date: '', time: '', location: '', source: 'manual', campusBridgeEventId: '', imageUrl: '' })}
+                className="p-1.5 hover:bg-orange-500/20 text-muted-foreground hover:text-orange-600 dark:hover:text-orange-400 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Remove Event"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Attached Job Preview Card (shown directly below textarea so text appears below) */}
+          {newJobDetails.title && (
+            <div className="mt-3 flex items-start sm:items-center justify-between gap-3 p-3 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-transparent border border-purple-500/30 rounded-xl text-xs animate-in fade-in duration-150">
+              <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 tracking-wider">Attached Job</span>
+                    <span className="text-[10px] text-muted-foreground">• {newJobDetails.role || 'Full-time'}</span>
+                  </div>
+                  <h4 className="font-bold text-foreground text-xs sm:text-sm break-words line-clamp-2 mt-0.5">
+                    {newJobDetails.title} {newJobDetails.company ? <span className="font-normal text-muted-foreground">at {newJobDetails.company}</span> : ''}
+                  </h4>
+                  {newJobDetails.location && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
+                      📍 {newJobDetails.location}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setNewJobDetails({ title: '', company: '', location: '', role: 'Full-time', source: 'manual', locationType: 'india', city: '', country: '', campusBridgeJobId: '', companyLogo: '' })}
+                className="p-1.5 hover:bg-purple-500/20 text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Remove Job"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <div className={`flex items-center justify-between pt-2 gap-2 flex-wrap relative ${showEmojiPicker ? 'z-0' : 'z-20'}`}>
+            <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-wrap shrink min-w-0 py-0.5 overflow-visible ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -1544,7 +1609,7 @@ const DashboardHome = () => {
               </button>
 
               <button 
-                type="button"
+                type="button" 
                 onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} 
                 className="flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-xs sm:text-sm whitespace-nowrap shrink-0"
                 title="Background Color"
@@ -1556,27 +1621,29 @@ const DashboardHome = () => {
               <button 
                 type="button"
                 onClick={() => setIsEventModalOpen(true)} 
-                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600' : 'hover:bg-muted text-orange-500'}`}
+                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600 font-semibold' : 'hover:bg-muted text-orange-500'}`}
                 title="Attach Event"
               >
                 <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
-                <span className="hidden sm:inline">{newEventDetails.title ? 'Event Attached' : 'Event'}</span>
+                <span className="hidden sm:inline">Event</span>
+                {newEventDetails.title && <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />}
               </button>
 
               <button 
                 type="button"
                 onClick={() => setIsJobModalOpen(true)} 
-                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600' : 'hover:bg-muted text-purple-500'}`}
+                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600 font-semibold' : 'hover:bg-muted text-purple-500'}`}
                 title="Attach Job"
               >
                 <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
-                <span className="hidden sm:inline">{newJobDetails.title ? 'Job Attached' : 'Job'}</span>
+                <span className="hidden sm:inline">Job</span>
+                {newJobDetails.title && <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />}
               </button>
             </div>
             <button 
               onClick={handleCreatePost}
               disabled={!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title && !attachedLinkPreview}
-              className="bg-primary text-primary-foreground px-4 sm:px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 shrink-0 ml-2 cursor-pointer active:scale-95"
+              className="bg-primary text-primary-foreground px-4 sm:px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 shrink-0 ml-auto cursor-pointer active:scale-95"
             >
               Post
             </button>
@@ -1771,10 +1838,10 @@ const DashboardHome = () => {
                   id={`post-${post._id}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm relative"
+                  className="bg-card border border-border/50 rounded-2xl shadow-sm relative"
                 >
                   {post.moderationStatus === 'paused' && (
-                    <div className="bg-amber-500/10 text-amber-500 text-xs font-bold py-1.5 px-4 text-center border-b border-amber-500/20">
+                    <div className="bg-amber-500/10 text-amber-500 text-xs font-bold py-1.5 px-4 text-center border-b border-amber-500/20 rounded-t-2xl">
                       Paused by Admin: {post.moderationRemark || 'Under review'}
                     </div>
                   )}
@@ -1951,16 +2018,8 @@ const DashboardHome = () => {
                           </div>
                         </div>
                       </div>
-                    ) : post.bgGradient ? (
-                      <div className={`w-full min-h-[250px] rounded-xl flex items-center justify-center p-6 ${post.bgGradient} mb-4`}>
-                        <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-snug whitespace-pre-wrap drop-shadow-md">
-                          <FormattedPostText text={post.content} isGradient={true} />
-                        </h2>
-                      </div>
                     ) : (
-                      <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-4">
-                        <FormattedPostText text={post.content} />
-                      </p>
+                      <PostCaption content={post.content} bgGradient={post.bgGradient} />
                     )}
 
                     {post.eventDetails && post.eventDetails.title && (
