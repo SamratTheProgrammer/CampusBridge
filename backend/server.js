@@ -490,6 +490,14 @@ io.on('connection', (socket) => {
         { isRead: true }
       );
       io.to(conversationId).emit('messages_read', { conversationId, userId });
+      if (userId) {
+        emitToUserSockets(userId, 'messages_read', { conversationId, userId });
+      }
+      const participants = conversationId ? conversationId.split('_') : [];
+      const otherUserId = participants.find((id) => id !== userId);
+      if (otherUserId) {
+        emitToUserSockets(otherUserId, 'messages_read', { conversationId, userId });
+      }
     } catch (err) {
       console.error('Socket mark_read error:', err);
     }

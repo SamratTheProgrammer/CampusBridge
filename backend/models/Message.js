@@ -46,7 +46,8 @@ const messageSchema = new mongoose.Schema({
     imageUrl: String,
     mediaType: String,
     authorName: String,
-    authorAvatar: String
+    authorAvatar: String,
+    isDeleted: { type: Boolean, default: false }
   },
   callInfo: {
     callType: { type: String, enum: ['video', 'audio'] },

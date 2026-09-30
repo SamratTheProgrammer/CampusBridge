@@ -55,6 +55,22 @@ const SharedItemViewer = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [mediaAspectRatio, setMediaAspectRatio] = useState(null);
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const customFormatTime = (date) => {
     if (!date) return '';
@@ -85,7 +101,11 @@ const SharedItemViewer = () => {
         const json = await res.json();
         setData(json);
       } else if (!silent) {
-        toast.error('Failed to load shared item');
+        if (res.status === 404) {
+          toast.error('This post has been deleted and is no longer available');
+        } else {
+          toast.error('Failed to load shared item');
+        }
         closeModal();
       }
     } catch (err) {
@@ -350,33 +370,156 @@ const SharedItemViewer = () => {
     navigate(`${location.pathname}${newSearch}`, { replace: true });
   };
 
+  const safeMediaList = (data?.mediaFiles && data.mediaFiles.length > 0)
+    ? data.mediaFiles.filter(m => !!m?.url)
+    : (data?.imageUrl ? [{ url: data.imageUrl, mediaType: data.mediaType || 'image' }] : []);
+
+  const safeIndex = Math.min(Math.max(currentMediaIndex, 0), Math.max(0, safeMediaList.length - 1));
+  const activeMedia = safeMediaList[safeIndex] || null;
+
+  const isAudio = activeMedia?.mediaType === 'audio' || (activeMedia?.url && activeMedia.url.match(/\.(mp3|wav|ogg|m4a|aac|webm)(\?.*)?$/i));
+  const isVideo = !isAudio && (activeMedia?.mediaType === 'video' || (activeMedia?.url && activeMedia.url.match(/\.(mp4|webm|ogg)$/i)));
+  const hasVisualMedia = Boolean(activeMedia && !isAudio);
+
+  useEffect(() => {
+    if (!data) return;
+
+    if (!hasVisualMedia) {
+      if (data.eventDetails?.imageUrl || data.eventDetails?.image) {
+        const posterUrl = optimizeUrl(data.eventDetails.imageUrl || data.eventDetails.image);
+        const img = new Image();
+        img.src = posterUrl;
+        if (img.complete && img.naturalWidth && img.naturalHeight) {
+          setMediaAspectRatio(img.naturalWidth / img.naturalHeight);
+        } else {
+          img.onload = () => {
+            if (img.naturalWidth && img.naturalHeight) {
+              setMediaAspectRatio(img.naturalWidth / img.naturalHeight);
+            }
+          };
+        }
+      } else {
+        setMediaAspectRatio(1);
+      }
+      return;
+    }
+
+    if (!isVideo && activeMedia?.url) {
+      const img = new Image();
+      img.src = optimizeUrl(activeMedia.url);
+      if (img.complete && img.naturalWidth && img.naturalHeight) {
+        setMediaAspectRatio(img.naturalWidth / img.naturalHeight);
+      } else {
+        img.onload = () => {
+          if (img.naturalWidth && img.naturalHeight) {
+            setMediaAspectRatio(img.naturalWidth / img.naturalHeight);
+          }
+        };
+        img.onerror = () => {
+          setMediaAspectRatio(1);
+        };
+      }
+    } else if (isVideo && activeMedia?.url) {
+      setMediaAspectRatio(prev => prev || (9 / 16));
+      const vid = document.createElement('video');
+      vid.src = activeMedia.url;
+      vid.onloadedmetadata = () => {
+        if (vid.videoWidth && vid.videoHeight) {
+          setMediaAspectRatio(vid.videoWidth / vid.videoHeight);
+        }
+      };
+    }
+  }, [activeMedia?.url, isVideo, hasVisualMedia, data]);
+
+  const isDesktop = windowSize.width >= 768;
+  const rawRatio = mediaAspectRatio || (hasVisualMedia ? (isVideo ? 9 / 16 : 1) : 1);
+  const clampedRatio = Math.max(0.48, Math.min(rawRatio, 2.4));
+  const isReel = isVideo && clampedRatio <= 0.72;
+
+  // Responsive desktop dimensions according to media ratio
+  const sidebarWidth = 400;
+  const maxAvailableH = Math.min(windowSize.height * 0.88, 860);
+  const maxMediaW = Math.max(280, Math.min(windowSize.width * 0.94 - sidebarWidth, 1050));
+
+  let computedMediaW;
+  let computedModalH;
+
+  if (!hasVisualMedia) {
+    computedMediaW = 460;
+    computedModalH = 500;
+  } else if (clampedRatio <= 1) {
+    computedModalH = maxAvailableH;
+    computedMediaW = Math.round(computedModalH * clampedRatio);
+    if (computedMediaW > maxMediaW) {
+      computedMediaW = maxMediaW;
+      computedModalH = Math.round(computedMediaW / clampedRatio);
+    }
+  } else {
+    computedMediaW = Math.min(maxMediaW, Math.round(maxAvailableH * clampedRatio));
+    computedModalH = Math.round(computedMediaW / clampedRatio);
+    if (computedModalH > maxAvailableH) {
+      computedModalH = maxAvailableH;
+      computedMediaW = Math.round(computedModalH * clampedRatio);
+    }
+  }
+
+  const totalModalWidth = computedMediaW + sidebarWidth;
+
   if (!itemType || !itemId) return null;
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black md:bg-black/80 md:backdrop-blur-sm md:p-4 animate-in fade-in duration-200">
-      <div
-        className="absolute inset-0 md:relative bg-card w-full md:w-max md:max-w-[95vw] h-[100dvh] md:h-[90vh] rounded-none md:rounded-2xl overflow-y-auto overflow-x-hidden md:overflow-hidden shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-200 border-0 md:border border-border/50 mx-auto"
-        onClick={(e) => e.stopPropagation()}
+      <div 
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 md:backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200"
+        onClick={closeModal}
       >
-        <button
-          onClick={closeModal}
-          className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors backdrop-blur-md"
+        <div
+          style={isDesktop ? {
+            width: `${totalModalWidth}px`,
+            height: `${computedModalH}px`,
+            maxWidth: '96vw',
+            maxHeight: '90vh'
+          } : (isReel ? {
+            width: '100vw',
+            height: '100dvh'
+          } : {
+            width: 'min(95vw, 500px)',
+            maxHeight: '90dvh'
+          })}
+          className={isDesktop 
+            ? "relative bg-card rounded-2xl overflow-hidden shadow-2xl flex flex-row border border-border/50 mx-auto animate-in zoom-in-95 duration-200 transition-all"
+            : (isReel 
+              ? "fixed inset-0 w-full h-[100dvh] bg-black overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+              : "relative bg-card rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-border/50 mx-auto my-auto max-h-[90dvh] animate-in zoom-in-95 duration-200 transition-all"
+            )
+          }
+          onClick={(e) => e.stopPropagation()}
         >
-          <X className="w-5 h-5" />
-        </button>
+          <button
+            onClick={closeModal}
+            className="absolute top-3 right-3 z-50 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors backdrop-blur-md cursor-pointer shadow-lg"
+            title="Close (Esc)"
+          >
+            <X className="w-5 h-5" />
+          </button>
 
         {isLoading ? (
           <>
             {/* Left Media Area Skeleton */}
-            <div className="absolute inset-0 md:relative w-full md:w-[calc(90vh*9/16)] md:max-w-[calc(100vw-450px)] md:shrink bg-black/5 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-border/50 z-0">
-              <div className="w-24 h-24 rounded-full bg-muted animate-pulse flex items-center justify-center">
+            <div 
+              style={isDesktop ? { width: '460px', height: '100%' } : { width: '100%', height: '240px' }}
+              className="bg-black/5 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-border/50 z-0 shrink-0"
+            >
+              <div className="w-20 h-20 rounded-full bg-muted animate-pulse flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground/50" />
               </div>
             </div>
 
             {/* Right Details Area Skeleton */}
-            <div className="relative w-full md:w-[400px] md:bg-card flex flex-col justify-start h-[100dvh] md:h-full overflow-hidden md:shrink-0 z-10 pt-32 md:pt-4 px-4 pb-4">
+            <div 
+              style={isDesktop ? { width: '400px', height: '100%' } : { width: '100%', flex: 1 }}
+              className="relative bg-card flex flex-col justify-start overflow-hidden shrink-0 z-10 p-4"
+            >
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-full bg-muted animate-pulse"></div>
                 <div className="flex-1 space-y-2">
@@ -398,20 +541,36 @@ const SharedItemViewer = () => {
                      <div className="h-3 bg-muted animate-pulse rounded w-full"></div>
                    </div>
                 </div>
-                <div className="flex gap-3">
-                   <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0"></div>
-                   <div className="flex-1 space-y-2 mt-1">
-                     <div className="h-3 bg-muted animate-pulse rounded w-1/4"></div>
-                     <div className="h-3 bg-muted animate-pulse rounded w-5/6"></div>
-                   </div>
-                </div>
               </div>
             </div>
           </>
         ) : data ? (
           <>
             {/* Left Media Area */}
-            <div className="absolute inset-0 md:relative w-full md:flex-1 md:min-w-0 md:max-w-[calc(100vw-420px)] bg-black flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-border/50 z-0">
+            <div 
+              style={isDesktop ? {
+                width: `${computedMediaW}px`,
+                height: `${computedModalH}px`
+              } : (isReel ? {
+                width: '100%',
+                height: '100%'
+              } : (hasVisualMedia ? {
+                width: '100%',
+                maxHeight: '46dvh',
+                aspectRatio: `${clampedRatio}`
+              } : {
+                width: '100%',
+                minHeight: '180px',
+                maxHeight: '240px'
+              }))}
+              className={isDesktop 
+                ? "relative shrink-0 bg-black flex items-center justify-center overflow-hidden border-r border-border/50 z-0"
+                : (isReel 
+                  ? "absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden z-0"
+                  : "relative w-full bg-black shrink-0 flex items-center justify-center overflow-hidden border-b border-border/50 z-0"
+                )
+              }
+            >
               {itemType === 'post' && (
                 data.jobDetails?.title ? (
                   <div
@@ -516,7 +675,11 @@ const SharedItemViewer = () => {
                           className="w-full h-full flex items-center justify-center cursor-pointer"
                           onTap={() => setViewerData({ files: safeMediaList, index: safeIndex })}
                         >
-                          <AutoPlayVideo src={activeMedia.url} className="w-full max-h-full object-contain bg-black" />
+                          <AutoPlayVideo 
+                            src={activeMedia.url} 
+                            onRatioCalculated={(r) => setMediaAspectRatio(r)}
+                            className="w-full max-h-full object-contain bg-black" 
+                          />
                         </PinchZoomMedia>
                       ) : (
                         <PinchZoomMedia 
@@ -526,6 +689,11 @@ const SharedItemViewer = () => {
                           <img
                             src={optimizedSrc}
                             alt="Post media"
+                            onLoad={(e) => {
+                              if (e.target.naturalWidth && e.target.naturalHeight) {
+                                setMediaAspectRatio(e.target.naturalWidth / e.target.naturalHeight);
+                              }
+                            }}
                             className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         </PinchZoomMedia>
@@ -641,14 +809,33 @@ const SharedItemViewer = () => {
               )}
             </div>
 
-            <div className="relative w-full md:w-[400px] md:bg-card flex flex-col justify-end md:justify-start h-[100dvh] md:h-full overflow-visible md:overflow-hidden md:shrink-0 z-10 pointer-events-none md:pointer-events-auto">
+            <div 
+              style={isDesktop ? {
+                width: `${sidebarWidth}px`,
+                height: `${computedModalH}px`
+              } : (isReel ? {
+                width: '100%',
+                height: '100dvh'
+              } : {
+                width: '100%',
+                flex: 1,
+                maxHeight: 'calc(90dvh - 200px)'
+              })}
+              className={isDesktop
+                ? "relative flex flex-col justify-start bg-card overflow-hidden shrink-0 z-10"
+                : (isReel
+                  ? "relative w-full flex flex-col justify-end h-[100dvh] pointer-events-none z-10"
+                  : "relative w-full flex-1 flex flex-col justify-start bg-card overflow-y-auto pointer-events-auto z-10"
+                )
+              }
+            >
 
-              {/* Spacer on mobile to push content down, allowing taps to pass through */}
-              <div className="flex-1 md:hidden pointer-events-none"></div>
+              {/* Spacer on mobile to push content down, allowing taps to pass through (only for vertical Reels) */}
+              {isReel && !isDesktop && <div className="flex-1 pointer-events-none"></div>}
 
-              {/* Mobile Floating Engagement Actions (Instagram Reels style) */}
-              {itemType === 'post' && (
-                <div className="absolute right-3 bottom-4 flex flex-col items-center gap-6 z-20 md:hidden pointer-events-auto pb-6">
+              {/* Mobile Floating Engagement Actions (Instagram Reels style - ONLY for vertical Reels) */}
+              {itemType === 'post' && isReel && !isDesktop && (
+                <div className="absolute right-3 bottom-4 flex flex-col items-center gap-6 z-20 pointer-events-auto pb-6">
                   <button
                     onClick={handleLike}
                     className="flex flex-col items-center gap-1 transition-transform active:scale-95"
@@ -694,9 +881,9 @@ const SharedItemViewer = () => {
                               setIsMenuOpen(false);
                               handleDeletePost();
                             }}
-                            className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                            className="w-full text-left px-3 py-2 text-sm text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-500/10 font-medium flex items-center gap-2 transition-colors cursor-pointer"
                           >
-                            <Trash2 className="w-4 h-4" /> Delete
+                            <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete
                           </button>
                         </div>
                       )}
@@ -705,7 +892,10 @@ const SharedItemViewer = () => {
                 </div>
               )}
 
-              <div className="w-full bg-gradient-to-t from-black/95 via-black/70 to-transparent md:bg-none flex flex-col pt-32 md:pt-0 md:h-full md:flex-1 pointer-events-none md:pointer-events-auto">
+              <div className={isReel && !isDesktop
+                ? "w-full bg-gradient-to-t from-black/95 via-black/70 to-transparent flex flex-col pt-32 pointer-events-none"
+                : "w-full bg-none flex flex-col h-full flex-1 pointer-events-auto"
+              }>
 
                 {/* Header: Author / Company Info (Only for jobs and events) */}
                 {(itemType === 'job' || itemType === 'event') && (
@@ -737,38 +927,42 @@ const SharedItemViewer = () => {
                 {itemType === 'post' ? (
                   <div className="md:flex-1 flex flex-col overflow-visible md:overflow-hidden relative pointer-events-auto">
                     {/* Author Header and Caption */}
-                    <div className="p-4 pb-8 md:pb-4 shrink-0 border-b-0 md:border-b md:border-border/30 md:mb-0 pr-16 md:pr-4">
-                      <div className="flex items-start gap-3 pb-4">
+                    <div className={`p-4 ${isReel && !isDesktop ? 'pb-8 pr-16' : 'pb-3 pr-4'} shrink-0 border-b-0 md:border-b md:border-border/30 md:mb-0`}>
+                      <div className="flex items-start gap-3 pb-3">
                         <img
                           src={data.author?.image || `https://ui-avatars.com/api/?name=${data.author?.name || 'User'}`}
-                          className="w-8 h-8 rounded-full border border-border mt-1 shrink-0 cursor-pointer hover:opacity-80 transition-opacity pointer-events-auto"
+                          className="w-8 h-8 rounded-full border border-border mt-0.5 shrink-0 cursor-pointer hover:opacity-80 transition-opacity pointer-events-auto object-cover"
                           alt=""
                           onClick={handleProfileClick}
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className={`flex items-center gap-2 flex-wrap ${data.author?.role ? 'mb-0.5' : 'mb-1'}`}>
                             <p
-                              className="text-sm font-bold text-white md:text-foreground inline drop-shadow-md md:drop-shadow-none cursor-pointer hover:underline pointer-events-auto"
+                              className={`text-sm font-bold truncate cursor-pointer hover:underline pointer-events-auto ${isReel && !isDesktop ? 'text-white drop-shadow-md' : 'text-foreground'}`}
                               onClick={handleProfileClick}
                             >
                               {data.author?.name}
                             </p>
-                            <p className="text-xs text-white/80 md:text-muted-foreground drop-shadow-md md:drop-shadow-none"> • {data.author?.role}</p>
                             {user && data.authorClerkId !== user.id && connectionStatus !== 'accepted' && (
                               <>
-                                <span className="w-1 h-1 rounded-full bg-white/50 md:bg-border"></span>
+                                <span className="w-1 h-1 rounded-full bg-white/50 md:bg-border shrink-0"></span>
                                 {connectionStatus === 'pending' ? (
-                                  <button onClick={handleCancelRequest} disabled={isConnecting} className="text-xs font-bold text-white/80 md:text-muted-foreground hover:text-white md:hover:text-foreground drop-shadow-md md:drop-shadow-none">
+                                  <button onClick={handleCancelRequest} disabled={isConnecting} className={`text-xs font-bold shrink-0 ${isReel && !isDesktop ? 'text-white/80 hover:text-white drop-shadow-md' : 'text-muted-foreground hover:text-foreground'}`}>
                                     {isConnecting ? 'Cancelling...' : 'Requested'}
                                   </button>
                                 ) : (
-                                  <button onClick={handleConnect} disabled={isConnecting} className="text-xs font-bold text-primary hover:text-primary/80 drop-shadow-md md:drop-shadow-none">
+                                  <button onClick={handleConnect} disabled={isConnecting} className="text-xs font-bold text-primary hover:text-primary/80 shrink-0">
                                     {isConnecting ? 'Connecting...' : 'Connect'}
                                   </button>
                                 )}
                               </>
                             )}
                           </div>
+                          {data.author?.role && (
+                            <p className={`text-xs mb-1.5 line-clamp-2 break-words leading-tight ${isReel && !isDesktop ? 'text-white/80 drop-shadow-md' : 'text-muted-foreground'}`}>
+                              {data.author?.role}
+                            </p>
+                          )}
                           {editingPostId === data._id ? (
                             <div className="mt-2">
                               <textarea
@@ -784,18 +978,18 @@ const SharedItemViewer = () => {
                           ) : (
                             <div className={`max-h-[60dvh] overflow-y-auto ${isCaptionExpanded ? 'md:max-h-none' : ''}`}>
                               {(!isCaptionExpanded && data.content?.length > 100) ? (
-                                <span className="text-sm text-white md:text-foreground whitespace-pre-wrap leading-relaxed drop-shadow-md md:drop-shadow-none">
+                                <span className={`text-sm whitespace-pre-wrap leading-relaxed ${isReel && !isDesktop ? 'text-white drop-shadow-md' : 'text-foreground'}`}>
                                   <FormattedPostText text={data.content.substring(0, 100)} />...
-                                  <button onClick={() => setIsCaptionExpanded(true)} className="md:hidden text-white/60 ml-1 font-semibold hover:underline bg-transparent">
+                                  <button onClick={() => setIsCaptionExpanded(true)} className={`${isReel && !isDesktop ? 'text-white/60' : 'text-muted-foreground'} ml-1 font-semibold hover:underline bg-transparent`}>
                                     more
                                   </button>
                                 </span>
                               ) : (
-                                <PostCaption content={data.content} textClassName="text-white md:text-foreground drop-shadow-md md:drop-shadow-none" />
+                                <PostCaption content={data.content} textClassName={isReel && !isDesktop ? "text-white drop-shadow-md" : "text-foreground"} />
                               )}
                             </div>
                           )}
-                          <p className="text-[10px] text-white/60 md:text-muted-foreground mt-2 uppercase tracking-wide drop-shadow-md md:drop-shadow-none">
+                          <p className={`text-[10px] mt-2 uppercase tracking-wide ${isReel && !isDesktop ? 'text-white/60 drop-shadow-md' : 'text-muted-foreground'}`}>
                             {customFormatTime(data.createdAt)}
                           </p>
                         </div>
@@ -805,7 +999,7 @@ const SharedItemViewer = () => {
                           <div className="relative shrink-0 hidden md:block">
                             <button
                               onClick={() => setIsMenuOpen(!isMenuOpen)}
-                              className="p-1 hover:bg-white/20 md:hover:bg-muted rounded-full transition-colors text-white md:text-muted-foreground drop-shadow-md md:drop-shadow-none"
+                              className="p-1 hover:bg-muted rounded-full transition-colors text-muted-foreground"
                             >
                               <MoreVertical className="w-5 h-5" />
                             </button>
@@ -826,9 +1020,9 @@ const SharedItemViewer = () => {
                                     setIsMenuOpen(false);
                                     handleDeletePost();
                                   }}
-                                  className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                                  className="w-full text-left px-3 py-2 text-sm text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-500/10 font-medium flex items-center gap-2 transition-colors cursor-pointer"
                                 >
-                                  <Trash2 className="w-4 h-4" /> Delete
+                                  <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete
                                 </button>
                               </div>
                             )}
@@ -837,20 +1031,23 @@ const SharedItemViewer = () => {
                       </div>
                     </div>
 
-                    {/* Comments Component (Bottom Sheet on Mobile) */}
+                    {/* Comments Component (Bottom Sheet on Mobile for Reels) */}
                     <div className={`
                     flex-1 bg-card transition-transform duration-300 flex flex-col overflow-hidden
-                    fixed inset-x-0 bottom-0 z-50 h-[70dvh] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] border-t border-border/50 translate-y-full
-                    md:static md:h-auto md:translate-y-0 md:rounded-none md:shadow-none md:border-none md:z-auto
-                    ${isMobileCommentsOpen ? '!translate-y-0' : ''}
+                    ${isReel && !isDesktop
+                      ? 'fixed inset-x-0 bottom-0 z-50 h-[70dvh] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] border-t border-border/50 ' + (isMobileCommentsOpen ? '!translate-y-0' : 'translate-y-full')
+                      : 'relative w-full h-auto rounded-none shadow-none border-t border-border/40'
+                    }
                   `}>
-                      <div className="md:hidden flex flex-col items-center justify-center py-3 border-b border-border/50 shrink-0 bg-muted/30">
-                        <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full mb-2"></div>
-                        <p className="text-sm font-bold">Comments</p>
-                        <button onClick={() => setIsMobileCommentsOpen(false)} className="absolute right-4 top-4 p-1.5 bg-muted rounded-full">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
+                      {isReel && !isDesktop && (
+                        <div className="flex flex-col items-center justify-center py-3 border-b border-border/50 shrink-0 bg-muted/30">
+                          <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full mb-2"></div>
+                          <p className="text-sm font-bold">Comments</p>
+                          <button onClick={() => setIsMobileCommentsOpen(false)} className="absolute right-4 top-4 p-1.5 bg-muted rounded-full">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                       <PostComments
                         post={data}
                         currentUser={user}
@@ -868,30 +1065,30 @@ const SharedItemViewer = () => {
                         highlightCommentId={commentId}
                         highlightReplyId={replyId}
                         beforeInputNode={
-                          <div className="hidden md:flex items-center gap-4 px-1 py-2">
+                          <div className={`flex items-center gap-4 px-1 py-2 ${isReel && !isDesktop ? 'hidden' : 'flex'}`}>
                             <button
                               onClick={handleLike}
-                              className={`flex items-center gap-1.5 transition-colors group ${data.likes?.some(like => (like.clerkId || like) === user?.id) ? 'text-red-500' : 'text-foreground hover:text-primary'}`}
+                              className={`flex items-center gap-1.5 transition-colors group cursor-pointer ${data.likes?.some(like => (like.clerkId || like) === user?.id) ? 'text-red-500' : 'text-foreground hover:text-primary'}`}
                             >
-                              <Heart className={`w-6 h-6 ${data.likes?.some(like => (like.clerkId || like) === user?.id) ? 'fill-current' : 'group-hover:fill-primary/20'}`} />
-                              <span className="font-bold">{!data.hideLikes ? (data.likes?.length || 0) : ''}</span>
+                              <Heart className={`w-5 h-5 ${data.likes?.some(like => (like.clerkId || like) === user?.id) ? 'fill-current' : 'group-hover:fill-primary/20'}`} />
+                              <span className="font-bold text-xs">{!data.hideLikes ? (data.likes?.length || 0) : ''}</span>
                             </button>
                             <button
                               onClick={() => {
-                                if (window.innerWidth < 768) {
+                                if (isReel && !isDesktop) {
                                   setIsMobileCommentsOpen(true);
                                 } else {
                                   setShowCommentInput(prev => !prev);
                                 }
                               }}
-                              className="flex items-center gap-1.5 text-foreground hover:text-primary transition-colors group"
+                              className="flex items-center gap-1.5 text-foreground hover:text-primary transition-colors group cursor-pointer"
                             >
-                              <MessageCircle className="w-6 h-6 group-hover:fill-primary/20" />
-                              <span className="font-bold">{getTotalCommentsCount(data.comments) > 0 ? getTotalCommentsCount(data.comments) : ''}</span>
+                              <MessageCircle className="w-5 h-5 group-hover:fill-primary/20" />
+                              <span className="font-bold text-xs">{getTotalCommentsCount(data.comments) > 0 ? getTotalCommentsCount(data.comments) : ''}</span>
                             </button>
-                            <button onClick={handleShare} className="flex items-center gap-1.5 text-foreground hover:text-primary transition-colors ml-auto group">
-                              <Share2 className="w-6 h-6 group-hover:fill-primary/20" />
-                              {(data.sharesCount || 0) > 0 && <span className="font-bold">{data.sharesCount}</span>}
+                            <button onClick={handleShare} className="flex items-center gap-1.5 text-foreground hover:text-primary transition-colors ml-auto group cursor-pointer">
+                              <Share2 className="w-5 h-5 group-hover:fill-primary/20" />
+                              {(data.sharesCount || 0) > 0 && <span className="font-bold text-xs">{data.sharesCount}</span>}
                             </button>
                           </div>
                         }
@@ -899,9 +1096,9 @@ const SharedItemViewer = () => {
                     </div>
 
                     {/* Overlay for mobile bottom sheet */}
-                    {isMobileCommentsOpen && (
+                    {isReel && !isDesktop && isMobileCommentsOpen && (
                       <div
-                        className="fixed inset-0 bg-black/60 z-40 md:hidden"
+                        className="fixed inset-0 bg-black/60 z-40"
                         onClick={() => setIsMobileCommentsOpen(false)}
                       ></div>
                     )}

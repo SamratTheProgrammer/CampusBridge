@@ -388,7 +388,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
     if (!postToDelete) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/posts/${postToDelete}`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postToDelete}?authorClerkId=${user?.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user?.id })
@@ -1000,9 +1000,9 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
                                     </button>
                                     <button 
                                       onClick={() => { setPostToDelete(post._id); setActiveDropdownId(null); }}
-                                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-destructive/10 text-destructive transition-colors flex items-center gap-2 border-t border-border/50"
+                                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-rose-500/10 text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 font-medium transition-colors flex items-center gap-2 border-t border-border/50 cursor-pointer"
                                     >
-                                      <Trash2 className="w-4 h-4" /> Delete
+                                      <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete
                                     </button>
                                   </>
                                 )}

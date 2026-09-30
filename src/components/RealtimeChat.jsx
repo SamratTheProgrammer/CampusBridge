@@ -40,20 +40,33 @@ const THEMES = [
   { id: 'light-sky', name: 'Sky Blue (Light)', bg: 'bg-gradient-to-b from-slate-50 via-blue-100/50 to-slate-50 dark:from-slate-950 dark:via-blue-900/10 dark:to-slate-950' }
 ];
 
-const SharedPostThumbnail = ({ share }) => {
+const SharedPostThumbnail = ({ share, onPostUnavailable }) => {
   const [mediaInfo, setMediaInfo] = useState({
     imageUrl: share.imageUrl || '',
     mediaType: share.mediaType || ''
   });
+  const checkedRef = useRef(false);
 
   useEffect(() => {
-    if (!mediaInfo.imageUrl && share.type === 'post' && share.itemId) {
+    if (checkedRef.current || share.isDeleted) return;
+    if (share.type === 'post' && share.itemId) {
+      checkedRef.current = true;
       let isMounted = true;
       fetch(`${API_BASE}/api/posts/${share.itemId}`)
-        .then(res => res.json())
+        .then(res => {
+          if (res.status === 404) {
+            onPostUnavailable?.();
+            return null;
+          }
+          return res.json();
+        })
         .then(data => {
           if (!isMounted || !data) return;
           const post = data.post || data;
+          if (post.moderationStatus === 'deleted' || post.isDeleted) {
+            onPostUnavailable?.();
+            return;
+          }
           let thumb = '';
           let type = '';
           if (post.mediaFiles && post.mediaFiles.length > 0) {
@@ -83,7 +96,7 @@ const SharedPostThumbnail = ({ share }) => {
         .catch(() => {});
       return () => { isMounted = false; };
     }
-  }, [share.itemId, share.type, mediaInfo.imageUrl]);
+  }, [share.itemId, share.type, share.isDeleted, mediaInfo.imageUrl]);
 
   const currentUrl = mediaInfo.imageUrl || share.imageUrl;
   if (!currentUrl) return null;
@@ -136,6 +149,11 @@ const RealtimeChat = () => {
 
   const [contacts, setContacts] = useState([]);
   const [activeContact, setActiveContact] = useState(null);
+  const activeContactRef = useRef(activeContact);
+  useEffect(() => {
+    activeContactRef.current = activeContact;
+  }, [activeContact]);
+
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -255,9 +273,21 @@ const RealtimeChat = () => {
       const res = await fetch(`${API_BASE}/api/messages/conversations/${user.id}`);
       if (res.ok) {
         const data = await res.json();
-        setContacts(data);
-        if (data.length > 0 && !activeContact && !targetUserId) {
-          setActiveContact(data[0]);
+        const currentActive = activeContactRef.current;
+        const currentActiveId = currentActive?.clerkId || currentActive?.id;
+
+        // If an active contact is currently open, keep its unread count as 0 locally so it doesn't flicker
+        const updatedData = data.map((c) => {
+          if (currentActiveId && (c.clerkId === currentActiveId || c.id === currentActiveId)) {
+            return { ...c, unread: 0 };
+          }
+          return c;
+        });
+        setContacts(updatedData);
+
+        // ONLY auto-select first contact if NO contact is selected yet AND no targetUserId
+        if (updatedData.length > 0 && !currentActive && !targetUserId) {
+          setActiveContact(updatedData[0]);
         }
       }
     } catch (err) {
@@ -296,8 +326,11 @@ const RealtimeChat = () => {
     const loadTargetUser = async () => {
       const existing = contacts.find((c) => c.clerkId === targetUserId || c.id === targetUserId);
       if (existing) {
-        setActiveContact(existing);
-        setIsMobileChatOpen(true);
+        const currentActiveId = activeContactRef.current?.clerkId || activeContactRef.current?.id;
+        if (currentActiveId !== targetUserId) {
+          setActiveContact(existing);
+          setIsMobileChatOpen(true);
+        }
         return;
       }
 
@@ -331,6 +364,8 @@ const RealtimeChat = () => {
   }, [targetUserId, user, contacts.length]);
 
   // Handle active contact selection & room joining
+  const activeContactId = activeContact?.clerkId || activeContact?.id;
+
   useEffect(() => {
     if (!user || !activeContact) return;
 
@@ -342,6 +377,29 @@ const RealtimeChat = () => {
     // Join socket room
     socket.emit('join_room', { conversationId, userId: user.id });
     socket.emit('mark_read', { conversationId, userId: user.id });
+
+    // Instantly clear unread badge for this contact if it had unread messages
+    if (activeContact.unread > 0) {
+      const unreadCount = activeContact.unread;
+      activeContact.unread = 0;
+      setContacts((prev) =>
+        prev.map((c) =>
+          c.clerkId === activeContactId || c.id === activeContactId || c.conversationId === conversationId
+            ? { ...c, unread: 0 }
+            : c
+        )
+      );
+      window.dispatchEvent(
+        new CustomEvent('campusbridge:messages_read', {
+          detail: { conversationId, count: unreadCount, userId: user.id }
+        })
+      );
+      fetch(`${API_BASE}/api/messages/read/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user.id })
+      }).catch(() => {});
+    }
 
     // Fetch conversation messages history
     const fetchHistory = async () => {
@@ -378,11 +436,11 @@ const RealtimeChat = () => {
         }
       }
 
-      const activeConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
+      const activeConvId = conversationId;
       const isForActiveContact =
         msg.conversationId === activeConvId ||
-        (msg.senderClerkId === activeContact.clerkId && msg.recipientClerkId === user.id) ||
-        (msg.senderClerkId === user.id && msg.recipientClerkId === activeContact.clerkId);
+        (msg.senderClerkId === activeContactId && msg.recipientClerkId === user.id) ||
+        (msg.senderClerkId === user.id && msg.recipientClerkId === activeContactId);
 
       if (isForActiveContact) {
         setMessages((prev) => {
@@ -404,26 +462,35 @@ const RealtimeChat = () => {
         });
         if (msg.recipientClerkId === user.id) {
           socket.emit('mark_read', { conversationId: activeConvId, userId: user.id });
+          window.dispatchEvent(
+            new CustomEvent('campusbridge:messages_read', {
+              detail: { conversationId: activeConvId, count: 1, userId: user.id }
+            })
+          );
+          fetch(`${API_BASE}/api/messages/read/${activeConvId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clerkId: user.id })
+          }).catch(() => {});
         }
       }
       fetchContacts();
     };
 
     const handleUserTyping = ({ userId, isTyping }) => {
-      if (userId !== user.id && userId === activeContact.clerkId) {
+      if (userId !== user.id && userId === activeContactId) {
         setIsOtherTyping(isTyping);
       }
     };
 
     const handleMessagesRead = ({ conversationId: cId }) => {
-      const activeConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
-      if (cId === activeConvId) {
+      if (cId === conversationId) {
         setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
       }
     };
 
     const handleMessagesDelivered = ({ userId }) => {
-      if (activeContact && (activeContact.clerkId === userId || activeContact.id === userId)) {
+      if (userId === activeContactId) {
         setMessages((prev) => prev.map((m) => (!m.isDelivered && m.recipientClerkId === userId) ? { ...m, isDelivered: true } : m));
       }
     };
@@ -447,6 +514,20 @@ const RealtimeChat = () => {
       fetchContacts();
     };
 
+    const handlePostDeleted = ({ postId }) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.type === 'share' && String(m.share?.itemId) === String(postId)) {
+            return {
+              ...m,
+              share: { ...m.share, isDeleted: true }
+            };
+          }
+          return m;
+        })
+      );
+    };
+
     socket.on('receive_message', handleReceiveMessage);
     socket.on('new_message', handleReceiveMessage);
     socket.on('user_typing', handleUserTyping);
@@ -456,6 +537,7 @@ const RealtimeChat = () => {
     socket.on('message_deleted_for_everyone', handleMessageDeletedEveryone);
     socket.on('message_edited', handleMessageEdited);
     socket.on('message_restored_everyone', handleMessageRestoredEveryone);
+    socket.on('post_deleted', handlePostDeleted);
 
     return () => {
       socket.emit('leave_room', { conversationId });
@@ -468,8 +550,9 @@ const RealtimeChat = () => {
       socket.off('message_deleted_for_everyone', handleMessageDeletedEveryone);
       socket.off('message_edited', handleMessageEdited);
       socket.off('message_restored_everyone', handleMessageRestoredEveryone);
+      socket.off('post_deleted', handlePostDeleted);
     };
-  }, [activeContact, user]);
+  }, [activeContactId, user?.id]);
 
   // Handle Typing Indicator
   const handleInputChange = (e) => {
@@ -1220,7 +1303,27 @@ const RealtimeChat = () => {
               return (
                 <div
                   key={contact.clerkId}
-                  onClick={() => { setActiveContact(contact); setIsMobileChatOpen(true); }}
+                  onClick={() => {
+                    if (contact.unread > 0) {
+                      const unreadCount = contact.unread;
+                      setContacts((prev) =>
+                        prev.map((c) =>
+                          c.clerkId === contact.clerkId || c.id === contact.id ? { ...c, unread: 0 } : c
+                        )
+                      );
+                      window.dispatchEvent(
+                        new CustomEvent('campusbridge:messages_read', {
+                          detail: { conversationId: contact.conversationId, count: unreadCount, userId: user.id }
+                        })
+                      );
+                    }
+                    const currentActiveId = activeContactRef.current?.clerkId || activeContactRef.current?.id;
+                    const targetId = contact.clerkId || contact.id;
+                    if (currentActiveId !== targetId) {
+                      setActiveContact(contact);
+                    }
+                    setIsMobileChatOpen(true);
+                  }}
                   className={`group p-3.5 sm:p-4 cursor-pointer transition-colors flex items-center gap-3.5 relative ${
                     isActive ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-muted/40 border-l-4 border-l-transparent'
                   }`}
@@ -1709,69 +1812,111 @@ const RealtimeChat = () => {
 
                               {/* Share Rendering */}
                               {msg.type === 'share' && msg.share && (
-                                <div 
-                                  onClick={() => {
-                                    if (msg.share.type === 'profile') {
-                                      navigate(`/profile/${msg.share.itemId}`);
-                                    } else {
-                                      navigate(`?${msg.share.type}=${msg.share.itemId}`);
-                                    }
-                                  }}
-                                  className={`mb-2 rounded-2xl border cursor-pointer hover:opacity-95 transition-all overflow-hidden w-full max-w-[280px] sm:max-w-xs shadow-md group ${
-                                    isMe 
-                                      ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/15 text-primary-foreground' 
-                                      : 'bg-card border-border/80 hover:border-primary/40 text-card-foreground'
-                                  }`}
-                                >
-                                  {msg.share.type === 'post' ? (
-                                    /* Instagram-Style Post Share Card */
-                                    <div className="flex flex-col">
-                                      {/* Creator Header */}
-                                      <div className={`flex items-center gap-2 px-3 py-2 border-b text-xs ${
-                                        isMe ? 'border-primary-foreground/15 bg-primary-foreground/5' : 'border-border/40 bg-muted/30'
+                                msg.share.isDeleted ? (
+                                  /* Deleted / Unavailable Post Card */
+                                  <div 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toast('This post was deleted and is no longer available.', { icon: 'ℹ️' });
+                                    }}
+                                    className={`mb-2 rounded-2xl border transition-all overflow-hidden w-full max-w-[280px] sm:max-w-xs shadow-sm p-3.5 select-none ${
+                                      isMe 
+                                        ? 'bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground' 
+                                        : 'bg-muted/40 border-border/70 text-muted-foreground'
+                                    }`}
+                                    title="This post has been deleted"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                        isMe ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted-foreground/15 text-muted-foreground'
                                       }`}>
-                                        {msg.share.authorAvatar ? (
-                                          <img 
-                                            src={msg.share.authorAvatar} 
-                                            alt={msg.share.authorName || 'Author'} 
-                                            className="w-5 h-5 rounded-full object-cover shrink-0 border border-border/40" 
-                                          />
-                                        ) : (
-                                          <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
-                                            isMe ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/20 text-primary'
-                                          }`}>
-                                            {(msg.share.authorName || msg.share.title || 'U').charAt(0).toUpperCase()}
-                                          </div>
-                                        )}
-                                        <span className="font-semibold truncate flex-1 text-xs">
-                                          {msg.share.authorName || msg.share.title || 'Post'}
-                                        </span>
-                                        <span className={`text-[10px] uppercase font-bold tracking-wider opacity-75`}>
-                                          Post
-                                        </span>
+                                        <Trash2 className="w-4 h-4 opacity-80" />
                                       </div>
-
-                                      {/* Post Media Thumbnail */}
-                                      <SharedPostThumbnail share={msg.share} />
-
-                                      {/* Post Content / Caption */}
-                                      {msg.share.description && (
-                                        <div className="px-3 pt-2 pb-1.5">
-                                          <p className="text-xs line-clamp-2 leading-relaxed opacity-90 font-normal">
-                                            {msg.share.description}
-                                          </p>
-                                        </div>
-                                      )}
-
-                                      {/* Footer Action */}
-                                      <div className={`flex items-center justify-between px-3 py-2 border-t text-xs font-semibold ${
-                                        isMe ? 'border-primary-foreground/15 text-primary-foreground' : 'border-border/40 text-primary'
-                                      }`}>
-                                        <span>View Post</span>
-                                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-semibold leading-tight flex items-center gap-1.5">
+                                          <span>Post unavailable</span>
+                                        </p>
+                                        <p className="text-[11px] opacity-75 mt-0.5 leading-snug">
+                                          This post was deleted
+                                        </p>
                                       </div>
                                     </div>
-                                  ) : (
+                                  </div>
+                                ) : (
+                                  <div 
+                                    onClick={() => {
+                                      if (msg.share.type === 'profile') {
+                                        navigate(`/profile/${msg.share.itemId}`);
+                                      } else {
+                                        navigate(`?${msg.share.type}=${msg.share.itemId}`);
+                                      }
+                                    }}
+                                    className={`mb-2 rounded-2xl border cursor-pointer hover:opacity-95 transition-all overflow-hidden w-full max-w-[280px] sm:max-w-xs shadow-md group ${
+                                      isMe 
+                                        ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/15 text-primary-foreground' 
+                                        : 'bg-card border-border/80 hover:border-primary/40 text-card-foreground'
+                                    }`}
+                                  >
+                                    {msg.share.type === 'post' ? (
+                                      /* Instagram-Style Post Share Card */
+                                      <div className="flex flex-col">
+                                        {/* Creator Header */}
+                                        <div className={`flex items-center gap-2 px-3 py-2 border-b text-xs ${
+                                          isMe ? 'border-primary-foreground/15 bg-primary-foreground/5' : 'border-border/40 bg-muted/30'
+                                        }`}>
+                                          {msg.share.authorAvatar ? (
+                                            <img 
+                                              src={msg.share.authorAvatar} 
+                                              alt={msg.share.authorName || 'Author'} 
+                                              className="w-5 h-5 rounded-full object-cover shrink-0 border border-border/40" 
+                                            />
+                                          ) : (
+                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                                              isMe ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/20 text-primary'
+                                            }`}>
+                                              {(msg.share.authorName || msg.share.title || 'U').charAt(0).toUpperCase()}
+                                            </div>
+                                          )}
+                                          <span className="font-semibold truncate flex-1 text-xs">
+                                            {msg.share.authorName || msg.share.title || 'Post'}
+                                          </span>
+                                          <span className={`text-[10px] uppercase font-bold tracking-wider opacity-75`}>
+                                            Post
+                                          </span>
+                                        </div>
+
+                                        {/* Post Media Thumbnail */}
+                                        <SharedPostThumbnail 
+                                          share={msg.share} 
+                                          onPostUnavailable={() => {
+                                            setMessages((prev) =>
+                                              prev.map((m) =>
+                                                String(m._id) === String(msg._id) && m.share
+                                                  ? { ...m, share: { ...m.share, isDeleted: true } }
+                                                  : m
+                                              )
+                                            );
+                                          }}
+                                        />
+
+                                        {/* Post Content / Caption */}
+                                        {msg.share.description && (
+                                          <div className="px-3 pt-2 pb-1.5">
+                                            <p className="text-xs line-clamp-2 leading-relaxed opacity-90 font-normal">
+                                              {msg.share.description}
+                                            </p>
+                                          </div>
+                                        )}
+
+                                        {/* Footer Action */}
+                                        <div className={`flex items-center justify-between px-3 py-2 border-t text-xs font-semibold ${
+                                          isMe ? 'border-primary-foreground/15 text-primary-foreground' : 'border-border/40 text-primary'
+                                        }`}>
+                                          <span>View Post</span>
+                                          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                        </div>
+                                      </div>
+                                    ) : (
                                     /* Profile, Job, Event Share Card */
                                     <div className="p-3 sm:p-3.5 flex flex-col gap-2">
                                       <div className="flex items-center gap-3">
@@ -1809,7 +1954,8 @@ const RealtimeChat = () => {
                                     </div>
                                   )}
                                 </div>
-                              )}
+                              )
+                            )}
 
                               <div className="flex items-end gap-2">
                                 <span>{msg.text}</span>

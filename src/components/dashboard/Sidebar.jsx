@@ -49,9 +49,18 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
     socket.on('update_sidebar', handleUpdate)
     socket.on('messages_read', handleUpdate)
 
+    const handleLocalRead = (e) => {
+      if (e?.detail?.count) {
+        setUnreadMessages((prev) => Math.max(0, prev - e.detail.count))
+      }
+      fetchUnread()
+    }
+    window.addEventListener('campusbridge:messages_read', handleLocalRead)
+
     return () => {
       socket.off('update_sidebar', handleUpdate)
       socket.off('messages_read', handleUpdate)
+      window.removeEventListener('campusbridge:messages_read', handleLocalRead)
     }
   }, [user])
 

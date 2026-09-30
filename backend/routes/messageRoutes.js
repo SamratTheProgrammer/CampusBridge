@@ -125,7 +125,11 @@ router.get('/conversations/:clerkId', async (req, res) => {
             const isVideo = lastMessage.callInfo?.callType === 'video';
             displayLastMessage = `${isVideo ? '📹' : '📞'} ${lastMessage.text || 'Call'}`;
           } else if (lastMessage.type === 'share') {
-            displayLastMessage = `🔗 Shared ${lastMessage.share?.type || 'item'}`;
+            if (lastMessage.share?.isDeleted) {
+              displayLastMessage = '🚫 Shared post unavailable';
+            } else {
+              displayLastMessage = `🔗 Shared ${lastMessage.share?.type || 'item'}`;
+            }
           } else if (
             lastMessage.type === 'voice' || 
             lastMessage.type === 'audio' || 
@@ -224,6 +228,43 @@ router.get('/:conversationId', async (req, res) => {
     }).catch(() => {});
 
     const cleanMessages = messages.filter((m) => !isCallLogDuplicateText(m));
+
+    // Check if any shared posts in this conversation have been deleted
+    const postShares = cleanMessages.filter(
+      (m) => m.type === 'share' && m.share?.type === 'post' && m.share?.itemId && !m.share?.isDeleted
+    );
+
+    if (postShares.length > 0) {
+      const postIds = postShares
+        .map((m) => m.share.itemId)
+        .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+      if (postIds.length > 0) {
+        const existingPosts = await Post.find({ _id: { $in: postIds } }, '_id');
+        const existingIdSet = new Set(existingPosts.map((p) => p._id.toString()));
+
+        const missingIds = [];
+        cleanMessages.forEach((m) => {
+          if (m.type === 'share' && m.share?.type === 'post' && m.share?.itemId) {
+            const idStr = m.share.itemId.toString();
+            if (!existingIdSet.has(idStr)) {
+              if (!m.share.isDeleted) {
+                m.share.isDeleted = true;
+                missingIds.push(m.share.itemId);
+              }
+            }
+          }
+        });
+
+        if (missingIds.length > 0) {
+          Message.updateMany(
+            { type: 'share', 'share.itemId': { $in: missingIds } },
+            { $set: { 'share.isDeleted': true } }
+          ).catch(() => {});
+        }
+      }
+    }
+
     res.status(200).json(cleanMessages);
   } catch (error) {
     console.error('Error fetching messages:', error);
@@ -241,6 +282,20 @@ router.put('/read/:conversationId', async (req, res) => {
       { conversationId: req.params.conversationId, recipientClerkId: clerkId, isRead: false },
       { isRead: true }
     );
+
+    const io = req.app?.get('io') || req.io;
+    const emitToUserSockets = req.app?.get('emitToUserSockets');
+    if (io) {
+      io.to(req.params.conversationId).emit('messages_read', { conversationId: req.params.conversationId, userId: clerkId });
+    }
+    if (emitToUserSockets) {
+      emitToUserSockets(clerkId, 'messages_read', { conversationId: req.params.conversationId, userId: clerkId });
+      const participants = req.params.conversationId?.split('_') || [];
+      const otherUserId = participants.find((id) => id !== clerkId);
+      if (otherUserId) {
+        emitToUserSockets(otherUserId, 'messages_read', { conversationId: req.params.conversationId, userId: clerkId });
+      }
+    }
 
     res.status(200).json({ message: 'Messages marked as read' });
   } catch (error) {
@@ -710,9 +765,21 @@ router.post('/share', async (req, res) => {
       await newMessage.save();
       savedMessages.push(newMessage);
 
-      if (req.io) {
-        req.io.to(conversationId).emit('receive_message', newMessage);
-        req.io.to(conversationId).emit('new_message', newMessage);
+      const io = req.app?.get('io') || req.io;
+      const emitToUserSockets = req.app?.get('emitToUserSockets');
+      if (io) {
+        io.to(conversationId).emit('receive_message', newMessage);
+        io.to(conversationId).emit('new_message', newMessage);
+      }
+      if (emitToUserSockets) {
+        emitToUserSockets(recipientId, 'receive_message', newMessage);
+        emitToUserSockets(recipientId, 'update_sidebar', {
+          ...newMessage.toObject(),
+          lastMessage: `🔗 Shared ${shareType}`,
+          senderName: authorName,
+          senderImage: authorAvatar
+        });
+        emitToUserSockets(senderClerkId, 'receive_message', newMessage);
       }
     }
 

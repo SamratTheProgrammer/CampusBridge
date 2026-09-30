@@ -830,7 +830,7 @@ const MentorHome = () => {
     if (!postToDelete) return
     setIsDeleting(true)
     try {
-      const res = await fetch(`${API_BASE}/api/posts/${postToDelete}`, {
+      const res = await fetch(`${API_BASE}/api/posts/${postToDelete}?authorClerkId=${user.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorClerkId: user.id })
@@ -1771,9 +1771,9 @@ const MentorHome = () => {
                                     </button>
                                     <button 
                                       onClick={() => handleDeletePost(post._id)}
-                                      className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors border-t border-border/50"
+                                      className="w-full text-left px-4 py-2 text-sm hover:bg-rose-500/10 text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 font-medium flex items-center gap-2 transition-colors border-t border-border/50 cursor-pointer"
                                     >
-                                      <Trash2 className="w-4 h-4" /> Delete
+                                      <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete
                                     </button>
                                   </>
                                 )}

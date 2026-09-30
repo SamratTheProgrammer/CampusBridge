@@ -769,6 +769,18 @@ router.delete('/moderate/post/:id', async (req, res) => {
   try {
     const post = await Post.findByIdAndDelete(req.params.id);
     if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+
+    // Also mark any shared messages referencing this post as deleted/unavailable
+    await Message.updateMany(
+      { type: 'share', 'share.itemId': req.params.id },
+      { $set: { 'share.isDeleted': true } }
+    ).catch((err) => console.error('Error updating shared messages on admin post delete:', err));
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_deleted', { postId: req.params.id.toString() });
+    }
+
     return res.status(200).json({ success: true, message: 'Post deleted successfully' });
   } catch (error) {
     console.error('Delete Post Error:', error);

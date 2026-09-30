@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import Post from '../models/Post.js';
 import User from '../models/User.js';
+import Message from '../models/Message.js';
 import { createNotificationHelper } from './notificationRoutes.js';
 import { escapeRegex } from '../utils/regexHelper.js';
 import { verifyAdminToken } from '../middleware/adminAuth.js';
@@ -828,12 +829,32 @@ router.delete('/:id', async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    const authorClerkId = req.body?.authorClerkId || req.query?.authorClerkId;
-    if (!authorClerkId || post.authorClerkId !== authorClerkId) {
+    const authorClerkId = String(req.body?.authorClerkId || req.query?.authorClerkId || req.headers['x-user-id'] || '').trim();
+    
+    let isAuthorized = authorClerkId && String(post.authorClerkId).trim() === authorClerkId;
+    if (!isAuthorized && authorClerkId) {
+      const user = await User.findOne({
+        $or: [
+          { clerkId: authorClerkId },
+          ...(mongoose.Types.ObjectId.isValid(authorClerkId) ? [{ _id: authorClerkId }] : [])
+        ]
+      });
+      if (user && (user.clerkId === post.authorClerkId || user.role === 'admin')) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
       return res.status(403).json({ message: 'Unauthorized: You can only delete your own posts' });
     }
 
     await Post.findByIdAndDelete(req.params.id);
+
+    // Also mark any shared messages referencing this post as deleted/unavailable
+    await Message.updateMany(
+      { type: 'share', 'share.itemId': req.params.id },
+      { $set: { 'share.isDeleted': true } }
+    ).catch((err) => console.error('Error updating shared messages on post delete:', err));
 
     const io = req.app?.get('io') || req.io;
     if (io) {

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGlobalMute } from '../hooks/useGlobalMute';
 
-const AutoPlayVideo = ({ src, className, controls = true }) => {
+const AutoPlayVideo = ({ src, className, controls = true, onRatioCalculated }) => {
   const videoRef = useRef(null);
   const [isMuted, toggleMute] = useGlobalMute(true);
   const [aspectRatio, setAspectRatio] = useState(null);
@@ -40,9 +40,11 @@ const AutoPlayVideo = ({ src, className, controls = true }) => {
   // Check if video metadata is already loaded (e.g. from cache)
   useEffect(() => {
     if (videoRef.current && videoRef.current.videoWidth && videoRef.current.videoHeight) {
-      setAspectRatio(videoRef.current.videoWidth / videoRef.current.videoHeight);
+      const r = videoRef.current.videoWidth / videoRef.current.videoHeight;
+      setAspectRatio(r);
+      if (onRatioCalculated) onRatioCalculated(r);
     }
-  }, [src]);
+  }, [src, onRatioCalculated]);
 
   // Sync video's muted property with global state
   useEffect(() => {
@@ -69,7 +71,9 @@ const AutoPlayVideo = ({ src, className, controls = true }) => {
   const handleLoadedMetadata = (e) => {
     const { videoWidth, videoHeight } = e.target;
     if (videoWidth && videoHeight) {
-      setAspectRatio(videoWidth / videoHeight);
+      const r = videoWidth / videoHeight;
+      setAspectRatio(r);
+      if (onRatioCalculated) onRatioCalculated(r);
     }
   };
 
