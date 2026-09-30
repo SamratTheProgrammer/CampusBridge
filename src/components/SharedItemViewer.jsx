@@ -11,6 +11,7 @@ import PostComments from './PostComments';
 import ShareModal from './modals/ShareModal';
 import ImageViewerModal from './ImageViewerModal';
 import ModalPortal from './modals/ModalPortal';
+import PinchZoomMedia from './common/PinchZoomMedia';
 import { socket } from '../services/socket';
 import FormattedPostText from './common/FormattedPostText';
 import PostCaption from './common/PostCaption';
@@ -493,14 +494,23 @@ const SharedItemViewer = () => {
                           />
                         </div>
                       ) : isVideo ? (
-                        <AutoPlayVideo src={activeMedia.url} className="w-full max-h-full object-contain bg-black" />
+                        <PinchZoomMedia 
+                          className="w-full h-full flex items-center justify-center cursor-pointer"
+                          onTap={() => setViewerData({ files: data.mediaFiles?.length ? data.mediaFiles : [activeMedia], index: currentMediaIndex })}
+                        >
+                          <AutoPlayVideo src={activeMedia.url} className="w-full max-h-full object-contain bg-black" />
+                        </PinchZoomMedia>
                       ) : (
-                        <img
-                          src={optimizedSrc}
-                          alt="Post media"
-                          className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => setViewerData({ files: data.mediaFiles?.length ? data.mediaFiles : [activeMedia.url], index: currentMediaIndex })}
-                        />
+                        <PinchZoomMedia 
+                          className="w-full h-full flex items-center justify-center cursor-pointer"
+                          onTap={() => setViewerData({ files: data.mediaFiles?.length ? data.mediaFiles : [activeMedia.url], index: currentMediaIndex })}
+                        >
+                          <img
+                            src={optimizedSrc}
+                            alt="Post media"
+                            className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        </PinchZoomMedia>
                       );
                     })()}
                     
