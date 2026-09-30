@@ -357,7 +357,7 @@ const MentorDashboardLayout = () => {
   return (
     <div className={`min-h-screen bg-background flex ${location.pathname.includes('/messages') ? 'h-screen max-h-screen overflow-hidden' : ''}`}>
         {/* Sidebar for Desktop */}
-        <div className={`hidden md:block fixed inset-y-0 left-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} z-40`}>
+        <div className={`hidden md:block fixed inset-y-0 left-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} z-[60]`}>
           <MentorSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
         </div>
 
@@ -377,7 +377,7 @@ const MentorDashboardLayout = () => {
         {/* Main Content Area */}
         <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen ${location.pathname.includes('/messages') ? 'h-screen max-h-screen overflow-hidden' : ''} min-w-0 transition-all duration-300`}>
           {/* Top Header */}
-          <header className={`md:sticky md:top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between shrink-0 ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
+          <header className={`md:sticky md:top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between shrink-0 ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
             <div className="flex items-center gap-4 flex-1">
               <button 
                 className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"

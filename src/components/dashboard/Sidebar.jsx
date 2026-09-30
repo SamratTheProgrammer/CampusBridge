@@ -98,7 +98,9 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
         {setIsCollapsed && (
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden md:flex items-center justify-center w-6 h-6 rounded-full hover:bg-muted text-muted-foreground transition-colors absolute -right-3 top-8 bg-card border border-border/50 shadow-sm z-50"
+            className="hidden md:flex items-center justify-center w-6 h-6 rounded-full hover:bg-muted text-muted-foreground transition-all absolute -right-3 top-8 bg-card border border-border shadow-md z-[70] cursor-pointer hover:text-foreground hover:scale-105 active:scale-95"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
