@@ -1,6 +1,6 @@
 import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle, Loader2, MessageSquareOff, Eye, EyeOff, Download, Copy, Languages } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle, Loader2, MessageSquareOff, Eye, EyeOff, Download, Copy, Languages, Cake } from 'lucide-react'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -800,7 +800,7 @@ const MyProfile = () => {
               )}
               {(dbUser?.dateOfBirth || mongoProfile?.dateOfBirth) && (dbUser?.dobFormat || mongoProfile?.dobFormat) !== 'hidden' && (
                 <span className="flex items-center gap-1.5">
-                  <span className="text-sm">🎂</span>
+                  <Cake className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   {(() => {
                     const dob = dbUser?.dateOfBirth || mongoProfile?.dateOfBirth;
                     const d = new Date(dob);
@@ -1535,8 +1535,8 @@ const MyProfile = () => {
                             <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
                             <span className="flex items-center gap-1.5">
                               <span>{hasLiked ? 'Liked' : 'Like'}</span>
-                              {!post.hideLikes && (post.likes?.length || 0) > 0 && (
-                                <span className="font-semibold">{post.likes.length}</span>
+                              {!post.hideLikes && (
+                                <span className="font-semibold">{post.likes?.length || 0}</span>
                               )}
                             </span>
                           </button>

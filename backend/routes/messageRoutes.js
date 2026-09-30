@@ -581,6 +581,9 @@ router.post('/share', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid share type' });
     }
 
+    let title = '';
+    let description = '';
+    let imageUrl = '';
     let mediaType = '';
     let authorName = '';
     let authorAvatar = '';
@@ -616,14 +619,15 @@ router.post('/share', async (req, res) => {
               imageUrl = first.thumbnailUrl;
             } else if (first.url) {
               if (isVid && first.url.includes('cloudinary.com')) {
-                imageUrl = first.url.replace(/\.(mp4|webm|mov|ogg)$/i, '.jpg');
+                // Generate instant jpg video thumbnail snapshot via Cloudinary
+                imageUrl = first.url.replace('/video/upload/', '/video/upload/so_auto,w_600,c_fill,f_jpg/').replace(/\.(mp4|webm|mov|ogg)$/i, '.jpg');
               } else {
                 imageUrl = first.url;
               }
             }
           } else if (post.imageUrl) {
             imageUrl = post.imageUrl;
-            mediaType = 'image';
+            mediaType = post.mediaType || 'image';
           } else if (post.linkPreview?.image || post.linkPreview?.thumbnailUrl) {
             imageUrl = post.linkPreview.image || post.linkPreview.thumbnailUrl;
             mediaType = 'link';

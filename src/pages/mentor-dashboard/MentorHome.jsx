@@ -2047,8 +2047,8 @@ const MentorHome = () => {
                         <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
                         <span className="flex items-center gap-1.5">
                           <span>{hasLiked ? 'Liked' : 'Like'}</span>
-                          {!post.hideLikes && (post.likes?.length || 0) > 0 && (
-                            <span className="font-semibold">{post.likes.length}</span>
+                          {!post.hideLikes && (
+                            <span className="font-semibold">{post.likes?.length || 0}</span>
                           )}
                         </span>
                       </button>

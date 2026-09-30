@@ -208,6 +208,16 @@ router.get('/status/:userId1/:userId2', async (req, res) => {
   }
 });
 
+// Helper to shuffle array (Fisher-Yates)
+const shuffleArray = (array) => {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
 // Get Suggested Connections ("People You May Know")
 router.get('/suggestions/:clerkId', async (req, res) => {
   try {
@@ -223,18 +233,18 @@ router.get('/suggestions/:clerkId', async (req, res) => {
       ...existingConnections.map(c => c.requesterClerkId === clerkId ? c.recipientClerkId : c.requesterClerkId)
     ]);
 
-    // Fetch users and mentors excluding connected ones and hidden ones
+    // Fetch pool of students and mentors excluding connected ones and hidden ones
     const users = await User.find({ 
       clerkId: { $nin: Array.from(excludedClerkIds) },
       role: 'student',
       profileVisibility: { $ne: 'hidden' }
-    }).limit(15);
+    }).limit(40);
 
     const mentors = await User.find({ 
       clerkId: { $nin: Array.from(excludedClerkIds) },
       role: { $in: ['mentor', 'alumni'] },
       profileVisibility: { $ne: 'hidden' }
-    }).limit(10);
+    }).limit(30);
 
     const capitalizeRole = (r) => r ? (r.charAt(0).toUpperCase() + r.slice(1)) : 'Member';
     const formatUser = (u, defaultRole) => ({
@@ -248,12 +258,16 @@ router.get('/suggestions/:clerkId', async (req, res) => {
       skills: u.skills || u.expertise || []
     });
 
-    const suggestions = [
-      ...users.map(u => formatUser(u, 'student')),
-      ...mentors.map(m => formatUser(m, 'mentor'))
-    ];
+    // Shuffle users and mentors independently, then combine and shuffle together
+    const formattedUsers = shuffleArray(users.map(u => formatUser(u, 'student')));
+    const formattedMentors = shuffleArray(mentors.map(m => formatUser(m, 'mentor')));
 
-    res.status(200).json(suggestions);
+    const combined = shuffleArray([
+      ...formattedUsers.slice(0, 15),
+      ...formattedMentors.slice(0, 10)
+    ]);
+
+    res.status(200).json(combined);
   } catch (error) {
     console.error('Error fetching suggestions:', error);
     res.status(500).json({ message: 'Server error' });

@@ -58,7 +58,8 @@ const PeopleYouMayKnow = () => {
       const res = await fetch(`${API_BASE}/api/connections/suggestions/${user.id}`);
       if (res.ok) {
         const data = await res.json();
-        setSuggestions(data);
+        const shuffled = [...data].sort(() => Math.random() - 0.5);
+        setSuggestions(shuffled);
       }
     } catch (err) {
       console.error('Error fetching suggested connections:', err);

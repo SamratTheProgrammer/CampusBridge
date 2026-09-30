@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import AutoPlayVideo from './AutoPlayVideo';
 import ModalPortal from './modals/ModalPortal';
 
@@ -16,10 +16,11 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [showHint, setShowHint] = useState(true);
+  const [containerEl, setContainerEl] = useState(null);
 
   const contentWrapperRef = useRef(null);
   const modalContainerRef = useRef(null);
+  const touchMovedRef = useRef(false);
 
   // Normalize mediaFiles to array of objects with valid url
   const files = React.useMemo(() => {
@@ -69,6 +70,12 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
     lastTapPos: { x: 0, y: 0 },
   });
 
+  const swipeDataRef = useRef({
+    startX: 0,
+    startY: 0,
+    startTime: 0,
+  });
+
   const mouseStateRef = useRef({
     isDown: false,
     startX: 0,
@@ -79,10 +86,16 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
   const resetZoom = useCallback(() => {
     setScale(1);
     setPosition({ x: 0, y: 0 });
+    scaleRef.current = 1;
+    positionRef.current = { x: 0, y: 0 };
     setIsDragging(false);
     isDraggingRef.current = false;
     isPinchingRef.current = false;
     isPanningRef.current = false;
+    if (contentWrapperRef.current) {
+      contentWrapperRef.current.style.transition = 'transform 0.22s cubic-bezier(0.2, 0, 0.2, 1)';
+      contentWrapperRef.current.style.transform = 'translate3d(0px, 0px, 0px) scale(1)';
+    }
   }, []);
 
   const getClampedPosition = useCallback((x, y, s) => {
@@ -121,9 +134,6 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
     if (isOpen) {
       setCurrentIndex(initialIndex);
       resetZoom();
-      setShowHint(true);
-      const timer = setTimeout(() => setShowHint(false), 3500);
-      return () => clearTimeout(timer);
     }
   }, [isOpen, initialIndex, resetZoom]);
 
@@ -158,12 +168,14 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, currentIndex, files.length, onClose, scale, resetZoom, handleZoomIn, handleZoomOut]);
 
-  // Touch event listeners for 2-finger pinch and Facebook-style double tap
+  // Touch event listeners for 2-finger pinch, 1-finger pan, swipe navigation, and double-tap zoom
   useEffect(() => {
-    const el = modalContainerRef.current;
+    const el = containerEl;
     if (!el || !isOpen) return;
 
     const onTouchStart = (e) => {
+      touchMovedRef.current = false;
+
       // Ignore touches on control buttons
       if (e.target.closest('button') || e.target.closest('a') || e.target.closest('[role="button"]')) {
         return;
@@ -202,6 +214,12 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
           tapPos.y - tapDataRef.current.lastTapPos.y
         );
 
+        swipeDataRef.current = {
+          startX: touch.clientX,
+          startY: touch.clientY,
+          startTime: now,
+        };
+
         // Double tap detection (< 300ms, < 35px movement)
         if (diff > 0 && diff < 300 && moveDist < 35) {
           e.preventDefault();
@@ -221,6 +239,10 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
             const nextPos = getClampedPosition(targetX, targetY, targetScale);
             positionRef.current = nextPos;
             setPosition(nextPos);
+            if (contentWrapperRef.current) {
+              contentWrapperRef.current.style.transition = 'transform 0.22s cubic-bezier(0.2, 0, 0.2, 1)';
+              contentWrapperRef.current.style.transform = `translate3d(${nextPos.x}px, ${nextPos.y}px, 0px) scale(${targetScale})`;
+            }
           }
           tapDataRef.current.lastTapTime = 0;
           return;
@@ -244,9 +266,11 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
     };
 
     const onTouchMove = (e) => {
-      if (e.touches.length === 2 && isPinchingRef.current) {
-        // 2-finger continuous pinch zoom
+      // Two fingers: continuous pinch zoom
+      if (e.touches.length === 2) {
         e.preventDefault();
+        touchMovedRef.current = true;
+
         const t1 = e.touches[0];
         const t2 = e.touches[1];
         const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
@@ -255,23 +279,50 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
           y: (t1.clientY + t2.clientY) / 2,
         };
 
+        if (!isPinchingRef.current || pinchDataRef.current.initialDist <= 0) {
+          isPinchingRef.current = true;
+          isPanningRef.current = false;
+          setIsDragging(true);
+          isDraggingRef.current = true;
+          pinchDataRef.current = {
+            initialDist: dist,
+            initialScale: scaleRef.current,
+            initialPos: { ...positionRef.current },
+            initialCenter: center,
+          };
+          return;
+        }
+
         const { initialDist, initialScale, initialPos, initialCenter } = pinchDataRef.current;
         if (initialDist > 0) {
           const factor = dist / initialDist;
-          const nextScale = Math.min(Math.max(initialScale * factor, 0.8), 5.0);
+          const nextScale = Math.min(Math.max(initialScale * factor, 0.75), 5.0);
+          const scaleRatio = nextScale / (initialScale || 1);
 
+          const screenCenterX = window.innerWidth / 2;
+          const screenCenterY = window.innerHeight / 2;
+          const cx = initialCenter.x - screenCenterX;
+          const cy = initialCenter.y - screenCenterY;
           const shiftX = center.x - initialCenter.x;
           const shiftY = center.y - initialCenter.y;
-          const nextPos = getClampedPosition(initialPos.x + shiftX, initialPos.y + shiftY, nextScale);
+
+          const targetX = initialPos.x * scaleRatio + cx * (1 - scaleRatio) + shiftX;
+          const targetY = initialPos.y * scaleRatio + cy * (1 - scaleRatio) + shiftY;
+          const nextPos = getClampedPosition(targetX, targetY, nextScale);
 
           scaleRef.current = nextScale;
           positionRef.current = nextPos;
-          setScale(nextScale);
-          setPosition(nextPos);
+
+          if (contentWrapperRef.current) {
+            contentWrapperRef.current.style.transition = 'none';
+            contentWrapperRef.current.style.transform = `translate3d(${nextPos.x}px, ${nextPos.y}px, 0px) scale(${nextScale})`;
+          }
         }
       } else if (e.touches.length === 1 && isPanningRef.current && scaleRef.current > 1.05) {
-        // 1-finger pan when zoomed in
+        // One finger: pan zoomed image
         e.preventDefault();
+        touchMovedRef.current = true;
+
         const touch = e.touches[0];
         const dx = touch.clientX - panDataRef.current.startX;
         const dy = touch.clientY - panDataRef.current.startY;
@@ -280,7 +331,11 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
         const nextPos = getClampedPosition(nextX, nextY, scaleRef.current);
 
         positionRef.current = nextPos;
-        setPosition(nextPos);
+
+        if (contentWrapperRef.current) {
+          contentWrapperRef.current.style.transition = 'none';
+          contentWrapperRef.current.style.transform = `translate3d(${nextPos.x}px, ${nextPos.y}px, 0px) scale(${scaleRef.current})`;
+        }
       }
     };
 
@@ -291,15 +346,41 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
         setIsDragging(false);
         isDraggingRef.current = false;
 
+        if (contentWrapperRef.current) {
+          contentWrapperRef.current.style.transition = 'transform 0.22s cubic-bezier(0.2, 0, 0.2, 1)';
+        }
+
         // Spring back if below 1.05
         if (scaleRef.current < 1.05) {
           resetZoom();
         } else if (scaleRef.current > 5.0) {
           scaleRef.current = 5.0;
           setScale(5.0);
-          setPosition(prev => getClampedPosition(prev.x, prev.y, 5.0));
+          const clamped = getClampedPosition(positionRef.current.x, positionRef.current.y, 5.0);
+          positionRef.current = clamped;
+          setPosition(clamped);
         } else {
-          setPosition(prev => getClampedPosition(prev.x, prev.y, scaleRef.current));
+          const clamped = getClampedPosition(positionRef.current.x, positionRef.current.y, scaleRef.current);
+          positionRef.current = clamped;
+          setScale(scaleRef.current);
+          setPosition(clamped);
+        }
+
+        // Swipe navigation check when not zoomed in
+        if (scaleRef.current <= 1.05 && swipeDataRef.current.startTime > 0 && e.changedTouches?.length > 0) {
+          const touch = e.changedTouches[0];
+          const dx = touch.clientX - swipeDataRef.current.startX;
+          const dy = touch.clientY - swipeDataRef.current.startY;
+          const dt = Date.now() - swipeDataRef.current.startTime;
+          swipeDataRef.current.startTime = 0;
+
+          if (dt < 400 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            if (dx < -50 && currentIndex < files.length - 1) {
+              setCurrentIndex(prev => prev + 1);
+            } else if (dx > 50 && currentIndex > 0) {
+              setCurrentIndex(prev => prev - 1);
+            }
+          }
         }
       } else if (e.touches.length === 1) {
         isPinchingRef.current = false;
@@ -315,17 +396,17 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
     };
 
     el.addEventListener('touchstart', onTouchStart, { passive: false });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd);
-    el.addEventListener('touchcancel', onTouchEnd);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
 
     return () => {
       el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [isOpen, resetZoom, getClampedPosition]);
+  }, [containerEl, isOpen, currentIndex, files.length, resetZoom, getClampedPosition]);
 
   // Desktop Mouse Wheel to Zoom In / Out
   const handleWheel = (e) => {
@@ -372,16 +453,22 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
 
   // Double click on desktop (Facebook style: toggle 1x and 2.5x)
   const handleDoubleClick = (e) => {
-    if (scale > 1.2) {
+    if (scaleRef.current > 1.2) {
       resetZoom();
     } else {
       const nextScale = 2.5;
+      scaleRef.current = nextScale;
       setScale(nextScale);
       const rect = e.currentTarget.getBoundingClientRect();
       const tapX = e.clientX - (rect.left + rect.width / 2);
       const tapY = e.clientY - (rect.top + rect.height / 2);
       const clamped = getClampedPosition(-tapX * 0.8, -tapY * 0.8, nextScale);
+      positionRef.current = clamped;
       setPosition(clamped);
+      if (contentWrapperRef.current) {
+        contentWrapperRef.current.style.transition = 'transform 0.22s cubic-bezier(0.2, 0, 0.2, 1)';
+        contentWrapperRef.current.style.transform = `translate3d(${clamped.x}px, ${clamped.y}px, 0px) scale(${nextScale})`;
+      }
     }
   };
 
@@ -392,7 +479,12 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
       {isOpen && (
         <ModalPortal>
           <div 
-            ref={modalContainerRef}
+            ref={(node) => {
+              modalContainerRef.current = node;
+              if (node && node !== containerEl) {
+                setContainerEl(node);
+              }
+            }}
             className="fixed inset-0 z-[250] flex items-center justify-center bg-black/95 backdrop-blur-md select-none touch-none overflow-hidden"
             onWheel={handleWheel}
             onMouseMove={handleMouseMove}
@@ -402,7 +494,11 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
             <div 
               className="absolute inset-0 z-10 cursor-zoom-out"
               onClick={() => {
-                if (scale > 1.1) {
+                if (touchMovedRef.current) {
+                  touchMovedRef.current = false;
+                  return;
+                }
+                if (scaleRef.current > 1.1) {
                   resetZoom();
                 } else {
                   onClose();
@@ -424,56 +520,10 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
                 )}
               </div>
 
-              {/* Center Zoom Controls */}
-              <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 bg-black/60 backdrop-blur-md border border-white/15 rounded-full p-1 shadow-2xl">
-                <button
-                  type="button"
-                  onClick={handleZoomOut}
-                  disabled={scale <= 1}
-                  aria-label="Zoom out"
-                  title="Zoom out (-)"
-                  className="p-1.5 sm:p-2 rounded-full text-white/90 hover:text-white hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={resetZoom}
-                  title="Click to reset zoom"
-                  className="px-2 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-semibold text-white/90 hover:text-white hover:bg-white/15 transition-all cursor-pointer min-w-[46px] text-center"
-                >
-                  {Math.round(scale * 100)}%
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleZoomIn}
-                  disabled={scale >= 5}
-                  aria-label="Zoom in"
-                  title="Zoom in (+)"
-                  className="p-1.5 sm:p-2 rounded-full text-white/90 hover:text-white hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </button>
-
-                {scale > 1.05 && (
-                  <button
-                    type="button"
-                    onClick={resetZoom}
-                    aria-label="Reset zoom"
-                    title="Reset to 100% (0)"
-                    className="p-1.5 sm:p-2 rounded-full text-primary hover:bg-primary/20 transition-all cursor-pointer"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
               {/* Close Button */}
               <button 
                 type="button"
-                className="pointer-events-auto p-2 bg-white/10 hover:bg-white/25 rounded-full text-white transition-all shadow-lg cursor-pointer"
+                className="pointer-events-auto p-2 bg-white/10 hover:bg-white/25 rounded-full text-white transition-all shadow-lg cursor-pointer ml-auto"
                 onClick={onClose}
                 aria-label="Close media viewer"
                 title="Close (Esc)"
@@ -481,13 +531,6 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
                 <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
-
-            {/* Gesture Hint (Floating badge on mobile) */}
-            {showHint && (
-              <div className="absolute top-20 left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[11px] sm:text-xs font-medium shadow-xl z-20 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
-                <span>Pinch with 2 fingers or double-tap to zoom • Drag to pan</span>
-              </div>
-            )}
 
             {/* Content Container (z-20) */}
             <div className="relative z-20 w-full h-full flex items-center justify-center p-2 sm:p-6 md:p-12 overflow-hidden pointer-events-none">

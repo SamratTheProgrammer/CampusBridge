@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, MessageSquareOff, MessageCircle, Languages } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, MessageSquareOff, MessageCircle, Languages, Cake } from 'lucide-react'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -627,7 +627,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
                 {/* Birthday Display */}
                 {student?.dateOfBirth && (isOwner || student?.dobVisibility === 'public' || (student?.dobVisibility === 'connections' && connectionStatus === 'accepted')) && student?.dobFormat !== 'hidden' && (
                   <span className="flex items-center gap-1.5">
-                    <span className="text-sm">🎂</span>
+                    <Cake className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     {(() => {
                       const d = new Date(student.dateOfBirth);
                       if (isNaN(d.getTime())) return null;
@@ -1244,8 +1244,8 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
                       <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
                       <span className="flex items-center gap-1.5">
                         <span>{hasLiked ? 'Liked' : 'Like'}</span>
-                        {!post.hideLikes && (post.likes?.length || 0) > 0 && (
-                          <span className="font-semibold">{post.likes.length}</span>
+                        {!post.hideLikes && (
+                          <span className="font-semibold">{post.likes?.length || 0}</span>
                         )}
                       </span>
                     </button>

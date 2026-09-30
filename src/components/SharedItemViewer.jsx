@@ -874,7 +874,7 @@ const SharedItemViewer = () => {
                               className={`flex items-center gap-1.5 transition-colors group ${data.likes?.some(like => (like.clerkId || like) === user?.id) ? 'text-red-500' : 'text-foreground hover:text-primary'}`}
                             >
                               <Heart className={`w-6 h-6 ${data.likes?.some(like => (like.clerkId || like) === user?.id) ? 'fill-current' : 'group-hover:fill-primary/20'}`} />
-                              <span className="font-bold">{!data.hideLikes && (data.likes?.length || 0) > 0 ? data.likes.length : ''}</span>
+                              <span className="font-bold">{!data.hideLikes ? (data.likes?.length || 0) : ''}</span>
                             </button>
                             <button
                               onClick={() => {

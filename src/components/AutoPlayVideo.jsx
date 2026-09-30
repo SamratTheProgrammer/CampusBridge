@@ -37,6 +37,13 @@ const AutoPlayVideo = ({ src, className, controls = true }) => {
     };
   }, []);
 
+  // Check if video metadata is already loaded (e.g. from cache)
+  useEffect(() => {
+    if (videoRef.current && videoRef.current.videoWidth && videoRef.current.videoHeight) {
+      setAspectRatio(videoRef.current.videoWidth / videoRef.current.videoHeight);
+    }
+  }, [src]);
+
   // Sync video's muted property with global state
   useEffect(() => {
     if (videoRef.current) {
@@ -66,14 +73,16 @@ const AutoPlayVideo = ({ src, className, controls = true }) => {
     }
   };
 
+  const isCover = className?.includes('object-cover');
+
   return (
-    <div className={`relative flex items-center justify-center overflow-hidden ${className || ''}`}>
+    <div className={`relative flex items-center justify-center ${isCover ? 'w-full h-full' : 'w-auto max-w-full max-h-full'}`}>
       <video
         ref={videoRef}
         src={src}
         onLoadedMetadata={handleLoadedMetadata}
         style={aspectRatio ? { aspectRatio: `${aspectRatio}` } : undefined}
-        className={className?.includes('object-cover') ? "w-full h-full object-cover" : "w-auto max-w-full h-auto max-h-full object-contain"}
+        className={`${className || ''} ${isCover ? 'w-full h-full object-cover' : 'w-auto max-w-full h-auto object-contain'}`}
         controls={controls}
         autoPlay
         loop

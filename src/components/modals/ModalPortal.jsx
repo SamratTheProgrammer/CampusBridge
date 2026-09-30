@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom'
  * overflow, or stacking context from causing gaps or clipping at the top.
  */
 const ModalPortal = ({ children }) => {
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(() => typeof document !== 'undefined')
 
   useEffect(() => {
     setMounted(true)

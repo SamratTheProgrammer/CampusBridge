@@ -40,6 +40,90 @@ const THEMES = [
   { id: 'light-sky', name: 'Sky Blue (Light)', bg: 'bg-gradient-to-b from-slate-50 via-blue-100/50 to-slate-50 dark:from-slate-950 dark:via-blue-900/10 dark:to-slate-950' }
 ];
 
+const SharedPostThumbnail = ({ share }) => {
+  const [mediaInfo, setMediaInfo] = useState({
+    imageUrl: share.imageUrl || '',
+    mediaType: share.mediaType || ''
+  });
+
+  useEffect(() => {
+    if (!mediaInfo.imageUrl && share.type === 'post' && share.itemId) {
+      let isMounted = true;
+      fetch(`${API_BASE}/api/posts/${share.itemId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!isMounted || !data) return;
+          const post = data.post || data;
+          let thumb = '';
+          let type = '';
+          if (post.mediaFiles && post.mediaFiles.length > 0) {
+            const first = post.mediaFiles[0];
+            const isVid = first.mediaType === 'video' || (first.url && first.url.match(/\.(mp4|webm|mov|ogg)$/i));
+            type = isVid ? 'video' : 'image';
+            if (first.thumbnailUrl) {
+              thumb = first.thumbnailUrl;
+            } else if (first.url) {
+              if (isVid && first.url.includes('cloudinary.com')) {
+                thumb = first.url.replace('/video/upload/', '/video/upload/so_auto,w_600,c_fill,f_jpg/').replace(/\.(mp4|webm|mov|ogg)$/i, '.jpg');
+              } else {
+                thumb = first.url;
+              }
+            }
+          } else if (post.imageUrl) {
+            thumb = post.imageUrl;
+            type = post.mediaType || 'image';
+          } else if (post.linkPreview?.image || post.linkPreview?.thumbnailUrl) {
+            thumb = post.linkPreview.image || post.linkPreview.thumbnailUrl;
+            type = 'link';
+          }
+          if (thumb) {
+            setMediaInfo({ imageUrl: thumb, mediaType: type });
+          }
+        })
+        .catch(() => {});
+      return () => { isMounted = false; };
+    }
+  }, [share.itemId, share.type, mediaInfo.imageUrl]);
+
+  const currentUrl = mediaInfo.imageUrl || share.imageUrl;
+  if (!currentUrl) return null;
+
+  const isVideo = (mediaInfo.mediaType === 'video' || share.mediaType === 'video' || currentUrl.match(/\.(mp4|webm|mov|ogg)$/i)) && !currentUrl.match(/\.(jpg|jpeg|png|webp)$/i);
+
+  return (
+    <div className="relative w-full aspect-[4/3] bg-black/80 overflow-hidden">
+      {isVideo ? (
+        <video
+          src={currentUrl}
+          className="w-full h-full object-cover pointer-events-none"
+          muted
+          preload="metadata"
+          playsInline
+        />
+      ) : (
+        <img 
+          src={currentUrl} 
+          alt="Post preview" 
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+      )}
+      {(mediaInfo.mediaType === 'video' || share.mediaType === 'video' || currentUrl.includes('.mp4') || currentUrl.includes('/video/')) && (
+        <>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/25 group-hover:bg-black/35 transition-colors pointer-events-none">
+            <div className="w-11 h-11 rounded-full bg-black/65 backdrop-blur-md border border-white/25 flex items-center justify-center text-white shadow-2xl group-hover:scale-110 transition-transform">
+              <Play className="w-5 h-5 fill-white text-white ml-0.5" />
+            </div>
+          </div>
+          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold flex items-center gap-1 shadow-sm pointer-events-none">
+            <Video className="w-3 h-3 text-white" />
+            <span>Video</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const RealtimeChat = () => {
   const { user } = useUser();
   const navigate = useNavigate();
@@ -1668,29 +1752,7 @@ const RealtimeChat = () => {
                                       </div>
 
                                       {/* Post Media Thumbnail */}
-                                      {msg.share.imageUrl ? (
-                                        <div className="relative w-full aspect-[4/3] bg-black/80 overflow-hidden">
-                                          <img 
-                                            src={msg.share.imageUrl} 
-                                            alt="Post preview" 
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                          />
-                                          {/* If video: Center play button overlay & video badge */}
-                                          {(msg.share.mediaType === 'video' || msg.share.imageUrl.includes('.mp4') || msg.share.imageUrl.includes('/video/')) && (
-                                            <>
-                                              <div className="absolute inset-0 flex items-center justify-center bg-black/25 group-hover:bg-black/35 transition-colors pointer-events-none">
-                                                <div className="w-11 h-11 rounded-full bg-black/65 backdrop-blur-md border border-white/25 flex items-center justify-center text-white shadow-2xl group-hover:scale-110 transition-transform">
-                                                  <Play className="w-5 h-5 fill-white text-white ml-0.5" />
-                                                </div>
-                                              </div>
-                                              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold flex items-center gap-1 shadow-sm pointer-events-none">
-                                                <Video className="w-3 h-3 text-white" />
-                                                <span>Video</span>
-                                              </div>
-                                            </>
-                                          )}
-                                        </div>
-                                      ) : null}
+                                      <SharedPostThumbnail share={msg.share} />
 
                                       {/* Post Content / Caption */}
                                       {msg.share.description && (
