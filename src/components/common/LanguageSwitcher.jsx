@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Globe, Check, ChevronDown } from 'lucide-react';
 import {
-  SUPPORTED_TRANSLATION_LANGUAGES,
   getWebsiteLanguage,
   setWebsiteLanguage,
   getLanguageByCode,
@@ -28,6 +27,82 @@ const LanguageSwitcher = ({ className = '', dropUp = false }) => {
   const [currentLang, setCurrentLang] = useState(getWebsiteLanguage);
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
+  const [dropdownPosition, setDropdownPosition] = useState({
+    dropUpResolved: dropUp,
+    style: {},
+  });
+
+  const updatePosition = useCallback(() => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const margin = 12; // 12px safe margin from viewport edges
+    const maxAvailableWidth = Math.max(200, vw - margin * 2);
+    const desiredWidth = 264; // width to comfortably display 2-column language grid
+    const actualWidth = Math.min(desiredWidth, maxAvailableWidth);
+
+    // Auto-detect vertical flipping if space is limited
+    const estimatedHeight = 280;
+    const spaceBelow = vh - rect.bottom;
+    const spaceAbove = rect.top;
+    let shouldDropUp = dropUp;
+    if (!dropUp && spaceBelow < estimatedHeight + 10 && spaceAbove > spaceBelow) {
+      shouldDropUp = true;
+    } else if (dropUp && spaceAbove < estimatedHeight + 10 && spaceBelow > spaceAbove) {
+      shouldDropUp = false;
+    }
+
+    // Horizontal placement:
+    // By default, try right-aligning with the trigger button
+    let targetScreenLeft = rect.right - actualWidth;
+
+    // Clamp left edge so it doesn't clip off the left screen edge on mobile
+    if (targetScreenLeft < margin) {
+      targetScreenLeft = margin;
+    }
+
+    // Clamp right edge so it doesn't clip off the right screen edge
+    if (targetScreenLeft + actualWidth > vw - margin) {
+      targetScreenLeft = Math.max(margin, vw - margin - actualWidth);
+    }
+
+    // Calculate relative left offset inside menuRef (which has relative positioning)
+    const relativeLeft = targetScreenLeft - rect.left;
+
+    setDropdownPosition({
+      dropUpResolved: shouldDropUp,
+      style: {
+        left: `${relativeLeft}px`,
+        right: 'auto',
+        width: `${actualWidth}px`,
+        maxWidth: `calc(100vw - ${margin * 2}px)`,
+      },
+    });
+  }, [dropUp]);
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+    }
+  }, [isOpen, updatePosition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleUpdate = () => {
+      updatePosition();
+    };
+
+    window.addEventListener('resize', handleUpdate);
+    window.addEventListener('scroll', handleUpdate, true);
+
+    return () => {
+      window.removeEventListener('resize', handleUpdate);
+      window.removeEventListener('scroll', handleUpdate, true);
+    };
+  }, [isOpen, updatePosition]);
 
   useEffect(() => {
     const onLangChange = (e) => {
@@ -79,7 +154,12 @@ const LanguageSwitcher = ({ className = '', dropUp = false }) => {
     <div ref={menuRef} className={`relative inline-block ${className}`}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) {
+            updatePosition();
+          }
+          setIsOpen(!isOpen);
+        }}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-card border border-border/60 hover:bg-muted text-foreground text-xs font-semibold shadow-2xs hover:border-primary/40 transition-all cursor-pointer group"
         title={`Change website language (Current: ${activeLangObj.name})`}
         aria-label="Change website language"
@@ -93,10 +173,13 @@ const LanguageSwitcher = ({ className = '', dropUp = false }) => {
 
       {isOpen && (
         <div 
-          className={`absolute right-0 ${
-            dropUp ? 'bottom-full mb-2' : 'top-full mt-2'
-          } z-[120] p-3 bg-card border border-border rounded-2xl shadow-2xl w-64 max-w-[calc(100vw-2rem)] text-left animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5 dark:ring-white/10`}
-          style={{ backgroundColor: 'hsl(var(--card))' }}
+          className={`absolute ${
+            dropdownPosition.dropUpResolved ? 'bottom-full mb-2' : 'top-full mt-2'
+          } z-[120] p-3 bg-card border border-border rounded-2xl shadow-2xl text-left animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5 dark:ring-white/10`}
+          style={{
+            ...dropdownPosition.style,
+            backgroundColor: 'hsl(var(--card))'
+          }}
         >
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-border text-[11px] font-semibold text-muted-foreground">
             <span>Website Language</span>
@@ -123,7 +206,7 @@ const LanguageSwitcher = ({ className = '', dropUp = false }) => {
                       {lang.name}
                     </div>
                   </div>
-                  {isSelected && <Check className="w-3 h-3 shrink-0 stroke-[3]" />}
+                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                 </button>
               );
             })}
