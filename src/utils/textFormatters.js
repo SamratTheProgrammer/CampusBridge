@@ -35,3 +35,12 @@ export const formatMentorSubtitle = (headline, role) => {
   }
   return 'Mentor';
 };
+
+/**
+ * Calculate total comments count including all nested replies
+ */
+export const getTotalCommentsCount = (comments) => {
+  if (!comments || !Array.isArray(comments)) return 0;
+  return comments.reduce((total, c) => total + 1 + (c?.replies?.length || 0), 0);
+};
+

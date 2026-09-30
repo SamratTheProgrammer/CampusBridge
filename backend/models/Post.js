@@ -106,6 +106,10 @@ const postSchema = new mongoose.Schema({
   hideLikes: {
     type: Boolean,
     default: false
+  },
+  sharesCount: {
+    type: Number,
+    default: 0
   }
 });
 

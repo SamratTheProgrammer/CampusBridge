@@ -23,6 +23,7 @@ export const useRealtimePosts = ({
   onPostUpdated,
   onPostLiked,
   onCommentsUpdated,
+  onPostSharesUpdated,
 } = {}) => {
   useEffect(() => {
     if (!socket) return;
@@ -95,12 +96,25 @@ export const useRealtimePosts = ({
       if (onCommentsUpdated) onCommentsUpdated({ postId, comments });
     };
 
+    const handlePostSharesUpdated = ({ postId, sharesCount }) => {
+      if (!postId) return;
+      if (setPosts) {
+        setPosts((prev) =>
+          Array.isArray(prev)
+            ? prev.map((p) => ((p._id || p.id) === postId ? { ...p, sharesCount } : p))
+            : prev
+        );
+      }
+      if (onPostSharesUpdated) onPostSharesUpdated({ postId, sharesCount });
+    };
+
     socket.on('new_post', handleNewPost);
     socket.on('post_created', handleNewPost);
     socket.on('post_deleted', handlePostDeleted);
     socket.on('post_updated', handlePostUpdated);
     socket.on('post_liked', handlePostLiked);
     socket.on('post_comments_updated', handleCommentsUpdated);
+    socket.on('post_shares_updated', handlePostSharesUpdated);
 
     return () => {
       socket.off('new_post', handleNewPost);
@@ -109,8 +123,9 @@ export const useRealtimePosts = ({
       socket.off('post_updated', handlePostUpdated);
       socket.off('post_liked', handlePostLiked);
       socket.off('post_comments_updated', handleCommentsUpdated);
+      socket.off('post_shares_updated', handlePostSharesUpdated);
     };
-  }, [setPosts, userFilterId, onNewPost, onPostDeleted, onPostUpdated, onPostLiked, onCommentsUpdated]);
+  }, [setPosts, userFilterId, onNewPost, onPostDeleted, onPostUpdated, onPostLiked, onCommentsUpdated, onPostSharesUpdated]);
 };
 
 export default useRealtimePosts;

@@ -18,7 +18,7 @@ import ImageViewerModal from '../../components/ImageViewerModal'
 import FormattedPostText from '../../components/common/FormattedPostText'
 import PostCaption from '../../components/common/PostCaption'
 import { formatTime } from '../../utils/dateFormatter'
-import { formatRoleSubtitle } from '../../utils/textFormatters'
+import { formatRoleSubtitle, getTotalCommentsCount } from '../../utils/textFormatters'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import { getAppUrl } from '../../utils/appUrl'
@@ -1664,6 +1664,7 @@ const MentorHome = () => {
               const safeLikes = post.likes || []
               const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
               const commentsArray = post.comments || []
+              const totalComments = getTotalCommentsCount(commentsArray)
               const postAuthorDP = (post.authorClerkId === user?.id) ? (user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)) : (post.author?.image || getAvatarFallback(post.author?.name))
               const showComments = activeCommentPostId === post._id
 
@@ -2021,18 +2022,22 @@ const MentorHome = () => {
                         <span className="bg-rose-500 text-white rounded-full p-1"><Heart className="w-3 h-3 fill-current" /></span>
                         <span className="font-medium text-foreground/80 hover:text-primary transition-colors">{renderLikesText(post.likes, post.hideLikes)}</span>
                       </div>
-                      <span 
-                        className="cursor-pointer hover:underline flex items-center gap-1.5" 
-                        onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
-                      >
-                        {post.commentsDisabled ? (
-                          <span className="italic text-muted-foreground/80 flex items-center gap-1">
-                            <MessageSquareOff className="w-3.5 h-3.5" /> Comments off
-                          </span>
-                        ) : (
-                          `${commentsArray.length} comments`
-                        )}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span 
+                          className="cursor-pointer hover:underline flex items-center gap-1.5" 
+                          onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
+                        >
+                          {post.commentsDisabled ? (
+                            <span className="italic text-muted-foreground/80 flex items-center gap-1">
+                              <MessageSquareOff className="w-3.5 h-3.5" /> Comments off
+                            </span>
+                          ) : (
+                            `${totalComments} comment${totalComments === 1 ? '' : 's'}`
+                          )}
+                        </span>
+                        <span>•</span>
+                        <span>{post.sharesCount || 0} share{(post.sharesCount || 0) === 1 ? '' : 's'}</span>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-1">
                       <button 
@@ -2040,7 +2045,12 @@ const MentorHome = () => {
                         className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors font-medium text-sm ${hasLiked ? 'text-red-500' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                       >
                         <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
-                        <span>Like{!post.hideLikes && (post.likes?.length || 0) > 0 ? ` (${post.likes.length})` : ''}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span>{hasLiked ? 'Liked' : 'Like'}</span>
+                          {!post.hideLikes && (post.likes?.length || 0) > 0 && (
+                            <span className="font-semibold">{post.likes.length}</span>
+                          )}
+                        </span>
                       </button>
                       <button 
                         onClick={() => setActiveCommentPostId(showComments ? null : post._id)}
@@ -2050,10 +2060,12 @@ const MentorHome = () => {
                             : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                         }`}
                       >
-                        {post.commentsDisabled ? <MessageSquareOff className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />} Comment
+                        {post.commentsDisabled ? <MessageSquareOff className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+                        <span>Comment</span>
                       </button>
                       <button onClick={() => handleShare(post._id)} className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted py-2 px-3 rounded-lg transition-colors font-medium text-sm">
-                        <Share2 className="w-5 h-5" /> Share
+                        <Share2 className="w-5 h-5" />
+                        <span>Share</span>
                       </button>
                     </div>
                   </div>

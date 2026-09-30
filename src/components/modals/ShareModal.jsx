@@ -37,10 +37,21 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) =
     }
   };
 
+  const trackShare = async () => {
+    if (shareType === 'post' && itemId) {
+      try {
+        await fetch(`${API_BASE}/api/posts/${itemId}/share`, { method: 'POST' });
+      } catch (e) {
+        console.error('Error tracking share:', e);
+      }
+    }
+  };
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
     setIsCopied(true);
     toast.success('Link copied to clipboard!');
+    trackShare();
     setTimeout(() => setIsCopied(false), 2000);
   };
 
@@ -51,6 +62,7 @@ const ShareModal = ({ isOpen, onClose, shareUrl, shareType = 'item', itemId }) =
           title: `Check out this ${shareType} on CampusBridge`,
           url: shareUrl,
         });
+        trackShare();
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('Error sharing natively:', err);

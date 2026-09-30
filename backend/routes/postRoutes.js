@@ -847,4 +847,36 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Track post share (e.g. copied link or external share)
+router.post('/:id/share', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid Post ID' });
+    }
+
+    const post = await Post.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { sharesCount: 1 } },
+      { new: true }
+    );
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_shares_updated', {
+        postId: post._id.toString(),
+        sharesCount: post.sharesCount || 0
+      });
+    }
+
+    res.status(200).json({ success: true, sharesCount: post.sharesCount || 0 });
+  } catch (error) {
+    console.error('Error tracking post share:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;

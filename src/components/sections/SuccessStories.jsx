@@ -407,7 +407,7 @@ const SuccessStories = () => {
               className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
-              Reply {story.replies && story.replies.length > 0 ? `(${story.replies.length})` : ''}
+              Reply{story.replies && story.replies.length > 0 ? ` ${story.replies.length}` : ''}
             </button>
           </div>
 

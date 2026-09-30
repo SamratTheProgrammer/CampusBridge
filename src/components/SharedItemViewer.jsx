@@ -16,6 +16,7 @@ import { socket } from '../services/socket';
 import FormattedPostText from './common/FormattedPostText';
 import PostCaption from './common/PostCaption';
 import AudioPlayerWidget from './common/AudioPlayerWidget';
+import { getTotalCommentsCount } from '../utils/textFormatters';
 
 const optimizeUrl = (url) => {
   if (url && url.includes('cloudinary.com') && url.includes('/upload/')) {
@@ -137,6 +138,12 @@ const SharedItemViewer = () => {
       }
     };
 
+    const handlePostSharesUpdated = ({ postId, sharesCount }) => {
+      if (postId === itemId) {
+        setData(prev => (prev ? { ...prev, sharesCount } : prev));
+      }
+    };
+
     const handlePostDeleted = ({ postId }) => {
       if (postId === itemId) {
         toast('This post was deleted.');
@@ -147,12 +154,14 @@ const SharedItemViewer = () => {
     socket.on('post_comments_updated', handleCommentsUpdated);
     socket.on('post_liked', handlePostLiked);
     socket.on('post_updated', handlePostUpdated);
+    socket.on('post_shares_updated', handlePostSharesUpdated);
     socket.on('post_deleted', handlePostDeleted);
 
     return () => {
       socket.off('post_comments_updated', handleCommentsUpdated);
       socket.off('post_liked', handlePostLiked);
       socket.off('post_updated', handlePostUpdated);
+      socket.off('post_shares_updated', handlePostSharesUpdated);
       socket.off('post_deleted', handlePostDeleted);
     };
   }, [itemType, itemId]);
@@ -856,7 +865,7 @@ const SharedItemViewer = () => {
                               className={`flex items-center gap-1.5 transition-colors group ${data.likes?.some(like => (like.clerkId || like) === user?.id) ? 'text-red-500' : 'text-foreground hover:text-primary'}`}
                             >
                               <Heart className={`w-6 h-6 ${data.likes?.some(like => (like.clerkId || like) === user?.id) ? 'fill-current' : 'group-hover:fill-primary/20'}`} />
-                              <span className="font-bold">{data.likes?.length || 0}</span>
+                              <span className="font-bold">{!data.hideLikes && (data.likes?.length || 0) > 0 ? data.likes.length : ''}</span>
                             </button>
                             <button
                               onClick={() => {
@@ -869,10 +878,11 @@ const SharedItemViewer = () => {
                               className="flex items-center gap-1.5 text-foreground hover:text-primary transition-colors group"
                             >
                               <MessageCircle className="w-6 h-6 group-hover:fill-primary/20" />
-                              <span className="font-bold">{data.comments?.length || 0}</span>
+                              <span className="font-bold">{getTotalCommentsCount(data.comments) > 0 ? getTotalCommentsCount(data.comments) : ''}</span>
                             </button>
                             <button onClick={handleShare} className="flex items-center gap-1.5 text-foreground hover:text-primary transition-colors ml-auto group">
                               <Share2 className="w-6 h-6 group-hover:fill-primary/20" />
+                              {(data.sharesCount || 0) > 0 && <span className="font-bold">{data.sharesCount}</span>}
                             </button>
                           </div>
                         }

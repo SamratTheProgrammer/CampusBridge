@@ -587,11 +587,23 @@ router.post('/share', async (req, res) => {
 
     try {
       if (shareType === 'post') {
-        const post = await Post.findById(itemId);
+        const post = await Post.findByIdAndUpdate(
+          itemId,
+          { $inc: { sharesCount: 1 } },
+          { new: true }
+        );
         if (post) {
           title = 'Post';
           description = post.content ? (post.content.substring(0, 100) + (post.content.length > 100 ? '...' : '')) : '';
           if (post.images && post.images.length > 0) imageUrl = post.images[0];
+
+          const io = req.app?.get('io') || req.io;
+          if (io) {
+            io.emit('post_shares_updated', {
+              postId: post._id.toString(),
+              sharesCount: post.sharesCount || 0
+            });
+          }
         }
       } else if (shareType === 'job') {
         const job = await Job.findById(itemId);
