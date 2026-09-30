@@ -43,7 +43,10 @@ const messageSchema = new mongoose.Schema({
     typeModel: { type: String, enum: ['Post', 'Job', 'Event', 'User'] },
     title: String,
     description: String,
-    imageUrl: String
+    imageUrl: String,
+    mediaType: String,
+    authorName: String,
+    authorAvatar: String
   },
   callInfo: {
     callType: { type: String, enum: ['video', 'audio'] },

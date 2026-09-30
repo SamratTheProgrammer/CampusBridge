@@ -581,9 +581,9 @@ router.post('/share', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid share type' });
     }
 
-    let title = '';
-    let description = '';
-    let imageUrl = '';
+    let mediaType = '';
+    let authorName = '';
+    let authorAvatar = '';
 
     try {
       if (shareType === 'post') {
@@ -593,9 +593,41 @@ router.post('/share', async (req, res) => {
           { new: true }
         );
         if (post) {
-          title = 'Post';
-          description = post.content ? (post.content.substring(0, 100) + (post.content.length > 100 ? '...' : '')) : '';
-          if (post.images && post.images.length > 0) imageUrl = post.images[0];
+          // Look up post author for Instagram-style header
+          let authorUser = null;
+          if (post.authorClerkId) {
+            authorUser = await User.findOne({ clerkId: post.authorClerkId });
+          }
+          authorName = authorUser 
+            ? (`${authorUser.firstName || ''} ${authorUser.lastName || ''}`.trim() || authorUser.username || 'User')
+            : 'User';
+          authorAvatar = authorUser?.imageUrl || authorUser?.photoUrl || '';
+
+          title = authorName ? `${authorName}'s Post` : 'Post';
+          description = post.content ? (post.content.substring(0, 140) + (post.content.length > 140 ? '...' : '')) : '';
+
+          // Extract media thumbnail
+          if (post.mediaFiles && post.mediaFiles.length > 0) {
+            const first = post.mediaFiles[0];
+            const isVid = first.mediaType === 'video' || (first.url && first.url.match(/\.(mp4|webm|mov|ogg)$/i));
+            mediaType = isVid ? 'video' : (first.mediaType || 'image');
+
+            if (first.thumbnailUrl) {
+              imageUrl = first.thumbnailUrl;
+            } else if (first.url) {
+              if (isVid && first.url.includes('cloudinary.com')) {
+                imageUrl = first.url.replace(/\.(mp4|webm|mov|ogg)$/i, '.jpg');
+              } else {
+                imageUrl = first.url;
+              }
+            }
+          } else if (post.imageUrl) {
+            imageUrl = post.imageUrl;
+            mediaType = 'image';
+          } else if (post.linkPreview?.image || post.linkPreview?.thumbnailUrl) {
+            imageUrl = post.linkPreview.image || post.linkPreview.thumbnailUrl;
+            mediaType = 'link';
+          }
 
           const io = req.app?.get('io') || req.io;
           if (io) {
@@ -664,7 +696,10 @@ router.post('/share', async (req, res) => {
           typeModel,
           title,
           description,
-          imageUrl
+          imageUrl,
+          mediaType,
+          authorName,
+          authorAvatar
         }
       });
 

@@ -411,7 +411,7 @@ const SharedItemViewer = () => {
         ) : data ? (
           <>
             {/* Left Media Area */}
-            <div className="absolute inset-0 md:relative w-full md:w-[calc(90vh*9/16)] md:max-w-[calc(100vw-450px)] md:shrink bg-black flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-border/50 z-0">
+            <div className="absolute inset-0 md:relative w-full md:flex-1 md:min-w-0 md:max-w-[calc(100vw-420px)] bg-black flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-border/50 z-0">
               {itemType === 'post' && (
                 data.jobDetails?.title ? (
                   <div
@@ -487,7 +487,16 @@ const SharedItemViewer = () => {
                 ) : (data.mediaFiles && data.mediaFiles.length > 0) || data.imageUrl ? (
                   <div className="relative w-full h-full flex items-center justify-center bg-black">
                     {(() => {
-                      const activeMedia = data.mediaFiles?.length > 0 ? data.mediaFiles[currentMediaIndex] : { url: data.imageUrl, mediaType: data.mediaType };
+                      const safeMediaList = (data.mediaFiles && data.mediaFiles.length > 0)
+                        ? data.mediaFiles.filter(m => !!m?.url)
+                        : (data.imageUrl ? [{ url: data.imageUrl, mediaType: data.mediaType || 'image' }] : []);
+                      
+                      if (safeMediaList.length === 0) return null;
+
+                      const safeIndex = Math.min(Math.max(currentMediaIndex, 0), safeMediaList.length - 1);
+                      const activeMedia = safeMediaList[safeIndex];
+                      if (!activeMedia || !activeMedia.url) return null;
+
                       const isAudio = activeMedia.mediaType === 'audio' || (activeMedia.url && activeMedia.url.match(/\.(mp3|wav|ogg|m4a|aac|webm)(\?.*)?$/i));
                       const isVideo = !isAudio && (activeMedia.mediaType === 'video' || (activeMedia.url && activeMedia.url.match(/\.(mp4|webm|ogg)$/i)));
                       const optimizedSrc = optimizeUrl(activeMedia.url);
@@ -505,14 +514,14 @@ const SharedItemViewer = () => {
                       ) : isVideo ? (
                         <PinchZoomMedia 
                           className="w-full h-full flex items-center justify-center cursor-pointer"
-                          onTap={() => setViewerData({ files: data.mediaFiles?.length ? data.mediaFiles : [activeMedia], index: currentMediaIndex })}
+                          onTap={() => setViewerData({ files: safeMediaList, index: safeIndex })}
                         >
                           <AutoPlayVideo src={activeMedia.url} className="w-full max-h-full object-contain bg-black" />
                         </PinchZoomMedia>
                       ) : (
                         <PinchZoomMedia 
                           className="w-full h-full flex items-center justify-center cursor-pointer"
-                          onTap={() => setViewerData({ files: data.mediaFiles?.length ? data.mediaFiles : [activeMedia.url], index: currentMediaIndex })}
+                          onTap={() => setViewerData({ files: safeMediaList, index: safeIndex })}
                         >
                           <img
                             src={optimizedSrc}

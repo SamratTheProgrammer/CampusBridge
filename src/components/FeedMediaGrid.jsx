@@ -65,17 +65,17 @@ const FeedMediaGrid = ({
     return (
       <PinchZoomMedia 
         onTap={handleTap} 
-        className="w-full h-full flex items-center justify-center"
+        className={isMain ? "w-full max-h-[580px] flex items-center justify-center" : "w-full h-full flex items-center justify-center"}
       >
         {isVideo ? (
-          <div className="w-full h-full relative cursor-pointer">
-            <AutoPlayVideo src={file.url} className={`w-full h-full ${isMain ? 'object-contain' : 'object-cover'}`} />
+          <div className={`relative cursor-pointer ${isMain ? 'w-fit max-w-full max-h-[580px] flex items-center justify-center' : 'w-full h-full'}`}>
+            <AutoPlayVideo src={file.url} className={isMain ? 'w-auto max-w-full max-h-[580px] object-contain' : 'w-full h-full object-cover'} />
           </div>
         ) : (
           <img 
             src={optimizeUrl(file.url)} 
             alt="Post content" 
-            className={`w-full h-full cursor-pointer ${isMain ? 'object-contain bg-black' : 'object-cover'}`}
+            className={`cursor-pointer ${isMain ? 'w-auto max-w-full max-h-[580px] object-contain mx-auto' : 'w-full h-full object-cover'}`}
           />
         )}
       </PinchZoomMedia>
@@ -86,7 +86,7 @@ const FeedMediaGrid = ({
     <div className="w-full space-y-3">
       {/* Standard Image & Video Grid */}
       {standardMediaFiles.length === 1 && (
-        <div className="w-full h-[400px] sm:h-[500px] bg-black overflow-hidden flex items-center justify-center relative">
+        <div className="w-full max-h-[580px] bg-black/90 dark:bg-black overflow-hidden flex items-center justify-center relative rounded-2xl">
           <MediaItem file={standardMediaFiles[0]} idx={0} isMain={true} />
         </div>
       )}

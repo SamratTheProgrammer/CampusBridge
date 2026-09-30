@@ -1,9 +1,12 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useGlobalMute } from '../hooks/useGlobalMute';
 
 const AutoPlayVideo = ({ src, className, controls = true }) => {
   const videoRef = useRef(null);
   const [isMuted, toggleMute] = useGlobalMute(true);
+  const [aspectRatio, setAspectRatio] = useState(null);
+
+  if (!src) return null;
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -56,12 +59,21 @@ const AutoPlayVideo = ({ src, className, controls = true }) => {
     return () => video.removeEventListener('volumechange', handleVolumeChange);
   }, [isMuted, toggleMute]);
 
+  const handleLoadedMetadata = (e) => {
+    const { videoWidth, videoHeight } = e.target;
+    if (videoWidth && videoHeight) {
+      setAspectRatio(videoWidth / videoHeight);
+    }
+  };
+
   return (
     <div className={`relative flex items-center justify-center overflow-hidden ${className || ''}`}>
       <video
         ref={videoRef}
         src={src}
-        className={className?.includes('object-cover') ? "w-full h-full object-cover" : "w-full h-full object-contain"}
+        onLoadedMetadata={handleLoadedMetadata}
+        style={aspectRatio ? { aspectRatio: `${aspectRatio}` } : undefined}
+        className={className?.includes('object-cover') ? "w-full h-full object-cover" : "w-auto max-w-full h-auto max-h-full object-contain"}
         controls={controls}
         autoPlay
         loop

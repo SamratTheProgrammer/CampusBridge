@@ -19,18 +19,24 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
   const [showHint, setShowHint] = useState(true);
 
   const contentWrapperRef = useRef(null);
+  const modalContainerRef = useRef(null);
 
-  // Normalize mediaFiles to array of objects
+  // Normalize mediaFiles to array of objects with valid url
   const files = React.useMemo(() => {
     if (!mediaFiles) return [];
     if (typeof mediaFiles === 'string') return [{ url: mediaFiles, mediaType: 'image' }];
-    return mediaFiles.map(file => {
-      if (typeof file === 'string') return { url: file, mediaType: 'image' };
-      return file;
-    });
+    if (!Array.isArray(mediaFiles)) return [];
+    return mediaFiles
+      .filter(Boolean)
+      .map(file => {
+        if (typeof file === 'string') return { url: file, mediaType: 'image' };
+        return file;
+      })
+      .filter(file => !!file?.url);
   }, [mediaFiles]);
 
-  const activeMedia = files[currentIndex];
+  const safeIndex = Math.min(Math.max(currentIndex, 0), Math.max(0, files.length - 1));
+  const activeMedia = files[safeIndex] || null;
   const isVideo = activeMedia?.mediaType === 'video' || (activeMedia?.url && activeMedia.url.match(/\.(mp4|webm|ogg)$/i));
 
   // Mutable refs for tracking gestures across frames without stale closures
@@ -154,15 +160,22 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
 
   // Touch event listeners for 2-finger pinch and Facebook-style double tap
   useEffect(() => {
-    const el = contentWrapperRef.current;
+    const el = modalContainerRef.current;
     if (!el || !isOpen) return;
 
     const onTouchStart = (e) => {
+      // Ignore touches on control buttons
+      if (e.target.closest('button') || e.target.closest('a') || e.target.closest('[role="button"]')) {
+        return;
+      }
+
       if (e.touches.length === 2) {
         // Two fingers: Pinch-to-zoom start
+        e.preventDefault();
         isPinchingRef.current = true;
         isPanningRef.current = false;
         setIsDragging(true);
+        isDraggingRef.current = true;
 
         const t1 = e.touches[0];
         const t2 = e.touches[1];
@@ -189,7 +202,7 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
           tapPos.y - tapDataRef.current.lastTapPos.y
         );
 
-        // Facebook-style double tap detection (< 300ms, < 35px movement)
+        // Double tap detection (< 300ms, < 35px movement)
         if (diff > 0 && diff < 300 && moveDist < 35) {
           e.preventDefault();
           if (scaleRef.current > 1.2) {
@@ -198,13 +211,16 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
           } else {
             // Zoom in to 2.5x centered at tapped position
             const targetScale = 2.5;
+            scaleRef.current = targetScale;
             setScale(targetScale);
             const rect = el.getBoundingClientRect();
             const tapOffsetX = tapPos.x - (rect.left + rect.width / 2);
             const tapOffsetY = tapPos.y - (rect.top + rect.height / 2);
             const targetX = -tapOffsetX * 0.8;
             const targetY = -tapOffsetY * 0.8;
-            setPosition(getClampedPosition(targetX, targetY, targetScale));
+            const nextPos = getClampedPosition(targetX, targetY, targetScale);
+            positionRef.current = nextPos;
+            setPosition(nextPos);
           }
           tapDataRef.current.lastTapTime = 0;
           return;
@@ -217,6 +233,7 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
           isPanningRef.current = true;
           isPinchingRef.current = false;
           setIsDragging(true);
+          isDraggingRef.current = true;
           panDataRef.current = {
             startX: touch.clientX,
             startY: touch.clientY,
@@ -241,12 +258,15 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
         const { initialDist, initialScale, initialPos, initialCenter } = pinchDataRef.current;
         if (initialDist > 0) {
           const factor = dist / initialDist;
-          const nextScale = Math.min(Math.max(initialScale * factor, 0.85), 5.0);
-          setScale(nextScale);
+          const nextScale = Math.min(Math.max(initialScale * factor, 0.8), 5.0);
 
           const shiftX = center.x - initialCenter.x;
           const shiftY = center.y - initialCenter.y;
           const nextPos = getClampedPosition(initialPos.x + shiftX, initialPos.y + shiftY, nextScale);
+
+          scaleRef.current = nextScale;
+          positionRef.current = nextPos;
+          setScale(nextScale);
           setPosition(nextPos);
         }
       } else if (e.touches.length === 1 && isPanningRef.current && scaleRef.current > 1.05) {
@@ -258,6 +278,8 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
         const nextX = panDataRef.current.initialPos.x + dx;
         const nextY = panDataRef.current.initialPos.y + dy;
         const nextPos = getClampedPosition(nextX, nextY, scaleRef.current);
+
+        positionRef.current = nextPos;
         setPosition(nextPos);
       }
     };
@@ -267,11 +289,13 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
         isPinchingRef.current = false;
         isPanningRef.current = false;
         setIsDragging(false);
+        isDraggingRef.current = false;
 
         // Spring back if below 1.05
         if (scaleRef.current < 1.05) {
           resetZoom();
         } else if (scaleRef.current > 5.0) {
+          scaleRef.current = 5.0;
           setScale(5.0);
           setPosition(prev => getClampedPosition(prev.x, prev.y, 5.0));
         } else {
@@ -361,13 +385,14 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
     }
   };
 
-  if (!isOpen || files.length === 0) return null;
+  if (!isOpen || files.length === 0 || !activeMedia) return null;
 
   return (
     <AnimatePresence>
       {isOpen && (
         <ModalPortal>
           <div 
+            ref={modalContainerRef}
             className="fixed inset-0 z-[250] flex items-center justify-center bg-black/95 backdrop-blur-md select-none touch-none overflow-hidden"
             onWheel={handleWheel}
             onMouseMove={handleMouseMove}
