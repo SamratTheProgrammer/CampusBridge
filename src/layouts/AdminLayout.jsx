@@ -257,10 +257,10 @@ const AdminLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen min-w-0 transition-all duration-300`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-3 sm:px-8 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
             <button 
-              className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
+              className="md:hidden w-9 h-9 rounded-xl hover:bg-muted text-muted-foreground flex items-center justify-center shrink-0 cursor-pointer"
               onClick={() => setIsMobileSidebarOpen(true)}
             >
               <Menu className="w-5 h-5" />
@@ -275,7 +275,7 @@ const AdminLayout = () => {
             </button>
 
             <div className="hidden sm:flex items-center bg-muted/50 border border-border/50 rounded-lg px-3 py-1.5 w-full max-w-md focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
-              <Search className="w-4 h-4 text-muted-foreground mr-2" />
+              <Search className="w-4 h-4 text-muted-foreground mr-2 shrink-0" />
               <input 
                 type="text" 
                 placeholder="Search anything..." 
@@ -284,14 +284,14 @@ const AdminLayout = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
             {/* Light/Dark Toggle */}
             <ThemeToggle />
 
             <NotificationDropdown />
 
             {/* Admin Profile */}
-            <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-2">
+            <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-border/50 ml-1 shrink-0">
               <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm">
                 {(adminUser.name || 'Admin').charAt(0).toUpperCase()}
               </div>

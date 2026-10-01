@@ -476,12 +476,13 @@ const NotificationDropdown = () => {
       {/* Bell Trigger Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors relative focus:outline-none"
+        className="w-9 h-9 rounded-xl hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors relative flex items-center justify-center focus:outline-none cursor-pointer group"
         title="Notifications"
+        aria-label="Notifications"
       >
-        <Bell className="w-5 h-5" />
+        <Bell className="w-[19px] h-[19px] transition-transform group-hover:scale-105" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-destructive rounded-full border-2 border-background animate-pulse">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-extrabold leading-none text-white bg-red-600 rounded-full ring-2 ring-background shadow-xs select-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

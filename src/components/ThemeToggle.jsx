@@ -18,17 +18,18 @@ const ThemeToggle = () => {
   }, []);
 
   const getIcon = () => {
-    if (theme === 'dark') return <Moon className="w-5 h-5" />;
-    if (theme === 'light') return <Sun className="w-5 h-5" />;
-    return <Monitor className="w-5 h-5" />; // system
+    if (theme === 'dark') return <Moon className="w-[18px] h-[18px]" />;
+    if (theme === 'light') return <Sun className="w-[18px] h-[18px]" />;
+    return <Monitor className="w-[18px] h-[18px]" />; // system
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative shrink-0" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors flex items-center justify-center"
+        className="w-9 h-9 rounded-xl hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center cursor-pointer"
         title="Toggle theme"
+        aria-label="Toggle theme"
       >
         {getIcon()}
       </button>

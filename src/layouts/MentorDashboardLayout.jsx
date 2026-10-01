@@ -391,10 +391,10 @@ const MentorDashboardLayout = () => {
         {/* Main Content Area */}
         <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen ${location.pathname.includes('/messages') ? 'h-screen max-h-screen overflow-hidden' : ''} min-w-0 transition-all duration-300`}>
           {/* Top Header */}
-          <header className={`md:sticky md:top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between shrink-0 ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
-            <div className="flex items-center gap-2.5 sm:gap-4 flex-1 min-w-0">
+          <header className={`md:sticky md:top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-3 sm:px-6 md:px-8 justify-between gap-2 sm:gap-4 shrink-0 ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <button 
-                className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground shrink-0 cursor-pointer"
+                className="md:hidden w-9 h-9 rounded-xl hover:bg-muted text-muted-foreground flex items-center justify-center shrink-0 cursor-pointer"
                 onClick={() => setIsMobileSidebarOpen(true)}
                 aria-label="Open navigation menu"
               >
@@ -405,7 +405,7 @@ const MentorDashboardLayout = () => {
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(true)}
-                className="sm:hidden flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/60 hover:bg-muted border border-border/60 text-muted-foreground text-xs font-medium transition-all flex-1 max-w-[170px] shadow-2xs active:scale-95 cursor-pointer"
+                className="sm:hidden flex items-center gap-2 px-2.5 h-9 rounded-xl bg-muted/60 hover:bg-muted border border-border/60 text-muted-foreground text-xs font-medium transition-all flex-1 min-w-0 max-w-[130px] sm:max-w-[170px] shadow-2xs active:scale-95 cursor-pointer"
                 title="Search students, jobs, posts..."
                 aria-label="Search"
               >
@@ -603,11 +603,11 @@ const MentorDashboardLayout = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
               <LanguageSwitcher />
               <ThemeToggle />
               <NotificationDropdown />
-              <div className="flex items-center gap-2 sm:gap-3 pl-1.5 sm:pl-4 border-l border-border/50 ml-1 sm:ml-2 shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-border/50 ml-0.5 sm:ml-1 shrink-0">
                 {isLoaded && user ? (
                   <>
                     <img 

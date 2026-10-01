@@ -151,7 +151,7 @@ const LanguageSwitcher = ({ className = '', dropUp = false }) => {
   const activeLangObj = getLanguageByCode(currentLang);
 
   return (
-    <div ref={menuRef} className={`relative inline-block ${className}`}>
+    <div ref={menuRef} className={`relative inline-block shrink-0 ${className}`}>
       <button
         type="button"
         onClick={() => {
@@ -160,15 +160,15 @@ const LanguageSwitcher = ({ className = '', dropUp = false }) => {
           }
           setIsOpen(!isOpen);
         }}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-card border border-border/60 hover:bg-muted text-foreground text-xs font-semibold shadow-2xs hover:border-primary/40 transition-all cursor-pointer group"
+        className="flex items-center gap-1.5 px-2 sm:px-2.5 h-9 rounded-xl bg-card/80 hover:bg-muted/80 border border-border/60 hover:border-border text-foreground text-xs font-semibold shadow-2xs hover:border-primary/40 transition-all cursor-pointer group shrink-0"
         title={`Change website language (Current: ${activeLangObj.name})`}
         aria-label="Change website language"
       >
-        <Globe className="w-3.5 h-3.5 text-primary group-hover:rotate-12 transition-transform" />
-        <span className="max-w-[80px] sm:max-w-[100px] truncate">
-          {currentLang === 'en' ? 'EN' : activeLangObj.nativeName}
+        <Globe className="w-3.5 h-3.5 text-primary group-hover:rotate-12 transition-transform shrink-0" />
+        <span className="text-xs font-bold sm:font-semibold shrink-0">
+          {currentLang === 'en' ? 'EN' : (activeLangObj.nativeName || activeLangObj.name)}
         </span>
-        <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
