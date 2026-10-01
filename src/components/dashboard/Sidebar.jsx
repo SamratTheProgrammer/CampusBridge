@@ -17,14 +17,15 @@ import {
   HelpCircle,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Search
 } from 'lucide-react'
 import logoLight from '../../assets/CampusLogoLight.png'
 import logoDark from '../../assets/CampusLogoDark.png'
 import logoIcon from '../../assets/CampusLogoHalf.png'
 import API_BASE from '../../utils/api'
 
-const Sidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
+const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
   const { signOut } = useClerk()
   const { user } = useUser()
   const [unreadMessages, setUnreadMessages] = useState(0)
@@ -114,6 +115,22 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose }) => {
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         )}
+      </div>
+
+      {/* Mobile Quick Search Button */}
+      <div className="px-4 pb-2 pt-1 md:hidden">
+        <button
+          type="button"
+          onClick={() => {
+            if (onClose) onClose()
+            if (onOpenSearch) onOpenSearch()
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/60 hover:bg-muted border border-border/50 text-muted-foreground text-sm font-medium transition-all group cursor-pointer active:scale-98"
+        >
+          <Search className="w-4 h-4 text-primary shrink-0 transition-transform group-hover:scale-110" />
+          <span className="flex-1 text-left truncate">Search anything...</span>
+          <kbd className="text-[10px] bg-background/80 px-1.5 py-0.5 rounded border border-border/60 text-muted-foreground font-mono">⌘K</kbd>
+        </button>
       </div>
 
       <nav className={`flex-1 overflow-y-auto space-y-1 ${isCollapsed ? 'px-3 py-4' : 'px-4 py-4'}`}>

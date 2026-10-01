@@ -19,11 +19,13 @@ import DashboardSkeleton from '../components/skeletons/DashboardSkeleton'
 import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 import AnnouncementModal from '../components/dashboard/AnnouncementModal'
 import DashboardAppBanner from '../components/dashboard/DashboardAppBanner'
+import SearchModal from '../components/SearchModal'
 
 const MentorDashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true')
   const [warnings, setWarnings] = useState([])
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [mentorsList, setMentorsList] = useState([])
@@ -207,6 +209,18 @@ const MentorDashboardLayout = () => {
     }
   }, [])
 
+  // Handle Ctrl+K / Cmd+K shortcut
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setIsSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   // Global Socket Registration & Chat Notification Listener
   useEffect(() => {
     if (!user?.id) return;
@@ -358,7 +372,7 @@ const MentorDashboardLayout = () => {
     <div className={`min-h-screen bg-background flex ${location.pathname.includes('/messages') ? 'h-screen max-h-screen overflow-hidden' : ''}`}>
         {/* Sidebar for Desktop */}
         <div className={`hidden md:block fixed inset-y-0 left-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} z-[60]`}>
-          <MentorSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+          <MentorSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} onOpenSearch={() => setIsSearchOpen(true)} />
         </div>
 
         {/* Mobile Sidebar Overlay */}
@@ -371,20 +385,34 @@ const MentorDashboardLayout = () => {
         <div 
           className={`fixed inset-y-0 left-0 z-[100] transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 bg-card shadow-2xl`}
         >
-          <MentorSidebar isCollapsed={false} setIsCollapsed={() => {}} onClose={() => setIsMobileSidebarOpen(false)} />
+          <MentorSidebar isCollapsed={false} setIsCollapsed={() => {}} onClose={() => setIsMobileSidebarOpen(false)} onOpenSearch={() => setIsSearchOpen(true)} />
         </div>
 
         {/* Main Content Area */}
         <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen ${location.pathname.includes('/messages') ? 'h-screen max-h-screen overflow-hidden' : ''} min-w-0 transition-all duration-300`}>
           {/* Top Header */}
           <header className={`md:sticky md:top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 h-16 px-4 sm:px-8 justify-between shrink-0 ${location.pathname.includes('/profile') ? 'hidden md:flex' : 'flex items-center'}`}>
-            <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-2.5 sm:gap-4 flex-1 min-w-0">
               <button 
-                className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground"
+                className="md:hidden p-2 rounded-md hover:bg-muted text-muted-foreground shrink-0 cursor-pointer"
                 onClick={() => setIsMobileSidebarOpen(true)}
+                aria-label="Open navigation menu"
               >
                 <Menu className="w-5 h-5" />
               </button>
+
+              {/* Mobile Search Button */}
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                className="sm:hidden flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/60 hover:bg-muted border border-border/60 text-muted-foreground text-xs font-medium transition-all flex-1 max-w-[170px] shadow-2xs active:scale-95 cursor-pointer"
+                title="Search students, jobs, posts..."
+                aria-label="Search"
+              >
+                <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="truncate">Search...</span>
+              </button>
+
               <div ref={searchRef} className="hidden sm:block relative flex-1 max-w-md">
                 <div className="flex items-center bg-muted/50 border border-border/50 rounded-lg px-3 py-2 w-full focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
                   <Search className="w-4 h-4 text-muted-foreground mr-2 animate-pulse" />
@@ -681,6 +709,7 @@ const MentorDashboardLayout = () => {
           onReviewSubmitted={handleReviewSubmitted}
         />
         <AnnouncementModal role="mentor" />
+        <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
       </div>
     </div>
   )
