@@ -268,6 +268,17 @@ const MentorJobs = () => {
     setIsSubmitting(true)
     
     const formData = new FormData(e.target)
+    const coursesInput = formData.get('eligibility_courses');
+    const coursesArray = coursesInput ? coursesInput.split(',').map(c => c.trim()).filter(Boolean) : [];
+
+    const eligibility = {
+      tenthMarks: formData.get('eligibility_tenthMarks'),
+      hsMarks: formData.get('eligibility_hsMarks'),
+      graduationMarks: formData.get('eligibility_graduationMarks'),
+      pgMarks: formData.get('eligibility_pgMarks'),
+      courses: coursesArray
+    };
+
     const newJob = {
       title: formData.get('title'),
       company: selectedCompany,
@@ -275,6 +286,7 @@ const MentorJobs = () => {
       location: formData.get('location'),
       type: formData.get('type'),
       salary: formData.get('salary'),
+      eligibility,
       description: formData.get('description'),
       deadline: formData.get('deadline'),
       clerkId: user.id
@@ -722,7 +734,7 @@ const MentorJobs = () => {
       {isModalOpen && (
         <ModalPortal>
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold text-foreground mb-1">{jobToEdit ? 'Edit Job' : 'Add New Job'}</h2>
             <p className="text-sm text-muted-foreground mb-6">{jobToEdit ? 'Update job details.' : 'Post an opportunity for your mentees.'}</p>
             
@@ -765,6 +777,32 @@ const MentorJobs = () => {
                 <input name="deadline" defaultValue={jobToEdit?.deadline ? new Date(jobToEdit.deadline).toISOString().split('T')[0] : ''} type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
               
+              <div className="border border-border/50 rounded-xl p-4 bg-muted/10 space-y-3">
+                <label className="block text-sm font-bold text-foreground mb-1.5">Eligibility Criteria</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">10th Marks</label>
+                    <input name="eligibility_tenthMarks" defaultValue={jobToEdit?.eligibility?.tenthMarks} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 60%" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">12th Marks (HS)</label>
+                    <input name="eligibility_hsMarks" defaultValue={jobToEdit?.eligibility?.hsMarks} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 60%" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Graduation Marks</label>
+                    <input name="eligibility_graduationMarks" defaultValue={jobToEdit?.eligibility?.graduationMarks} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 6.5 CGPA" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">PG Marks (Optional)</label>
+                    <input name="eligibility_pgMarks" defaultValue={jobToEdit?.eligibility?.pgMarks} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 7.0 CGPA" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-foreground mb-1">Valid Courses</label>
+                    <input name="eligibility_courses" defaultValue={jobToEdit?.eligibility?.courses?.join(', ')} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. BCA, MCA, B.Tech, M.Tech (comma separated)" />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">Description (Optional)</label>
                 <textarea name="description" defaultValue={jobToEdit?.description} rows="3" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Brief requirements..."></textarea>

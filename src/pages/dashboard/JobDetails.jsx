@@ -70,6 +70,29 @@ const JobDetails = () => {
     if (id) fetchJobAndApplicationStatus()
   }, [id, user])
 
+  const [dbUser, setDbUser] = useState(null)
+  useEffect(() => {
+    if(user) {
+      fetch(`${API_BASE}/api/users/${user.id}`)
+      .then(res => res.json())
+      .then(data => setDbUser(data))
+      .catch(err => console.error(err))
+    }
+  }, [user])
+
+  const checkEligibility = () => {
+    if (!job || !job.eligibility || (!job.eligibility.courses || job.eligibility.courses.length === 0)) return true;
+    if (!dbUser || !dbUser.education || dbUser.education.length === 0) return false;
+    return dbUser.education.some(edu => 
+      job.eligibility.courses.some(c => 
+        edu.degree?.toLowerCase().includes(c.toLowerCase()) || 
+        c.toLowerCase().includes(edu.degree?.toLowerCase())
+      )
+    );
+  }
+
+  const isEligible = checkEligibility()
+
   const handleApply = async (e) => {
     e.preventDefault()
     if (inputType === 'link' && !resumeLink) {
@@ -137,10 +160,10 @@ const JobDetails = () => {
 
       try {
         await emailjs.send(
-          'service_a3vg38b',
-          'template_c45j16i',
+          'service_j5dko3n',
+          'template_edt67fy',
           templateParams,
-          'JAA5yhiRssyoyqKqW'
+          'o9K-IpQMORfxWbx4i'
         );
         toast.success('Application submitted and email sent!')
       } catch (emailErr) {
@@ -379,17 +402,19 @@ const JobDetails = () => {
             const isDeadlinePassed = job.deadline ? new Date() > new Date(job.deadline) : false;
             return (
               <button 
-                disabled={hasApplied || isDeadlinePassed}
+                disabled={hasApplied || isDeadlinePassed || !isEligible}
                 onClick={() => setIsApplyModalOpen(true)}
                 className={`w-full sm:w-auto px-8 py-3 sm:py-2.5 rounded-xl font-medium transition-colors shadow-sm ${
                   hasApplied 
                     ? 'bg-muted text-muted-foreground cursor-not-allowed'
                     : isDeadlinePassed
                     ? 'bg-destructive/10 text-destructive cursor-not-allowed'
+                    : !isEligible 
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed border border-border/50'
                     : 'bg-primary text-primary-foreground hover:bg-primary/90'
                 }`}
               >
-                {hasApplied ? 'Applied' : isDeadlinePassed ? 'Date Over' : 'Apply Now'}
+                {hasApplied ? 'Applied' : isDeadlinePassed ? 'Date Over' : !isEligible ? 'Not Eligible' : 'Apply Now'}
               </button>
             )
           })()}
@@ -403,6 +428,48 @@ const JobDetails = () => {
               {job.description || 'No description provided.'}
             </div>
           </section>
+
+          {job.eligibility && (Object.keys(job.eligibility).length > 0) && (
+            <section>
+              <h2 className="text-lg font-bold text-foreground mb-3">Eligibility Criteria</h2>
+              <div className="bg-muted/20 p-4 rounded-xl border border-border/30 space-y-3">
+                {job.eligibility.tenthMarks && (
+                  <div className="flex gap-2 text-sm text-foreground">
+                    <span className="font-semibold text-muted-foreground w-28">10th Marks:</span>
+                    <span>{job.eligibility.tenthMarks}</span>
+                  </div>
+                )}
+                {job.eligibility.hsMarks && (
+                  <div className="flex gap-2 text-sm text-foreground">
+                    <span className="font-semibold text-muted-foreground w-28">12th Marks:</span>
+                    <span>{job.eligibility.hsMarks}</span>
+                  </div>
+                )}
+                {job.eligibility.graduationMarks && (
+                  <div className="flex gap-2 text-sm text-foreground">
+                    <span className="font-semibold text-muted-foreground w-28">Graduation:</span>
+                    <span>{job.eligibility.graduationMarks}</span>
+                  </div>
+                )}
+                {job.eligibility.pgMarks && (
+                  <div className="flex gap-2 text-sm text-foreground">
+                    <span className="font-semibold text-muted-foreground w-28">Post Grad:</span>
+                    <span>{job.eligibility.pgMarks}</span>
+                  </div>
+                )}
+                {job.eligibility.courses && job.eligibility.courses.length > 0 && (
+                  <div className="flex gap-2 text-sm text-foreground">
+                    <span className="font-semibold text-muted-foreground w-28">Valid Courses:</span>
+                    <span className="flex flex-wrap gap-1.5">
+                      {job.eligibility.courses.map((c, i) => (
+                        <span key={i} className="bg-primary/10 text-primary px-2 py-0.5 rounded-md text-xs font-bold">{c}</span>
+                      ))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {job.salary && (
             <section>

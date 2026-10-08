@@ -40,6 +40,13 @@ const AdminJobs = () => {
     location: 'Remote',
     type: 'Full-time',
     salary: '',
+    eligibility: {
+      tenthMarks: '',
+      hsMarks: '',
+      graduationMarks: '',
+      pgMarks: '',
+      courses: []
+    },
     description: '',
     status: 'Approved'
   })
@@ -173,6 +180,13 @@ const AdminJobs = () => {
           location: 'Remote',
           type: 'Full-time',
           salary: '',
+          eligibility: {
+            tenthMarks: '',
+            hsMarks: '',
+            graduationMarks: '',
+            pgMarks: '',
+            courses: []
+          },
           description: '',
           status: 'Approved'
         })
@@ -434,6 +448,62 @@ const AdminJobs = () => {
                   </div>
                 </div>
 
+                <div className="border border-border/50 rounded-xl p-4 bg-muted/10 space-y-3">
+                  <label className="font-bold text-foreground block">Eligibility Criteria</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-foreground mb-1">10th Marks</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 60%"
+                        value={newJobData.eligibility?.tenthMarks || ''}
+                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, tenthMarks: e.target.value } })}
+                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-foreground mb-1">12th Marks (HS)</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 60%"
+                        value={newJobData.eligibility?.hsMarks || ''}
+                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, hsMarks: e.target.value } })}
+                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-foreground mb-1">Graduation Marks</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 6.5 CGPA"
+                        value={newJobData.eligibility?.graduationMarks || ''}
+                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, graduationMarks: e.target.value } })}
+                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-foreground mb-1">PG Marks (Optional)</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 7.0 CGPA"
+                        value={newJobData.eligibility?.pgMarks || ''}
+                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, pgMarks: e.target.value } })}
+                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-foreground mb-1">Valid Courses</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. BCA, MCA, B.Tech (comma separated)"
+                        value={newJobData.eligibility?.courses?.join(', ') || ''}
+                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, courses: e.target.value.split(',').map(c => c.trim()).filter(Boolean) } })}
+                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="font-bold text-foreground block">Job Description</label>
                   <textarea 
@@ -514,6 +584,21 @@ const AdminJobs = () => {
                     <p className="font-semibold text-foreground">{viewJobModal.job.posted}</p>
                   </div>
                 </div>
+
+                {viewJobModal.job.eligibility && (Object.keys(viewJobModal.job.eligibility).length > 0) && (
+                  <div>
+                    <h4 className="font-bold text-foreground mb-2">Eligibility Criteria</h4>
+                    <div className="bg-muted/20 p-4 rounded-xl border border-border/30 text-sm text-foreground/80 space-y-2">
+                      {viewJobModal.job.eligibility.tenthMarks && <p><span className="font-bold w-32 inline-block">10th Marks:</span> {viewJobModal.job.eligibility.tenthMarks}</p>}
+                      {viewJobModal.job.eligibility.hsMarks && <p><span className="font-bold w-32 inline-block">12th Marks:</span> {viewJobModal.job.eligibility.hsMarks}</p>}
+                      {viewJobModal.job.eligibility.graduationMarks && <p><span className="font-bold w-32 inline-block">Graduation:</span> {viewJobModal.job.eligibility.graduationMarks}</p>}
+                      {viewJobModal.job.eligibility.pgMarks && <p><span className="font-bold w-32 inline-block">Post Grad:</span> {viewJobModal.job.eligibility.pgMarks}</p>}
+                      {viewJobModal.job.eligibility.courses && viewJobModal.job.eligibility.courses.length > 0 && (
+                        <p><span className="font-bold w-32 inline-block">Courses:</span> {viewJobModal.job.eligibility.courses.join(', ')}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {viewJobModal.job.description && (
                   <div>

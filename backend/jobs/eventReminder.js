@@ -1,5 +1,4 @@
 import cron from 'node-cron';
-import { Resend } from 'resend';
 import { parse, isValid, differenceInMinutes, format } from 'date-fns';
 import Event from '../models/Event.js';
 
@@ -29,7 +28,6 @@ export const startEventReminderJob = () => {
   // Run every 1 minute
   cron.schedule('* * * * *', async () => {
     try {
-      const resend = new Resend(process.env.RESEND_API_KEY);
       const now = new Date();
       
       // Get events scheduled for today that are active
@@ -61,69 +59,26 @@ export const startEventReminderJob = () => {
             if (!attendee.email) continue;
             
             try {
-              await resend.emails.send({
-                from: 'CampusBridge <onboarding@resend.dev>',
-                to: attendee.email,
-                subject: `🚀 ${event.title} starts in 15 minutes!`,
-                // Resend allows sending with template ID via HTML if they used the broadcast feature?
-                // Actually, if using an alias, we can pass it if we have the right API endpoint, but standard SDK might not support aliases directly in the 'html' field.
-                // Wait, if it's a Resend Broadcast/Template, the SDK has:
-                // resend.emails.send({ ... html: '' }) but for templates:
-                // resend.emails.send({ ..., templateId: '...', templateData: { ... } })
-                // Let's pass the raw HTML since that's safest, or attempt to use the html we provided earlier.
-                // Actually, let's use the HTML directly to be 100% sure it works without template ID errors.
-                html: `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title>Event Reminder</title>
-                    <style>
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
-                        .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-                        .header { background-color: #4f46e5; padding: 30px 20px; text-align: center; }
-                        .header h1 { color: #ffffff; margin: 0; font-size: 24px; }
-                        .content { padding: 30px; color: #333333; line-height: 1.6; }
-                        .event-box { background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
-                        .event-detail { margin-bottom: 10px; font-size: 15px; }
-                        .event-detail strong { color: #1e293b; display: inline-block; width: 60px; }
-                        .btn-container { text-align: center; margin-top: 35px; margin-bottom: 25px; }
-                        .btn { background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; }
-                        .footer { background-color: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1>Starting in 15 Minutes! 🚀</h1>
-                        </div>
-                        <div class="content">
-                            <p>Hi <strong>${attendee.firstName} ${attendee.lastName || ''}</strong>,</p>
-                            <p>Get ready! The event you are attending is about to start in exactly 15 minutes.</p>
-                            
-                            <div class="event-box">
-                                <div class="event-detail">
-                                    <strong>Event:</strong> ${event.title}
-                                </div>
-                                <div class="event-detail">
-                                    <strong>Time:</strong> ${event.time}
-                                </div>
-                            </div>
-                
-                            <div class="btn-container">
-                                <a href="${event.link || '#'}" class="btn">Join Event Now</a>
-                            </div>
-                            
-                            <p style="margin-top: 30px;">See you there,<br><strong>CampusBridge Team</strong></p>
-                        </div>
-                        <div class="footer">
-                            <p>If you're having trouble clicking the button, copy and paste this link into your browser:<br>
-                            <a href="${event.link || '#'}" style="color: #4f46e5; word-break: break-all;">${event.link || '#'}</a></p>
-                        </div>
-                    </div>
-                </body>
-                </html>`
+              const payload = {
+                service_id: process.env.EMAILJS_SERVICE_ID || 'service_j5dko3n',
+                template_id: process.env.EMAILJS_TEMPLATE_ID || 'template_edt67fy',
+                user_id: process.env.EMAILJS_PUBLIC_KEY || 'o9K-IpQMORfxWbx4i',
+                template_params: {
+                  to_email: attendee.email,
+                  to_name: attendee.firstName,
+                  subject: `🚀 ${event.title} starts in 15 minutes!`,
+                  message: `Get ready! The event "${event.title}" is about to start in exactly 15 minutes. Join here: ${event.link || '#'}`
+                }
+              };
+
+              const emailRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
               });
+
+              if (!emailRes.ok) throw new Error('EmailJS failed to send event reminder');
+
               successCount++;
             } catch (err) {
               console.error(`[Event Reminder] Failed to send email to ${attendee.email}:`, err);

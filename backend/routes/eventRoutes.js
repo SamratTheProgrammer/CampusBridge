@@ -4,6 +4,7 @@ import Event from '../models/Event.js';
 import User from '../models/User.js';
 import EventApplication from '../models/EventApplication.js';
 import Post from '../models/Post.js';
+import Notification from '../models/Notification.js';
 import { verifyAdminToken } from '../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -150,6 +151,27 @@ router.post('/', async (req, res) => {
         }
       });
       await newPost.save();
+    }
+    
+    // Notify all users about the new event
+    if (clerkId) {
+      const user = await User.findOne({ clerkId });
+      if (user) {
+        const allUsers = await User.find({ clerkId: { $ne: clerkId } });
+        const notifications = allUsers.map(u => ({
+          recipientClerkId: u.clerkId,
+          senderClerkId: user.clerkId,
+          senderName: user.firstName + ' ' + user.lastName,
+          senderImage: user.imageUrl,
+          type: 'event_posted',
+          title: 'New Event Scheduled!',
+          message: `${user.firstName} is hosting a new ${type}: ${title}`,
+          link: `/dashboard/events`
+        }));
+        if (notifications.length > 0) {
+          await Notification.insertMany(notifications);
+        }
+      }
     }
 
     res.status(201).json(newEvent);

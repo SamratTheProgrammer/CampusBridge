@@ -24,6 +24,13 @@ const jobSchema = new mongoose.Schema(
     salary: {
       type: String, // e.g., '₹80,000 / month'
     },
+    eligibility: {
+      tenthMarks: String,
+      hsMarks: String,
+      graduationMarks: String,
+      pgMarks: String,
+      courses: [String]
+    },
     description: {
       type: String,
     },

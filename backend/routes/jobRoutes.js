@@ -2,6 +2,7 @@ import express from 'express';
 import Job from '../models/Job.js';
 import User from '../models/User.js';
 import JobApplication from '../models/JobApplication.js';
+import Notification from '../models/Notification.js';
 
 const router = express.Router();
 
@@ -36,7 +37,7 @@ router.get('/mentor/:clerkId', async (req, res) => {
 // Create a new job
 router.post('/', async (req, res) => {
   try {
-    const { title, company, companyLogo, location, type, salary, description, deadline, clerkId } = req.body;
+    const { title, company, companyLogo, location, type, salary, eligibility, description, deadline, clerkId } = req.body;
     const user = await User.findOne({ clerkId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -69,12 +70,30 @@ router.post('/', async (req, res) => {
       location,
       type,
       salary,
+      eligibility,
       description,
       deadline,
       postedBy: user._id
     });
     
     await newJob.save();
+    
+    // Notify all students about the new job
+    const students = await User.find({ role: 'student' });
+    const notifications = students.map(student => ({
+      recipientClerkId: student.clerkId,
+      senderClerkId: user.clerkId,
+      senderName: user.firstName + ' ' + user.lastName,
+      senderImage: user.imageUrl,
+      type: 'job_posted',
+      title: 'New Job Posted!',
+      message: `${company} is hiring for ${title}!`,
+      link: `/dashboard/jobs/${newJob._id}`
+    }));
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+    }
+
     res.status(201).json(newJob);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -84,7 +103,7 @@ router.post('/', async (req, res) => {
 // Update a job
 router.put('/:id', async (req, res) => {
   try {
-    const { title, company, companyLogo, location, type, salary, description, deadline, clerkId, active } = req.body;
+    const { title, company, companyLogo, location, type, salary, eligibility, description, deadline, clerkId, active } = req.body;
     
     const user = await User.findOne({ clerkId });
     if (!user) {
@@ -107,6 +126,7 @@ router.put('/:id', async (req, res) => {
     job.location = location !== undefined ? location : job.location;
     job.type = type !== undefined ? type : job.type;
     job.salary = salary !== undefined ? salary : job.salary;
+    job.eligibility = eligibility !== undefined ? eligibility : job.eligibility;
     job.description = description !== undefined ? description : job.description;
     job.deadline = deadline !== undefined ? deadline : job.deadline;
     job.active = active !== undefined ? active : job.active;
@@ -184,6 +204,21 @@ router.post('/:id/apply', async (req, res) => {
     if (!job.applicants.includes(user._id)) {
       job.applicants.push(user._id);
       await job.save();
+    }
+
+    // Notify the mentor (job poster)
+    const mentor = await User.findById(job.postedBy);
+    if (mentor) {
+      await Notification.create({
+        recipientClerkId: mentor.clerkId,
+        senderClerkId: user.clerkId,
+        senderName: user.firstName + ' ' + user.lastName,
+        senderImage: user.imageUrl,
+        type: 'system',
+        title: 'New Job Application',
+        message: `${user.firstName} applied for ${job.title}`,
+        link: `/mentor-dashboard/jobs`
+      });
     }
 
     res.status(201).json({ message: 'Application submitted successfully', application });

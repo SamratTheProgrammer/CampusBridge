@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import JobSkeleton from '../../components/skeletons/JobSkeleton'
 import { Link } from 'react-router-dom'
 import { Search, MapPin, Briefcase, Filter, Loader2, Calendar, Share2 } from 'lucide-react'
+import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import { formatPendingRequestTime } from '../../utils/dateFormatter'
@@ -14,6 +15,10 @@ const Jobs = () => {
   const [jobType, setJobType] = useState('All')
   const [jobs, setJobs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('Active') // 'Active' or 'Inactive'
+  const [showEligibleOnly, setShowEligibleOnly] = useState(false)
+  const { user } = useUser()
+  const [dbUser, setDbUser] = useState(null)
   
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [shareConfig, setShareConfig] = useState(null)
@@ -45,10 +50,38 @@ const Jobs = () => {
     fetchJobs()
   }, [])
 
+  useEffect(() => {
+    if(user) {
+      fetch(`${API_BASE}/api/users/${user.id}`)
+      .then(res => res.json())
+      .then(data => setDbUser(data))
+      .catch(err => console.error(err))
+    }
+  }, [user])
+
+  const checkEligibility = (job) => {
+    if (!job.eligibility || (!job.eligibility.courses || job.eligibility.courses.length === 0)) return true;
+    if (!dbUser || !dbUser.education || dbUser.education.length === 0) return false;
+    return dbUser.education.some(edu => 
+      job.eligibility.courses.some(c => 
+        edu.degree?.toLowerCase().includes(c.toLowerCase()) || 
+        c.toLowerCase().includes(edu.degree?.toLowerCase())
+      )
+    );
+  }
+
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title?.toLowerCase().includes(searchTerm.toLowerCase()) || job.company?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = jobType === 'All' || job.type === jobType
-    return matchesSearch && matchesType
+    
+    // Tab logic
+    const isExpired = job.deadline && new Date() > new Date(job.deadline);
+    const matchesTab = activeTab === 'Active' ? !isExpired : isExpired;
+    
+    // Eligibility logic
+    const matchesEligibility = showEligibleOnly ? checkEligibility(job) : true;
+
+    return matchesSearch && matchesType && matchesTab && matchesEligibility
   })
 
   const getJobLogo = (job) => {
@@ -79,7 +112,23 @@ const Jobs = () => {
               className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm transition-all text-foreground"
             />
           </div>
-          <div className="flex flex-wrap md:flex-nowrap gap-4">
+          <div className="flex flex-wrap md:flex-nowrap gap-4 items-center">
+            
+            {/* Toggle Button */}
+            <label className="flex items-center gap-2 cursor-pointer bg-muted/30 px-3 py-2 rounded-xl border border-border/50">
+              <div className="relative">
+                <input 
+                  type="checkbox" 
+                  className="sr-only" 
+                  checked={showEligibleOnly}
+                  onChange={() => setShowEligibleOnly(!showEligibleOnly)}
+                />
+                <div className={`block w-10 h-6 rounded-full transition-colors ${showEligibleOnly ? 'bg-primary' : 'bg-muted-foreground/30'}`}></div>
+                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${showEligibleOnly ? 'transform translate-x-4' : ''}`}></div>
+              </div>
+              <span className="text-sm font-medium text-foreground">Only Eligible</span>
+            </label>
+
             <div className="flex items-center gap-2 bg-muted/50 border border-border/50 rounded-xl px-4 py-2.5">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <select
@@ -95,6 +144,26 @@ const Jobs = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex bg-muted p-1 rounded-xl w-fit mb-4">
+        <button
+          onClick={() => setActiveTab('Active')}
+          className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${
+            activeTab === 'Active' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Active Jobs
+        </button>
+        <button
+          onClick={() => setActiveTab('Inactive')}
+          className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${
+            activeTab === 'Inactive' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Inactive (Date Over)
+        </button>
       </div>
 
       {/* Jobs Grid */}
