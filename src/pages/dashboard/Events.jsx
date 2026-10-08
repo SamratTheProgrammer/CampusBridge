@@ -6,6 +6,7 @@ import { format } from 'date-fns'
 import { useUser } from '@clerk/clerk-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import emailjs from '@emailjs/browser'
 import API_BASE from '../../utils/api'
 import { getAppUrl } from '../../utils/appUrl'
 import { useNavigate } from 'react-router-dom'
@@ -150,7 +151,49 @@ const Events = () => {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to register')
       
-      toast.success('Successfully registered for event!')
+      // Send event confirmation email via EmailJS
+      try {
+        const attendeeEmail = registerFormData.email || user.primaryEmailAddress?.emailAddress;
+        const attendeeName = registerFormData.name || user.fullName || user.firstName || 'Participant';
+        const eventDate = selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString() : '';
+
+        const templateParams = {
+          to_email: attendeeEmail,
+          user_email: attendeeEmail,
+          email: attendeeEmail,
+          recipient: attendeeEmail,
+          to_name: attendeeName,
+          name: attendeeName,
+          user_name: attendeeName,
+          applicant_name: attendeeName,
+          event_name: selectedEvent.title,
+          event_title: selectedEvent.title,
+          title: selectedEvent.title,
+          event_date: eventDate,
+          date: eventDate,
+          event_time: selectedEvent.time || '',
+          time: selectedEvent.time || '',
+          event_location: selectedEvent.location || selectedEvent.type || 'Online',
+          location: selectedEvent.location || selectedEvent.type || 'Online',
+          event_link: selectedEvent.link || '',
+          link: selectedEvent.link || '',
+          phone: registerFormData.phone || '',
+          roll_number: registerFormData.rollNumber || '',
+          from_name: 'CampusBridge',
+          message: `You have successfully registered for ${selectedEvent.title}.`
+        };
+
+        await emailjs.send(
+          import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_a3vg38b',
+          import.meta.env.VITE_EMAILJS_EVENT_TEMPLATE_ID || 'template_wlyvsuf',
+          templateParams,
+          import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'JAA5yhiRssyoyqKqW'
+        );
+        toast.success('Successfully registered! Confirmation email sent.');
+      } catch (emailErr) {
+        console.error('EmailJS Event Error:', emailErr);
+        toast.success('Successfully registered for event!');
+      }
       
       // Update local event attendees count if not already in it
       setEvents(events.map(ev => {

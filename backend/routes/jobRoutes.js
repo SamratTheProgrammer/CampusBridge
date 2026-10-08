@@ -38,6 +38,11 @@ router.get('/mentor/:clerkId', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { title, company, companyLogo, location, type, salary, eligibility, description, deadline, clerkId } = req.body;
+
+    if (!title?.trim() || !company?.trim() || !location?.trim() || !type?.trim() || !salary?.trim() || !deadline || !description?.trim()) {
+      return res.status(400).json({ error: 'Title, company, location, type, salary, deadline, and description are mandatory.' });
+    }
+
     const user = await User.findOne({ clerkId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -78,12 +83,16 @@ router.post('/', async (req, res) => {
     
     await newJob.save();
     
-    // Notify all students about the new job
-    const students = await User.find({ role: 'student' });
-    const notifications = students.map(student => ({
-      recipientClerkId: student.clerkId,
+    // Notify all students and alumni about the new job
+    const recipients = await User.find({
+      role: { $in: ['student', 'alumni'] },
+      clerkId: { $ne: user.clerkId }
+    });
+    const senderFullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'CampusBridge Mentor';
+    const notifications = recipients.map(recipient => ({
+      recipientClerkId: recipient.clerkId,
       senderClerkId: user.clerkId,
-      senderName: user.firstName + ' ' + user.lastName,
+      senderName: senderFullName,
       senderImage: user.imageUrl,
       type: 'job_posted',
       title: 'New Job Posted!',
@@ -91,7 +100,13 @@ router.post('/', async (req, res) => {
       link: `/dashboard/jobs/${newJob._id}`
     }));
     if (notifications.length > 0) {
-      await Notification.insertMany(notifications);
+      const inserted = await Notification.insertMany(notifications);
+      const io = req.app.get('io');
+      if (io) {
+        inserted.forEach(notif => {
+          io.emit('new_notification', notif);
+        });
+      }
     }
 
     res.status(201).json(newJob);
@@ -120,13 +135,37 @@ router.put('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to edit this job' });
     }
 
+    if (title !== undefined && !title.trim()) {
+      return res.status(400).json({ error: 'Job Title cannot be empty.' });
+    }
+    if (company !== undefined && !company.trim()) {
+      return res.status(400).json({ error: 'Company cannot be empty.' });
+    }
+    if (location !== undefined && !location.trim()) {
+      return res.status(400).json({ error: 'Location cannot be empty.' });
+    }
+    if (type !== undefined && !type.trim()) {
+      return res.status(400).json({ error: 'Job Type cannot be empty.' });
+    }
+    if (salary !== undefined && !salary.trim()) {
+      return res.status(400).json({ error: 'Salary cannot be empty.' });
+    }
+    if (deadline !== undefined && !deadline) {
+      return res.status(400).json({ error: 'Deadline cannot be empty.' });
+    }
+    if (description !== undefined && !description.trim()) {
+      return res.status(400).json({ error: 'Job Description cannot be empty.' });
+    }
+
     job.title = title !== undefined ? title : job.title;
     job.company = company !== undefined ? company : job.company;
     job.companyLogo = companyLogo !== undefined ? companyLogo : job.companyLogo;
     job.location = location !== undefined ? location : job.location;
     job.type = type !== undefined ? type : job.type;
-    job.salary = salary !== undefined ? salary : job.salary;
-    job.eligibility = eligibility !== undefined ? eligibility : job.eligibility;
+    if (eligibility !== undefined) {
+      job.eligibility = eligibility;
+      job.markModified('eligibility');
+    }
     job.description = description !== undefined ? description : job.description;
     job.deadline = deadline !== undefined ? deadline : job.deadline;
     job.active = active !== undefined ? active : job.active;
@@ -175,7 +214,7 @@ router.delete('/:id', async (req, res) => {
 // Apply for a job
 router.post('/:id/apply', async (req, res) => {
   try {
-    const { clerkId, resumeLink, coverLetter } = req.body;
+    const { clerkId, resumeLink, coverLetter, clientHandledEmail } = req.body;
     const user = await User.findOne({ clerkId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -209,16 +248,76 @@ router.post('/:id/apply', async (req, res) => {
     // Notify the mentor (job poster)
     const mentor = await User.findById(job.postedBy);
     if (mentor) {
-      await Notification.create({
+      const notif = await Notification.create({
         recipientClerkId: mentor.clerkId,
         senderClerkId: user.clerkId,
-        senderName: user.firstName + ' ' + user.lastName,
+        senderName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Applicant',
         senderImage: user.imageUrl,
         type: 'system',
         title: 'New Job Application',
-        message: `${user.firstName} applied for ${job.title}`,
+        message: `${user.firstName || 'A candidate'} applied for ${job.title}`,
         link: `/mentor-dashboard/jobs`
       });
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('new_notification', notif);
+      }
+    }
+
+    // Send Job Confirmation Email using EmailJS ONLY if not already sent by client
+    if (!clientHandledEmail) {
+      try {
+        const recruiterName = mentor 
+          ? (`${mentor.firstName || ''} ${mentor.lastName || ''}`.trim() || mentor.username)
+          : `${job.company} Recruitment Team`;
+
+        const emailPayload = {
+          service_id: process.env.EMAILJS_SERVICE_ID || 'service_a3vg38b',
+          template_id: process.env.EMAILJS_JOB_TEMPLATE_ID || 'template_c45j16i',
+          user_id: process.env.EMAILJS_PUBLIC_KEY || 'JAA5yhiRssyoyqKqW',
+          template_params: {
+            to_email: user.email,
+            user_email: user.email,
+            email: user.email,
+            recipient: user.email,
+            to_name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Applicant',
+            user_name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Applicant',
+            name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Applicant',
+            applicant_name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Applicant',
+            applicant_email: user.email,
+            from_name: 'CampusBridge',
+            recruiter_name: recruiterName,
+            recruiter: recruiterName,
+            recruiter_email: mentor?.email || 'support@campusbridge.com',
+            job_title: job.title,
+            title: job.title,
+            job_company: job.company,
+            company: job.company,
+            company_name: job.company,
+            job_location: job.location,
+            location: job.location,
+            job_type: job.type,
+            type: job.type,
+            job_salary: job.salary || 'Not specified',
+            salary: job.salary || 'Not specified',
+            resume_link: resumeLink,
+            cover_letter: coverLetter || 'No cover letter provided.',
+            applied_date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+            message: `You have successfully applied for the ${job.title} role at ${job.company}.`
+          }
+        };
+
+        await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': 'http://localhost:5173'
+          },
+          body: JSON.stringify(emailPayload)
+        });
+      } catch (emailErr) {
+        console.error('Failed to send job confirmation email via EmailJS:', emailErr);
+      }
     }
 
     res.status(201).json({ message: 'Application submitted successfully', application });
@@ -243,7 +342,7 @@ router.get('/:id/applications', async (req, res) => {
 // Update application status
 router.put('/applications/:appId/status', async (req, res) => {
   try {
-    const { status } = req.body; // 'accepted' or 'rejected'
+    const { status, clientHandledEmail } = req.body; // 'accepted', 'rejected', 'pending'
     if (!['accepted', 'rejected', 'pending'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
@@ -252,10 +351,97 @@ router.put('/applications/:appId/status', async (req, res) => {
       req.params.appId,
       { status },
       { new: true }
-    ).populate('applicant', 'name firstName lastName email imageUrl headline clerkId username');
+    )
+      .populate('applicant', 'name firstName lastName email imageUrl headline clerkId username')
+      .populate('job');
 
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });
+    }
+
+    // In-app notification to applicant
+    if (application.applicant) {
+      const jobTitle = application.job?.title || 'Job';
+      const companyName = application.job?.company || 'CampusBridge Partner';
+      const statusCapitalized = status.charAt(0).toUpperCase() + status.slice(1);
+
+      try {
+        const notif = await Notification.create({
+          recipientClerkId: application.applicant.clerkId,
+          senderClerkId: 'system',
+          senderName: companyName,
+          senderImage: application.job?.companyLogo || '',
+          type: 'system',
+          title: `Application ${statusCapitalized}!`,
+          message: status === 'accepted'
+            ? `🎉 Great news! Your application for ${jobTitle} at ${companyName} has been ACCEPTED!`
+            : status === 'rejected'
+            ? `Update: Your application for ${jobTitle} at ${companyName} was not selected.`
+            : `Your application for ${jobTitle} at ${companyName} is currently ${status}.`,
+          link: `/dashboard/applications?tab=${status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Rejected' : 'Active'}`
+        });
+
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('new_notification', notif);
+        }
+      } catch (notifErr) {
+        console.error('Error creating status notification:', notifErr);
+      }
+    }
+
+    // Send EmailJS email to the applicant if not client-handled
+    if (!clientHandledEmail && application.applicant?.email) {
+      try {
+        const applicantName = application.applicant.name || `${application.applicant.firstName || ''} ${application.applicant.lastName || ''}`.trim() || 'Applicant';
+        const jobTitle = application.job?.title || 'Position';
+        const companyName = application.job?.company || 'CampusBridge Partner';
+        const statusDisplay = status.charAt(0).toUpperCase() + status.slice(1);
+        const targetTab = status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Rejected' : 'Active';
+        const applicationUrl = `https://campus-bridge-x5rl.vercel.app/dashboard/applications?tab=${targetTab}`;
+
+        const emailPayload = {
+          service_id: process.env.EMAILJS_STATUS_SERVICE_ID || 'service_uykuh7j',
+          template_id: process.env.EMAILJS_STATUS_TEMPLATE_ID || 'template_t8ne25d',
+          user_id: process.env.EMAILJS_STATUS_PUBLIC_KEY || 'BtfZJ-Xb0-sDmtRxr',
+          template_params: {
+            to_email: application.applicant.email,
+            user_email: application.applicant.email,
+            email: application.applicant.email,
+            recipient: application.applicant.email,
+            to_name: applicantName,
+            name: applicantName,
+            user_name: applicantName,
+            applicant_name: applicantName,
+            job_title: jobTitle,
+            title: jobTitle,
+            job_company: companyName,
+            company: companyName,
+            company_name: companyName,
+            application_status: statusDisplay,
+            status: statusDisplay,
+            status_message: status === 'accepted'
+              ? 'Congratulations! We are delighted to inform you that your application has been ACCEPTED. The hiring team will reach out with the next steps soon.'
+              : status === 'rejected'
+              ? 'Thank you for your interest and effort. Unfortunately, the hiring team has decided to proceed with other candidates at this stage.'
+              : `Your application status has been updated to ${statusDisplay}.`,
+            action_url: applicationUrl,
+            link: applicationUrl,
+            application_url: applicationUrl
+          }
+        };
+
+        await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': 'http://localhost:5173'
+          },
+          body: JSON.stringify(emailPayload)
+        });
+      } catch (emailErr) {
+        console.error('Failed to send status update email via EmailJS:', emailErr);
+      }
     }
 
     res.json(application);
@@ -278,6 +464,22 @@ router.get('/student/applications/:clerkId', async (req, res) => {
       })
       .sort({ createdAt: -1 });
     res.json(applications);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle/update archive status for an application
+router.put('/applications/:appId/archive', async (req, res) => {
+  try {
+    const { archived } = req.body;
+    const application = await JobApplication.findById(req.params.appId);
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+    application.archived = typeof archived === 'boolean' ? archived : !application.archived;
+    await application.save();
+    res.json({ success: true, application });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

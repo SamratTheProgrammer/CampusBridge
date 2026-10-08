@@ -129,6 +129,7 @@ const MentorSessions = () => {
     const previewUrl = URL.createObjectURL(croppedBlob)
     setCroppedImagePreview(previewUrl)
     setCropModalData(null)
+    toast.success('Banner image cropped and selected!')
   }
 
   const fetchSessions = async () => {

@@ -10,6 +10,7 @@ import PlatformSetting from '../models/PlatformSetting.js';
 import SupportMessage from '../models/SupportMessage.js';
 import Review from '../models/Review.js';
 import Announcement from '../models/Announcement.js';
+import Notification from '../models/Notification.js';
 import { Resend } from 'resend';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 import { createNotificationHelper } from './notificationRoutes.js';
@@ -599,7 +600,7 @@ router.get('/jobs', async (req, res) => {
 // Admin Create New Job Endpoint
 router.post('/jobs', async (req, res) => {
   try {
-    const { title, company, companyLogo, location, type, salary, description, status } = req.body;
+    const { title, company, companyLogo, location, type, salary, eligibility, deadline, description, status } = req.body;
 
     if (!title || !company) {
       return res.status(400).json({ success: false, message: 'Job title and company name are required' });
@@ -632,12 +633,36 @@ router.post('/jobs', async (req, res) => {
       location: location || 'Remote',
       type: type || 'Full-time',
       salary: salary || '',
+      eligibility: eligibility || {},
+      deadline: deadline || null,
       description: description || '',
       status: status || 'Approved',
       active: status !== 'Rejected'
     });
 
     await newJob.save();
+
+    // Notify all students and alumni about the new job
+    const recipients = await User.find({ role: { $in: ['student', 'alumni'] } });
+    const notifications = recipients.map(recipient => ({
+      recipientClerkId: recipient.clerkId,
+      senderClerkId: 'admin',
+      senderName: 'CampusBridge Admin',
+      senderImage: '',
+      type: 'job_posted',
+      title: 'New Job Posted!',
+      message: `${company} is hiring for ${title}!`,
+      link: `/dashboard/jobs/${newJob._id}`
+    }));
+    if (notifications.length > 0) {
+      const inserted = await Notification.insertMany(notifications);
+      const io = req.app.get('io') || req.io;
+      if (io) {
+        inserted.forEach(notif => {
+          io.emit('new_notification', notif);
+        });
+      }
+    }
 
     const formattedJob = {
       id: newJob._id,
@@ -646,6 +671,8 @@ router.post('/jobs', async (req, res) => {
       location: newJob.location,
       type: newJob.type,
       salary: newJob.salary,
+      eligibility: newJob.eligibility,
+      deadline: newJob.deadline,
       description: newJob.description,
       posted: new Date(newJob.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       applications: 0,

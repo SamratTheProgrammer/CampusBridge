@@ -1,8 +1,9 @@
 import JobSkeleton from '../../components/skeletons/JobSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Briefcase, MapPin, DollarSign, Building2, Users, Search, Loader2, Clock, ChevronDown, X, Edit2, Filter, Calendar, ExternalLink, Share2 } from 'lucide-react'
+import { Plus, Briefcase, MapPin, DollarSign, Building2, Users, Search, Loader2, Clock, ChevronDown, X, Edit2, Filter, Calendar, ExternalLink, Share2, IndianRupee, GraduationCap } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import emailjs from '@emailjs/browser'
 import { useUser } from '@clerk/clerk-react'
 import { format } from 'date-fns'
 import { formatPendingRequestTime } from '../../utils/dateFormatter'
@@ -13,6 +14,7 @@ import ShareModal from '../../components/modals/ShareModal'
 import { getPdfViewUrl } from '../../utils/pdfViewer'
 import API_BASE from '../../utils/api'
 import { getAppUrl } from '../../utils/appUrl'
+import { formatSalaryWithLPA, calculateSalaryEquivalents, parseSalaryToForm, formatEligibilitySummary } from '../../utils/salaryHelper'
 
 // ─── Searchable Company Selector Component ──────────────────────────────────
 const CompanySelector = ({ value, onChange }) => {
@@ -75,7 +77,7 @@ const CompanySelector = ({ value, onChange }) => {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="block text-sm font-medium text-foreground mb-1.5">Company</label>
+      <label className="block text-sm font-medium text-foreground mb-1.5">Company <span className="text-destructive font-bold">*</span></label>
       
       {/* Selected company display / trigger */}
       <button
@@ -188,6 +190,42 @@ const CompanySelector = ({ value, onChange }) => {
   )
 }
 
+// ─── Helpers for Eligibility & Deadline ──────────────────────────────────────
+const parseEligibilityMark = (str, defaultType = '%') => {
+  if (!str) return { val: '', type: defaultType }
+  const trimmed = String(str).trim()
+  if (trimmed.toUpperCase().includes('CGPA')) {
+    return { val: trimmed.replace(/CGPA/gi, '').trim(), type: 'CGPA' }
+  }
+  if (trimmed.toUpperCase().includes('GPA')) {
+    return { val: trimmed.replace(/GPA/gi, '').trim(), type: 'GPA' }
+  }
+  if (trimmed.includes('%')) {
+    return { val: trimmed.replace(/%/g, '').trim(), type: '%' }
+  }
+  if (trimmed.toLowerCase().includes('mark')) {
+    return { val: trimmed.replace(/marks?/gi, '').trim(), type: 'Marks' }
+  }
+  return { val: trimmed, type: defaultType }
+}
+
+const formatEligibilityMark = (val, type) => {
+  if (!val || !String(val).trim() || type === 'None') return ''
+  const clean = String(val).trim()
+  if (type === '%') return clean.endsWith('%') ? clean : `${clean}%`
+  if (type === 'CGPA') return clean.toUpperCase().includes('CGPA') ? clean : `${clean} CGPA`
+  if (type === 'GPA') return clean.toUpperCase().includes('GPA') ? clean : `${clean} GPA`
+  if (type === 'Marks') return clean.toLowerCase().includes('mark') ? clean : `${clean} Marks`
+  return clean
+}
+
+const isJobExpired = (deadline) => {
+  if (!deadline) return false
+  const d = new Date(deadline)
+  d.setHours(23, 59, 59, 999)
+  return new Date() > d
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 const MentorJobs = () => {
   const { user } = useUser()
@@ -209,6 +247,8 @@ const MentorJobs = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [jobTypeFilter, setJobTypeFilter] = useState('All')
+  const [availableStatusFilter, setAvailableStatusFilter] = useState('Active') // 'Active' | 'All' | 'Expired'
+  const [myJobsStatusFilter, setMyJobsStatusFilter] = useState('All') // 'All' | 'Active' | 'Expired'
   const [jobs, setJobs] = useState([])
   const [availableJobs, setAvailableJobs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -217,14 +257,71 @@ const MentorJobs = () => {
   const [selectedCompany, setSelectedCompany] = useState('')
   const [selectedCompanyLogo, setSelectedCompanyLogo] = useState('')
 
+  // Eligibility criteria form state
+  const [eligibilityState, setEligibilityState] = useState({
+    tenthVal: '',
+    tenthType: '%',
+    hsVal: '',
+    hsType: '%',
+    gradVal: '',
+    gradType: 'CGPA',
+    pgVal: '',
+    pgType: 'CGPA',
+    courses: '',
+  })
+
+  // Salary calculation state
+  const [salaryInput, setSalaryInput] = useState('')
+  const [salaryPeriod, setSalaryPeriod] = useState('month') // 'month' | 'lpa'
+  const salaryCalculation = calculateSalaryEquivalents(salaryInput, salaryPeriod)
+
   // Applications state
   const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false)
   const [selectedJobForApps, setSelectedJobForApps] = useState(null)
   const [applications, setApplications] = useState([])
+  const [appsFilter, setAppsFilter] = useState('All') // 'All' | 'pending' | 'accepted' | 'rejected'
   const [isLoadingApps, setIsLoadingApps] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [jobToDelete, setJobToDelete] = useState(null)
   const [jobToEdit, setJobToEdit] = useState(null)
+
+  useEffect(() => {
+    if (jobToEdit) {
+      const tenth = parseEligibilityMark(jobToEdit?.eligibility?.tenthMarks, '%')
+      const hs = parseEligibilityMark(jobToEdit?.eligibility?.hsMarks, '%')
+      const grad = parseEligibilityMark(jobToEdit?.eligibility?.graduationMarks, 'CGPA')
+      const pg = parseEligibilityMark(jobToEdit?.eligibility?.pgMarks, 'CGPA')
+      setEligibilityState({
+        tenthVal: tenth.val,
+        tenthType: tenth.type,
+        hsVal: hs.val,
+        hsType: hs.type,
+        gradVal: grad.val,
+        gradType: grad.type,
+        pgVal: pg.val,
+        pgType: pg.type,
+        courses: (jobToEdit?.eligibility?.courses || []).join(', '),
+      })
+
+      const parsedSal = parseSalaryToForm(jobToEdit?.salary)
+      setSalaryInput(parsedSal.value)
+      setSalaryPeriod(parsedSal.unit)
+    } else {
+      setEligibilityState({
+        tenthVal: '',
+        tenthType: '%',
+        hsVal: '',
+        hsType: '%',
+        gradVal: '',
+        gradType: 'CGPA',
+        pgVal: '',
+        pgType: 'CGPA',
+        courses: '',
+      })
+      setSalaryInput('')
+      setSalaryPeriod('month')
+    }
+  }, [jobToEdit, isModalOpen])
 
   const fetchJobs = async () => {
     if (!user) return
@@ -261,34 +358,73 @@ const MentorJobs = () => {
 
   const handleAddJob = async (e) => {
     e.preventDefault()
+    
+    const formData = new FormData(e.target)
+    const title = formData.get('title')?.trim()
+    const location = formData.get('location')?.trim()
+    const type = formData.get('type')?.trim()
+    const deadline = formData.get('deadline')
+    const description = formData.get('description')?.trim()
+
+    // Mandatory fields check (Eligibility remains optional)
+    if (!title) {
+      toast.error('Job Title is required')
+      return
+    }
     if (!selectedCompany) {
       toast.error('Please select a company')
       return
     }
+    if (!location) {
+      toast.error('Location is required')
+      return
+    }
+    if (!type) {
+      toast.error('Job Type is required')
+      return
+    }
+    if (!salaryInput.trim()) {
+      toast.error('Salary / Stipend is required')
+      return
+    }
+    if (!deadline) {
+      toast.error('Deadline (Last Date to Apply) is required')
+      return
+    }
+    if (!description) {
+      toast.error('Job Description is required')
+      return
+    }
+
     setIsSubmitting(true)
     
-    const formData = new FormData(e.target)
-    const coursesInput = formData.get('eligibility_courses');
+    const coursesInput = eligibilityState.courses !== undefined 
+      ? eligibilityState.courses 
+      : (formData.get('eligibility_courses') || '');
     const coursesArray = coursesInput ? coursesInput.split(',').map(c => c.trim()).filter(Boolean) : [];
 
     const eligibility = {
-      tenthMarks: formData.get('eligibility_tenthMarks'),
-      hsMarks: formData.get('eligibility_hsMarks'),
-      graduationMarks: formData.get('eligibility_graduationMarks'),
-      pgMarks: formData.get('eligibility_pgMarks'),
+      tenthMarks: formatEligibilityMark(eligibilityState.tenthVal, eligibilityState.tenthType),
+      hsMarks: formatEligibilityMark(eligibilityState.hsVal, eligibilityState.hsType),
+      graduationMarks: formatEligibilityMark(eligibilityState.gradVal, eligibilityState.gradType),
+      pgMarks: formatEligibilityMark(eligibilityState.pgVal, eligibilityState.pgType),
       courses: coursesArray
     };
 
+    const finalSalary = salaryCalculation 
+      ? salaryCalculation.combined 
+      : (salaryInput.trim() ? formatSalaryWithLPA(salaryInput) : '');
+
     const newJob = {
-      title: formData.get('title'),
+      title,
       company: selectedCompany,
       companyLogo: selectedCompanyLogo,
-      location: formData.get('location'),
-      type: formData.get('type'),
-      salary: formData.get('salary'),
+      location,
+      type,
+      salary: finalSalary,
       eligibility,
-      description: formData.get('description'),
-      deadline: formData.get('deadline'),
+      description,
+      deadline,
       clerkId: user.id
     }
 
@@ -352,6 +488,7 @@ const MentorJobs = () => {
 
   const handleViewApplications = async (job) => {
     setSelectedJobForApps(job)
+    setAppsFilter('All')
     setIsApplicationsModalOpen(true)
     setIsLoadingApps(true)
     try {
@@ -368,32 +505,89 @@ const MentorJobs = () => {
 
   const handleUpdateAppStatus = async (appId, status) => {
     try {
+      const targetApp = applications.find(a => a._id === appId);
       const res = await fetch(`${API_BASE}/api/jobs/applications/${appId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, clientHandledEmail: true })
       })
       if (!res.ok) throw new Error('Failed to update status')
       const updatedApp = await res.json()
       
       setApplications(prev => prev.map(app => app._id === appId ? updatedApp : app))
-      toast.success(`Application ${status}`)
+      toast.success(`Application ${status} & email sent to applicant!`)
+
+      // Client-side EmailJS notification with user's status template
+      if (targetApp?.applicant?.email) {
+        try {
+          const applicantName = targetApp.applicant.name || 
+            `${targetApp.applicant.firstName || ''} ${targetApp.applicant.lastName || ''}`.trim() || 
+            'Applicant';
+          const jobTitle = selectedJobForApps?.title || 'Job Position';
+          const companyName = selectedJobForApps?.company || 'CampusBridge Partner';
+          const statusDisplay = status.charAt(0).toUpperCase() + status.slice(1);
+
+          await emailjs.send(
+            import.meta.env.VITE_EMAILJS_STATUS_SERVICE_ID || 'service_uykuh7j',
+            import.meta.env.VITE_EMAILJS_STATUS_TEMPLATE_ID || 'template_t8ne25d',
+            {
+              to_email: targetApp.applicant.email,
+              user_email: targetApp.applicant.email,
+              email: targetApp.applicant.email,
+              recipient: targetApp.applicant.email,
+              to_name: applicantName,
+              name: applicantName,
+              user_name: applicantName,
+              applicant_name: applicantName,
+              job_title: jobTitle,
+              title: jobTitle,
+              job_company: companyName,
+              company: companyName,
+              company_name: companyName,
+              application_status: statusDisplay,
+              status: statusDisplay,
+              status_message: status === 'accepted'
+                ? 'Congratulations! We are pleased to inform you that your application has been ACCEPTED. The recruitment team will reach out with the next steps shortly.'
+                : 'Thank you for your interest and effort. Unfortunately, the hiring team has decided to proceed with other candidates at this time.',
+              action_url: `https://campus-bridge-x5rl.vercel.app/dashboard/applications?tab=${status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Rejected' : 'Active'}`,
+              link: `https://campus-bridge-x5rl.vercel.app/dashboard/applications?tab=${status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Rejected' : 'Active'}`,
+              application_url: `https://campus-bridge-x5rl.vercel.app/dashboard/applications?tab=${status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Rejected' : 'Active'}`
+            },
+            import.meta.env.VITE_EMAILJS_STATUS_PUBLIC_KEY || 'BtfZJ-Xb0-sDmtRxr'
+          );
+        } catch (emailErr) {
+          console.warn('Status EmailJS send error:', emailErr);
+        }
+      }
     } catch (err) {
       toast.error(err.message)
     }
   }
 
-  const filteredJobs = jobs.filter(job => 
-    job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    job.company.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = job.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          job.company?.toLowerCase().includes(searchQuery.toLowerCase())
+    const expired = isJobExpired(job.deadline)
+    const matchesStatus = myJobsStatusFilter === 'All' 
+      ? true 
+      : myJobsStatusFilter === 'Active' 
+        ? !expired 
+        : expired
+    return matchesSearch && matchesStatus
+  })
 
   const filteredAvailableJobs = availableJobs.filter(job => {
     const matchesSearch = job.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           job.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           job.location?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = jobTypeFilter === 'All' || job.type === jobTypeFilter
-    return matchesSearch && matchesType
+    const expired = isJobExpired(job.deadline)
+    const matchesStatus = availableStatusFilter === 'All' 
+      ? true 
+      : availableStatusFilter === 'Active' 
+        ? !expired 
+        : expired
+    return matchesSearch && matchesType && matchesStatus
   })
 
   // Helper to get logo for a job
@@ -439,7 +633,7 @@ const MentorJobs = () => {
       {/* Tabs & Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
         {/* Tab Switcher */}
-        <div className="flex bg-muted p-1 rounded-xl w-fit">
+        <div className="flex bg-muted p-1 rounded-xl w-fit shrink-0">
           <button
             onClick={() => setActiveTab('my-jobs')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
@@ -459,8 +653,8 @@ const MentorJobs = () => {
         </div>
 
         {/* Search & Type Filters */}
-        <div className="flex items-center gap-2.5 flex-1 max-w-md ml-auto">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-2.5 flex-1 max-w-xl ml-auto">
+          <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
@@ -471,12 +665,36 @@ const MentorJobs = () => {
             />
           </div>
 
-          {activeTab === 'available-jobs' && (
+          {activeTab === 'my-jobs' && (
             <div className="relative shrink-0">
+              <select
+                value={myJobsStatusFilter}
+                onChange={(e) => setMyJobsStatusFilter(e.target.value)}
+                className="bg-background border border-border/50 rounded-lg px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                <option value="All">All Posts</option>
+                <option value="Active">Active Only</option>
+                <option value="Expired">Expired (Date Over)</option>
+              </select>
+            </div>
+          )}
+
+          {activeTab === 'available-jobs' && (
+            <div className="flex items-center gap-2 shrink-0">
+              <select
+                value={availableStatusFilter}
+                onChange={(e) => setAvailableStatusFilter(e.target.value)}
+                className="bg-background border border-border/50 rounded-lg px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                <option value="Active">Active Only</option>
+                <option value="All">All Status</option>
+                <option value="Expired">Expired (Date Over)</option>
+              </select>
+
               <select
                 value={jobTypeFilter}
                 onChange={(e) => setJobTypeFilter(e.target.value)}
-                className="bg-background border border-border/50 rounded-lg px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="bg-background border border-border/50 rounded-lg px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
                 <option value="All">All Types</option>
                 <option value="Full-time">Full-time</option>
@@ -499,7 +717,7 @@ const MentorJobs = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredJobs.map((job) => {
-              const isExpired = Boolean(job.deadline && new Date() > new Date(job.deadline));
+              const isExpired = Boolean(job.deadline && isJobExpired(job.deadline));
               return (
               <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
                 <div>
@@ -544,11 +762,18 @@ const MentorJobs = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <DollarSign className="w-4 h-4 text-primary" />
-                      <span className="truncate">{job.salary || 'Not specified'}</span>
+                      <span className="truncate">{formatSalaryWithLPA(job.salary) || 'Not specified'}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="w-4 h-4 text-primary" />
                       <span>{job.applicants?.length || 0} applied</span>
+                    </div>
+                    <div className="col-span-2 flex items-center gap-2 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-primary/5 text-foreground border border-primary/20">
+                      <GraduationCap className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span className="truncate">
+                        <strong className="text-muted-foreground mr-1">Eligibility:</strong>
+                        {formatEligibilitySummary(job.eligibility) || 'Open to all courses & degrees'}
+                      </span>
                     </div>
                     <div className={`col-span-2 flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${
                       isExpired 
@@ -625,7 +850,7 @@ const MentorJobs = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredAvailableJobs.map((job) => {
               const isMine = job.clerkId === user?.id;
-              const isDeadlinePassed = job.deadline && new Date() > new Date(job.deadline);
+              const isDeadlinePassed = Boolean(job.deadline && isJobExpired(job.deadline));
 
               return (
                 <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
@@ -676,7 +901,7 @@ const MentorJobs = () => {
                       {job.salary && (
                         <div className="flex items-center gap-2">
                           <DollarSign className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span className="truncate">{job.salary}</span>
+                          <span className="truncate">{formatSalaryWithLPA(job.salary)}</span>
                         </div>
                       )}
                       {job.deadline && (
@@ -740,7 +965,7 @@ const MentorJobs = () => {
             
             <form onSubmit={handleAddJob} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Job Title</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Job Title <span className="text-destructive font-bold">*</span></label>
                 <input name="title" defaultValue={jobToEdit?.title} required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. SDE Intern" />
               </div>
               
@@ -750,15 +975,15 @@ const MentorJobs = () => {
                   onChange={(name, logo) => { setSelectedCompany(name); setSelectedCompanyLogo(logo) }}
                 />
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Location</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Location <span className="text-destructive font-bold">*</span></label>
                   <input name="location" defaultValue={jobToEdit?.location} required type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. Remote / Bangalore" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Job Type</label>
-                  <select name="type" defaultValue={jobToEdit?.type || 'Full-time'} className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Job Type <span className="text-destructive font-bold">*</span></label>
+                  <select name="type" defaultValue={jobToEdit?.type || 'Full-time'} required className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
                     <option>Full-time</option>
                     <option>Internship</option>
                     <option>Contract</option>
@@ -767,45 +992,220 @@ const MentorJobs = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Salary / Stipend</label>
-                  <input name="salary" defaultValue={jobToEdit?.salary} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. ₹80,000 / month" />
+                  <div className="flex items-center justify-between mb-1.5 gap-2">
+                    <label className="text-sm font-semibold text-foreground whitespace-nowrap">Salary / Stipend <span className="text-destructive font-bold">*</span></label>
+                    <div className="inline-flex p-0.5 rounded-lg bg-muted/80 border border-border/50 text-[11px] font-semibold shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setSalaryPeriod('month')}
+                        className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                          salaryPeriod === 'month'
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Per Month
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSalaryPeriod('lpa')}
+                        className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                          salaryPeriod === 'lpa'
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        LPA
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative flex items-center rounded-xl border border-border/50 bg-background hover:border-border transition-all focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary shadow-xs">
+                    <div className="pl-3 pr-1 flex items-center text-muted-foreground">
+                      <IndianRupee className="w-4 h-4" />
+                    </div>
+                    <input 
+                      type="text" 
+                      value={salaryInput} 
+                      onChange={(e) => setSalaryInput(e.target.value)} 
+                      required
+                      className="w-full pl-1.5 pr-20 py-2.5 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground/45 focus:outline-none" 
+                      placeholder={salaryPeriod === 'month' ? 'e.g. 50,000' : 'e.g. 6.5'} 
+                    />
+                    <span className="absolute right-2.5 text-[11px] font-semibold text-muted-foreground select-none bg-muted/60 px-2 py-0.5 rounded-md border border-border/40">
+                      {salaryPeriod === 'month' ? '/ month' : 'LPA'}
+                    </span>
+                  </div>
+
+                  {salaryCalculation ? (
+                    <div className="mt-1.5 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-xs font-medium text-primary flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-semibold text-foreground">Converted:</span>
+                        {salaryPeriod === 'month' ? (
+                          <>
+                            <span className="font-bold text-primary">{salaryCalculation.lpaFormatted}</span>
+                            <span className="text-[11px] text-muted-foreground">({salaryCalculation.annualFormatted})</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-bold text-primary">{salaryCalculation.monthlyFormatted}</span>
+                            <span className="text-[11px] text-muted-foreground">({salaryCalculation.annualFormatted})</span>
+                          </>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold shrink-0">
+                        Auto
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {salaryPeriod === 'month' ? '💡 Enter monthly pay — LPA converts automatically' : '💡 Enter annual LPA — monthly pay converts automatically'}
+                    </p>
+                  )}
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Deadline (Last Date to Apply)</label>
-                <input name="deadline" defaultValue={jobToEdit?.deadline ? new Date(jobToEdit.deadline).toISOString().split('T')[0] : ''} type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                <label className="block text-sm font-medium text-foreground mb-1.5">Deadline (Last Date to Apply) <span className="text-destructive font-bold">*</span></label>
+                <input 
+                  name="deadline" 
+                  required
+                  defaultValue={jobToEdit?.deadline ? new Date(jobToEdit.deadline).toISOString().split('T')[0] : ''} 
+                  min={!jobToEdit ? new Date().toISOString().split('T')[0] : undefined}
+                  type="date" 
+                  className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                />
               </div>
               
-              <div className="border border-border/50 rounded-xl p-4 bg-muted/10 space-y-3">
-                <label className="block text-sm font-bold text-foreground mb-1.5">Eligibility Criteria</label>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="border border-border/50 rounded-xl p-4 bg-muted/10 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <label className="block text-sm font-bold text-foreground">Eligibility Criteria</label>
+                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-muted/80 text-muted-foreground font-normal border border-border/40">Optional</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">Cutoff marks & valid courses</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1">10th Marks</label>
-                    <input name="eligibility_tenthMarks" defaultValue={jobToEdit?.eligibility?.tenthMarks} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 60%" />
+                    <div className="flex rounded-lg border border-border/50 bg-background overflow-hidden focus-within:ring-1 focus-within:ring-primary shadow-xs">
+                      <input 
+                        type="text" 
+                        value={eligibilityState.tenthVal} 
+                        onChange={(e) => setEligibilityState(prev => ({ ...prev, tenthVal: e.target.value }))}
+                        className="w-full px-3 py-2 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/40 text-foreground" 
+                        placeholder={eligibilityState.tenthType === '%' ? 'e.g. 60' : 'e.g. 6.0'} 
+                        disabled={eligibilityState.tenthType === 'None'}
+                      />
+                      <select 
+                        value={eligibilityState.tenthType} 
+                        onChange={(e) => setEligibilityState(prev => ({ ...prev, tenthType: e.target.value }))}
+                        className="bg-muted/40 border-l border-border/40 px-2.5 py-2 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                      >
+                        <option value="%">% (Percentage)</option>
+                        <option value="CGPA">CGPA</option>
+                        <option value="GPA">GPA</option>
+                        <option value="Marks">Marks</option>
+                        <option value="None">None</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1">12th Marks (HS)</label>
-                    <input name="eligibility_hsMarks" defaultValue={jobToEdit?.eligibility?.hsMarks} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 60%" />
+                    <div className="flex rounded-lg border border-border/50 bg-background overflow-hidden focus-within:ring-1 focus-within:ring-primary shadow-xs">
+                      <input 
+                        type="text" 
+                        value={eligibilityState.hsVal} 
+                        onChange={(e) => setEligibilityState(prev => ({ ...prev, hsVal: e.target.value }))}
+                        className="w-full px-3 py-2 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/40 text-foreground" 
+                        placeholder={eligibilityState.hsType === '%' ? 'e.g. 60' : 'e.g. 6.0'} 
+                        disabled={eligibilityState.hsType === 'None'}
+                      />
+                      <select 
+                        value={eligibilityState.hsType} 
+                        onChange={(e) => setEligibilityState(prev => ({ ...prev, hsType: e.target.value }))}
+                        className="bg-muted/40 border-l border-border/40 px-2.5 py-2 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                      >
+                        <option value="%">% (Percentage)</option>
+                        <option value="CGPA">CGPA</option>
+                        <option value="GPA">GPA</option>
+                        <option value="Marks">Marks</option>
+                        <option value="None">None</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1">Graduation Marks</label>
-                    <input name="eligibility_graduationMarks" defaultValue={jobToEdit?.eligibility?.graduationMarks} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 6.5 CGPA" />
+                    <div className="flex rounded-lg border border-border/50 bg-background overflow-hidden focus-within:ring-1 focus-within:ring-primary shadow-xs">
+                      <input 
+                        type="text" 
+                        value={eligibilityState.gradVal} 
+                        onChange={(e) => setEligibilityState(prev => ({ ...prev, gradVal: e.target.value }))}
+                        className="w-full px-3 py-2 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/40 text-foreground" 
+                        placeholder={eligibilityState.gradType === 'CGPA' ? 'e.g. 6.5' : 'e.g. 65'} 
+                        disabled={eligibilityState.gradType === 'None'}
+                      />
+                      <select 
+                        value={eligibilityState.gradType} 
+                        onChange={(e) => setEligibilityState(prev => ({ ...prev, gradType: e.target.value }))}
+                        className="bg-muted/40 border-l border-border/40 px-2.5 py-2 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                      >
+                        <option value="CGPA">CGPA</option>
+                        <option value="%">% (Percentage)</option>
+                        <option value="GPA">GPA</option>
+                        <option value="Marks">Marks</option>
+                        <option value="None">None</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1">PG Marks (Optional)</label>
-                    <input name="eligibility_pgMarks" defaultValue={jobToEdit?.eligibility?.pgMarks} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 7.0 CGPA" />
+                    <div className="flex rounded-lg border border-border/50 bg-background overflow-hidden focus-within:ring-1 focus-within:ring-primary shadow-xs">
+                      <input 
+                        type="text" 
+                        value={eligibilityState.pgVal} 
+                        onChange={(e) => setEligibilityState(prev => ({ ...prev, pgVal: e.target.value }))}
+                        className="w-full px-3 py-2 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/40 text-foreground" 
+                        placeholder={eligibilityState.pgType === 'CGPA' ? 'e.g. 7.0' : 'e.g. 70'} 
+                        disabled={eligibilityState.pgType === 'None'}
+                      />
+                      <select 
+                        value={eligibilityState.pgType} 
+                        onChange={(e) => setEligibilityState(prev => ({ ...prev, pgType: e.target.value }))}
+                        className="bg-muted/40 border-l border-border/40 px-2.5 py-2 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                      >
+                        <option value="CGPA">CGPA</option>
+                        <option value="%">% (Percentage)</option>
+                        <option value="GPA">GPA</option>
+                        <option value="Marks">Marks</option>
+                        <option value="None">None</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="block text-xs font-medium text-foreground mb-1">Valid Courses</label>
-                    <input name="eligibility_courses" defaultValue={jobToEdit?.eligibility?.courses?.join(', ')} type="text" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. BCA, MCA, B.Tech, M.Tech (comma separated)" />
+                    <input 
+                      name="eligibility_courses" 
+                      value={eligibilityState.courses || ''} 
+                      onChange={e => setEligibilityState(prev => ({ ...prev, courses: e.target.value }))}
+                      type="text" 
+                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                      placeholder="e.g. BCA, MCA, B.Tech, M.Tech (comma separated)" 
+                    />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Description (Optional)</label>
-                <textarea name="description" defaultValue={jobToEdit?.description} rows="3" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Brief requirements..."></textarea>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Job Description <span className="text-destructive font-bold">*</span></label>
+                <textarea 
+                  name="description" 
+                  defaultValue={jobToEdit?.description} 
+                  required 
+                  rows="4" 
+                  className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                  placeholder="Describe role responsibilities, key requirements, qualifications, and perks..."
+                ></textarea>
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -843,12 +1243,39 @@ const MentorJobs = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-card border border-border/50 rounded-2xl w-full max-w-4xl shadow-xl flex flex-col max-h-[90vh]"
             >
-              <div className="p-6 sm:p-8 border-b border-border/50 flex justify-between items-start shrink-0">
+              <div className="p-6 sm:p-8 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
                 <div>
                   <h2 className="text-xl font-bold text-foreground">Applications for {selectedJobForApps.title}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedJobForApps.company}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{selectedJobForApps.company}</p>
+                  
+                  {/* Status Filter Tabs */}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {[
+                      { id: 'All', label: `All (${applications.length})` },
+                      { id: 'pending', label: `Pending (${applications.filter(a => a.status === 'pending' || !a.status).length})` },
+                      { id: 'accepted', label: `Accepted (${applications.filter(a => a.status === 'accepted').length})` },
+                      { id: 'rejected', label: `Rejected (${applications.filter(a => a.status === 'rejected').length})` }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setAppsFilter(tab.id)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          appsFilter === tab.id
+                            ? tab.id === 'accepted'
+                              ? 'bg-green-600 text-white shadow-xs'
+                              : tab.id === 'rejected'
+                              ? 'bg-destructive text-destructive-foreground shadow-xs'
+                              : 'bg-primary text-primary-foreground shadow-xs'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <button onClick={() => setIsApplicationsModalOpen(false)} className="text-muted-foreground hover:bg-muted p-2 rounded-lg">
+                <button onClick={() => setIsApplicationsModalOpen(false)} className="text-muted-foreground hover:bg-muted p-2 rounded-lg self-start sm:self-center">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -866,9 +1293,27 @@ const MentorJobs = () => {
                     <h3 className="text-lg font-semibold text-foreground mb-1">No Applications Yet</h3>
                     <p className="text-muted-foreground text-sm">Students who apply will appear here.</p>
                   </div>
+                ) : applications.filter(a => {
+                    if (appsFilter === 'pending') return a.status === 'pending' || !a.status;
+                    if (appsFilter === 'accepted') return a.status === 'accepted';
+                    if (appsFilter === 'rejected') return a.status === 'rejected';
+                    return true;
+                  }).length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-12 h-12 text-muted-foreground opacity-50 mx-auto mb-3" />
+                    <h3 className="text-lg font-semibold text-foreground mb-1">No Applications Found</h3>
+                    <p className="text-muted-foreground text-sm">No applications in {appsFilter.toLowerCase()} tab.</p>
+                  </div>
                 ) : (
                   <div className="space-y-6">
-                    {applications.map(app => {
+                    {applications
+                      .filter(a => {
+                        if (appsFilter === 'pending') return a.status === 'pending' || !a.status;
+                        if (appsFilter === 'accepted') return a.status === 'accepted';
+                        if (appsFilter === 'rejected') return a.status === 'rejected';
+                        return true;
+                      })
+                      .map(app => {
                       const applicantName = app.applicant?.name || 
                         `${app.applicant?.firstName || ''} ${app.applicant?.lastName || ''}`.trim() || 
                         app.applicant?.username || 

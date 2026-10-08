@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import JobSkeleton from '../../components/skeletons/JobSkeleton'
 import { Link } from 'react-router-dom'
-import { Search, MapPin, Briefcase, Filter, Loader2, Calendar, Share2 } from 'lucide-react'
+import { Search, MapPin, Briefcase, Filter, Loader2, Calendar, Share2, CheckCircle2, XCircle, GraduationCap } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import API_BASE from '../../utils/api'
 import { getAppUrl } from '../../utils/appUrl'
+import { formatSalaryWithLPA, formatEligibilitySummary, checkUserJobEligibility } from '../../utils/salaryHelper'
 import ShareModal from '../../components/modals/ShareModal'
 
 const Jobs = () => {
@@ -60,26 +61,29 @@ const Jobs = () => {
   }, [user])
 
   const checkEligibility = (job) => {
-    if (!job.eligibility || (!job.eligibility.courses || job.eligibility.courses.length === 0)) return true;
-    if (!dbUser || !dbUser.education || dbUser.education.length === 0) return false;
-    return dbUser.education.some(edu => 
-      job.eligibility.courses.some(c => 
-        edu.degree?.toLowerCase().includes(c.toLowerCase()) || 
-        c.toLowerCase().includes(edu.degree?.toLowerCase())
-      )
-    );
+    return checkUserJobEligibility(job, dbUser || user).eligible;
   }
+
+  const isJobExpired = (deadline) => {
+    if (!deadline) return false
+    const d = new Date(deadline)
+    d.setHours(23, 59, 59, 999)
+    return new Date() > d
+  }
+
+  const activeCount = jobs.filter(j => !isJobExpired(j.deadline)).length
+  const inactiveCount = jobs.filter(j => isJobExpired(j.deadline)).length
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title?.toLowerCase().includes(searchTerm.toLowerCase()) || job.company?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = jobType === 'All' || job.type === jobType
     
     // Tab logic
-    const isExpired = job.deadline && new Date() > new Date(job.deadline);
-    const matchesTab = activeTab === 'Active' ? !isExpired : isExpired;
+    const isExpired = isJobExpired(job.deadline)
+    const matchesTab = activeTab === 'Active' ? !isExpired : isExpired
     
     // Eligibility logic
-    const matchesEligibility = showEligibleOnly ? checkEligibility(job) : true;
+    const matchesEligibility = showEligibleOnly ? checkEligibility(job) : true
 
     return matchesSearch && matchesType && matchesTab && matchesEligibility
   })
@@ -150,19 +154,29 @@ const Jobs = () => {
       <div className="flex bg-muted p-1 rounded-xl w-fit mb-4">
         <button
           onClick={() => setActiveTab('Active')}
-          className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${
+          className={`px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
             activeTab === 'Active' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Active Jobs
+          <span>Active Jobs</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            activeTab === 'Active' ? 'bg-primary/10 text-primary' : 'bg-muted-foreground/15 text-muted-foreground'
+          }`}>
+            {activeCount}
+          </span>
         </button>
         <button
           onClick={() => setActiveTab('Inactive')}
-          className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${
+          className={`px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
             activeTab === 'Inactive' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Inactive (Date Over)
+          <span>Inactive (Date Over)</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            activeTab === 'Inactive' ? 'bg-destructive/10 text-destructive' : 'bg-muted-foreground/15 text-muted-foreground'
+          }`}>
+            {inactiveCount}
+          </span>
         </button>
       </div>
 
@@ -195,10 +209,19 @@ const Jobs = () => {
                     onError={(e) => handleImageError(e, job.company)}
                   />
                 </div>
-                <div className="flex items-center gap-1.5">
-                  {job.deadline && new Date() > new Date(job.deadline) && (
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  {isJobExpired(job.deadline) && (
                     <span className="bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
+                    </span>
+                  )}
+                  {checkEligibility(job) ? (
+                    <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Eligible
+                    </span>
+                  ) : (
+                    <span className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                      <XCircle className="w-3 h-3" /> Not Eligible
                     </span>
                   )}
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full 
@@ -218,17 +241,26 @@ const Jobs = () => {
                     <MapPin className="w-3.5 h-3.5" /> {job.location}
                   </div>
                   {job.salary && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                      <Briefcase className="w-3.5 h-3.5 text-primary shrink-0" /> {formatSalaryWithLPA(job.salary)}
+                    </div>
+                  )}
+                  {formatEligibilitySummary(job.eligibility) && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Briefcase className="w-3.5 h-3.5" /> {job.salary}
+                      <GraduationCap className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span className="truncate">
+                        <strong className="text-muted-foreground mr-1 font-semibold">Eligibility:</strong>
+                        {formatEligibilitySummary(job.eligibility)}
+                      </span>
                     </div>
                   )}
                   {job.deadline && (
                     <div className={`flex items-center gap-2 text-xs font-medium ${
-                      new Date() > new Date(job.deadline) ? 'text-destructive' : 'text-primary'
+                      isJobExpired(job.deadline) ? 'text-destructive' : 'text-primary'
                     }`}>
                       <Calendar className="w-3.5 h-3.5" />
-                      {new Date() > new Date(job.deadline) 
-                        ? 'Deadline Passed' 
+                      {isJobExpired(job.deadline) 
+                        ? `Expired on ${new Date(job.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` 
                         : `Apply by ${new Date(job.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`}
                     </div>
                   )}

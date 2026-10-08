@@ -6,6 +6,7 @@ import { useUser } from '@clerk/clerk-react'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import API_BASE from '../../utils/api'
 import { formatPendingRequestTime } from '../../utils/dateFormatter'
+import { formatSalaryWithLPA } from '../../utils/salaryHelper'
 
 const JobOpportunities = () => {
   const [jobs, setJobs] = useState([])
@@ -19,8 +20,15 @@ const JobOpportunities = () => {
         const res = await fetch(`${API_BASE}/api/jobs`)
         if (res.ok) {
           const data = await res.json()
-          // Filter out internships and take top 3
-          const filteredJobs = data.filter(j => j.type !== 'Internship').slice(0, 3)
+          const isJobExpired = (deadline) => {
+            if (!deadline) return false
+            const d = new Date(deadline)
+            if (isNaN(d.getTime())) return false
+            d.setHours(23, 59, 59, 999)
+            return new Date() > d
+          }
+          // Filter out internships and expired jobs, take top 3
+          const filteredJobs = data.filter(j => j.type !== 'Internship' && !isJobExpired(j.deadline)).slice(0, 3)
           setJobs(filteredJobs)
         }
       } catch (error) {
@@ -96,7 +104,7 @@ const JobOpportunities = () => {
                       {job.salary && (
                         <span className="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md">
                           <DollarSign className="w-3.5 h-3.5" />
-                          {job.salary}
+                          {formatSalaryWithLPA(job.salary)}
                         </span>
                       )}
                       <span className="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md">

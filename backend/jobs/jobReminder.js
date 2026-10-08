@@ -33,9 +33,9 @@ export const startJobReminderJob = () => {
             
             try {
               const payload = {
-                service_id: process.env.EMAILJS_SERVICE_ID || 'service_j5dko3n',
-                template_id: process.env.EMAILJS_TEMPLATE_ID || 'template_edt67fy',
-                user_id: process.env.EMAILJS_PUBLIC_KEY || 'o9K-IpQMORfxWbx4i',
+                service_id: process.env.EMAILJS_SERVICE_ID || 'service_a3vg38b',
+                template_id: process.env.EMAILJS_JOB_TEMPLATE_ID || process.env.EMAILJS_TEMPLATE_ID || 'template_c45j16i',
+                user_id: process.env.EMAILJS_PUBLIC_KEY || 'JAA5yhiRssyoyqKqW',
                 template_params: {
                   to_email: student.email,
                   to_name: student.firstName,

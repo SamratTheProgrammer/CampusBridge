@@ -100,7 +100,15 @@ export default function HomeScreen() {
         const jobs = Array.isArray(jobsRes.value.data)
           ? jobsRes.value.data
           : (jobsRes.value.data?.jobs || []);
-        setRecentJobs(jobs.filter(j => j.active !== false).slice(0, 4));
+        setRecentJobs(jobs.filter(j => {
+          if (j.active === false) return false;
+          if (j.deadline) {
+            const d = new Date(j.deadline);
+            d.setHours(23, 59, 59, 999);
+            if (new Date() > d) return false;
+          }
+          return true;
+        }).slice(0, 4));
       }
       if (connsRes.status === 'fulfilled') {
         const connsData = connsRes.value.data || [];

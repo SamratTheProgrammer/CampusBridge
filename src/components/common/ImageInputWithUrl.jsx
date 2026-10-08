@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Upload, Link as LinkIcon, Image as ImageIcon, X, AlertCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 /**
  * ImageInputWithUrl
@@ -51,6 +52,7 @@ const ImageInputWithUrl = ({
       const objectUrl = URL.createObjectURL(selectedFile)
       setPreview(objectUrl)
       if (onChangeFile) onChangeFile(selectedFile)
+      toast.success('Banner image selected!')
     }
   }
 

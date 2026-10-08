@@ -781,6 +781,54 @@ const RealtimeChat = () => {
     e.target.value = '';
   };
 
+  // Handle Pasting Images and Videos from Clipboard
+  const handlePasteMedia = (e) => {
+    if (isCurrentPartnerBlocked || !activeContact) return;
+
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
+
+    let mediaFile = null;
+
+    // Check files array from clipboard
+    if (clipboardData.files && clipboardData.files.length > 0) {
+      for (let i = 0; i < clipboardData.files.length; i++) {
+        const file = clipboardData.files[i];
+        if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+          mediaFile = file;
+          break;
+        }
+      }
+    }
+
+    // Check clipboard items (e.g. copied screenshots from Windows Snipping Tool, browser)
+    if (!mediaFile && clipboardData.items && clipboardData.items.length > 0) {
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.kind === 'file' && (item.type.startsWith('image/') || item.type.startsWith('video/'))) {
+          mediaFile = item.getAsFile();
+          if (mediaFile) break;
+        }
+      }
+    }
+
+    if (mediaFile) {
+      e.preventDefault();
+      // Ensure file has a friendly name with appropriate extension
+      let finalFile = mediaFile;
+      if (!finalFile.name || finalFile.name === 'image.png' || finalFile.name === 'blob') {
+        const isVid = finalFile.type.startsWith('video/');
+        const ext = finalFile.type.split('/')[1] || (isVid ? 'mp4' : 'png');
+        finalFile = new File([mediaFile], `pasted_${Date.now()}.${ext}`, { type: mediaFile.type });
+      }
+
+      setSelectedFile(finalFile);
+      setFilePreview(URL.createObjectURL(finalFile));
+      const isVideo = finalFile.type.startsWith('video/');
+      toast.success(isVideo ? 'Video pasted from clipboard! 🎥' : 'Image pasted from clipboard! 📸', { duration: 2500 });
+    }
+  };
+
   const userRef = useRef(user);
   const fetchContactsRef = useRef(fetchContacts);
   useEffect(() => {
@@ -1587,7 +1635,7 @@ const RealtimeChat = () => {
           )}
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 custom-scrollbar w-full min-w-0">
+          <div onPaste={handlePasteMedia} tabIndex={0} className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 custom-scrollbar w-full min-w-0 focus:outline-none">
             {isLoadingMessages ? (
               <MessageSkeleton variant="chat" />
             ) : messages.length > 0 ? (
@@ -2090,16 +2138,35 @@ const RealtimeChat = () => {
             )}
             
             {selectedFile && (
-              <div className="mb-2 mx-1 sm:mx-2 p-2 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between w-fit max-w-[200px]">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="mb-2 mx-1 sm:mx-2 p-2 bg-muted/40 border border-border/60 rounded-xl flex items-center justify-between w-fit max-w-[280px] shadow-sm">
+                <div className="flex items-center gap-2.5 min-w-0">
                   {filePreview ? (
-                    <img src={filePreview} alt="preview" className="w-8 h-8 rounded object-cover shrink-0" />
+                    selectedFile.type.startsWith('video/') ? (
+                      <div className="w-9 h-9 rounded-lg bg-black overflow-hidden relative shrink-0 flex items-center justify-center border border-border/40">
+                        <video src={filePreview} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                          <Play className="w-3.5 h-3.5 text-white fill-white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <img src={filePreview} alt="preview" className="w-9 h-9 rounded-lg object-cover shrink-0 border border-border/40" />
+                    )
                   ) : (
-                    <FileText className="w-6 h-6 text-muted-foreground shrink-0" />
+                    <FileText className="w-7 h-7 text-muted-foreground shrink-0" />
                   )}
-                  <span className="text-xs truncate">{selectedFile.name}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-semibold truncate text-foreground">{selectedFile.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {selectedFile.type.startsWith('image/') ? 'Image attached' : selectedFile.type.startsWith('video/') ? 'Video attached' : 'File attached'}
+                    </span>
+                  </div>
                 </div>
-                <button onClick={() => { setSelectedFile(null); setFilePreview(null); }} className="p-1 hover:bg-background rounded-full ml-2 text-muted-foreground">
+                <button 
+                  type="button"
+                  onClick={() => { setSelectedFile(null); setFilePreview(null); }} 
+                  className="p-1 hover:bg-muted rounded-full ml-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Remove attachment"
+                >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -2211,6 +2278,7 @@ const RealtimeChat = () => {
                     type="text"
                     value={inputText}
                     onChange={handleInputChange}
+                    onPaste={handlePasteMedia}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();

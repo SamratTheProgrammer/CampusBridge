@@ -232,11 +232,22 @@ const NotificationDropdown = () => {
   const navigateNotification = (link, notificationItem = null) => {
     if (!link) return;
     
+    // Normalize absolute URLs if they point to CampusBridge or Vercel deployment
+    let targetLink = link;
+    if (targetLink.startsWith('http://') || targetLink.startsWith('https://')) {
+      try {
+        const parsed = new URL(targetLink);
+        if (parsed.hostname.includes('campus-bridge') || parsed.hostname === window.location.hostname || parsed.hostname === 'localhost') {
+          targetLink = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+      } catch (e) {}
+    }
+
     // Check if link opens a shared modal item (post, job, event)
-    const hasItemParam = link.includes('post=') || link.includes('job=') || link.includes('event=');
+    const hasItemParam = targetLink.includes('post=') || targetLink.includes('job=') || targetLink.includes('event=');
     if (hasItemParam) {
-      const queryIndex = link.indexOf('?');
-      const search = queryIndex !== -1 ? link.substring(queryIndex) : (link.startsWith('?') ? link : `?${link}`);
+      const queryIndex = targetLink.indexOf('?');
+      const search = queryIndex !== -1 ? targetLink.substring(queryIndex) : (targetLink.startsWith('?') ? targetLink : `?${targetLink}`);
       
       // Navigate on the CURRENT page's pathname so the background page NEVER reloads or unmounts.
       // SharedItemViewer is a global component and will immediately open over the current page.
@@ -244,18 +255,28 @@ const NotificationDropdown = () => {
       return;
     }
 
+    // If it's an application status notification, ensure proper tab parameter is attached
+    if (targetLink.includes('/applications') && !targetLink.includes('tab=')) {
+      const combinedText = `${notificationItem?.title || ''} ${notificationItem?.message || ''}`.toLowerCase();
+      if (combinedText.includes('accepted')) {
+        targetLink += (targetLink.includes('?') ? '&' : '?') + 'tab=Accepted';
+      } else if (combinedText.includes('rejected') || combinedText.includes('not selected')) {
+        targetLink += (targetLink.includes('?') ? '&' : '?') + 'tab=Rejected';
+      }
+    }
+
     // If it's a generic dashboard link with no item query, avoid reloading if already on a dashboard page
-    if (link === '/dashboard' || link === '/mentor-dashboard') {
+    if (targetLink === '/dashboard' || targetLink === '/mentor-dashboard') {
       if (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/mentor-dashboard')) {
         return;
       }
     }
 
-    let targetLink = link;
     const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
-    if ((userRole === 'mentor' || userRole === 'alumni') && targetLink.startsWith('/dashboard')) {
+    // Only mentors use /mentor-dashboard. Alumni and students use /dashboard!
+    if (userRole === 'mentor' && targetLink.startsWith('/dashboard')) {
       targetLink = targetLink.replace('/dashboard', '/mentor-dashboard');
-    } else if (userRole === 'student' && targetLink.startsWith('/mentor-dashboard')) {
+    } else if (userRole !== 'mentor' && targetLink.startsWith('/mentor-dashboard')) {
       targetLink = targetLink.replace('/mentor-dashboard', '/dashboard');
     }
     

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+  <title>Application Status Update - CampusBridge</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      supported-color-schemes: light dark;
+    }
+
+    /* ☀️ Default Light Mode Logo Display */
+    .cb-logo-light {
+      display: block !important;
+      max-width: 210px !important;
+      height: auto !important;
+      margin: 0 auto !important;
+    }
+    .cb-logo-dark {
+      display: none !important;
+      max-width: 210px !important;
+      height: auto !important;
+      margin: 0 auto !important;
+    }
+
+    /* 📱 Mobile Responsive Styles (Screens up to 600px wide) */
+    @media only screen and (max-width: 600px) {
+      .cb-outer-wrapper {
+        padding: 14px 8px 24px 8px !important;
+      }
+      .cb-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 14px !important;
+      }
+      .cb-cell-header {
+        padding: 24px 16px 14px 16px !important;
+      }
+      .cb-cell-pad {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+      .cb-logo-light, .cb-logo-dark {
+        max-width: 175px !important;
+      }
+      .cb-badge-pill {
+        font-size: 10px !important;
+        padding: 3px 10px !important;
+      }
+      .cb-heading {
+        font-size: 20px !important;
+        line-height: 1.3 !important;
+        letter-spacing: -0.3px !important;
+      }
+      .cb-subtext {
+        font-size: 13px !important;
+        line-height: 1.5 !important;
+      }
+      .cb-status-badge {
+        padding: 8px 18px !important;
+      }
+      .cb-status-label {
+        font-size: 12px !important;
+        padding-right: 6px !important;
+      }
+      .cb-status-text {
+        font-size: 13px !important;
+      }
+      .cb-info-box {
+        padding: 16px 14px !important;
+        border-radius: 10px !important;
+      }
+      .cb-info-title {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+      }
+      .cb-info-text {
+        font-size: 13px !important;
+        line-height: 1.6 !important;
+      }
+      .cb-table-container {
+        border-radius: 10px !important;
+      }
+      .cb-table-th {
+        padding: 10px 14px !important;
+        font-size: 11px !important;
+      }
+      .cb-table-label {
+        padding: 11px 12px !important;
+        font-size: 12px !important;
+        width: 42% !important;
+      }
+      .cb-table-value {
+        padding: 11px 12px !important;
+        font-size: 13px !important;
+      }
+      .cb-btn-cell {
+        padding: 6px 16px 26px 16px !important;
+      }
+      .cb-btn-table {
+        width: 100% !important;
+      }
+      .cb-btn {
+        display: block !important;
+        width: 100% !important;
+        padding: 14px 16px !important;
+        box-sizing: border-box !important;
+        text-align: center !important;
+        font-size: 15px !important;
+        letter-spacing: 0.3px !important;
+      }
+      .cb-fallback-link {
+        font-size: 11px !important;
+      }
+      .cb-tip-cell {
+        padding: 18px 16px 10px 16px !important;
+      }
+      .cb-footer {
+        padding: 20px 16px !important;
+      }
+      .cb-footer-brand {
+        font-size: 12px !important;
+      }
+      .cb-footer-sub {
+        font-size: 11px !important;
+      }
+    }
+
+    /* 🌙 Dynamic Dark Mode (Apple Mail, iOS Mail, Outlook Mac/Mobile, Webkit) */
+    @media (prefers-color-scheme: dark) {
+      .cb-body-bg {
+        background-color: #0b0f19 !important;
+      }
+      .cb-card {
+        background-color: #111827 !important;
+        border-color: #1f2937 !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+      }
+      .cb-heading {
+        color: #f9fafb !important;
+      }
+      .cb-subtext {
+        color: #9ca3af !important;
+      }
+      .cb-info-box {
+        background-color: #1e293b !important;
+        border-color: #334155 !important;
+      }
+      .cb-info-title {
+        color: #f1f5f9 !important;
+      }
+      .cb-info-text {
+        color: #cbd5e1 !important;
+      }
+      .cb-table-container {
+        background-color: #0f172a !important;
+        border-color: #1e293b !important;
+      }
+      .cb-table-th {
+        background-color: #1e293b !important;
+        color: #cbd5e1 !important;
+        border-color: #334155 !important;
+      }
+      .cb-table-row {
+        border-color: #1e293b !important;
+      }
+      .cb-table-label {
+        color: #9ca3af !important;
+      }
+      .cb-table-value {
+        color: #f3f4f6 !important;
+      }
+      .cb-footer {
+        background-color: #0f172a !important;
+        border-color: #1e293b !important;
+      }
+      .cb-footer-brand {
+        color: #e2e8f0 !important;
+      }
+      .cb-status-badge {
+        background: #1e1b4b !important;
+        border-color: #4338ca !important;
+      }
+      .cb-status-label {
+        color: #c7d2fe !important;
+      }
+
+      /* 🌟 Dark Mode Logo Swapping 🌟 */
+      .cb-logo-light {
+        display: none !important;
+      }
+      .cb-logo-dark {
+        display: block !important;
+      }
+    }
+
+    /* 🌙 Outlook & Office 365 Dark Mode Support */
+    [data-ogsc] .cb-body-bg { background-color: #0b0f19 !important; }
+    [data-ogsc] .cb-card { background-color: #111827 !important; border-color: #1f2937 !important; }
+    [data-ogsc] .cb-heading { color: #f9fafb !important; }
+    [data-ogsc] .cb-subtext { color: #9ca3af !important; }
+    [data-ogsc] .cb-logo-light { display: none !important; }
+    [data-ogsc] .cb-logo-dark { display: block !important; }
+  </style>
+</head>
+<body class="cb-body-bg" style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; color: #1e293b;">
+  
+  <!-- Outer Table Wrapper -->
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" class="cb-outer-wrapper cb-body-bg" style="background-color: #f1f5f9; padding: 35px 15px 45px 15px;">
+    <tr>
+      <td align="center">
+        
+        <!-- Main Email Container (Fluid up to 600px) -->
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" class="cb-card" style="max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0;">
+          
+          <!-- Top Gradient Accent Bar -->
+          <tr>
+            <td style="height: 6px; background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #06b6d4 100%); line-height: 6px; font-size: 0;">&nbsp;</td>
+          </tr>
+
+          <!-- ======================================================== -->
+          <!-- 🌟 SMART AUTO-SWITCHING LOGO (LIGHT & DARK MODE) 🌟        -->
+          <!-- Light mode: Shows dark text logo on white card           -->
+          <!-- Dark mode: Automatically swaps to white text logo        -->
+          <!-- ======================================================== -->
+          <tr>
+            <td align="center" class="cb-cell-header" style="padding: 36px 30px 18px 30px; text-align: center;">
+              
+              <a href="{{action_url}}" target="_blank" style="text-decoration: none; display: inline-block;">
+                
+                <!-- ☀️ 1. LIGHT MODE LOGO (Visible by default, dark text) -->
+                <img 
+                  class="cb-logo-light"
+                  src="https://raw.githubusercontent.com/SamratTheProgrammer/CampusBridge/main/src/assets/CampusLogoLight.png" 
+                  alt="CampusBridge Logo" 
+                  width="210" 
+                  style="max-width: 210px; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none;"
+                />
+
+                <!-- 🌙 2. DARK MODE LOGO (Visible in Dark Mode, white text) -->
+                <!--[if !mso]><!-->
+                <img 
+                  class="cb-logo-dark"
+                  src="https://raw.githubusercontent.com/SamratTheProgrammer/CampusBridge/main/src/assets/CampusLogoDark.png" 
+                  alt="CampusBridge Logo" 
+                  width="210" 
+                  style="max-width: 210px; height: auto; display: none; margin: 0 auto; border: 0; outline: none; text-decoration: none;"
+                />
+                <!--<![endif]-->
+
+              </a>
+
+              <div style="margin-top: 10px;">
+                <span class="cb-badge-pill" style="font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #6366f1; background-color: #eef2ff; padding: 4px 12px; border-radius: 9999px; display: inline-block;">
+                  Career Portal &bull; Placement Cell
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Status Highlight Card Header -->
+          <tr>
+            <td align="center" class="cb-cell-pad" style="padding: 10px 30px 22px 30px; text-align: center;">
+              <h1 class="cb-heading" style="margin: 0 0 10px 0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px;">
+                Application Status Update
+              </h1>
+              <p class="cb-subtext" style="margin: 0; font-size: 14px; color: #64748b; line-height: 1.55; max-width: 480px;">
+                We have an official update regarding your application for 
+                <strong class="cb-heading" style="color: #0f172a;">{{job_title}}</strong> at <strong class="cb-heading" style="color: #0f172a;">{{job_company}}</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Application Status Badge -->
+          <tr>
+            <td align="center" class="cb-cell-pad" style="padding: 0 30px 22px 30px; text-align: center;">
+              <div class="cb-status-badge" style="display: inline-block; background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%); border: 1.5px solid #c7d2fe; padding: 10px 24px; border-radius: 9999px; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.1);">
+                <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                  <tr>
+                    <td class="cb-status-label" style="font-size: 13px; font-weight: 600; color: #4b5563; padding-right: 8px;">
+                      Current Status:
+                    </td>
+                    <td class="cb-status-text" style="font-size: 14px; font-weight: 800; color: #4338ca; text-transform: uppercase; letter-spacing: 0.5px;">
+                      {{application_status}}
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Greeting & Main Message Box -->
+          <tr>
+            <td class="cb-cell-pad" style="padding: 0 30px 20px 30px;">
+              <div class="cb-info-box" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #6366f1; border-radius: 12px; padding: 20px 22px;">
+                <p class="cb-info-title" style="margin: 0 0 10px 0; font-size: 15px; font-weight: 700; color: #1e293b;">
+                  Dear {{to_name}},
+                </p>
+                <p class="cb-info-text" style="margin: 0; font-size: 14px; line-height: 1.65; color: #334155;">
+                  {{status_message}}
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Job Details Summary Table -->
+          <tr>
+            <td class="cb-cell-pad" style="padding: 8px 30px 24px 30px;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" class="cb-table-container" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden;">
+                <tr class="cb-table-header" style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                  <td colspan="2" class="cb-table-th" style="padding: 12px 18px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 1px;">
+                    📌 Application Overview
+                  </td>
+                </tr>
+                <tr class="cb-table-row" style="border-bottom: 1px solid #f1f5f9;">
+                  <td class="cb-table-label" style="padding: 14px 18px; font-size: 13px; color: #64748b; font-weight: 600; width: 38%;">
+                    Role / Position:
+                  </td>
+                  <td class="cb-table-value" style="padding: 14px 18px; font-size: 14px; color: #0f172a; font-weight: 700;">
+                    {{job_title}}
+                  </td>
+                </tr>
+                <tr class="cb-table-row" style="border-bottom: 1px solid #f1f5f9;">
+                  <td class="cb-table-label" style="padding: 14px 18px; font-size: 13px; color: #64748b; font-weight: 600;">
+                    Company / Organization:
+                  </td>
+                  <td class="cb-table-value" style="padding: 14px 18px; font-size: 14px; color: #0f172a; font-weight: 700;">
+                    {{job_company}}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cb-table-label" style="padding: 14px 18px; font-size: 13px; color: #64748b; font-weight: 600;">
+                    Decision / Stage:
+                  </td>
+                  <td class="cb-table-value" style="padding: 14px 18px; font-size: 14px; font-weight: 800; color: #4f46e5;">
+                    {{application_status}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Primary Call to Action Button (Full-width Touch Target on Mobile) -->
+          <tr>
+            <td align="center" class="cb-btn-cell" style="padding: 6px 30px 28px 30px;">
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0" class="cb-btn-table" style="margin: 0 auto;">
+                <tr>
+                  <td align="center" style="border-radius: 12px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); box-shadow: 0 4px 16px rgba(79, 70, 229, 0.35);">
+                    <a 
+                      href="{{action_url}}" 
+                      target="_blank" 
+                      class="cb-btn"
+                      style="display: inline-block; padding: 15px 36px; font-size: 15px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 12px; letter-spacing: 0.3px;"
+                    >
+                      View Application Details &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p class="cb-subtext cb-fallback-link" style="margin: 14px 0 0 0; font-size: 12px; color: #94a3b8; word-break: break-all;">
+                If the button doesn't open, copy and paste this link in your browser:<br/>
+                <a href="{{action_url}}" target="_blank" style="color: #6366f1; text-decoration: underline; word-break: break-all;">{{action_url}}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td class="cb-cell-pad" style="padding: 0 30px;">
+              <div style="border-top: 1px solid #e2e8f0; height: 1px; font-size: 0; line-height: 0;"></div>
+            </td>
+          </tr>
+
+          <!-- Helpful Advice / Portal Highlights -->
+          <tr>
+            <td class="cb-tip-cell" style="padding: 22px 30px 10px 30px;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td class="cb-subtext" style="font-size: 13px; color: #64748b; line-height: 1.6;">
+                    💡 <strong>Pro Tip:</strong> Keep your CampusBridge profile and uploaded resume updated with your latest projects, skills, and certifications to increase your chances in upcoming placement drives.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer Section -->
+          <tr>
+            <td class="cb-footer" style="background-color: #f8fafc; padding: 26px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p class="cb-footer-brand" style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: #334155;">
+                CampusBridge &bull; Your Gateway to Career Success
+              </p>
+              <p class="cb-subtext cb-footer-sub" style="margin: 0 0 14px 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                This is an automated notification from the CampusBridge Recruitment Portal.<br />
+                Sent to: <span style="font-weight: 600;">{{to_email}}</span>
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+                &copy; <a href="https://campus-bridge-x5rl.vercel.app/" target="_blank" style="color: #94a3b8; text-decoration: none;">CampusBridge</a>. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- End Main Email Container -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

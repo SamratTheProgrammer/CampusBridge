@@ -1,11 +1,12 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause, Eye } from 'lucide-react'
+import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause, Eye, IndianRupee } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
+import { formatSalaryWithLPA, calculateSalaryEquivalents } from '../../utils/salaryHelper'
 
 const AdminJobs = () => {
   const [jobs, setJobs] = useState([])
@@ -21,6 +22,11 @@ const AdminJobs = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedCompanyOption, setSelectedCompanyOption] = useState('')
   const [customCompany, setCustomCompany] = useState('')
+
+  // Salary calculation state
+  const [salaryInput, setSalaryInput] = useState('')
+  const [salaryPeriod, setSalaryPeriod] = useState('month') // 'month' | 'lpa'
+  const salaryCalculation = calculateSalaryEquivalents(salaryInput, salaryPeriod)
 
   const DEFAULT_COMPANIES = [
     'Google', 'Microsoft', 'Amazon', 'Adobe', 'Apple', 'Meta', 'Netflix',
@@ -48,6 +54,7 @@ const AdminJobs = () => {
       courses: []
     },
     description: '',
+    deadline: '',
     status: 'Approved'
   })
 
@@ -159,12 +166,19 @@ const AdminJobs = () => {
       return
     }
 
+    const finalSalary = salaryCalculation 
+      ? salaryCalculation.combined 
+      : (salaryInput.trim() ? formatSalaryWithLPA(salaryInput) : '');
+
     try {
       setIsSubmitting(true)
       const res = await fetch(`${API_BASE}/api/admin/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newJobData)
+        body: JSON.stringify({
+          ...newJobData,
+          salary: finalSalary
+        })
       })
 
       const data = await res.json()
@@ -174,6 +188,8 @@ const AdminJobs = () => {
         setIsAddModalOpen(false)
         setSelectedCompanyOption('')
         setCustomCompany('')
+        setSalaryInput('')
+        setSalaryPeriod('month')
         setNewJobData({
           title: '',
           company: '',
@@ -188,6 +204,7 @@ const AdminJobs = () => {
             courses: []
           },
           description: '',
+          deadline: '',
           status: 'Approved'
         })
       } else {
@@ -434,71 +451,283 @@ const AdminJobs = () => {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="font-bold text-foreground block">Salary / Stipend</label>
-                    <div className="relative">
-                      <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="font-bold text-foreground block whitespace-nowrap">Salary / Stipend</label>
+                      <div className="inline-flex p-0.5 rounded-lg bg-muted/80 border border-border/50 text-[11px] font-semibold shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setSalaryPeriod('month')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                            salaryPeriod === 'month'
+                              ? 'bg-primary text-primary-foreground shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Per Month
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSalaryPeriod('lpa')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                            salaryPeriod === 'lpa'
+                              ? 'bg-primary text-primary-foreground shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          LPA
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative flex items-center rounded-xl border border-border/50 bg-background hover:border-border transition-all focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary shadow-xs">
+                      <div className="pl-3 pr-1 flex items-center text-muted-foreground">
+                        <IndianRupee className="w-4 h-4" />
+                      </div>
                       <input 
                         type="text" 
-                        placeholder="e.g. ₹12,00,000 / year"
-                        value={newJobData.salary}
-                        onChange={(e) => setNewJobData({ ...newJobData, salary: e.target.value })}
-                        className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        placeholder={salaryPeriod === 'month' ? 'e.g. 50,000' : 'e.g. 6.5'}
+                        value={salaryInput}
+                        onChange={(e) => setSalaryInput(e.target.value)}
+                        className="w-full pl-1.5 pr-20 py-2.5 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
                       />
+                      <span className="absolute right-2.5 text-[11px] font-semibold text-muted-foreground select-none bg-muted/60 px-2 py-0.5 rounded-md border border-border/40">
+                        {salaryPeriod === 'month' ? '/ month' : 'LPA'}
+                      </span>
                     </div>
+
+                    {salaryCalculation ? (
+                      <div className="mt-1.5 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-xs font-medium text-primary flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-semibold text-foreground">Converted:</span>
+                          {salaryPeriod === 'month' ? (
+                            <>
+                              <span className="font-bold text-primary">{salaryCalculation.lpaFormatted}</span>
+                              <span className="text-[11px] text-muted-foreground">({salaryCalculation.annualFormatted})</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-bold text-primary">{salaryCalculation.monthlyFormatted}</span>
+                              <span className="text-[11px] text-muted-foreground">({salaryCalculation.annualFormatted})</span>
+                            </>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold shrink-0">
+                          Auto
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {salaryPeriod === 'month' ? '💡 Enter monthly pay — LPA converts automatically' : '💡 Enter annual LPA — monthly pay converts automatically'}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="border border-border/50 rounded-xl p-4 bg-muted/10 space-y-3">
-                  <label className="font-bold text-foreground block">Eligibility Criteria</label>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-foreground block">Deadline (Last Date to Apply)</label>
+                  <input 
+                    type="date"
+                    min={new Date().toISOString().split('T')[0]}
+                    value={newJobData.deadline || ''}
+                    onChange={(e) => setNewJobData({ ...newJobData, deadline: e.target.value })}
+                    className="w-full bg-background border border-border/50 rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+                  />
+                </div>
+
+                <div className="border border-border/50 rounded-xl p-4 bg-muted/10 space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-foreground block">Eligibility Criteria</label>
+                    <span className="text-[11px] text-muted-foreground">Select percentage, CGPA, GPA, or marks</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                       <label className="block text-xs font-medium text-foreground mb-1">10th Marks</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 60%"
-                        value={newJobData.eligibility?.tenthMarks || ''}
-                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, tenthMarks: e.target.value } })}
-                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                      />
+                      {(() => {
+                        const raw = newJobData.eligibility?.tenthMarks || '';
+                        let type = '%';
+                        let val = raw;
+                        if (raw.toUpperCase().includes('CGPA')) { type = 'CGPA'; val = raw.replace(/CGPA/gi, '').trim(); }
+                        else if (raw.toUpperCase().includes('GPA')) { type = 'GPA'; val = raw.replace(/GPA/gi, '').trim(); }
+                        else if (raw.includes('%')) { type = '%'; val = raw.replace(/%/g, '').trim(); }
+                        else if (raw.toLowerCase().includes('mark')) { type = 'Marks'; val = raw.replace(/marks?/gi, '').trim(); }
+                        const update = (newV, newT) => {
+                          let str = '';
+                          if (newT !== 'None' && newV) {
+                            if (newT === '%') str = newV.endsWith('%') ? newV : `${newV}%`;
+                            else if (newT === 'CGPA') str = `${newV} CGPA`;
+                            else if (newT === 'GPA') str = `${newV} GPA`;
+                            else if (newT === 'Marks') str = `${newV} Marks`;
+                          }
+                          setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, tenthMarks: str } });
+                        };
+                        return (
+                          <div className="flex rounded-lg border border-border/50 bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/20">
+                            <input 
+                              type="text" 
+                              placeholder={type === '%' ? 'e.g. 60' : 'e.g. 6.0'}
+                              value={val}
+                              disabled={type === 'None'}
+                              onChange={(e) => update(e.target.value, type)}
+                              className="w-full bg-transparent px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-sm"
+                            />
+                            <select 
+                              value={type}
+                              onChange={(e) => update(val, e.target.value)}
+                              className="bg-muted/40 border-l border-border/40 px-2 py-2 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                            >
+                              <option value="%">% (Percentage)</option>
+                              <option value="CGPA">CGPA</option>
+                              <option value="GPA">GPA</option>
+                              <option value="Marks">Marks</option>
+                              <option value="None">None</option>
+                            </select>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-foreground mb-1">12th Marks (HS)</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 60%"
-                        value={newJobData.eligibility?.hsMarks || ''}
-                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, hsMarks: e.target.value } })}
-                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                      />
+                      {(() => {
+                        const raw = newJobData.eligibility?.hsMarks || '';
+                        let type = '%';
+                        let val = raw;
+                        if (raw.toUpperCase().includes('CGPA')) { type = 'CGPA'; val = raw.replace(/CGPA/gi, '').trim(); }
+                        else if (raw.toUpperCase().includes('GPA')) { type = 'GPA'; val = raw.replace(/GPA/gi, '').trim(); }
+                        else if (raw.includes('%')) { type = '%'; val = raw.replace(/%/g, '').trim(); }
+                        else if (raw.toLowerCase().includes('mark')) { type = 'Marks'; val = raw.replace(/marks?/gi, '').trim(); }
+                        const update = (newV, newT) => {
+                          let str = '';
+                          if (newT !== 'None' && newV) {
+                            if (newT === '%') str = newV.endsWith('%') ? newV : `${newV}%`;
+                            else if (newT === 'CGPA') str = `${newV} CGPA`;
+                            else if (newT === 'GPA') str = `${newV} GPA`;
+                            else if (newT === 'Marks') str = `${newV} Marks`;
+                          }
+                          setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, hsMarks: str } });
+                        };
+                        return (
+                          <div className="flex rounded-lg border border-border/50 bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/20">
+                            <input 
+                              type="text" 
+                              placeholder={type === '%' ? 'e.g. 60' : 'e.g. 6.0'}
+                              value={val}
+                              disabled={type === 'None'}
+                              onChange={(e) => update(e.target.value, type)}
+                              className="w-full bg-transparent px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-sm"
+                            />
+                            <select 
+                              value={type}
+                              onChange={(e) => update(val, e.target.value)}
+                              className="bg-muted/40 border-l border-border/40 px-2 py-2 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                            >
+                              <option value="%">% (Percentage)</option>
+                              <option value="CGPA">CGPA</option>
+                              <option value="GPA">GPA</option>
+                              <option value="Marks">Marks</option>
+                              <option value="None">None</option>
+                            </select>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-foreground mb-1">Graduation Marks</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 6.5 CGPA"
-                        value={newJobData.eligibility?.graduationMarks || ''}
-                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, graduationMarks: e.target.value } })}
-                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                      />
+                      {(() => {
+                        const raw = newJobData.eligibility?.graduationMarks || '';
+                        let type = 'CGPA';
+                        let val = raw;
+                        if (raw.toUpperCase().includes('CGPA')) { type = 'CGPA'; val = raw.replace(/CGPA/gi, '').trim(); }
+                        else if (raw.toUpperCase().includes('GPA')) { type = 'GPA'; val = raw.replace(/GPA/gi, '').trim(); }
+                        else if (raw.includes('%')) { type = '%'; val = raw.replace(/%/g, '').trim(); }
+                        else if (raw.toLowerCase().includes('mark')) { type = 'Marks'; val = raw.replace(/marks?/gi, '').trim(); }
+                        const update = (newV, newT) => {
+                          let str = '';
+                          if (newT !== 'None' && newV) {
+                            if (newT === 'CGPA') str = `${newV} CGPA`;
+                            else if (newT === '%') str = newV.endsWith('%') ? newV : `${newV}%`;
+                            else if (newT === 'GPA') str = `${newV} GPA`;
+                            else if (newT === 'Marks') str = `${newV} Marks`;
+                          }
+                          setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, graduationMarks: str } });
+                        };
+                        return (
+                          <div className="flex rounded-lg border border-border/50 bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/20">
+                            <input 
+                              type="text" 
+                              placeholder={type === 'CGPA' ? 'e.g. 6.5' : 'e.g. 65'}
+                              value={val}
+                              disabled={type === 'None'}
+                              onChange={(e) => update(e.target.value, type)}
+                              className="w-full bg-transparent px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-sm"
+                            />
+                            <select 
+                              value={type}
+                              onChange={(e) => update(val, e.target.value)}
+                              className="bg-muted/40 border-l border-border/40 px-2 py-2 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                            >
+                              <option value="CGPA">CGPA</option>
+                              <option value="%">% (Percentage)</option>
+                              <option value="GPA">GPA</option>
+                              <option value="Marks">Marks</option>
+                              <option value="None">None</option>
+                            </select>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-foreground mb-1">PG Marks (Optional)</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 7.0 CGPA"
-                        value={newJobData.eligibility?.pgMarks || ''}
-                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, pgMarks: e.target.value } })}
-                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                      />
+                      {(() => {
+                        const raw = newJobData.eligibility?.pgMarks || '';
+                        let type = 'CGPA';
+                        let val = raw;
+                        if (raw.toUpperCase().includes('CGPA')) { type = 'CGPA'; val = raw.replace(/CGPA/gi, '').trim(); }
+                        else if (raw.toUpperCase().includes('GPA')) { type = 'GPA'; val = raw.replace(/GPA/gi, '').trim(); }
+                        else if (raw.includes('%')) { type = '%'; val = raw.replace(/%/g, '').trim(); }
+                        else if (raw.toLowerCase().includes('mark')) { type = 'Marks'; val = raw.replace(/marks?/gi, '').trim(); }
+                        const update = (newV, newT) => {
+                          let str = '';
+                          if (newT !== 'None' && newV) {
+                            if (newT === 'CGPA') str = `${newV} CGPA`;
+                            else if (newT === '%') str = newV.endsWith('%') ? newV : `${newV}%`;
+                            else if (newT === 'GPA') str = `${newV} GPA`;
+                            else if (newT === 'Marks') str = `${newV} Marks`;
+                          }
+                          setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, pgMarks: str } });
+                        };
+                        return (
+                          <div className="flex rounded-lg border border-border/50 bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/20">
+                            <input 
+                              type="text" 
+                              placeholder={type === 'CGPA' ? 'e.g. 7.0' : 'e.g. 70'}
+                              value={val}
+                              disabled={type === 'None'}
+                              onChange={(e) => update(e.target.value, type)}
+                              className="w-full bg-transparent px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-sm"
+                            />
+                            <select 
+                              value={type}
+                              onChange={(e) => update(val, e.target.value)}
+                              className="bg-muted/40 border-l border-border/40 px-2 py-2 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                            >
+                              <option value="CGPA">CGPA</option>
+                              <option value="%">% (Percentage)</option>
+                              <option value="GPA">GPA</option>
+                              <option value="Marks">Marks</option>
+                              <option value="None">None</option>
+                            </select>
+                          </div>
+                        );
+                      })()}
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-1 sm:col-span-2">
                       <label className="block text-xs font-medium text-foreground mb-1">Valid Courses</label>
                       <input 
                         type="text" 
                         placeholder="e.g. BCA, MCA, B.Tech (comma separated)"
                         value={newJobData.eligibility?.courses?.join(', ') || ''}
                         onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, courses: e.target.value.split(',').map(c => c.trim()).filter(Boolean) } })}
-                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
                       />
                     </div>
                   </div>
@@ -576,8 +805,8 @@ const AdminJobs = () => {
                     <p className="font-semibold text-foreground">{viewJobModal.job.type || 'Full-time'}</p>
                   </div>
                   <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-1"><DollarSign className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Salary</span></div>
-                    <p className="font-semibold text-foreground">{viewJobModal.job.salary || 'Not specified'}</p>
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1"><IndianRupee className="w-4 h-4 text-primary"/> <span className="text-xs font-bold uppercase tracking-wider">Salary</span></div>
+                    <p className="font-semibold text-foreground">{formatSalaryWithLPA(viewJobModal.job.salary) || 'Not specified'}</p>
                   </div>
                   <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1"><Building className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Posted On</span></div>

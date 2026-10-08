@@ -64,6 +64,7 @@ import VoiceRecorderModal from '../../components/modals/VoiceRecorderModal'
 import { downloadMediaFile } from '../../utils/downloadHelper'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import LinkPreviewCard from '../../components/LinkPreviewCard'
+import { checkUserJobEligibility } from '../../utils/salaryHelper'
 import { 
   fetchLinkMetadata, 
   getInstantUrlPreview, 
@@ -99,6 +100,16 @@ const DashboardHome = () => {
   const [isLoadingWidgets, setIsLoadingWidgets] = useState(true)
   const [connections, setConnections] = useState({})
   const [isConnecting, setIsConnecting] = useState(null)
+  const [dbUser, setDbUser] = useState(null)
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`${API_BASE}/api/users/${user.id}`)
+        .then(res => res.json())
+        .then(data => setDbUser(data))
+        .catch(err => console.error(err))
+    }
+  }, [user?.id])
   
   // Dynamic Profile Stats
   const [profileViews, setProfileViews] = useState(0)
@@ -431,7 +442,15 @@ const DashboardHome = () => {
       if (jobsRes.ok) {
         const jobsData = await jobsRes.json()
         const sortedJobs = (Array.isArray(jobsData) ? jobsData : [])
-          .filter(j => j.active !== false)
+          .filter(j => {
+            if (j.active === false) return false
+            if (j.deadline) {
+              const d = new Date(j.deadline)
+              d.setHours(23, 59, 59, 999)
+              if (new Date() > d) return false
+            }
+            return true
+          })
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         setRecentJobs(sortedJobs.slice(0, 4))
       }
@@ -1127,15 +1146,21 @@ const DashboardHome = () => {
       <div className="hidden md:block md:col-span-3 space-y-6 md:h-full md:overflow-y-auto scrollbar-none shrink-0">
         {/* Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
-          <div className="h-20 bg-muted relative">
+          <div 
+            className="h-20 bg-muted relative cursor-pointer group"
+            onClick={() => {
+              const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
+              navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
+            }}
+          >
             {isLoaded && user?.unsafeMetadata?.coverPhoto ? (
               <img
                 src={user.unsafeMetadata.coverPhoto}
                 alt="Cover"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600"></div>
+              <div className="w-full h-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 group-hover:opacity-90 transition-opacity"></div>
             )}
           </div>
           <div className="px-4 pb-4 relative text-center">
@@ -2385,9 +2410,23 @@ const DashboardHome = () => {
                       className="w-12 h-12 rounded-xl object-contain bg-muted/60 p-1.5 border border-border/50 shrink-0 shadow-sm"
                     />
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
-                        {job.title}
-                      </h4>
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
+                          {job.title}
+                        </h4>
+                        {(() => {
+                          const elig = checkUserJobEligibility(job, dbUser);
+                          return (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                              elig.eligible
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                            }`}>
+                              {elig.eligible ? '✓ Eligible' : '✕ Ineligible'}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       <p className="text-xs text-muted-foreground truncate">
                         {companyName} • {job.location || 'Remote'}
                       </p>

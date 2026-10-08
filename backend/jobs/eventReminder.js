@@ -60,9 +60,9 @@ export const startEventReminderJob = () => {
             
             try {
               const payload = {
-                service_id: process.env.EMAILJS_SERVICE_ID || 'service_j5dko3n',
-                template_id: process.env.EMAILJS_TEMPLATE_ID || 'template_edt67fy',
-                user_id: process.env.EMAILJS_PUBLIC_KEY || 'o9K-IpQMORfxWbx4i',
+                service_id: process.env.EMAILJS_SERVICE_ID || 'service_a3vg38b',
+                template_id: process.env.EMAILJS_EVENT_TEMPLATE_ID || process.env.EMAILJS_TEMPLATE_ID || 'template_wlyvsuf',
+                user_id: process.env.EMAILJS_PUBLIC_KEY || 'JAA5yhiRssyoyqKqW',
                 template_params: {
                   to_email: attendee.email,
                   to_name: attendee.firstName,

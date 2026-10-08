@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
+import { formatSalaryWithLPA } from '../../utils/salaryHelper'
 
 const Saved = () => {
   const [activeTab, setActiveTab] = useState('Jobs') // 'Jobs' | 'Events'
@@ -105,21 +106,37 @@ const Saved = () => {
                     }
                     jobLogo = jobLogo || `https://www.google.com/s2/favicons?domain=${job.company?.toLowerCase().replace(/\s+/g, '')}.com&sz=128`
 
+                    const isJobExpired = () => {
+                      if (!job.deadline) return false
+                      const d = new Date(job.deadline)
+                      if (isNaN(d.getTime())) return false
+                      d.setHours(23, 59, 59, 999)
+                      return new Date() > d
+                    }
+                    const expired = isJobExpired()
+
                     return (
-                      <div key={job._id} className="bg-card border border-border/40 p-5 rounded-2xl flex flex-col justify-between group hover:border-primary/50 transition-colors">
+                      <div key={job._id} className={`bg-card border ${expired ? 'border-rose-500/30 opacity-80' : 'border-border/40'} p-5 rounded-2xl flex flex-col justify-between group hover:border-primary/50 transition-colors`}>
                         <div>
                           <div className="flex justify-between items-start mb-4">
-                            <div className="w-10 h-10 rounded-xl border border-border/50 bg-white flex items-center justify-center p-2 shrink-0 overflow-hidden">
-                              <img 
-                                src={jobLogo} 
-                                alt={job.company} 
-                                className="max-w-full max-h-full object-contain"
-                                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
-                              />
+                            <div className="flex items-center gap-2">
+                              <div className="w-10 h-10 rounded-xl border border-border/50 bg-white flex items-center justify-center p-2 shrink-0 overflow-hidden">
+                                <img 
+                                  src={jobLogo} 
+                                  alt={job.company} 
+                                  className="max-w-full max-h-full object-contain"
+                                  onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
+                                />
+                              </div>
+                              {expired && (
+                                <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                                  Date Over
+                                </span>
+                              )}
                             </div>
                             <button 
                               onClick={() => handleUnsaveJob(job._id)}
-                              className="text-muted-foreground hover:text-red-500 transition-colors" 
+                              className="text-muted-foreground hover:text-red-500 transition-colors cursor-pointer" 
                               title="Remove from saved"
                             >
                               <BookmarkMinus className="w-5 h-5" />
@@ -134,7 +151,7 @@ const Saved = () => {
                           </p>
                         </div>
                         <div className="flex items-center justify-between pt-4 border-t border-border/40">
-                          <span className="text-sm font-medium text-foreground">{job.salary || 'Not specified'}</span>
+                          <span className="text-sm font-semibold text-foreground">{formatSalaryWithLPA(job.salary) || 'Not specified'}</span>
                           <Link to={`/dashboard/jobs/${job._id}`} className="text-sm text-primary hover:underline font-medium flex items-center gap-1">
                             View <ExternalLink className="w-3 h-3" />
                           </Link>

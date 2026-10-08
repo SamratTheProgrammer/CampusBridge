@@ -319,6 +319,9 @@ const MyProfile = () => {
 
   const uploadCoverPhoto = async (file) => {
     setIsUploadingCover(true)
+    setCropModalData(null) // Close modal immediately, just like DP
+    const toastId = 'banner-upload'
+    toast.loading('Updating banner photo...', { id: toastId })
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -332,14 +335,9 @@ const MyProfile = () => {
       if (uploadData.success) {
         const newUrl = uploadData.url
         
-        // Update Clerk
-        await user.update({
-          unsafeMetadata: {
-            ...user.unsafeMetadata,
-            coverPhoto: newUrl
-          }
-        })
-        
+        // Optimistically update dbUser so the banner reflects immediately on screen
+        setDbUser(prev => prev ? { ...prev, coverPhoto: newUrl } : { coverPhoto: newUrl })
+
         // Update MongoDB
         const mongoRes = await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
           method: 'PUT',
@@ -353,18 +351,28 @@ const MyProfile = () => {
         if (mongoRes.ok) {
           const updated = await mongoRes.json()
           setDbUser(updated)
-        } else {
-          setDbUser(prev => prev ? { ...prev, coverPhoto: newUrl } : { coverPhoto: newUrl })
+        }
+
+        // Update Clerk unsafeMetadata safely
+        try {
+          await user.update({
+            unsafeMetadata: {
+              ...user.unsafeMetadata,
+              coverPhoto: newUrl
+            }
+          })
+        } catch (clerkErr) {
+          console.warn('Clerk user metadata update warning:', clerkErr)
         }
         
-        toast.success('Cover photo updated!')
+        toast.success('Banner photo updated successfully!', { id: toastId })
         fetchUserProfile() // refresh
       } else {
-        toast.error('Failed to upload image')
+        toast.error('Failed to upload image', { id: toastId })
       }
     } catch (err) {
       console.error(err)
-      toast.error('Failed to upload cover photo')
+      toast.error('Failed to upload banner photo', { id: toastId })
     } finally {
       setIsUploadingCover(false)
       setCropModalData(null)
@@ -383,6 +391,7 @@ const MyProfile = () => {
   }
 
   const uploadProfilePic = async (file) => {
+    setCropModalData(null) // Close modal immediately
     try {
       toast.loading('Updating profile picture...', { id: 'pic-upload' })
       await user.setProfileImage({ file })
@@ -404,9 +413,11 @@ const MyProfile = () => {
   }
 
   const handleCropComplete = (croppedFile) => {
-    if (cropModalData?.type === 'cover') {
+    const type = cropModalData?.type
+    setCropModalData(null) // Turn off modal immediately upon cropping
+    if (type === 'cover') {
       uploadCoverPhoto(croppedFile)
-    } else if (cropModalData?.type === 'dp') {
+    } else if (type === 'dp') {
       uploadProfilePic(croppedFile)
     }
   }

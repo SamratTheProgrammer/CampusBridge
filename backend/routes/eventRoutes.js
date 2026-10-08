@@ -261,39 +261,52 @@ router.post('/:id/apply', async (req, res) => {
       await event.save();
     }
 
-    // Send Event Confirmation Email using EmailJS
-    try {
-      const eventDate = new Date(event.date).toLocaleDateString();
-      
-      const payload = {
-        service_id: process.env.EMAILJS_SERVICE_ID,
-        template_id: process.env.EMAILJS_TEMPLATE_ID,
-        user_id: process.env.EMAILJS_PUBLIC_KEY,
-        template_params: {
-          to_email: user.email,
-          to_name: user.firstName,
-          event_name: event.title,
-          event_date: eventDate,
-          event_time: event.time,
-          event_location: event.location || event.type,
-          event_link: event.link || ''
+    // Send Event Confirmation Email using EmailJS ONLY if not already sent by client
+    if (!req.body.clientHandledEmail) {
+      try {
+        const eventDate = new Date(event.date).toLocaleDateString();
+        
+        const payload = {
+          service_id: process.env.EMAILJS_SERVICE_ID || 'service_a3vg38b',
+          template_id: process.env.EMAILJS_EVENT_TEMPLATE_ID || process.env.EMAILJS_TEMPLATE_ID || 'template_wlyvsuf',
+          user_id: process.env.EMAILJS_PUBLIC_KEY || 'JAA5yhiRssyoyqKqW',
+          template_params: {
+            to_email: user.email,
+            user_email: user.email,
+            email: user.email,
+            to_name: user.firstName || user.name || 'Participant',
+            name: user.firstName || user.name || 'Participant',
+            user_name: user.firstName || user.name || 'Participant',
+            event_name: event.title,
+            event_title: event.title,
+            title: event.title,
+            event_date: eventDate,
+            date: eventDate,
+            event_time: event.time || '',
+            time: event.time || '',
+            event_location: event.location || event.type || 'Online',
+            location: event.location || event.type || 'Online',
+            event_link: event.link || '',
+            link: event.link || ''
+          }
+        };
+
+        const emailjsRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': 'http://localhost:5173'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!emailjsRes.ok) {
+          const errorText = await emailjsRes.text();
+          console.error('EmailJS Error:', errorText);
         }
-      };
-
-      const emailjsRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!emailjsRes.ok) {
-        const errorText = await emailjsRes.text();
-        console.error('EmailJS Error:', errorText);
+      } catch (emailErr) {
+        console.error('Failed to send confirmation email via EmailJS:', emailErr);
       }
-    } catch (emailErr) {
-      console.error('Failed to send confirmation email via EmailJS:', emailErr);
     }
 
     res.status(201).json({ message: 'Registration successful', application });
