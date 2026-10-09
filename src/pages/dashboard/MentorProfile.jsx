@@ -1592,9 +1592,18 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                         <PostComments 
                           post={post}
                           currentUser={user}
-                          onRefresh={async () => {
-                            const postsRes = await fetch(`${API_BASE}/api/posts/user/${id}?requestingUserId=${user?.id}`);
-                            if (postsRes.ok) setPosts(await postsRes.json());
+                          onRefresh={(updatedComments) => {
+                            if (Array.isArray(updatedComments)) {
+                              setPosts(prev => prev.map(p => (p._id || p.id) === post._id ? { ...p, comments: updatedComments } : p));
+                              return;
+                            }
+                            const targetId = mentor?.clerkId || identifier;
+                            if (targetId) {
+                              fetch(`${API_BASE}/api/posts/user/${targetId}?requestingUserId=${user?.id}`)
+                                .then(r => r.ok ? r.json() : null)
+                                .then(data => { if (data && Array.isArray(data)) setPosts(data); })
+                                .catch(err => console.error('Failed to reload posts:', err));
+                            }
                           }}
                           formatTime={formatTime}
                           getAvatarFallback={getAvatarFallback}

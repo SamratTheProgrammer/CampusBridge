@@ -144,7 +144,7 @@ const PostCaption = ({
         {/* Floating Translate Pill for Gradient Posts */}
         <div 
           ref={containerRef}
-          className="mt-4 pt-2 border-t border-white/15 w-full flex justify-center relative z-20"
+          className={`mt-4 pt-2 border-t border-white/15 w-full flex justify-center relative ${showPicker ? 'z-40' : 'z-0'}`}
         >
           {/* Hover / Tap Language Picker for Gradient */}
           {showPicker && (
@@ -303,7 +303,7 @@ const PostCaption = ({
       {/* Translation Action Toggle Bar */}
       <div 
         ref={containerRef}
-        className="mt-1.5 relative inline-block z-20"
+        className={`mt-1.5 relative inline-block ${showPicker ? 'z-40' : 'z-0'}`}
       >
         {/* Dropdown Menu / Tooltip: Opens DOWNWARD with premium wide 2-column layout */}
         {showPicker && (

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+  <title>Your Event Starts in 15 Minutes - CampusBridge</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      supported-color-schemes: light dark;
+    }
+
+    /* ☀️ Default Light Mode Logo Display */
+    .cb-logo-light {
+      display: block !important;
+      max-width: 210px !important;
+      height: auto !important;
+      margin: 0 auto !important;
+    }
+    .cb-logo-dark {
+      display: none !important;
+      max-width: 210px !important;
+      height: auto !important;
+      margin: 0 auto !important;
+    }
+
+    /* 📱 Mobile Responsive Styles (Screens up to 600px wide) */
+    @media only screen and (max-width: 600px) {
+      .cb-outer-wrapper {
+        padding: 14px 8px 24px 8px !important;
+      }
+      .cb-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 14px !important;
+      }
+      .cb-cell-header {
+        padding: 24px 16px 14px 16px !important;
+      }
+      .cb-cell-pad {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+      .cb-logo-light, .cb-logo-dark {
+        max-width: 175px !important;
+      }
+      .cb-badge-pill {
+        font-size: 10px !important;
+        padding: 4px 12px !important;
+      }
+      .cb-heading {
+        font-size: 21px !important;
+        line-height: 1.3 !important;
+        letter-spacing: -0.3px !important;
+      }
+      .cb-subtext {
+        font-size: 13px !important;
+        line-height: 1.5 !important;
+      }
+      .cb-info-box {
+        padding: 16px 14px !important;
+        border-radius: 10px !important;
+      }
+      .cb-info-title {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+      }
+      .cb-details-table td {
+        padding: 6px 0 !important;
+        font-size: 13px !important;
+      }
+      .cb-cta-btn {
+        display: block !important;
+        width: 100% !important;
+        padding: 14px 18px !important;
+        font-size: 15px !important;
+        box-sizing: border-box !important;
+        text-align: center !important;
+      }
+    }
+
+    /* 🌙 Dark Mode Overrides */
+    @media (prefers-color-scheme: dark) {
+      .cb-body-bg {
+        background-color: #050608 !important;
+      }
+      .cb-outer-wrapper {
+        background-color: #050608 !important;
+      }
+      .cb-card {
+        background-color: #0f1117 !important;
+        border-color: #1e2230 !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+      }
+      .cb-logo-light {
+        display: none !important;
+      }
+      .cb-logo-dark {
+        display: block !important;
+        margin: 0 auto !important;
+      }
+      .cb-text-main {
+        color: #f1f5f9 !important;
+      }
+      .cb-text-muted {
+        color: #94a3b8 !important;
+      }
+      .cb-info-box {
+        background-color: #141824 !important;
+        border-color: #22293d !important;
+      }
+      .cb-info-title {
+        color: #f8fafc !important;
+        border-bottom-color: #22293d !important;
+      }
+      .cb-detail-label {
+        color: #94a3b8 !important;
+      }
+      .cb-detail-value {
+        color: #f1f5f9 !important;
+      }
+      .cb-detail-border {
+        border-bottom-color: #1d2335 !important;
+      }
+      .cb-footer {
+        background-color: #0a0c12 !important;
+        border-top-color: #1b2030 !important;
+      }
+      .cb-footer-text {
+        color: #64748b !important;
+      }
+    }
+  </style>
+</head>
+<body class="cb-body-bg" style="margin: 0; padding: 0; background-color: #f4f6fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+
+  <!-- Outer Full Width Wrapper -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="cb-outer-wrapper" style="background-color: #f4f6fa; padding: 32px 12px 40px 12px; margin: 0; width: 100%;">
+    <tr>
+      <td align="center" style="padding: 0;">
+
+        <!-- Main Card Container (Max Width 580px) -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="cb-card" style="max-width: 580px; width: 100%; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); margin: 0 auto;">
+          
+          <!-- Top Accent Ribbon (Dynamic Gradient) -->
+          <tr>
+            <td style="height: 5px; background: linear-gradient(90deg, #6366f1 0%, #a855f7 50%, #ec4899 100%); line-height: 5px; font-size: 1px;">&nbsp;</td>
+          </tr>
+
+          <!-- Header / Logo Section -->
+          <tr>
+            <td align="center" class="cb-cell-header" style="padding: 32px 28px 16px 28px;">
+              <a href="https://campus-bridge-x5rl.vercel.app" target="_blank" style="text-decoration: none; display: inline-block;">
+                <!-- Brand Title with Modern Styling -->
+                <div style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #4f46e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                  🎓 CampusBridge
+                </div>
+              </a>
+            </td>
+          </tr>
+
+          <!-- Countdown / Urgent Alert Pill -->
+          <tr>
+            <td align="center" style="padding: 6px 28px 20px 28px;">
+              <div class="cb-badge-pill" style="display: inline-block; background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 9999px; padding: 6px 16px; color: #dc2626; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">
+                ⏰ Starting in 15 Minutes
+              </div>
+            </td>
+          </tr>
+
+          <!-- Greeting & Headline -->
+          <tr>
+            <td class="cb-cell-pad" style="padding: 0 28px 20px 28px; text-align: center;">
+              <h1 class="cb-heading cb-text-main" style="margin: 0 0 10px 0; font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1.25; letter-spacing: -0.5px;">
+                Get Ready, {{to_name}}!
+              </h1>
+              <p class="cb-subtext cb-text-muted" style="margin: 0 auto; max-width: 460px; font-size: 15px; color: #475569; line-height: 1.55;">
+                Your registered event <strong style="color: #6366f1;">"{{event_title}}"</strong> will begin in exactly 15 minutes. Join now to secure your spot and test your audio/video!
+              </p>
+            </td>
+          </tr>
+
+          <!-- Event Details Summary Box -->
+          <tr>
+            <td class="cb-cell-pad" style="padding: 0 28px 24px 28px;">
+              <div class="cb-info-box" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 18px;">
+                <div class="cb-info-title" style="font-size: 14px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0;">
+                  📅 Event Details
+                </div>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="cb-details-table">
+                  <tr>
+                    <td class="cb-detail-label cb-detail-border" style="padding: 8px 0; font-size: 13px; color: #64748b; font-weight: 600; width: 35%; border-bottom: 1px dashed #e2e8f0;">
+                      Event Name:
+                    </td>
+                    <td class="cb-detail-value cb-detail-border" style="padding: 8px 0; font-size: 14px; color: #0f172a; font-weight: 700; text-align: right; border-bottom: 1px dashed #e2e8f0;">
+                      {{event_title}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="cb-detail-label cb-detail-border" style="padding: 8px 0; font-size: 13px; color: #64748b; font-weight: 600; border-bottom: 1px dashed #e2e8f0;">
+                      Date:
+                    </td>
+                    <td class="cb-detail-value cb-detail-border" style="padding: 8px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right; border-bottom: 1px dashed #e2e8f0;">
+                      {{event_date}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="cb-detail-label cb-detail-border" style="padding: 8px 0; font-size: 13px; color: #64748b; font-weight: 600; border-bottom: 1px dashed #e2e8f0;">
+                      Scheduled Time:
+                    </td>
+                    <td class="cb-detail-value cb-detail-border" style="padding: 8px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right; border-bottom: 1px dashed #e2e8f0;">
+                      {{event_time}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="cb-detail-label" style="padding: 8px 0 0 0; font-size: 13px; color: #64748b; font-weight: 600;">
+                      Location / Mode:
+                    </td>
+                    <td class="cb-detail-value" style="padding: 8px 0 0 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right;">
+                      {{event_location}}
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Primary Call to Action Button -->
+          <tr>
+            <td class="cb-cell-pad" align="center" style="padding: 4px 28px 24px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+                <tr>
+                  <td align="center" style="border-radius: 12px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);">
+                    <a href="{{event_link}}" target="_blank" class="cb-cta-btn" style="display: inline-block; padding: 14px 36px; font-size: 15px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 12px; letter-spacing: 0.2px;">
+                      🚀 Join Event Now &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <div style="margin-top: 10px; font-size: 11px; color: #94a3b8;">
+                If button doesn't work, copy link: <a href="{{event_link}}" style="color: #6366f1; text-decoration: underline;">{{event_link}}</a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Quick Session Tips Card -->
+          <tr>
+            <td class="cb-cell-pad" style="padding: 0 28px 28px 28px;">
+              <div style="background-color: #f1f5f9; border-radius: 10px; padding: 14px 16px;">
+                <div style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 6px;">
+                  💡 Quick Tips for the Event:
+                </div>
+                <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #475569; line-height: 1.6;">
+                  <li>Join 3–5 minutes early to avoid entry delays.</li>
+                  <li>Check your microphone and camera settings if interactive.</li>
+                  <li>Have a notepad or your resume ready for active networking.</li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer Section -->
+          <tr>
+            <td class="cb-footer" style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 24px 28px; text-align: center;">
+              <p class="cb-footer-text" style="margin: 0 0 8px 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+                You received this notification because you registered for <strong>{{event_title}}</strong> on <a href="https://campus-bridge-x5rl.vercel.app" style="color: #6366f1; text-decoration: none; font-weight: 600;">CampusBridge</a>.
+              </p>
+              <p class="cb-footer-text" style="margin: 0; font-size: 11px; color: #94a3b8;">
+                &copy; CampusBridge. Empowering students and mentors across campuses.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- End Main Card -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

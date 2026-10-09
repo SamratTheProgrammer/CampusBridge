@@ -120,26 +120,99 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
   };
 
   const handleUserClick = (userId, userRole, username) => {
-    if (!userId) return;
-    if (userId === currentUser?.id) {
+    const target = username || userId;
+    if (!target) return;
+    if (userId === currentUser?.id || target === currentUser?.id || (currentUser?.username && target === currentUser.username)) {
       navigate(location.pathname.includes('/mentor-dashboard') ? '/mentor-dashboard/profile' : '/dashboard/profile');
       return;
     }
-    navigate(`/profile/${username || userId}`);
+    if (location.pathname.includes('/mentor-dashboard')) {
+      navigate(`/mentor-dashboard/profile/${target}`);
+    } else {
+      navigate(`/dashboard/profile/${target}`);
+    }
   };
 
   const commentsArray = post.comments || [];
 
-  const findMentionedUser = (nameStr, currentComment, currentReplies) => {
-    const cleanName = nameStr.replace('@', '');
-    if (currentComment.author?.name === cleanName) {
-      return { id: currentComment.authorClerkId, role: currentComment.author?.role, username: currentComment.author?.username };
+  const renderFormattedCommentText = (text, currentComment, currentReplies) => {
+    if (!text) return '';
+    // Collect potential candidate users in this comment thread
+    const candidates = [];
+    if (currentComment?.author?.name) {
+      candidates.push({
+        name: currentComment.author.name,
+        id: currentComment.authorClerkId,
+        role: currentComment.author.role,
+        username: currentComment.author.username
+      });
     }
-    const foundReply = currentReplies.find(r => r.author?.name === cleanName);
-    if (foundReply) {
-      return { id: foundReply.authorClerkId, role: foundReply.author?.role, username: foundReply.author?.username };
+    if (Array.isArray(currentReplies)) {
+      currentReplies.forEach(r => {
+        if (r?.author?.name && !candidates.some(c => c.name.toLowerCase() === r.author.name.toLowerCase())) {
+          candidates.push({
+            name: r.author.name,
+            id: r.authorClerkId,
+            role: r.author.role,
+            username: r.author.username
+          });
+        }
+      });
     }
-    return null;
+    // Sort candidate names by length descending so multi-word full names match first
+    candidates.sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
+
+    for (const cand of candidates) {
+      const mentionPrefix = `@${cand.name}`;
+      if (text.startsWith(mentionPrefix)) {
+        const rest = text.slice(mentionPrefix.length);
+        return (
+          <>
+            <span
+              className="text-primary font-semibold cursor-pointer hover:underline inline-block mr-0.5"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUserClick(cand.id, cand.role, cand.username);
+              }}
+            >
+              {mentionPrefix}
+            </span>
+            {rest}
+          </>
+        );
+      }
+    }
+
+    if (text.startsWith('@')) {
+      const firstWord = text.split(' ')[0];
+      const cleanName = firstWord.slice(1);
+      const matched = candidates.find(c => 
+        c.name?.toLowerCase() === cleanName.toLowerCase() || 
+        (c.username && c.username.toLowerCase() === cleanName.toLowerCase()) ||
+        c.name?.split(' ')[0].toLowerCase() === cleanName.toLowerCase()
+      );
+      const rest = text.slice(firstWord.length);
+      return (
+        <>
+          <span
+            className="text-primary font-semibold cursor-pointer hover:underline inline-block mr-0.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (matched) {
+                handleUserClick(matched.id, matched.role, matched.username);
+              } else {
+                handleUserClick(null, null, cleanName);
+              }
+            }}
+          >
+            {firstWord}
+          </span>
+          {rest}
+        </>
+      );
+    }
+
+    return text;
   };
 
   // Fire confetti if the author opens comments and someone congratulated them
@@ -199,10 +272,11 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
         body: JSON.stringify({ authorClerkId: currentUser.id, content: replyText })
       });
       if (res.ok) {
+        const enrichedComments = await res.json();
         setReplyText('');
         setReplyingCommentId(null);
         toast.success('Reply added!');
-        if (onRefresh) onRefresh();
+        if (onRefresh) onRefresh(enrichedComments);
       } else {
         toast.error('Failed to post reply');
       }
@@ -216,33 +290,71 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
 
   const handleLikeComment = async (commentId) => {
     if (!currentUser) return;
+    const prevComments = post?.comments || [];
+    const optimisticComments = prevComments.map(c => {
+      if (c._id === commentId) {
+        const safeLikes = Array.isArray(c.likes) ? [...c.likes] : [];
+        const hasLiked = safeLikes.includes(currentUser.id);
+        const newLikes = hasLiked
+          ? safeLikes.filter(id => id !== currentUser.id)
+          : [...safeLikes, currentUser.id];
+        return { ...c, likes: newLikes };
+      }
+      return c;
+    });
+
+    if (onRefresh) onRefresh(optimisticComments);
+
     try {
       const res = await fetch(`${API_BASE}/api/posts/${post._id}/comment/${commentId}/like`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkId: currentUser.id })
       });
-      if (res.ok && onRefresh) {
-        onRefresh();
+      if (!res.ok) {
+        if (onRefresh) onRefresh(prevComments);
       }
     } catch (err) {
       console.error(err);
+      if (onRefresh) onRefresh(prevComments);
     }
   };
 
   const handleLikeReply = async (commentId, replyId) => {
     if (!currentUser) return;
+    const prevComments = post?.comments || [];
+    const optimisticComments = prevComments.map(c => {
+      if (c._id === commentId) {
+        const updatedReplies = (c.replies || []).map(r => {
+          if (r._id === replyId) {
+            const safeLikes = Array.isArray(r.likes) ? [...r.likes] : [];
+            const hasLiked = safeLikes.includes(currentUser.id);
+            const newLikes = hasLiked
+              ? safeLikes.filter(id => id !== currentUser.id)
+              : [...safeLikes, currentUser.id];
+            return { ...r, likes: newLikes };
+          }
+          return r;
+        });
+        return { ...c, replies: updatedReplies };
+      }
+      return c;
+    });
+
+    if (onRefresh) onRefresh(optimisticComments);
+
     try {
       const res = await fetch(`${API_BASE}/api/posts/${post._id}/comment/${commentId}/reply/${replyId}/like`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkId: currentUser.id })
       });
-      if (res.ok && onRefresh) {
-        onRefresh();
+      if (!res.ok) {
+        if (onRefresh) onRefresh(prevComments);
       }
     } catch (err) {
       console.error(err);
+      if (onRefresh) onRefresh(prevComments);
     }
   };
 
@@ -273,12 +385,14 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                 <div className="flex-1 min-w-0">
                   <div className="bg-background border border-border/50 rounded-2xl rounded-tl-none px-4 py-2.5 shadow-2xs">
                     <h4 
-                      className="font-bold text-xs text-foreground cursor-pointer hover:text-primary transition-colors"
+                      className="font-bold text-xs text-foreground cursor-pointer hover:underline hover:text-primary transition-colors inline-block"
                       onClick={() => handleUserClick(comment.authorClerkId, comment.author?.role, comment.author?.username)}
                     >
                       {comment.author?.name}
                     </h4>
-                    <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap break-words">{comment.content}</p>
+                    <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap break-words">
+                      {renderFormattedCommentText(comment.content, comment, replies)}
+                    </p>
                   </div>
 
                   {/* Comment Meta (Time & Actions) */}
@@ -331,7 +445,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                           <div className="flex-1 min-w-0 bg-muted/30 border border-border/40 rounded-xl px-3 py-1.5">
                             <div className="flex items-center justify-between gap-2">
                               <h5 
-                                className="font-bold text-[11px] text-foreground cursor-pointer hover:text-primary transition-colors"
+                                className="font-bold text-[11px] text-foreground cursor-pointer hover:underline hover:text-primary transition-colors inline-block"
                                 onClick={() => handleUserClick(reply.authorClerkId, reply.author?.role, reply.author?.username)}
                               >
                                 {reply.author?.name}
@@ -339,23 +453,7 @@ const PostComments = ({ post, currentUser, onRefresh, formatTime, getAvatarFallb
                               <span className="text-[10px] text-muted-foreground/70">{formatTime ? formatTime(reply.createdAt) : ''}</span>
                             </div>
                             <p className="text-xs text-foreground/90 mt-0.5 break-words">
-                              {reply.content.startsWith('@') ? (
-                                <>
-                                  <span 
-                                    className="text-primary font-medium cursor-pointer hover:underline"
-                                    onClick={() => {
-                                      const mentionedName = reply.content.split(' ')[0];
-                                      const mentionedUser = findMentionedUser(mentionedName, comment, replies);
-                                      if (mentionedUser) {
-                                        handleUserClick(mentionedUser.id, mentionedUser.role, mentionedUser.username);
-                                      }
-                                    }}
-                                  >
-                                    {reply.content.split(' ')[0]}
-                                  </span>
-                                  {' '}{reply.content.substring(reply.content.indexOf(' ') + 1)}
-                                </>
-                              ) : reply.content}
+                              {renderFormattedCommentText(reply.content, comment, replies)}
                             </p>
                           </div>
                         </div>

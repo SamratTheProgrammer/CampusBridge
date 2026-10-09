@@ -482,15 +482,14 @@ const DashboardHome = () => {
     fetchMentorsAndConnections()
   }, [user])
 
-  // Handle incoming event share requests
+  // Handle incoming event share requests immediately
   useEffect(() => {
-    if (location.state?.shareEvent && registeredEvents.length > 0) {
+    if (location.state?.shareEvent) {
       const ev = location.state.shareEvent;
       setNewEventDetails({
-        ...newEventDetails,
         source: 'campusbridge',
         campusBridgeEventId: ev._id,
-        title: ev.title,
+        title: ev.title || '',
         type: ev.type || 'Other',
         format: ev.format || 'online',
         date: ev.date ? new Date(ev.date).toISOString().split('T')[0] : '',
@@ -503,7 +502,7 @@ const DashboardHome = () => {
       // Clean up the state so it doesn't reopen on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, registeredEvents]);
+  }, [location.state]);
 
   const handleMediaSelect = (e) => {
     const files = Array.from(e.target.files || [])

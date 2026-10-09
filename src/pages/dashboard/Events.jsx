@@ -144,7 +144,8 @@ const Events = () => {
         body: JSON.stringify({
           clerkId: user.id,
           applicantRole,
-          applicantDetails: registerFormData
+          applicantDetails: registerFormData,
+          clientHandledEmail: true
         })
       })
       

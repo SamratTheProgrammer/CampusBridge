@@ -169,7 +169,7 @@ const UpcomingEvents = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ clerkId: user.id })
+        body: JSON.stringify({ clerkId: user.id, clientHandledEmail: true })
       })
 
       if (res.ok) {

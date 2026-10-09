@@ -1005,7 +1005,7 @@ const MyProfile = () => {
 
         {/* Right Column - User Posts & Reviews */}
         <div ref={postsContainerRef} className="md:col-span-2 space-y-6 md:h-[calc(100vh-1.5rem)] md:overflow-y-auto scrollbar-none">
-          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-2 pb-2 px-4 sm:px-0 border-b border-border/40 flex items-center justify-between gap-4 mb-2">
+          <div className="sticky top-0 z-30 bg-background pt-2 pb-2 px-4 sm:px-0 border-b border-border/40 flex items-center justify-between gap-4 mb-2">
             {isMentorUser ? (
               <div className="flex gap-4">
                 <button
@@ -1591,7 +1591,13 @@ const MyProfile = () => {
                             <PostComments 
                               post={post}
                               currentUser={user}
-                              onRefresh={fetchUserPosts}
+                              onRefresh={(updatedComments) => {
+                                if (Array.isArray(updatedComments)) {
+                                  setPosts(prev => prev.map(p => (p._id || p.id) === post._id ? { ...p, comments: updatedComments } : p));
+                                  return;
+                                }
+                                fetchUserPosts();
+                              }}
                               formatTime={formatTime}
                               getAvatarFallback={getAvatarFallback}
                             />

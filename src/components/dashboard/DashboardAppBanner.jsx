@@ -16,14 +16,27 @@ const STORAGE_KEY = 'campusbridge_hide_dashboard_app_banner'
 
 const DashboardAppBanner = () => {
   const location = useLocation()
-  const [isDismissed, setIsDismissed] = useState(true) // default true to avoid flicker
+  // Check if dismissed permanently or in session
+  const [isDismissed, setIsDismissed] = useState(() => {
+    try {
+      return (
+        localStorage.getItem(STORAGE_KEY) === 'true' ||
+        sessionStorage.getItem(STORAGE_KEY) === 'true'
+      )
+    } catch {
+      return false
+    }
+  })
   const [showModal, setShowModal] = useState(false)
   const [apkUrl, setApkUrl] = useState('/downloads/CampusBridge.apk')
 
   useEffect(() => {
-    // Check if dismissed in the current browser session
-    const dismissedInSession = sessionStorage.getItem(STORAGE_KEY) === 'true'
-    if (dismissedInSession) {
+    // If already dismissed, never re-show
+    const alreadyDismissed = 
+      localStorage.getItem(STORAGE_KEY) === 'true' || 
+      sessionStorage.getItem(STORAGE_KEY) === 'true'
+    
+    if (alreadyDismissed) {
       setIsDismissed(true)
       return
     }
@@ -45,9 +58,15 @@ const DashboardAppBanner = () => {
           }
         }
       } catch (err) {
-        // Fallback gracefully to showing banner
+        // Fallback gracefully
       }
-      setIsDismissed(false)
+      // Only show if not dismissed in the meantime
+      const checkAgain = 
+        localStorage.getItem(STORAGE_KEY) === 'true' || 
+        sessionStorage.getItem(STORAGE_KEY) === 'true'
+      if (!checkAgain) {
+        setIsDismissed(false)
+      }
     }
 
     checkSettings()
@@ -80,7 +99,10 @@ const DashboardAppBanner = () => {
 
   const handleDismiss = () => {
     setIsDismissed(true)
-    sessionStorage.setItem(STORAGE_KEY, 'true')
+    try {
+      localStorage.setItem(STORAGE_KEY, 'true')
+      sessionStorage.setItem(STORAGE_KEY, 'true')
+    } catch {}
   }
 
   return (
