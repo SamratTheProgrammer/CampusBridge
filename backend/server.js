@@ -409,9 +409,9 @@ io.on('connection', (socket) => {
   });
 
   // Real-time message sending
-  socket.on('send_message', async ({ senderClerkId, recipientClerkId, conversationId, text, type, attachment, replyTo }) => {
+  socket.on('send_message', async ({ senderClerkId, recipientClerkId, conversationId, text, type, attachment, replyTo, share, isForwarded }) => {
     try {
-      if (!senderClerkId || !recipientClerkId || (!text && !attachment)) return;
+      if (!senderClerkId || !recipientClerkId || (!text && !attachment && !share)) return;
 
       registerUserSocket(senderClerkId, socket);
 
@@ -436,9 +436,11 @@ io.on('connection', (socket) => {
         senderClerkId,
         recipientClerkId,
         text: text || '',
-        type: type || 'text',
+        type: type || (share ? 'share' : 'text'),
         attachment,
         replyTo,
+        share,
+        isForwarded: Boolean(isForwarded),
         isDelivered: isRecipientOnline
       });
 

@@ -76,6 +76,10 @@ const messageSchema = new mongoose.Schema({
   editedAt: {
     type: Date
   },
+  isForwarded: {
+    type: Boolean,
+    default: false
+  },
   createdAt: {
     type: Date,
     default: Date.now,

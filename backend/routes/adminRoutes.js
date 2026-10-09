@@ -622,9 +622,15 @@ router.post('/jobs', async (req, res) => {
       infosys: 'infosys.com',
       wipro: 'wipro.com',
       flipkart: 'flipkart.com',
+      deloitte: 'deloitte.com',
+      wns: 'wns.com',
+      blinkit: 'blinkit.com',
+      zepto: 'zeptonow.com',
     };
-    const domain = domainMap[cleanComp] || `${cleanComp}.com`;
-    const autoLogo = companyLogo || `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
+    const domain = domainMap[cleanComp];
+    const autoLogo = companyLogo || (domain
+      ? `https://www.google.com/s2/favicons?sz=128&domain=${domain}`
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(company)}&size=128&background=7c3aed&color=fff&bold=true`);
 
     const newJob = new Job({
       title,

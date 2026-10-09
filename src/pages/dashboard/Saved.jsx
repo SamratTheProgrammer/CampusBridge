@@ -8,6 +8,7 @@ import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 import { formatSalaryWithLPA } from '../../utils/salaryHelper'
+import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 
 const Saved = () => {
   const [activeTab, setActiveTab] = useState('Jobs') // 'Jobs' | 'Events'
@@ -100,11 +101,7 @@ const Saved = () => {
               ) : savedJobs.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {savedJobs.map(job => {
-                    let jobLogo = job.companyLogo;
-                    if (jobLogo && jobLogo.includes('logo.clearbit.com')) {
-                      jobLogo = jobLogo.replace('https://logo.clearbit.com/', 'https://www.google.com/s2/favicons?sz=128&domain=');
-                    }
-                    jobLogo = jobLogo || `https://www.google.com/s2/favicons?domain=${job.company?.toLowerCase().replace(/\s+/g, '')}.com&sz=128`
+                    const jobLogo = getCompanyLogo(job.company, job.companyLogo);
 
                     const isJobExpired = () => {
                       if (!job.deadline) return false
@@ -125,7 +122,7 @@ const Saved = () => {
                                   src={jobLogo} 
                                   alt={job.company} 
                                   className="max-w-full max-h-full object-contain"
-                                  onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=64&background=7c3aed&color=fff&bold=true` }}
+                                  onError={(e) => handleImageError(e, job.company)}
                                 />
                               </div>
                               {expired && (

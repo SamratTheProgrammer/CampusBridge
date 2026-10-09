@@ -156,6 +156,7 @@ const DashboardHome = () => {
 
   // Job Post State
   const [acceptedJobs, setAcceptedJobs] = useState([])
+  const [appliedJobIds, setAppliedJobIds] = useState(new Set())
   const [newJobDetails, setNewJobDetails] = useState({ 
     title: '', 
     company: '', 
@@ -457,9 +458,11 @@ const DashboardHome = () => {
 
       if (studentAppsRes.ok) {
         const appsData = await studentAppsRes.json()
-        const acceptedApps = Array.isArray(appsData) ? appsData.filter(app => app.status === 'accepted' && app.job) : []
+        const appsList = Array.isArray(appsData) ? appsData : []
+        const acceptedApps = appsList.filter(app => app.status === 'accepted' && app.job)
         const acceptedJobsList = acceptedApps.map(app => app.job)
         setAcceptedJobs(acceptedJobsList)
+        setAppliedJobIds(new Set(appsList.map(a => a.job?._id || a.job).filter(Boolean).map(String)))
       }
 
       if (regEventsRes.ok) {
@@ -2415,15 +2418,23 @@ const DashboardHome = () => {
                           {job.title}
                         </h4>
                         {(() => {
+                          const isApplied = appliedJobIds?.has?.(String(job._id || job.id));
                           const elig = checkUserJobEligibility(job, dbUser);
                           return (
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
-                              elig.eligible
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                            }`}>
-                              {elig.eligible ? '✓ Eligible' : '✕ Ineligible'}
-                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isApplied && (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                                  Applied
+                                </span>
+                              )}
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                elig.eligible
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                              }`}>
+                                {elig.eligible ? '✓ Eligible' : '✕ Ineligible'}
+                              </span>
+                            </div>
                           );
                         })()}
                       </div>

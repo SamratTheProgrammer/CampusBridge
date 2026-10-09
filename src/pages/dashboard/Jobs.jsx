@@ -16,10 +16,11 @@ const Jobs = () => {
   const [jobType, setJobType] = useState('All')
   const [jobs, setJobs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('Active') // 'Active' or 'Inactive'
+  const [activeTab, setActiveTab] = useState('Active') // 'Active' | 'Applied' | 'Inactive'
   const [showEligibleOnly, setShowEligibleOnly] = useState(false)
   const { user } = useUser()
   const [dbUser, setDbUser] = useState(null)
+  const [appliedJobIds, setAppliedJobIds] = useState(new Set())
   
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [shareConfig, setShareConfig] = useState(null)
@@ -57,6 +58,16 @@ const Jobs = () => {
       .then(res => res.json())
       .then(data => setDbUser(data))
       .catch(err => console.error(err))
+
+      fetch(`${API_BASE}/api/jobs/student/applications/${user.id}`)
+      .then(res => res.json())
+      .then(apps => {
+        if (Array.isArray(apps)) {
+          const ids = new Set(apps.map(a => a.job?._id || a.job).filter(Boolean).map(String))
+          setAppliedJobIds(ids)
+        }
+      })
+      .catch(err => console.error('Error fetching student applications:', err))
     }
   }, [user])
 
@@ -72,6 +83,7 @@ const Jobs = () => {
   }
 
   const activeCount = jobs.filter(j => !isJobExpired(j.deadline)).length
+  const appliedCount = jobs.filter(j => appliedJobIds.has(String(j._id))).length
   const inactiveCount = jobs.filter(j => isJobExpired(j.deadline)).length
 
   const filteredJobs = jobs.filter(job => {
@@ -80,21 +92,16 @@ const Jobs = () => {
     
     // Tab logic
     const isExpired = isJobExpired(job.deadline)
-    const matchesTab = activeTab === 'Active' ? !isExpired : isExpired
+    let matchesTab = true
+    if (activeTab === 'Active') matchesTab = !isExpired
+    else if (activeTab === 'Applied') matchesTab = appliedJobIds.has(String(job._id))
+    else if (activeTab === 'Inactive') matchesTab = isExpired
     
     // Eligibility logic
     const matchesEligibility = showEligibleOnly ? checkEligibility(job) : true
 
     return matchesSearch && matchesType && matchesTab && matchesEligibility
   })
-
-  const getJobLogo = (job) => {
-    let logo = job.companyLogo;
-    if (logo && logo.includes('logo.clearbit.com')) {
-      logo = logo.replace('https://logo.clearbit.com/', 'https://www.google.com/s2/favicons?sz=128&domain=');
-    }
-    return logo || `https://www.google.com/s2/favicons?domain=${job.company?.toLowerCase().replace(/\s+/g, '')}.com&sz=128`;
-  }
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 pb-8">
@@ -166,6 +173,19 @@ const Jobs = () => {
           </span>
         </button>
         <button
+          onClick={() => setActiveTab('Applied')}
+          className={`px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
+            activeTab === 'Applied' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <span>Applied</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            activeTab === 'Applied' ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold' : 'bg-muted-foreground/15 text-muted-foreground'
+          }`}>
+            {appliedCount}
+          </span>
+        </button>
+        <button
           onClick={() => setActiveTab('Inactive')}
           className={`px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
             activeTab === 'Inactive' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
@@ -211,16 +231,21 @@ const Jobs = () => {
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-1.5">
                   {isJobExpired(job.deadline) && (
-                    <span className="bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
                     </span>
                   )}
+                  {appliedJobIds.has(String(job._id)) && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-purple-500" /> Applied
+                    </span>
+                  )}
                   {checkEligibility(job) ? (
-                    <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> Eligible
                     </span>
                   ) : (
-                    <span className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-1">
                       <XCircle className="w-3 h-3" /> Not Eligible
                     </span>
                   )}
@@ -279,7 +304,13 @@ const Jobs = () => {
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
-                  <span className="text-sm font-semibold text-primary">View Details →</span>
+                  {appliedJobIds.has(String(job._id)) ? (
+                    <span className="text-sm font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                      Applied <CheckCircle2 className="w-3.5 h-3.5 text-purple-500" />
+                    </span>
+                  ) : (
+                    <span className="text-sm font-semibold text-primary">View Details →</span>
+                  )}
                 </div>
               </div>
             </Link>

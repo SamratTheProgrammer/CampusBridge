@@ -131,12 +131,14 @@ router.post('/image', uploadImage.single('file'), (req, res) => {
     }
 
     const fileExtension = sanitizeExtension(req.file.originalname);
+    const mime = (req.file.mimetype || '').toLowerCase();
+    const isDoc = mime.includes('pdf') || mime.includes('document') || mime.includes('msword') || mime.includes('sheet') || mime.includes('presentation') || mime.includes('text');
     
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        resource_type: 'auto',
+        resource_type: isDoc ? 'raw' : 'auto',
         folder: 'campusbridge_posts',
-        public_id: `post_${Date.now()}.${fileExtension}`
+        public_id: isDoc ? `post_${Date.now()}.${fileExtension}` : `post_${Date.now()}`
       },
       (error, result) => {
         if (error) {
@@ -164,12 +166,13 @@ router.post('/file', uploadGeneral.single('file'), (req, res) => {
     const requestedType = req.body.type || 'auto';
     const allowedTypes = ['auto', 'raw', 'image', 'video'];
     const type = allowedTypes.includes(requestedType) ? requestedType : 'auto';
+    const isRaw = type === 'raw' || (req.file.mimetype || '').toLowerCase().includes('pdf') || (req.file.mimetype || '').toLowerCase().includes('document');
 
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         resource_type: type,
         folder: 'campusbridge_chat',
-        public_id: `file_${Date.now()}.${fileExtension}`
+        public_id: isRaw ? `file_${Date.now()}.${fileExtension}` : `file_${Date.now()}`
       },
       (error, result) => {
         if (error) {

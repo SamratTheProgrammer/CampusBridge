@@ -7,6 +7,16 @@ export const getCompanyLogo = (companyName, customLogo) => {
       const domain = customLogo.replace('https://logo.clearbit.com/', '');
       return `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
     }
+    // If it's a google favicon URL that points to an unknown/auto-generated domain, use UI-Avatar to prevent 404
+    if (customLogo.includes('google.com/s2/favicons')) {
+      try {
+        const urlObj = new URL(customLogo);
+        const dom = urlObj.searchParams.get('domain') || '';
+        if (dom.includes('privatelimited') || dom.includes('fashionprivatelimited') || dom.includes('limited') || dom.split('.')[0].length > 22) {
+          return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName || 'C')}&size=128&background=7c3aed&color=fff&bold=true`;
+        }
+      } catch (e) {}
+    }
     return customLogo;
   }
 
@@ -41,10 +51,27 @@ export const getCompanyLogo = (companyName, customLogo) => {
     creativeminds: 'creativeminds.com',
     ailabs: 'ailabs.com',
     cloudscale: 'cloudscale.com',
+    deloitte: 'deloitte.com',
+    wns: 'wns.com',
+    blinkit: 'blinkit.com',
+    zepto: 'zeptonow.com',
+    capgemini: 'capgemini.com',
+    ibm: 'ibm.com',
+    oracle: 'oracle.com',
+    uber: 'uber.com',
+    paytm: 'paytm.com',
+    phonepe: 'phonepe.com',
+    cred: 'cred.club',
+    razorpay: 'razorpay.com'
   };
 
-  const domain = domainMap[cleanName] || `${cleanName}.com`;
-  return `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
+  const domain = domainMap[cleanName];
+  if (domain) {
+    return `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
+  }
+
+  // If not recognized in domainMap, return clean UI-Avatar so no 404 is thrown by Google Favicons / gstatic.com
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=128&background=7c3aed&color=fff&bold=true`;
 };
 
 export const handleImageError = (e, companyName) => {

@@ -14,7 +14,12 @@ const AutoPlayVideo = ({ src, className, controls = true, onRatioCalculated }) =
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             if (videoRef.current) {
-              videoRef.current.play().catch(err => console.log('Autoplay blocked:', err));
+              const playPromise = videoRef.current.play();
+              if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                  // Autoplay policy or abort, safe to ignore
+                });
+              }
             }
           } else {
             if (videoRef.current) {
@@ -89,8 +94,11 @@ const AutoPlayVideo = ({ src, className, controls = true, onRatioCalculated }) =
         className={`${className || ''} ${isCover ? 'w-full h-full object-cover' : 'w-auto max-w-full h-auto object-contain'}`}
         controls={controls}
         autoPlay
+        muted={isMuted}
         loop
         playsInline
+        preload="metadata"
+        crossOrigin="anonymous"
       />
     </div>
   );

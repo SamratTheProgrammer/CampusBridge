@@ -510,6 +510,126 @@ router.put('/:messageId', async (req, res) => {
   }
 });
 
+// Forward messages to one or multiple recipients
+router.post('/forward', async (req, res) => {
+  try {
+    const { senderClerkId, recipientClerkIds, messageIds } = req.body;
+    if (!senderClerkId || !Array.isArray(recipientClerkIds) || recipientClerkIds.length === 0 || !Array.isArray(messageIds) || messageIds.length === 0) {
+      return res.status(400).json({ message: 'Missing sender, recipients, or messageIds' });
+    }
+
+    const messages = await Message.find({ _id: { $in: messageIds } }).sort({ createdAt: 1 });
+    if (!messages || messages.length === 0) {
+      return res.status(404).json({ message: 'No messages found to forward' });
+    }
+
+    const io = req.app?.get('io') || req.io;
+    const emitToUserSockets = req.app?.get('emitToUserSockets');
+    const sender = await User.findOne({ clerkId: senderClerkId });
+    const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'Someone';
+
+    const createdMessages = [];
+
+    for (const recipientId of recipientClerkIds) {
+      // Check block status
+      const isBlocked = await Block.findOne({
+        $or: [
+          { blockerClerkId: recipientId, blockedClerkId: senderClerkId },
+          { blockerClerkId: senderClerkId, blockedClerkId: recipientId }
+        ]
+      });
+      if (isBlocked) continue;
+
+      const conversationId = Message.getConversationId(senderClerkId, recipientId);
+
+      for (const msg of messages) {
+        if (msg.isDeleted) continue;
+
+        const newMsg = new Message({
+          conversationId,
+          senderClerkId,
+          recipientClerkId: recipientId,
+          type: msg.type || 'text',
+          text: msg.text || '',
+          attachment: msg.attachment || null,
+          share: msg.share || null,
+          callInfo: msg.callInfo || null,
+          isForwarded: true
+        });
+
+        await newMsg.save();
+        createdMessages.push(newMsg);
+
+        if (io) {
+          io.to(conversationId).emit('receive_message', newMsg);
+        }
+        if (emitToUserSockets) {
+          emitToUserSockets(recipientId, 'receive_message', newMsg);
+          emitToUserSockets(senderClerkId, 'receive_message', newMsg);
+          emitToUserSockets(recipientId, 'update_sidebar', {
+            ...newMsg.toObject(),
+            senderName,
+            senderImage: sender?.imageUrl
+          });
+        }
+      }
+    }
+
+    res.status(200).json({ success: true, count: createdMessages.length, messages: createdMessages });
+  } catch (error) {
+    console.error('Error forwarding messages:', error);
+    res.status(500).json({ message: 'Server error forwarding messages' });
+  }
+});
+
+// Bulk delete messages
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { userId, messageIds, type } = req.body;
+    if (!userId || !Array.isArray(messageIds) || messageIds.length === 0) {
+      return res.status(400).json({ message: 'Missing userId or messageIds' });
+    }
+
+    const io = req.app?.get('io') || req.io;
+
+    if (type === 'everyone') {
+      const msgs = await Message.find({ _id: { $in: messageIds }, senderClerkId: userId });
+      for (const msg of msgs) {
+        msg.isDeleted = true;
+        msg.text = '';
+        msg.attachment = null;
+        await msg.save();
+        if (io) {
+          io.to(msg.conversationId).emit('message_deleted_for_everyone', {
+            messageId: msg._id.toString(),
+            conversationId: msg.conversationId
+          });
+        }
+      }
+    } else {
+      await Message.updateMany(
+        { _id: { $in: messageIds } },
+        { $addToSet: { deletedFor: userId } }
+      );
+      for (const mId of messageIds) {
+        const msg = await Message.findById(mId);
+        if (msg && io) {
+          io.to(msg.conversationId).emit('message_deleted_for_me', {
+            messageId: mId,
+            userId,
+            conversationId: msg.conversationId
+          });
+        }
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Messages deleted' });
+  } catch (error) {
+    console.error('Error bulk deleting messages:', error);
+    res.status(500).json({ message: 'Server error bulk deleting messages' });
+  }
+});
+
 // Delete message REST API
 router.delete('/:messageId', async (req, res) => {
   try {
@@ -642,6 +762,7 @@ router.post('/share', async (req, res) => {
     let mediaType = '';
     let authorName = '';
     let authorAvatar = '';
+    let isOtherAuthor = false;
 
     try {
       if (shareType === 'post') {
@@ -651,6 +772,9 @@ router.post('/share', async (req, res) => {
           { new: true }
         );
         if (post) {
+          if (post.authorClerkId && post.authorClerkId !== senderClerkId) {
+            isOtherAuthor = true;
+          }
           // Look up post author for Instagram-style header
           let authorUser = null;
           if (post.authorClerkId) {
@@ -697,6 +821,7 @@ router.post('/share', async (req, res) => {
           }
         }
       } else if (shareType === 'job') {
+        isOtherAuthor = true;
         const job = await Job.findById(itemId);
         if (job) {
           title = job.title;
@@ -704,6 +829,7 @@ router.post('/share', async (req, res) => {
           imageUrl = job.companyLogo;
         }
       } else if (shareType === 'event') {
+        isOtherAuthor = true;
         const event = await Event.findById(itemId);
         if (event) {
           title = event.name;
@@ -711,6 +837,9 @@ router.post('/share', async (req, res) => {
           imageUrl = event.image;
         }
       } else if (shareType === 'profile') {
+        if (itemId !== senderClerkId) {
+          isOtherAuthor = true;
+        }
         const query = [{ clerkId: itemId }, { username: itemId }];
         if (mongoose.Types.ObjectId.isValid(itemId)) {
           query.push({ _id: itemId });
@@ -759,7 +888,8 @@ router.post('/share', async (req, res) => {
           mediaType,
           authorName,
           authorAvatar
-        }
+        },
+        isForwarded: isOtherAuthor || Boolean(req.body.isForwarded)
       });
 
       await newMessage.save();

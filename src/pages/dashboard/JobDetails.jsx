@@ -469,7 +469,7 @@ const JobDetails = () => {
                 onClick={() => setIsApplyModalOpen(true)}
                 className={`w-full sm:w-auto px-8 py-3 sm:py-2.5 rounded-xl font-medium transition-colors shadow-sm ${
                   hasApplied 
-                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 font-semibold cursor-not-allowed'
                     : isDeadlinePassed
                     ? 'bg-destructive/10 text-destructive cursor-not-allowed border border-destructive/30'
                     : !isEligible 
@@ -477,7 +477,7 @@ const JobDetails = () => {
                     : 'bg-primary text-primary-foreground hover:bg-primary/90'
                 }`}
               >
-                {hasApplied ? 'Applied' : isDeadlinePassed ? 'Date Over' : !isEligible ? 'Not Eligible' : 'Apply Now'}
+                {hasApplied ? 'Applied ✓' : isDeadlinePassed ? 'Date Over' : !isEligible ? 'Not Eligible' : 'Apply Now'}
               </button>
             )
           })()}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw, Plus, Play } from 'lucide-react';
+import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw, Plus, Play, Forward, CornerUpRight, CheckSquare, Copy } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
@@ -15,6 +15,7 @@ import ModalPortal from './modals/ModalPortal';
 import AudioPlayerWidget from './common/AudioPlayerWidget';
 import ExportChatModal from './modals/ExportChatModal';
 import ShareProfileInChatModal from './modals/ShareProfileInChatModal';
+import ForwardMessageModal from './modals/ForwardMessageModal';
 
 const formatMessageDateSeparator = (dateString) => {
   if (!dateString) return '';
@@ -179,6 +180,26 @@ const RealtimeChat = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShareProfileModalOpen, setIsShareProfileModalOpen] = useState(false);
 
+  // Multi-Selection, Forwarding & Context Menu State (WhatsApp-style)
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState(new Set());
+  const [contextMenu, setContextMenu] = useState(null); // { x: number, y: number, message: any }
+  const [forwardModalOpen, setForwardModalOpen] = useState(false);
+  const [messagesToForward, setMessagesToForward] = useState([]);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+
+  // Mobile Touch Long-Press Refs
+  const longPressTimerRef = useRef(null);
+  const touchStartPosRef = useRef({ x: 0, y: 0 });
+  const isLongPressTriggeredRef = useRef(false);
+
+  // Reset selection & context menu on switching contacts
+  useEffect(() => {
+    setIsSelectMode(false);
+    setSelectedMessageIds(new Set());
+    setContextMenu(null);
+  }, [activeContact?.clerkId]);
+
   // Voice recording state
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [voiceDuration, setVoiceDuration] = useState(0);
@@ -246,6 +267,9 @@ const RealtimeChat = () => {
       }
       if (!e.target.closest('.message-context-menu') && !e.target.closest('.message-menu-trigger')) {
         setActiveMessageMenu(null);
+      }
+      if (!e.target.closest('.message-floating-context-menu')) {
+        setContextMenu(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1049,6 +1073,162 @@ const RealtimeChat = () => {
     };
   }, []);
 
+  // Copy message text helper
+  const copyMessageText = (text) => {
+    if (!text) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      toast.success('Copied to clipboard', { icon: '📋' });
+    } catch (_) {
+      toast.error('Failed to copy');
+    }
+  };
+
+  // WhatsApp-style Multi-Select Methods
+  const toggleSelectMessage = (msgId) => {
+    setSelectedMessageIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(msgId)) {
+        next.delete(msgId);
+      } else {
+        next.add(msgId);
+      }
+      return next;
+    });
+  };
+
+  const startSelectMode = (initialMsgId) => {
+    setIsSelectMode(true);
+    setSelectedMessageIds(new Set(initialMsgId ? [initialMsgId] : []));
+    setActiveMessageMenu(null);
+    setContextMenu(null);
+  };
+
+  const exitSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedMessageIds(new Set());
+  };
+
+  // Forwarding Methods
+  const handleForwardSingle = (msg) => {
+    setMessagesToForward([msg]);
+    setForwardModalOpen(true);
+    setActiveMessageMenu(null);
+    setContextMenu(null);
+  };
+
+  const handleForwardSelected = () => {
+    const selectedList = messages.filter((m) => selectedMessageIds.has(m._id));
+    if (selectedList.length === 0) {
+      toast.error('Select at least one message to forward');
+      return;
+    }
+    setMessagesToForward(selectedList);
+    setForwardModalOpen(true);
+  };
+
+  // Bulk Delete Messages
+  const handleBulkDeleteConfirm = async (type = 'me') => {
+    const ids = Array.from(selectedMessageIds);
+    if (ids.length === 0) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/messages/bulk-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          messageIds: ids,
+          type
+        })
+      });
+
+      if (res.ok) {
+        if (type === 'everyone') {
+          setMessages((prev) =>
+            prev.map((m) =>
+              ids.includes(m._id) && m.senderClerkId === user.id
+                ? { ...m, isDeleted: true, text: '', attachment: null }
+                : m
+            )
+          );
+        } else {
+          setMessages((prev) => prev.filter((m) => !ids.includes(m._id)));
+        }
+        toast.success(`Deleted ${ids.length} message${ids.length > 1 ? 's' : ''}`);
+        exitSelectMode();
+        fetchContacts();
+      } else {
+        toast.error('Failed to delete messages');
+      }
+    } catch (err) {
+      console.error('Error bulk deleting messages:', err);
+      toast.error('Error deleting messages');
+    }
+    setBulkDeleteModalOpen(false);
+  };
+
+  // Mobile Touch Long-Press handlers (tap & hold ~500ms to trigger multi-select)
+  const handleTouchStart = (e, msg) => {
+    if (isSelectMode) return;
+    if (msg.isDeleted) return;
+
+    isLongPressTriggeredRef.current = false;
+    const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressTriggeredRef.current = true;
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(50); } catch (_) {}
+      }
+      startSelectMode(msg._id);
+    }, 500);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!longPressTimerRef.current) return;
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
+    const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
+    if (dx > 10 || dy > 10) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  // Desktop Right-Click Context Menu handler
+  const handleMessageContextMenu = (e, msg) => {
+    if (msg.isDeleted) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const menuWidth = 190;
+    const menuHeight = 250;
+    const x = Math.max(10, Math.min(e.clientX, window.innerWidth - menuWidth - 16));
+    const y = Math.max(10, Math.min(e.clientY, window.innerHeight - menuHeight - 16));
+
+    setContextMenu({ x, y, message: msg });
+    setActiveMessageMenu(null);
+  };
+
   // Block / Unblock User
   const toggleBlockUser = async () => {
     if (!activeContact || !user) return;
@@ -1474,153 +1654,198 @@ const RealtimeChat = () => {
       {activeContact ? (
         <div className={`flex-1 flex-col h-full w-full max-w-full min-w-0 overflow-hidden ${currentTheme.bg} transition-colors duration-300 relative ${isMobileChatOpen ? 'flex' : 'hidden md:flex'}`}>
           {/* Header */}
-          <div className="h-16 px-3 sm:px-6 border-b border-border/40 flex items-center justify-between bg-card/90 backdrop-blur z-20 shrink-0 relative w-full max-w-full min-w-0">
-            <div className="flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 flex-1 mr-2" onClick={viewPartnerProfile}>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setIsMobileChatOpen(false); }}
-                className="md:hidden p-2 -ml-1 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-              </button>
+          {isSelectMode ? (
+            <div className="h-16 px-3 sm:px-6 border-b border-border/40 flex items-center justify-between bg-card/95 backdrop-blur z-20 shrink-0 w-full animate-in fade-in duration-200">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={exitSelectMode}
+                  className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Cancel Selection"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <span className="font-bold text-foreground text-sm sm:text-base">
+                  {selectedMessageIds.size} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleForwardSelected}
+                  disabled={selectedMessageIds.size === 0}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                  title="Forward Selected"
+                >
+                  <Forward className="w-4 h-4" />
+                  <span className="hidden sm:inline">Forward</span>
+                </button>
+                <button
+                  onClick={() => setBulkDeleteModalOpen(true)}
+                  disabled={selectedMessageIds.size === 0}
+                  className="p-2 rounded-xl text-red-500 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  title="Delete Selected"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="h-16 px-3 sm:px-6 border-b border-border/40 flex items-center justify-between bg-card/90 backdrop-blur z-20 shrink-0 relative w-full max-w-full min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 flex-1 mr-2" onClick={viewPartnerProfile}>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsMobileChatOpen(false); }}
+                  className="md:hidden p-2 -ml-1 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                </button>
 
-              <div className="relative shrink-0">
-                {activeContact.image ? (
-                  <img
-                    src={activeContact.image}
-                    alt={activeContact.name}
-                    className="w-10 h-10 rounded-full object-cover border border-border/50"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full border border-border/50 bg-muted flex items-center justify-center">
-                    <User className="w-5 h-5 text-muted-foreground" />
+                <div className="relative shrink-0">
+                  {activeContact.image ? (
+                    <img
+                      src={activeContact.image}
+                      alt={activeContact.name}
+                      className="w-10 h-10 rounded-full object-cover border border-border/50"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full border border-border/50 bg-muted flex items-center justify-center">
+                      <User className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
+                    (onlineUsers.includes(activeContact.clerkId) || onlineUsers.includes(activeContact.id) || onlineUsers.includes(activeContact._id)) ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-400'
+                  }`} />
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="font-bold text-foreground text-sm flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+                    <span className="truncate">{activeContact.name}</span>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                      (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'mentor'
+                        ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                        : (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'alumni'
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                        : (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'admin'
+                        ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                        : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                    }`}>
+                      {activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')}
+                    </span>
+                    {isCurrentPartnerBlocked && <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full font-medium shrink-0">Blocked</span>}
+                  </h3>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1 min-w-0 truncate">
+                    {isOtherTyping ? (
+                      <span className="text-primary font-semibold animate-pulse truncate">typing...</span>
+                    ) : (
+                      <div className="truncate flex items-center gap-1.5 min-w-0">
+                        {(onlineUsers.includes(activeContact.clerkId) || onlineUsers.includes(activeContact.id) || onlineUsers.includes(activeContact._id)) ? (
+                          <span className="flex items-center gap-1 text-emerald-400 font-semibold shrink-0"><Circle className="w-2 h-2 fill-current text-emerald-400" /> Online</span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-muted-foreground shrink-0"><Circle className="w-2 h-2 fill-current text-slate-500" /> Offline</span>
+                        )}
+                        <span className="shrink-0">&bull;</span>
+                        <span className="truncate">{formatRoleSubtitle(activeContact.headline, activeContact.role || activeContact.userRole)}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
-                  (onlineUsers.includes(activeContact.clerkId) || onlineUsers.includes(activeContact.id) || onlineUsers.includes(activeContact._id)) ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-400'
-                }`} />
+                </div>
               </div>
 
-              <div className="min-w-0">
-                <h3 className="font-bold text-foreground text-sm flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
-                  <span className="truncate">{activeContact.name}</span>
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
-                    (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'mentor'
-                      ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
-                      : (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'alumni'
-                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                      : (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'admin'
-                      ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                      : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                  }`}>
-                    {activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')}
-                  </span>
-                  {isCurrentPartnerBlocked && <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full font-medium shrink-0">Blocked</span>}
-                </h3>
-                <div className="text-xs text-muted-foreground flex items-center gap-1 min-w-0 truncate">
-                  {isOtherTyping ? (
-                    <span className="text-primary font-semibold animate-pulse truncate">typing...</span>
-                  ) : (
-                    <div className="truncate flex items-center gap-1.5 min-w-0">
-                      {(onlineUsers.includes(activeContact.clerkId) || onlineUsers.includes(activeContact.id) || onlineUsers.includes(activeContact._id)) ? (
-                        <span className="flex items-center gap-1 text-emerald-400 font-semibold shrink-0"><Circle className="w-2 h-2 fill-current text-emerald-400" /> Online</span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-muted-foreground shrink-0"><Circle className="w-2 h-2 fill-current text-slate-500" /> Offline</span>
-                      )}
-                      <span className="shrink-0">&bull;</span>
-                      <span className="truncate">{formatRoleSubtitle(activeContact.headline, activeContact.role || activeContact.userRole)}</span>
+              <div className="flex items-center gap-1 sm:gap-2 text-muted-foreground shrink-0">
+                <button 
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('initiate_call', {
+                      detail: { targetPartner: activeContact, type: 'audio' }
+                    }));
+                  }}
+                  className="p-2 rounded-lg hover:bg-muted hover:text-foreground transition-colors" 
+                  title="Audio Call"
+                >
+                  <Phone className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('initiate_call', {
+                      detail: { targetPartner: activeContact, type: 'video' }
+                    }));
+                  }}
+                  className="p-2 rounded-lg hover:bg-muted hover:text-foreground transition-colors" 
+                  title="Video Call"
+                >
+                  <Video className="w-4 h-4" />
+                </button>
+
+                {/* 3-Dots Dropdown Menu */}
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className="p-2 rounded-lg hover:bg-muted hover:text-foreground transition-colors"
+                    title="Options"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+
+                  {showMoreMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-card border border-border/60 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95">
+                      <button
+                        onClick={viewPartnerProfile}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
+                      >
+                        <User className="w-3.5 h-3.5 text-primary" /> View Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          setIsSelectMode(true);
+                        }}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> Select Messages
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          setIsShareProfileModalOpen(true);
+                        }}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-emerald-400" /> Share Profile to Chat
+                      </button>
+                      <button
+                        onClick={cycleTheme}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
+                      >
+                        <Palette className="w-3.5 h-3.5 text-purple-400" /> Change Theme ({currentTheme.name})
+                      </button>
+                      <button
+                        onClick={clearChatHistory}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-amber-400" /> Clear Chat History
+                      </button>
+                      <button
+                        onClick={() => { setShowMoreMenu(false); setIsExportModalOpen(true); }}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5 text-blue-500" /> Export Chat (.txt, .pdf, .doc)
+                      </button>
+                      <button
+                        onClick={deleteChatPerson}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                      >
+                        <UserX className="w-3.5 h-3.5 text-red-500" /> Delete Person
+                      </button>
+                      <div className="border-t border-border/40 my-1"></div>
+                      <button
+                        onClick={toggleBlockUser}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                      >
+                        <Ban className="w-3.5 h-3.5 text-red-500" /> {isCurrentPartnerBlocked ? 'Unblock User' : 'Block User'}
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
             </div>
-
-            <div className="flex items-center gap-1 sm:gap-2 text-muted-foreground shrink-0">
-              <button 
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('initiate_call', {
-                    detail: { targetPartner: activeContact, type: 'audio' }
-                  }));
-                }}
-                className="p-2 rounded-lg hover:bg-muted hover:text-foreground transition-colors" 
-                title="Audio Call"
-              >
-                <Phone className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('initiate_call', {
-                    detail: { targetPartner: activeContact, type: 'video' }
-                  }));
-                }}
-                className="p-2 rounded-lg hover:bg-muted hover:text-foreground transition-colors" 
-                title="Video Call"
-              >
-                <Video className="w-4 h-4" />
-              </button>
-
-              {/* 3-Dots Dropdown Menu */}
-              <div className="relative" ref={menuRef}>
-                <button
-                  onClick={() => setShowMoreMenu(!showMoreMenu)}
-                  className="p-2 rounded-lg hover:bg-muted hover:text-foreground transition-colors"
-                  title="Options"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-
-                {showMoreMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-card border border-border/60 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95">
-                    <button
-                      onClick={viewPartnerProfile}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
-                    >
-                      <User className="w-3.5 h-3.5 text-primary" /> View Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowMoreMenu(false);
-                        setIsShareProfileModalOpen(true);
-                      }}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
-                    >
-                      <Share2 className="w-3.5 h-3.5 text-emerald-400" /> Share Profile to Chat
-                    </button>
-                    <button
-                      onClick={cycleTheme}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
-                    >
-                      <Palette className="w-3.5 h-3.5 text-purple-400" /> Change Theme ({currentTheme.name})
-                    </button>
-                    <button
-                      onClick={clearChatHistory}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-amber-400" /> Clear Chat History
-                    </button>
-                    <button
-                      onClick={() => { setShowMoreMenu(false); setIsExportModalOpen(true); }}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors"
-                    >
-                      <Download className="w-3.5 h-3.5 text-blue-500" /> Export Chat (.txt, .pdf, .doc)
-                    </button>
-                    <button
-                      onClick={deleteChatPerson}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
-                    >
-                      <UserX className="w-3.5 h-3.5 text-red-500" /> Delete Person
-                    </button>
-                    <div className="border-t border-border/40 my-1"></div>
-                    <button
-                      onClick={toggleBlockUser}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
-                    >
-                      <Ban className="w-3.5 h-3.5 text-red-500" /> {isCurrentPartnerBlocked ? 'Unblock User' : 'Block User'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Block Banner Alert */}
           {isCurrentPartnerBlocked && (
@@ -1674,7 +1899,10 @@ const RealtimeChat = () => {
                   return (
                     <React.Fragment key={msg._id || Math.random()}>
                       {renderDateSeparator}
-                      <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
+                      <div 
+                        onContextMenu={(e) => handleMessageContextMenu(e, msg)}
+                        className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}
+                      >
                         <div className={`flex items-start gap-1.5 sm:gap-2 max-w-[92%] sm:max-w-[80%] md:max-w-[65%] lg:max-w-[50%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                           {/* Call Log Context Menu */}
                           <div className={`relative opacity-50 hover:opacity-100 transition-opacity flex items-center ${isMe ? 'pr-2' : 'pl-2'} mt-2`}>
@@ -1749,34 +1977,80 @@ const RealtimeChat = () => {
                   );
                 }
 
+                const isSelected = selectedMessageIds.has(msg._id);
+
                 return (
                   <React.Fragment key={msg._id || Math.random()}>
                     {renderDateSeparator}
-                    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
+                    <div 
+                      onContextMenu={(e) => handleMessageContextMenu(e, msg)}
+                      onTouchStart={(e) => handleTouchStart(e, msg)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      onClick={(e) => {
+                        if (isSelectMode) {
+                          e.stopPropagation();
+                          toggleSelectMessage(msg._id);
+                        }
+                      }}
+                      className={`flex items-center gap-2 ${isMe ? 'justify-end' : 'justify-start'} group transition-colors rounded-2xl ${
+                        isSelectMode ? 'cursor-pointer p-1.5 hover:bg-muted/30 select-none' : ''
+                      } ${isSelected ? 'bg-primary/10' : ''}`}
+                    >
+                      {/* WhatsApp-style Selection Checkbox */}
+                      {isSelectMode && (
+                        <div className={`shrink-0 flex items-center justify-center ${isMe ? 'order-last pl-1' : 'order-first pr-1'}`}>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            isSelected
+                              ? 'bg-primary border-primary text-primary-foreground scale-105 shadow-xs'
+                              : 'border-muted-foreground/40 bg-card hover:border-primary/60'
+                          }`}>
+                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </div>
+                        </div>
+                      )}
+
                       <div className={`flex items-start gap-1.5 sm:gap-2 max-w-[92%] sm:max-w-[80%] md:max-w-[65%] lg:max-w-[50%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                       {/* Message Bubble Context Menu */}
-                      <div className={`relative opacity-50 hover:opacity-100 transition-opacity flex items-center ${isMe ? 'pr-2' : 'pl-2'} mt-2`}>
-                        <button onClick={(e) => { e.stopPropagation(); setActiveMessageMenu(activeMessageMenu === msg._id ? null : msg._id); }} className="message-menu-trigger p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors">
-                          <MoreVertical className="w-4 h-4 pointer-events-none" />
-                        </button>
-                        {activeMessageMenu === msg._id && (
-                          <div className={`message-context-menu absolute ${isMe ? 'right-8' : 'left-8'} top-0 w-44 bg-card border border-border/60 rounded-xl shadow-lg py-1 z-30`}>
-                            {!msg.isDeleted && (
-                              <button onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2">
-                                <Reply className="w-3.5 h-3.5" /> Reply
+                      {!isSelectMode && (
+                        <div className={`relative opacity-50 hover:opacity-100 transition-opacity flex items-center ${isMe ? 'pr-2' : 'pl-2'} mt-2`}>
+                          <button onClick={(e) => { e.stopPropagation(); setActiveMessageMenu(activeMessageMenu === msg._id ? null : msg._id); }} className="message-menu-trigger p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors cursor-pointer">
+                            <MoreVertical className="w-4 h-4 pointer-events-none" />
+                          </button>
+                          {activeMessageMenu === msg._id && (
+                            <div className={`message-context-menu absolute ${isMe ? 'right-8' : 'left-8'} top-0 w-44 bg-card border border-border/60 rounded-xl shadow-lg py-1 z-30`}>
+                              {!msg.isDeleted && (
+                                <button onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
+                                  <Reply className="w-3.5 h-3.5 text-primary" /> Reply
+                                </button>
+                              )}
+                              {!msg.isDeleted && (
+                                <button onClick={(e) => { e.stopPropagation(); handleForwardSingle(msg); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
+                                  <Forward className="w-3.5 h-3.5 text-emerald-500" /> Forward
+                                </button>
+                              )}
+                              {msg.text && !msg.isDeleted && (
+                                <button onClick={(e) => { e.stopPropagation(); copyMessageText(msg.text); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
+                                  <Copy className="w-3.5 h-3.5 text-blue-500" /> Copy
+                                </button>
+                              )}
+                              {!msg.isDeleted && (
+                                <button onClick={(e) => { e.stopPropagation(); startSelectMode(msg._id); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
+                                  <CheckSquare className="w-3.5 h-3.5 text-indigo-500" /> Select
+                                </button>
+                              )}
+                              {isMe && !msg.isDeleted && msg.type === 'text' && (
+                                <button onClick={(e) => { e.stopPropagation(); setEditingMessage(msg); setInputText(msg.text); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
+                                  <Edit2 className="w-3.5 h-3.5 text-amber-500" /> Edit
+                                </button>
+                              )}
+                              <button onClick={(e) => { e.stopPropagation(); setDeleteModalMsg(msg); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-red-500 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer">
+                                <Trash2 className="w-3.5 h-3.5" /> Delete
                               </button>
-                            )}
-                            {isMe && !msg.isDeleted && msg.type === 'text' && (
-                              <button onClick={(e) => { e.stopPropagation(); setEditingMessage(msg); setInputText(msg.text); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2">
-                                <Edit2 className="w-3.5 h-3.5" /> Edit
-                              </button>
-                            )}
-                            <button onClick={(e) => { e.stopPropagation(); setDeleteModalMsg(msg); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                              <Trash2 className="w-3.5 h-3.5" /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} min-w-0 max-w-full`}>
                         <div
@@ -1786,12 +2060,23 @@ const RealtimeChat = () => {
                             isMe
                               ? 'bg-primary text-primary-foreground rounded-tr-sm'
                               : 'bg-card border border-border/50 text-foreground rounded-tl-sm'
-                          } ${msg.isDeleted ? 'italic text-muted-foreground bg-transparent border border-border/50 shadow-none' : ''}`}
+                          } ${msg.isDeleted ? 'italic text-muted-foreground bg-transparent border border-border/50 shadow-none' : ''} ${
+                            isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+                          }`}
                         >
                           {msg.isDeleted ? (
                             <span className="flex items-center gap-1.5"><Ban className="w-3.5 h-3.5" /> This message was deleted</span>
                           ) : (
                             <>
+                              {/* WhatsApp-style Forwarded indicator */}
+                              {msg.isForwarded && (
+                                <div className={`flex items-center gap-1.5 text-[11px] font-medium italic mb-1.5 select-none ${
+                                  isMe ? 'text-primary-foreground/85' : 'text-muted-foreground'
+                                }`}>
+                                  <CornerUpRight className="w-3.5 h-3.5 inline-block shrink-0 stroke-[2.2]" />
+                                  <span>Forwarded</span>
+                                </div>
+                              )}
                               {/* Reply Snippet */}
                               {msg.replyTo && (
                                 <div className={`mb-2 p-2 rounded-lg text-xs border-l-2 flex flex-col gap-0.5 opacity-90 ${isMe ? 'bg-black/10 border-white' : 'bg-muted/50 border-primary'}`}>
@@ -1805,7 +2090,10 @@ const RealtimeChat = () => {
                                 <div className="mb-2">
                                   {msg.attachment.type === 'image' ? (
                                     <div 
-                                      onClick={() => setFullscreenAttachment({ url: msg.attachment.url, type: 'image' })} 
+                                      onClick={() => {
+                                        if (isSelectMode) return;
+                                        setFullscreenAttachment({ url: msg.attachment.url, type: 'image' });
+                                      }} 
                                       className="cursor-pointer relative overflow-hidden rounded-xl"
                                     >
                                       <img src={msg.attachment.url} alt="attachment" className={`rounded-xl max-h-60 w-auto object-cover hover:opacity-90 transition-opacity ${msg.isUploading ? 'opacity-75 blur-[0.5px]' : ''}`} />
@@ -1842,7 +2130,10 @@ const RealtimeChat = () => {
                                     />
                                   ) : (
                                     <div 
-                                      onClick={() => setFullscreenAttachment({ url: msg.attachment.url, type: 'document' })} 
+                                      onClick={() => {
+                                        if (isSelectMode) return;
+                                        setFullscreenAttachment({ url: msg.attachment.url, type: 'document' });
+                                      }} 
                                       className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20' : 'bg-muted/50 border-border/50 hover:bg-muted'} transition-colors relative`}
                                     >
                                       <div className="p-2 bg-background/50 rounded-lg shrink-0">
@@ -1892,7 +2183,12 @@ const RealtimeChat = () => {
                                   </div>
                                 ) : (
                                   <div 
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      if (isSelectMode) {
+                                        e.stopPropagation();
+                                        toggleSelectMessage(msg._id);
+                                        return;
+                                      }
                                       if (msg.share.type === 'profile') {
                                         navigate(`/profile/${msg.share.itemId}`);
                                       } else {
@@ -2478,6 +2774,149 @@ const RealtimeChat = () => {
         onClose={() => setIsShareProfileModalOpen(false)}
         currentUser={user}
         activeContact={activeContact}
+      />
+
+      {/* Floating Right Click Context Menu */}
+      {contextMenu && (
+        <ModalPortal>
+          <div 
+            className="fixed inset-0 z-[150] bg-transparent"
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+          >
+            <div
+              className="message-floating-context-menu absolute w-48 bg-card/95 backdrop-blur-md border border-border/70 rounded-2xl shadow-2xl py-1.5 z-[151] animate-in fade-in zoom-in-95 duration-100"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {!contextMenu.message.isDeleted && (
+                <button
+                  onClick={() => {
+                    setReplyingTo(contextMenu.message);
+                    setContextMenu(null);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <Reply className="w-3.5 h-3.5 text-primary" /> Reply
+                </button>
+              )}
+              {!contextMenu.message.isDeleted && (
+                <button
+                  onClick={() => {
+                    handleForwardSingle(contextMenu.message);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <Forward className="w-3.5 h-3.5 text-emerald-500" /> Forward
+                </button>
+              )}
+              {contextMenu.message.text && !contextMenu.message.isDeleted && (
+                <button
+                  onClick={() => {
+                    copyMessageText(contextMenu.message.text);
+                    setContextMenu(null);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5 text-blue-500" /> Copy Text
+                </button>
+              )}
+              {!contextMenu.message.isDeleted && (
+                <button
+                  onClick={() => {
+                    startSelectMode(contextMenu.message._id);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <CheckSquare className="w-3.5 h-3.5 text-indigo-500" /> Select
+                </button>
+              )}
+              {contextMenu.message.senderClerkId === user?.id && contextMenu.message.type === 'text' && !contextMenu.message.isDeleted && (
+                <button
+                  onClick={() => {
+                    setEditingMessage(contextMenu.message);
+                    setInputText(contextMenu.message.text);
+                    setContextMenu(null);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-amber-500" /> Edit
+                </button>
+              )}
+              <div className="border-t border-border/40 my-1" />
+              <button
+                onClick={() => {
+                  setDeleteModalMsg(contextMenu.message);
+                  setContextMenu(null);
+                }}
+                className="w-full px-3.5 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-500" /> Delete
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Bulk Delete Modal */}
+      {bulkDeleteModalOpen && (
+        <ModalPortal>
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-card border border-border/50 rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-6">
+                <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mb-4">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <h2 className="text-lg font-bold text-foreground mb-1">
+                  Delete {selectedMessageIds.size} message{selectedMessageIds.size > 1 ? 's' : ''}?
+                </h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Choose how you want to delete the selected messages.
+                </p>
+
+                <div className="flex flex-col gap-2">
+                  {Array.from(selectedMessageIds).every((id) => {
+                    const m = messages.find((msg) => msg._id === id);
+                    return m && m.senderClerkId === user?.id && !m.isDeleted;
+                  }) && (
+                    <button
+                      onClick={() => handleBulkDeleteConfirm('everyone')}
+                      className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold py-3 rounded-xl transition-colors text-sm cursor-pointer"
+                    >
+                      Delete for everyone
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleBulkDeleteConfirm('me')}
+                    className="w-full bg-muted/60 hover:bg-muted text-foreground font-bold py-3 rounded-xl transition-colors text-sm cursor-pointer"
+                  >
+                    Delete for me
+                  </button>
+
+                  <button
+                    onClick={() => setBulkDeleteModalOpen(false)}
+                    className="w-full bg-transparent border border-border/50 hover:bg-muted text-foreground font-semibold py-3 rounded-xl transition-colors text-sm mt-1 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* WhatsApp-style Forward Message Modal */}
+      <ForwardMessageModal
+        isOpen={forwardModalOpen}
+        onClose={() => setForwardModalOpen(false)}
+        messages={messagesToForward}
+        currentUserId={user?.id}
+        onForwardSuccess={() => {
+          exitSelectMode();
+          fetchContacts();
+        }}
       />
     </div>
   );
