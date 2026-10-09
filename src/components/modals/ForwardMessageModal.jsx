@@ -9,26 +9,35 @@ export const ForwardMessageModal = ({
   onClose, 
   messages = [], 
   currentUserId, 
+  initialContacts = [],
+  onForwardInitiated,
   onForwardSuccess 
 }) => {
-  const [contacts, setContacts] = useState([]);
+  const [contacts, setContacts] = useState(initialContacts || []);
   const [selectedContactIds, setSelectedContactIds] = useState([]);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
-  const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const messagesList = Array.isArray(messages) ? messages : (messages ? [messages] : []);
+  const messagesList = (Array.isArray(messages) ? messages : (messages ? [messages] : []))
+    .filter(m => !m.isDeleted && !(m.type === 'share' && m.share?.isDeleted));
 
   useEffect(() => {
-    if (isOpen && currentUserId) {
-      fetchContacts();
+    if (isOpen) {
       setSelectedContactIds([]);
       setSearchQuery('');
+      if (initialContacts && initialContacts.length > 0) {
+        setContacts(initialContacts);
+        setIsLoadingContacts(false);
+      } else if (currentUserId) {
+        fetchContacts();
+      }
     }
-  }, [isOpen, currentUserId]);
+  }, [isOpen, currentUserId, initialContacts]);
 
   const fetchContacts = async () => {
-    setIsLoadingContacts(true);
+    if (!initialContacts || initialContacts.length === 0) {
+      setIsLoadingContacts(true);
+    }
     try {
       const res = await fetch(`${API_BASE}/api/messages/conversations/${currentUserId}`);
       if (res.ok) {
@@ -42,7 +51,7 @@ export const ForwardMessageModal = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || messagesList.length === 0) return null;
 
   const toggleSelectContact = (clerkId) => {
     setSelectedContactIds(prev => {
@@ -59,7 +68,7 @@ export const ForwardMessageModal = ({
     return nameMatch || roleMatch;
   });
 
-  const handleForward = async () => {
+  const handleForward = () => {
     if (selectedContactIds.length === 0) {
       toast.error('Select at least one contact to forward to');
       return;
@@ -69,36 +78,19 @@ export const ForwardMessageModal = ({
       return;
     }
 
-    setIsSending(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/messages/forward`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          senderClerkId: currentUserId,
-          recipientClerkIds: selectedContactIds,
-          messageIds: messagesList.map(m => m._id)
-        })
+    const selectedIds = [...selectedContactIds];
+    const msgs = [...messagesList];
+    const selectedContactsList = contacts.filter(c => selectedIds.includes(c.clerkId || c.id));
+
+    // Instantly close modal (WhatsApp style: no waiting in forward modal!)
+    onClose();
+
+    if (onForwardInitiated) {
+      onForwardInitiated({
+        recipientClerkIds: selectedIds,
+        messages: msgs,
+        targetContacts: selectedContactsList
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to forward messages');
-
-      const contactCount = selectedContactIds.length;
-      toast.success(
-        `Forwarded ${messagesList.length} message${messagesList.length > 1 ? 's' : ''} to ${contactCount} contact${contactCount > 1 ? 's' : ''}`,
-        { icon: '↗' }
-      );
-
-      if (onForwardSuccess) {
-        onForwardSuccess(data);
-      }
-      onClose();
-    } catch (err) {
-      console.error('Error in forwarding:', err);
-      toast.error(err.message || 'Failed to forward');
-    } finally {
-      setIsSending(false);
     }
   };
 
@@ -264,21 +256,12 @@ export const ForwardMessageModal = ({
               </button>
               <button
                 type="button"
-                disabled={selectedContactIds.length === 0 || isSending}
+                disabled={selectedContactIds.length === 0}
                 onClick={handleForward}
-                className="inline-flex items-center gap-1.5 px-5 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs active:scale-95"
+                className="inline-flex items-center gap-1.5 px-5 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs active:scale-95 cursor-pointer"
               >
-                {isSending ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Forwarding...</span>
-                  </>
-                ) : (
-                  <>
-                    <Forward className="w-3.5 h-3.5" />
-                    <span>Send {selectedContactIds.length > 0 ? `(${selectedContactIds.length})` : ''}</span>
-                  </>
-                )}
+                <Forward className="w-3.5 h-3.5" />
+                <span>Send {selectedContactIds.length > 0 ? `(${selectedContactIds.length})` : ''}</span>
               </button>
             </div>
           </div>

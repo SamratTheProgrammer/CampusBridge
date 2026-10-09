@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw, Plus, Play, Forward, CornerUpRight, CheckSquare, Copy } from 'lucide-react';
+import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw, Plus, Play, Forward, CornerUpRight, CheckSquare, Copy, Calendar } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
@@ -41,12 +41,40 @@ const THEMES = [
   { id: 'light-sky', name: 'Sky Blue (Light)', bg: 'bg-gradient-to-b from-slate-50 via-blue-100/50 to-slate-50 dark:from-slate-950 dark:via-blue-900/10 dark:to-slate-950' }
 ];
 
+// Helper to format role names cleanly without bulky all-caps text
+const formatRoleBadge = (rawRole) => {
+  if (!rawRole) return 'Student';
+  const r = String(rawRole).toLowerCase();
+  if (r.includes('mentor')) return 'Mentor';
+  if (r.includes('alumni')) return 'Alumni';
+  if (r.includes('admin')) return 'Admin';
+  return 'Student';
+};
+
+const getRoleBadgeClasses = (role) => {
+  const formatted = formatRoleBadge(role);
+  switch (formatted) {
+    case 'Mentor':
+      return 'bg-purple-500/10 text-purple-400 dark:text-purple-300 border border-purple-500/25';
+    case 'Alumni':
+      return 'bg-amber-500/10 text-amber-500 dark:text-amber-300 border border-amber-500/25';
+    case 'Admin':
+      return 'bg-rose-500/10 text-rose-500 dark:text-rose-300 border border-rose-500/25';
+    default:
+      return 'bg-blue-500/10 text-blue-500 dark:text-blue-300 border border-blue-500/25';
+  }
+};
+
+// Global in-memory cache for ultra-fast instant thumbnail loading across messages
+const shareThumbnailCache = new Map();
+
 const SharedPostThumbnail = ({ share, onPostUnavailable }) => {
+  const cached = share?.itemId ? shareThumbnailCache.get(`post_${share.itemId}`) : null;
   const [mediaInfo, setMediaInfo] = useState({
-    imageUrl: share.imageUrl || '',
-    mediaType: share.mediaType || ''
+    imageUrl: share.imageUrl || cached?.imageUrl || '',
+    mediaType: share.mediaType || cached?.mediaType || ''
   });
-  const checkedRef = useRef(false);
+  const checkedRef = useRef(Boolean(cached));
 
   useEffect(() => {
     if (checkedRef.current || share.isDeleted) return;
@@ -86,11 +114,18 @@ const SharedPostThumbnail = ({ share, onPostUnavailable }) => {
           } else if (post.imageUrl) {
             thumb = post.imageUrl;
             type = post.mediaType || 'image';
+          } else if (post.eventDetails?.imageUrl) {
+            thumb = post.eventDetails.imageUrl;
+            type = 'image';
+          } else if (post.jobDetails?.companyLogo) {
+            thumb = post.jobDetails.companyLogo;
+            type = 'image';
           } else if (post.linkPreview?.image || post.linkPreview?.thumbnailUrl) {
             thumb = post.linkPreview.image || post.linkPreview.thumbnailUrl;
             type = 'link';
           }
           if (thumb) {
+            shareThumbnailCache.set(`post_${share.itemId}`, { imageUrl: thumb, mediaType: type });
             setMediaInfo({ imageUrl: thumb, mediaType: type });
           }
         })
@@ -99,7 +134,7 @@ const SharedPostThumbnail = ({ share, onPostUnavailable }) => {
     }
   }, [share.itemId, share.type, share.isDeleted, mediaInfo.imageUrl]);
 
-  const currentUrl = mediaInfo.imageUrl || share.imageUrl;
+  const currentUrl = mediaInfo.imageUrl || share.imageUrl || cached?.imageUrl;
   if (!currentUrl) return null;
 
   const isVideo = (mediaInfo.mediaType === 'video' || share.mediaType === 'video' || currentUrl.match(/\.(mp4|webm|mov|ogg)$/i)) && !currentUrl.match(/\.(jpg|jpeg|png|webp)$/i);
@@ -119,6 +154,7 @@ const SharedPostThumbnail = ({ share, onPostUnavailable }) => {
           src={currentUrl} 
           alt="Post preview" 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="eager"
         />
       )}
       {(mediaInfo.mediaType === 'video' || share.mediaType === 'video' || currentUrl.includes('.mp4') || currentUrl.includes('/video/')) && (
@@ -134,6 +170,50 @@ const SharedPostThumbnail = ({ share, onPostUnavailable }) => {
           </div>
         </>
       )}
+    </div>
+  );
+};
+
+const SharedEventThumbnail = ({ share }) => {
+  const cached = share?.itemId ? shareThumbnailCache.get(`event_${share.itemId}`) : null;
+  const [imageUrl, setImageUrl] = useState(share.imageUrl || cached?.imageUrl || '');
+  const checkedRef = useRef(Boolean(cached || share.imageUrl));
+
+  useEffect(() => {
+    if (checkedRef.current) return;
+    if (share.itemId) {
+      checkedRef.current = true;
+      let isMounted = true;
+      fetch(`${API_BASE}/api/events/${share.itemId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(event => {
+          if (!isMounted || !event) return;
+          const img = event.imageUrl || event.image || '';
+          if (img) {
+            shareThumbnailCache.set(`event_${share.itemId}`, { imageUrl: img });
+            setImageUrl(img);
+          }
+        })
+        .catch(() => {});
+      return () => { isMounted = false; };
+    }
+  }, [share.itemId]);
+
+  const currentUrl = imageUrl || share.imageUrl || cached?.imageUrl;
+  if (!currentUrl) return null;
+
+  return (
+    <div className="relative w-full aspect-[16/9] bg-black/80 overflow-hidden">
+      <img
+        src={currentUrl}
+        alt="Event preview"
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        loading="eager"
+      />
+      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold flex items-center gap-1 shadow-sm pointer-events-none">
+        <Calendar className="w-3 h-3 text-primary" />
+        <span>Event</span>
+      </div>
     </div>
   );
 };
@@ -223,6 +303,7 @@ const RealtimeChat = () => {
   // 3-Dots Menu & Settings State
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [activeContactMenu, setActiveContactMenu] = useState(null);
+  const [contactContextMenu, setContactContextMenu] = useState(null); // { x: number, y: number, contact: any }
   const [personToDelete, setPersonToDelete] = useState(null);
   const [chatThemeIndex, setChatThemeIndex] = useState(0);
   const [blockedUsers, setBlockedUsers] = useState(() => {
@@ -239,6 +320,7 @@ const RealtimeChat = () => {
   const [favouriteChats, setFavouriteChats] = useState(() => JSON.parse(localStorage.getItem('cb_favourite_chats') || '[]'));
   const [archivedChats, setArchivedChats] = useState(() => JSON.parse(localStorage.getItem('cb_archived_chats') || '[]'));
   const [forceUnreadChats, setForceUnreadChats] = useState(() => JSON.parse(localStorage.getItem('cb_unread_chats') || '[]'));
+  const [chatFilter, setChatFilter] = useState('all'); // 'all' | 'unread' | 'archived'
 
 
   const messagesEndRef = useRef(null);
@@ -270,6 +352,12 @@ const RealtimeChat = () => {
       }
       if (!e.target.closest('.message-floating-context-menu')) {
         setContextMenu(null);
+      }
+      if (!e.target.closest('.contact-context-menu') && !e.target.closest('.contact-menu-trigger')) {
+        setActiveContactMenu(null);
+      }
+      if (!e.target.closest('.contact-floating-context-menu')) {
+        setContactContextMenu(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -431,7 +519,12 @@ const RealtimeChat = () => {
         const res = await fetch(`${API_BASE}/api/messages/${conversationId}?userId=${user.id}`);
         if (res.ok) {
           const data = await res.json();
-          setMessages(data);
+          setMessages((prev) => {
+            const pendingOptimistic = prev.filter(
+              (m) => String(m._id).startsWith('temp_') && m.conversationId === conversationId
+            );
+            return [...data, ...pendingOptimistic];
+          });
         }
       } catch (err) {
         console.error('Error fetching message history:', err);
@@ -474,6 +567,8 @@ const RealtimeChat = () => {
               m.senderClerkId === msg.senderClerkId &&
               ((m.attachment?.url && m.attachment?.url === msg.attachment?.url) ||
                (m.type === 'audio' && msg.type === 'audio') ||
+               (m.share?.itemId && m.share?.itemId === msg.share?.itemId) ||
+               (m.isForwarded && (m.text === msg.text || m.type === msg.type)) ||
                (m.text && m.text === msg.text))
           );
           if (tempIdx !== -1) {
@@ -1119,7 +1214,15 @@ const RealtimeChat = () => {
   };
 
   // Forwarding Methods
+  const isMessageForwardable = (msg) => {
+    return Boolean(msg && !msg.isDeleted && !(msg.type === 'share' && msg.share?.isDeleted));
+  };
+
   const handleForwardSingle = (msg) => {
+    if (!isMessageForwardable(msg)) {
+      toast.error('Unavailable posts cannot be forwarded');
+      return;
+    }
     setMessagesToForward([msg]);
     setForwardModalOpen(true);
     setActiveMessageMenu(null);
@@ -1132,8 +1235,144 @@ const RealtimeChat = () => {
       toast.error('Select at least one message to forward');
       return;
     }
-    setMessagesToForward(selectedList);
+    const forwardableList = selectedList.filter(isMessageForwardable);
+    if (forwardableList.length === 0) {
+      toast.error('Unavailable posts cannot be forwarded');
+      return;
+    }
+    if (forwardableList.length < selectedList.length) {
+      toast('Unavailable posts were excluded from forwarding', { icon: 'ℹ️' });
+    }
+    setMessagesToForward(forwardableList);
     setForwardModalOpen(true);
+  };
+
+  // Forwarding Execution (WhatsApp style: Instant modal close, instant chat switch & optimistic send)
+  const handleForwardInitiated = ({ recipientClerkIds, messages: msgsToForward, targetContacts }) => {
+    const validMsgs = (msgsToForward || []).filter(isMessageForwardable);
+    if (!recipientClerkIds || recipientClerkIds.length === 0 || !validMsgs || validMsgs.length === 0) return;
+
+    // 1. If only 1 recipient is selected, navigate/switch to that contact's chat immediately (like WhatsApp)
+    const singleTargetId = recipientClerkIds.length === 1 ? recipientClerkIds[0] : null;
+    let targetContact = null;
+
+    if (singleTargetId) {
+      targetContact = contacts.find((c) => c.clerkId === singleTargetId || c.id === singleTargetId) || targetContacts?.[0];
+      if (targetContact) {
+        const currentActiveId = activeContact?.clerkId || activeContact?.id;
+        if (currentActiveId !== singleTargetId) {
+          setContacts((prev) => {
+            if (!prev.some((c) => c.clerkId === singleTargetId || c.id === singleTargetId)) {
+              return [targetContact, ...prev];
+            }
+            return prev;
+          });
+          setActiveContact(targetContact);
+          setIsMobileChatOpen(true);
+        }
+      }
+    }
+
+    const currentChatUser = targetContact || activeContact;
+    const currentChatId = currentChatUser?.clerkId || currentChatUser?.id;
+
+    // 2. Optimistically add message(s) directly into the active chat with clock (isUploading: true)
+    let optimisticMsgs = [];
+    if (currentChatId && recipientClerkIds.includes(currentChatId)) {
+      const convId = currentChatUser.conversationId || getConvId(user.id, currentChatId);
+      optimisticMsgs = validMsgs.map((m) => ({
+        _id: 'temp_fwd_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+        conversationId: convId,
+        senderClerkId: user.id,
+        recipientClerkId: currentChatId,
+        type: m.type || (m.share ? 'share' : 'text'),
+        text: m.text || '',
+        attachment: m.attachment || null,
+        share: m.share || null,
+        callInfo: m.callInfo || null,
+        isForwarded: true,
+        isUploading: true, // WhatsApp clock icon
+        createdAt: new Date().toISOString()
+      }));
+
+      setMessages((prev) => [...prev, ...optimisticMsgs]);
+    }
+
+    // 3. Update sidebar contacts last message and re-sort
+    setContacts((prev) => {
+      const firstMsg = validMsgs[0];
+      let snippet = firstMsg.text || 'Forwarded message';
+      if (firstMsg.type === 'share') snippet = `🔗 Shared ${firstMsg.share?.type || 'item'}`;
+      else if (firstMsg.attachment) snippet = `📎 ${firstMsg.attachment.name || 'Attachment'}`;
+
+      return prev.map((c) => {
+        if (recipientClerkIds.includes(c.clerkId) || recipientClerkIds.includes(c.id)) {
+          return {
+            ...c,
+            lastMessage: snippet,
+            lastMessageTime: new Date().toISOString()
+          };
+        }
+        return c;
+      }).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+    });
+
+    // 4. Exit multi-selection mode
+    exitSelectMode();
+
+    // 5. Asynchronous background send (user is already in chat watching it send!)
+    fetch(`${API_BASE}/api/messages/forward`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        senderClerkId: user.id,
+        recipientClerkIds,
+        messageIds: validMsgs.map((m) => m._id)
+      })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.messages) {
+          // Update optimistic messages to sent (clock icon disappears, checkmark appears)
+          setMessages((prev) => {
+            let updated = [...prev];
+            optimisticMsgs.forEach((tempM, idx) => {
+              const saved = data.messages.find(
+                (sm) =>
+                  sm.recipientClerkId === tempM.recipientClerkId &&
+                  (sm.text === tempM.text || sm.type === tempM.type)
+              ) || data.messages[idx];
+              if (saved) {
+                updated = updated.map((m) => (m._id === tempM._id ? saved : m));
+              } else {
+                updated = updated.map((m) => (m._id === tempM._id ? { ...m, isUploading: false } : m));
+              }
+            });
+            return updated;
+          });
+          fetchContacts();
+        } else {
+          setMessages((prev) =>
+            prev.map((m) =>
+              optimisticMsgs.some((om) => om._id === m._id)
+                ? { ...m, isUploading: false, isError: true }
+                : m
+            )
+          );
+          toast.error(data.message || 'Failed to forward');
+        }
+      })
+      .catch((err) => {
+        console.error('Error in forwarding:', err);
+        setMessages((prev) =>
+          prev.map((m) =>
+            optimisticMsgs.some((om) => om._id === m._id)
+              ? { ...m, isUploading: false, isError: true }
+              : m
+          )
+        );
+        toast.error('Failed to forward');
+      });
   };
 
   // Bulk Delete Messages
@@ -1229,37 +1468,159 @@ const RealtimeChat = () => {
     setActiveMessageMenu(null);
   };
 
-  // Block / Unblock User
-  const toggleBlockUser = async () => {
-    if (!activeContact || !user) return;
+  // Block / Unblock Contact
+  const toggleBlockContact = async (target = activeContact) => {
+    if (!target || !user) return;
+    const targetClerkId = target.clerkId || target.id;
+    if (!targetClerkId) return;
+
     try {
       const res = await fetch(`${API_BASE}/api/messages/block`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           blockerClerkId: user.id,
-          blockedClerkId: activeContact.clerkId
+          blockedClerkId: targetClerkId
         })
       });
 
       if (res.ok) {
         const data = await res.json();
         if (data.isBlocked) {
-          const updated = [...blockedUsers, activeContact.clerkId];
+          const updated = [...new Set([...blockedUsers, targetClerkId])];
           setBlockedUsers(updated);
           localStorage.setItem('campusbridge_blocked_users', JSON.stringify(updated));
-          toast.error(`Blocked ${activeContact.name}`);
+          toast.error(`Blocked ${target.name || 'User'}`);
         } else {
-          const updated = blockedUsers.filter((id) => id !== activeContact.clerkId);
+          const updated = blockedUsers.filter((id) => id !== targetClerkId);
           setBlockedUsers(updated);
           localStorage.setItem('campusbridge_blocked_users', JSON.stringify(updated));
-          toast.success(`Unblocked ${activeContact.name}`);
+          toast.success(`Unblocked ${target.name || 'User'}`);
         }
       }
     } catch (err) {
       console.error('Error toggling block:', err);
     }
     setShowMoreMenu(false);
+    setActiveContactMenu(null);
+    setContactContextMenu(null);
+  };
+
+  const toggleBlockUser = () => toggleBlockContact(activeContact);
+
+  // Toggle Archive Chat
+  const toggleArchiveChat = (contact) => {
+    if (!contact) return;
+    const id = contact.clerkId || contact.id;
+    setArchivedChats((prev) => {
+      const isArchived = prev.includes(id);
+      const next = isArchived ? prev.filter((c) => c !== id) : [...prev, id];
+      localStorage.setItem('cb_archived_chats', JSON.stringify(next));
+      toast(isArchived ? `Unarchived ${contact.name}` : `Archived ${contact.name}`, { icon: isArchived ? '📂' : '📦' });
+      return next;
+    });
+    setActiveContactMenu(null);
+    setContactContextMenu(null);
+  };
+
+  // Toggle Mute Chat
+  const toggleMuteChat = (contact) => {
+    if (!contact) return;
+    const id = contact.clerkId || contact.id;
+    setMutedChats((prev) => {
+      const isMuted = prev.includes(id);
+      const next = isMuted ? prev.filter((c) => c !== id) : [...prev, id];
+      localStorage.setItem('cb_muted_chats', JSON.stringify(next));
+      toast(isMuted ? `Unmuted notifications for ${contact.name}` : `Muted notifications for ${contact.name}`, { icon: isMuted ? '🔔' : '🔕' });
+      return next;
+    });
+    setActiveContactMenu(null);
+    setContactContextMenu(null);
+  };
+
+  // Toggle Pin Chat
+  const togglePinChat = (contact) => {
+    if (!contact) return;
+    const id = contact.clerkId || contact.id;
+    setPinnedChats((prev) => {
+      const isPinned = prev.includes(id);
+      const next = isPinned ? prev.filter((c) => c !== id) : [...prev, id];
+      localStorage.setItem('cb_pinned_chats', JSON.stringify(next));
+      toast(isPinned ? `Unpinned ${contact.name}` : `Pinned ${contact.name} to top`, { icon: '📌' });
+      return next;
+    });
+    setActiveContactMenu(null);
+    setContactContextMenu(null);
+  };
+
+  // Toggle Mark Unread
+  const toggleMarkUnread = (contact) => {
+    if (!contact) return;
+    const id = contact.clerkId || contact.id;
+    setForceUnreadChats((prev) => {
+      const isForced = prev.includes(id);
+      const isUnread = isForced || (contact.unread > 0);
+      let next;
+      if (isUnread) {
+        // Marking as read
+        next = prev.filter((c) => c !== id);
+        if (contact.unread > 0) {
+          setContacts((contactsList) =>
+            contactsList.map((c) =>
+              c.clerkId === id || c.id === id ? { ...c, unread: 0 } : c
+            )
+          );
+        }
+        toast(`Marked ${contact.name} as read`, { icon: '✉️' });
+      } else {
+        // Marking as unread
+        next = [...prev, id];
+        toast(`Marked ${contact.name} as unread`, { icon: '📩' });
+      }
+      localStorage.setItem('cb_unread_chats', JSON.stringify(next));
+      return next;
+    });
+    setActiveContactMenu(null);
+    setContactContextMenu(null);
+  };
+
+  // Desktop Right-Click Contact Context Menu handler
+  const handleContactContextMenu = (e, contact) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const menuWidth = 210;
+    const menuHeight = 310;
+    const x = Math.max(10, Math.min(e.clientX, window.innerWidth - menuWidth - 16));
+    const y = Math.max(10, Math.min(e.clientY, window.innerHeight - menuHeight - 16));
+
+    setContactContextMenu({ x, y, contact });
+    setActiveContactMenu(null);
+    setContextMenu(null);
+  };
+
+  // Contact 3-Dot Button handler (opens floating context menu anchored to button)
+  const handleContactThreeDotClick = (e, contact) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const menuWidth = 210;
+    const menuHeight = 310;
+    let x = rect.right - menuWidth;
+    if (x < 10) x = 10;
+    if (x + menuWidth > window.innerWidth - 10) {
+      x = window.innerWidth - menuWidth - 10;
+    }
+
+    let y = rect.bottom + 4;
+    if (y + menuHeight > window.innerHeight - 10) {
+      y = Math.max(10, rect.top - menuHeight - 4);
+    }
+
+    setContactContextMenu({ x, y, contact });
+    setActiveContactMenu(null);
+    setContextMenu(null);
   };
 
   // Change Theme
@@ -1472,19 +1833,64 @@ const RealtimeChat = () => {
   };
 
   // View Profile
-  const viewPartnerProfile = () => {
-    if (!activeContact) return;
-    navigate(`/profile/${activeContact.username || activeContact.clerkId}`);
+  const viewContactProfile = (contact) => {
+    if (!contact) return;
+    const profileId = contact.username || contact.clerkId || contact.id;
+    if (profileId) {
+      navigate(`/profile/${profileId}`);
+    }
     setShowMoreMenu(false);
+    setActiveContactMenu(null);
+    setContactContextMenu(null);
   };
+
+  const viewPartnerProfile = () => viewContactProfile(activeContact);
 
   const isCurrentPartnerBlocked = activeContact && blockedUsers.includes(activeContact.clerkId);
   const currentTheme = THEMES[chatThemeIndex];
 
-  const filteredContacts = contacts.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.role?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Calculate total counts for filter badges
+  const unreadCountTotal = contacts.filter((c) => {
+    const cId = c.clerkId || c.id;
+    return (c.unread > 0 || forceUnreadChats.includes(cId)) && !archivedChats.includes(cId);
+  }).length;
+
+  const archivedCountTotal = contacts.filter((c) => {
+    const cId = c.clerkId || c.id;
+    return archivedChats.includes(cId);
+  }).length;
+
+  const filteredContacts = contacts
+    .filter((c) => {
+      const cId = c.clerkId || c.id;
+      const isArchived = archivedChats.includes(cId);
+      const isUnread = c.unread > 0 || forceUnreadChats.includes(cId);
+      const query = searchQuery.trim().toLowerCase();
+
+      const matchesSearch = !query ||
+        c.name?.toLowerCase().includes(query) ||
+        c.role?.toLowerCase().includes(query);
+
+      if (!matchesSearch) return false;
+
+      if (query) {
+        if (chatFilter === 'archived') return isArchived;
+        if (chatFilter === 'unread') return isUnread;
+        return true;
+      }
+
+      if (chatFilter === 'archived') return isArchived;
+      if (chatFilter === 'unread') return isUnread;
+      return !isArchived;
+    })
+    .sort((a, b) => {
+      const aId = a.clerkId || a.id;
+      const bId = b.clerkId || b.id;
+      const aPinned = pinnedChats.includes(aId) ? 1 : 0;
+      const bPinned = pinnedChats.includes(bId) ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      return 0;
+    });
 
   const formatMessageTime = (dateString) => {
     if (!dateString) return '';
@@ -1498,7 +1904,7 @@ const RealtimeChat = () => {
       {/* Left Contacts Sidebar */}
       <div className={`w-full max-w-full min-w-0 md:w-72 lg:w-80 xl:w-96 border-r border-border/40 flex-col h-full bg-card shrink-0 ${activeContact && isMobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border/40">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-xl font-bold text-foreground">Chat with anyone</h2>
           </div>
           <div className="relative">
@@ -1510,6 +1916,58 @@ const RealtimeChat = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-muted/40 border border-border/50 rounded-xl focus:outline-none focus:border-primary text-sm text-foreground placeholder:text-muted-foreground transition-all"
             />
+          </div>
+
+          {/* Filter Pills: All / Unread / Archived */}
+          <div className="flex items-center gap-1.5 mt-3 overflow-x-auto no-scrollbar">
+            <button
+              type="button"
+              onClick={() => setChatFilter('all')}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                chatFilter === 'all'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setChatFilter('unread')}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                chatFilter === 'unread'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <span>Unread</span>
+              {unreadCountTotal > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  chatFilter === 'unread' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary text-primary-foreground'
+                }`}>
+                  {unreadCountTotal}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setChatFilter('archived')}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                chatFilter === 'archived'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <Archive className="w-3 h-3" />
+              <span>Archived</span>
+              {archivedCountTotal > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  chatFilter === 'archived' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'
+                }`}>
+                  {archivedCountTotal}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -1523,27 +1981,42 @@ const RealtimeChat = () => {
             </div>
           ) : filteredContacts.length > 0 ? (
             filteredContacts.map((contact) => {
+              const cId = contact.clerkId || contact.id;
               const isActive = activeContact?.clerkId === contact.clerkId || activeContact?.id === contact.id;
               const isBlocked = blockedUsers.includes(contact.clerkId) || blockedUsers.includes(contact.id);
               const isContactOnline = onlineUsers.includes(contact.clerkId) || onlineUsers.includes(contact.id) || onlineUsers.includes(contact._id);
+              const isPinned = pinnedChats.includes(cId);
+              const isMuted = mutedChats.includes(cId);
+              const isArchived = archivedChats.includes(cId);
+              const isUnread = (contact.unread > 0) || forceUnreadChats.includes(cId);
               const roleTag = (contact.userRole || (contact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase();
 
               return (
                 <div
-                  key={contact.clerkId}
+                  key={cId}
+                  onContextMenu={(e) => handleContactContextMenu(e, contact)}
                   onClick={() => {
-                    if (contact.unread > 0) {
-                      const unreadCount = contact.unread;
+                    if (contact.unread > 0 || forceUnreadChats.includes(cId)) {
+                      const unreadCount = contact.unread || 0;
                       setContacts((prev) =>
                         prev.map((c) =>
                           c.clerkId === contact.clerkId || c.id === contact.id ? { ...c, unread: 0 } : c
                         )
                       );
-                      window.dispatchEvent(
-                        new CustomEvent('campusbridge:messages_read', {
-                          detail: { conversationId: contact.conversationId, count: unreadCount, userId: user.id }
-                        })
-                      );
+                      if (forceUnreadChats.includes(cId)) {
+                        setForceUnreadChats((prev) => {
+                          const next = prev.filter((id) => id !== cId);
+                          localStorage.setItem('cb_unread_chats', JSON.stringify(next));
+                          return next;
+                        });
+                      }
+                      if (unreadCount > 0) {
+                        window.dispatchEvent(
+                          new CustomEvent('campusbridge:messages_read', {
+                            detail: { conversationId: contact.conversationId, count: unreadCount, userId: user.id }
+                          })
+                        );
+                      }
                     }
                     const currentActiveId = activeContactRef.current?.clerkId || activeContactRef.current?.id;
                     const targetId = contact.clerkId || contact.id;
@@ -1577,74 +2050,94 @@ const RealtimeChat = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline mb-1">
                       <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <h4 className={`font-semibold text-sm truncate ${contact.unread > 0 ? 'text-foreground font-bold' : 'text-foreground/90'}`}>
+                        <h4 className={`font-semibold text-sm truncate ${isUnread ? 'text-foreground font-bold' : 'text-foreground/90'}`}>
                           {contact.name}
                         </h4>
-                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
-                          roleTag === 'mentor'
-                            ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
-                            : roleTag === 'alumni'
-                            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                            : roleTag === 'admin'
-                            ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                            : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                        }`}>
-                          {roleTag}
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 tracking-tight leading-none ${getRoleBadgeClasses(roleTag)}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            formatRoleBadge(roleTag) === 'Mentor' ? 'bg-purple-400' :
+                            formatRoleBadge(roleTag) === 'Alumni' ? 'bg-amber-400' :
+                            formatRoleBadge(roleTag) === 'Admin' ? 'bg-rose-400' : 'bg-blue-400'
+                          }`} />
+                          {formatRoleBadge(roleTag)}
                         </span>
-                        {isBlocked && <Ban className="w-3 h-3 text-red-500 shrink-0" title="Blocked" />}
+                        {isPinned && (
+                          <span title="Pinned to top" className="inline-flex items-center text-amber-500 shrink-0">
+                            <Pin className="w-3 h-3 fill-amber-500/20 rotate-45" />
+                          </span>
+                        )}
+                        {isMuted && (
+                          <span title="Notifications muted" className="inline-flex items-center text-muted-foreground shrink-0">
+                            <BellOff className="w-3 h-3" />
+                          </span>
+                        )}
+                        {isArchived && (
+                          <span className="text-[9px] bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 px-1.5 py-0.5 rounded-full font-medium shrink-0 flex items-center gap-0.5">
+                            <Archive className="w-2.5 h-2.5" /> Archived
+                          </span>
+                        )}
+                        {isBlocked && (
+                          <span className="text-[9px] bg-red-500/15 text-red-500 border border-red-500/25 px-1.5 py-0.5 rounded-full font-medium shrink-0 flex items-center gap-0.5">
+                            <Ban className="w-2.5 h-2.5" /> Blocked
+                          </span>
+                        )}
                       </div>
                       {contact.lastMessageTime && (
-                        <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
+                        <span className={`text-[10px] shrink-0 ml-1 ${isUnread ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
                           {formatMessageTime(contact.lastMessageTime)}
                         </span>
                       )}
                     </div>
-                    <p className={`text-xs truncate ${contact.unread > 0 ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
-                      {isBlocked ? 'User is blocked' : contact.lastMessage}
-                    </p>
-                  </div>
-                  {contact.unread > 0 && !isBlocked && (
-                    <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 animate-bounce">
-                      {contact.unread}
-                    </span>
-                  )}
-                  
-                  {/* Hover 3-dot menu */}
-                  <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveContactMenu(activeContactMenu === contact.clerkId ? null : contact.clerkId);
-                      }}
-                      className="p-1 rounded-full bg-background border border-border/50 text-muted-foreground hover:text-foreground shadow-md hover:bg-muted"
-                    >
-                      <MoreVertical className="w-3.5 h-3.5" />
-                    </button>
-                    {activeContactMenu === contact.clerkId && (
-                      <div 
-                        className="absolute right-0 top-full mt-1 w-36 bg-card border border-border/60 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-xs truncate flex-1 ${isUnread ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
+                        {isBlocked ? 'User is blocked' : contact.lastMessage}
+                      </p>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isUnread && !isBlocked && (
+                          <span className="bg-primary text-primary-foreground text-[10px] font-bold min-w-5 h-5 px-1.5 rounded-full shrink-0 flex items-center justify-center animate-pulse">
+                            {contact.unread > 0 ? contact.unread : '•'}
+                          </span>
+                        )}
+                        {/* 3-dot trigger button */}
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteChatPerson(contact);
+                          type="button"
+                          onClick={(e) => handleContactThreeDotClick(e, contact)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            handleContactThreeDotClick(e, contact);
                           }}
-                          className="w-full px-3 py-1.5 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                          className="contact-menu-trigger p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                          title="Chat options"
                         >
-                          <UserX className="w-3.5 h-3.5" /> Delete
+                          <MoreVertical className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               );
             })
           ) : (
             <div className="p-8 text-center text-muted-foreground space-y-2">
-              <MessageSquare className="w-8 h-8 mx-auto opacity-40" />
-              <p className="text-sm font-medium">No active conversations</p>
-              <p className="text-xs text-muted-foreground">Connect with mentors or mentees to start chatting!</p>
+              {chatFilter === 'archived' ? (
+                <>
+                  <Archive className="w-8 h-8 mx-auto opacity-40 text-indigo-400" />
+                  <p className="text-sm font-medium">No archived conversations</p>
+                  <p className="text-xs text-muted-foreground">Conversations you archive will appear here.</p>
+                </>
+              ) : chatFilter === 'unread' ? (
+                <>
+                  <MailOpen className="w-8 h-8 mx-auto opacity-40 text-emerald-400" />
+                  <p className="text-sm font-medium">No unread conversations</p>
+                  <p className="text-xs text-muted-foreground">You are all caught up!</p>
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="w-8 h-8 mx-auto opacity-40" />
+                  <p className="text-sm font-medium">No active conversations</p>
+                  <p className="text-xs text-muted-foreground">Connect with mentors or mentees to start chatting!</p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -1718,16 +2211,13 @@ const RealtimeChat = () => {
                 <div className="min-w-0">
                   <h3 className="font-bold text-foreground text-sm flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
                     <span className="truncate">{activeContact.name}</span>
-                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
-                      (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'mentor'
-                        ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
-                        : (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'alumni'
-                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                        : (activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')).toLowerCase() === 'admin'
-                        ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                        : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                    }`}>
-                      {activeContact.userRole || (activeContact.role?.toLowerCase().includes('mentor') ? 'mentor' : 'student')}
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 tracking-tight leading-none ${getRoleBadgeClasses(activeContact.userRole || activeContact.role)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        formatRoleBadge(activeContact.userRole || activeContact.role) === 'Mentor' ? 'bg-purple-400' :
+                        formatRoleBadge(activeContact.userRole || activeContact.role) === 'Alumni' ? 'bg-amber-400' :
+                        formatRoleBadge(activeContact.userRole || activeContact.role) === 'Admin' ? 'bg-rose-400' : 'bg-blue-400'
+                      }`} />
+                      {formatRoleBadge(activeContact.userRole || activeContact.role)}
                     </span>
                     {isCurrentPartnerBlocked && <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full font-medium shrink-0">Blocked</span>}
                   </h3>
@@ -1791,6 +2281,46 @@ const RealtimeChat = () => {
                       >
                         <User className="w-3.5 h-3.5 text-primary" /> View Profile
                       </button>
+                      {(() => {
+                        const targetId = activeContact?.clerkId || activeContact?.id;
+                        const isPinned = pinnedChats.includes(targetId);
+                        const isMuted = mutedChats.includes(targetId);
+                        const isArchived = archivedChats.includes(targetId);
+                        return (
+                          <>
+                            <button
+                              onClick={() => {
+                                togglePinChat(activeContact);
+                                setShowMoreMenu(false);
+                              }}
+                              className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              {isPinned ? <PinOff className="w-3.5 h-3.5 text-amber-500" /> : <Pin className="w-3.5 h-3.5 text-amber-500" />}
+                              {isPinned ? 'Unpin Chat' : 'Pin to Top'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                toggleMuteChat(activeContact);
+                                setShowMoreMenu(false);
+                              }}
+                              className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              {isMuted ? <Bell className="w-3.5 h-3.5 text-blue-500" /> : <BellOff className="w-3.5 h-3.5 text-blue-500" />}
+                              {isMuted ? 'Unmute Notifications' : 'Mute Notifications'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                toggleArchiveChat(activeContact);
+                                setShowMoreMenu(false);
+                              }}
+                              className="w-full px-4 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              {isArchived ? <ArchiveRestore className="w-3.5 h-3.5 text-indigo-500" /> : <Archive className="w-3.5 h-3.5 text-indigo-500" />}
+                              {isArchived ? 'Unarchive Chat' : 'Archive Chat'}
+                            </button>
+                          </>
+                        );
+                      })()}
                       <button
                         onClick={() => {
                           setShowMoreMenu(false);
@@ -2024,7 +2554,7 @@ const RealtimeChat = () => {
                                   <Reply className="w-3.5 h-3.5 text-primary" /> Reply
                                 </button>
                               )}
-                              {!msg.isDeleted && (
+                              {isMessageForwardable(msg) && (
                                 <button onClick={(e) => { e.stopPropagation(); handleForwardSingle(msg); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
                                   <Forward className="w-3.5 h-3.5 text-emerald-500" /> Forward
                                 </button>
@@ -2260,8 +2790,55 @@ const RealtimeChat = () => {
                                           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                                         </div>
                                       </div>
+                                    ) : msg.share.type === 'event' ? (
+                                      /* Rich Event / Hackathon Share Card */
+                                      <div className="flex flex-col">
+                                        {/* Event Header */}
+                                        <div className={`flex items-center gap-2 px-3 py-2 border-b text-xs ${
+                                          isMe ? 'border-primary-foreground/15 bg-primary-foreground/5' : 'border-border/40 bg-muted/30'
+                                        }`}>
+                                          <div className={`w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                                            isMe ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/20 text-primary'
+                                          }`}>
+                                            <Calendar className="w-3 h-3" />
+                                          </div>
+                                          <span className="font-semibold truncate flex-1 text-xs">
+                                            {msg.share.title || 'Event / Hackathon'}
+                                          </span>
+                                          <span className="text-[10px] uppercase font-bold tracking-wider opacity-75">
+                                            Event
+                                          </span>
+                                        </div>
+
+                                        {/* Event Media / Poster Thumbnail */}
+                                        <SharedEventThumbnail share={msg.share} />
+
+                                        {/* Event Content / Details */}
+                                        {(msg.share.title || msg.share.description) && (
+                                          <div className="px-3 pt-2 pb-1.5 flex flex-col gap-0.5">
+                                            {msg.share.title && (
+                                              <p className="text-xs font-bold truncate">
+                                                {msg.share.title}
+                                              </p>
+                                            )}
+                                            {msg.share.description && (
+                                              <p className="text-[11px] line-clamp-2 leading-relaxed opacity-85">
+                                                {msg.share.description}
+                                              </p>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* Footer Action */}
+                                        <div className={`flex items-center justify-between px-3 py-2 border-t text-xs font-semibold ${
+                                          isMe ? 'border-primary-foreground/15 text-primary-foreground' : 'border-border/40 text-primary'
+                                        }`}>
+                                          <span>View Event</span>
+                                          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                        </div>
+                                      </div>
                                     ) : (
-                                    /* Profile, Job, Event Share Card */
+                                    /* Profile, Job Share Card */
                                     <div className="p-3 sm:p-3.5 flex flex-col gap-2">
                                       <div className="flex items-center gap-3">
                                         <div className={`p-2.5 rounded-xl shrink-0 ${isMe ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/10 text-primary'}`}>
@@ -2800,7 +3377,7 @@ const RealtimeChat = () => {
                   <Reply className="w-3.5 h-3.5 text-primary" /> Reply
                 </button>
               )}
-              {!contextMenu.message.isDeleted && (
+              {isMessageForwardable(contextMenu.message) && (
                 <button
                   onClick={() => {
                     handleForwardSingle(contextMenu.message);
@@ -2852,6 +3429,189 @@ const RealtimeChat = () => {
                 className="w-full px-3.5 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5 text-red-500" /> Delete
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Floating Contact Context Menu (Right Click & 3-Dot) */}
+      {contactContextMenu && contactContextMenu.contact && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-[150] bg-transparent"
+            onClick={() => setContactContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContactContextMenu(null);
+            }}
+          >
+            <div
+              className="contact-floating-context-menu absolute w-52 bg-card/95 backdrop-blur-md border border-border/70 rounded-2xl shadow-2xl py-1.5 z-[151] animate-in fade-in zoom-in-95 duration-100"
+              style={{ left: contactContextMenu.x, top: contactContextMenu.y }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Contact Info Header */}
+              <div className="px-3.5 py-2 border-b border-border/40 mb-1 flex items-center gap-2.5">
+                {contactContextMenu.contact.image ? (
+                  <img
+                    src={contactContextMenu.contact.image}
+                    alt=""
+                    className="w-7 h-7 rounded-full object-cover border border-border/50 shrink-0"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-muted border border-border/50 flex items-center justify-center shrink-0">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-xs text-foreground truncate">
+                    {contactContextMenu.contact.name}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground capitalize truncate">
+                    {formatRoleBadge(contactContextMenu.contact.userRole || contactContextMenu.contact.role)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Pin / Unpin */}
+              {(() => {
+                const cId = contactContextMenu.contact.clerkId || contactContextMenu.contact.id;
+                const isPinned = pinnedChats.includes(cId);
+                return (
+                  <button
+                    onClick={() => togglePinChat(contactContextMenu.contact)}
+                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    {isPinned ? (
+                      <>
+                        <PinOff className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Unpin Chat</span>
+                      </>
+                    ) : (
+                      <>
+                        <Pin className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Pin to Top</span>
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
+
+              {/* Mute / Unmute Notifications */}
+              {(() => {
+                const cId = contactContextMenu.contact.clerkId || contactContextMenu.contact.id;
+                const isMuted = mutedChats.includes(cId);
+                return (
+                  <button
+                    onClick={() => toggleMuteChat(contactContextMenu.contact)}
+                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    {isMuted ? (
+                      <>
+                        <Bell className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Unmute Notifications</span>
+                      </>
+                    ) : (
+                      <>
+                        <BellOff className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Mute Notifications</span>
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
+
+              {/* Archive / Unarchive */}
+              {(() => {
+                const cId = contactContextMenu.contact.clerkId || contactContextMenu.contact.id;
+                const isArchived = archivedChats.includes(cId);
+                return (
+                  <button
+                    onClick={() => toggleArchiveChat(contactContextMenu.contact)}
+                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    {isArchived ? (
+                      <>
+                        <ArchiveRestore className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Unarchive Chat</span>
+                      </>
+                    ) : (
+                      <>
+                        <Archive className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Archive Chat</span>
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
+
+              {/* Mark as Read / Unread */}
+              {(() => {
+                const cId = contactContextMenu.contact.clerkId || contactContextMenu.contact.id;
+                const isUnread = contactContextMenu.contact.unread > 0 || forceUnreadChats.includes(cId);
+                return (
+                  <button
+                    onClick={() => toggleMarkUnread(contactContextMenu.contact)}
+                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    {isUnread ? (
+                      <>
+                        <MailOpen className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Mark as Read</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Mark as Unread</span>
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
+
+              {/* View Profile */}
+              <button
+                onClick={() => viewContactProfile(contactContextMenu.contact)}
+                className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5 text-purple-500" />
+                <span>View Profile</span>
+              </button>
+
+              <div className="border-t border-border/40 my-1" />
+
+              {/* Block / Unblock User */}
+              {(() => {
+                const cId = contactContextMenu.contact.clerkId || contactContextMenu.contact.id;
+                const isBlocked = blockedUsers.includes(cId);
+                return (
+                  <button
+                    onClick={() => toggleBlockContact(contactContextMenu.contact)}
+                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    {isBlocked ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Unblock User</span>
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="w-3.5 h-3.5 text-red-500" />
+                        <span className="text-red-500">Block User</span>
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
+
+              {/* Delete Chat */}
+              <button
+                onClick={() => deleteChatPerson(contactContextMenu.contact)}
+                className="w-full px-3.5 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                <span>Delete Chat</span>
               </button>
             </div>
           </div>
@@ -2913,10 +3673,8 @@ const RealtimeChat = () => {
         onClose={() => setForwardModalOpen(false)}
         messages={messagesToForward}
         currentUserId={user?.id}
-        onForwardSuccess={() => {
-          exitSelectMode();
-          fetchContacts();
-        }}
+        initialContacts={contacts}
+        onForwardInitiated={handleForwardInitiated}
       />
     </div>
   );

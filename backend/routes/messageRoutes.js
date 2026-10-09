@@ -229,38 +229,120 @@ router.get('/:conversationId', async (req, res) => {
 
     const cleanMessages = messages.filter((m) => !isCallLogDuplicateText(m));
 
-    // Check if any shared posts in this conversation have been deleted
-    const postShares = cleanMessages.filter(
-      (m) => m.type === 'share' && m.share?.type === 'post' && m.share?.itemId && !m.share?.isDeleted
+    // Check and enrich shared posts and events in this conversation
+    const shareMessages = cleanMessages.filter(
+      (m) => m.type === 'share' && m.share?.itemId && !m.share?.isDeleted
     );
 
-    if (postShares.length > 0) {
-      const postIds = postShares
-        .map((m) => m.share.itemId)
-        .filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (shareMessages.length > 0) {
+      const postShares = shareMessages.filter((m) => m.share.type === 'post');
+      const eventShares = shareMessages.filter((m) => m.share.type === 'event');
 
-      if (postIds.length > 0) {
-        const existingPosts = await Post.find({ _id: { $in: postIds } }, '_id');
-        const existingIdSet = new Set(existingPosts.map((p) => p._id.toString()));
+      if (postShares.length > 0) {
+        const postIds = postShares
+          .map((m) => m.share.itemId)
+          .filter((id) => mongoose.Types.ObjectId.isValid(id));
 
-        const missingIds = [];
-        cleanMessages.forEach((m) => {
-          if (m.type === 'share' && m.share?.type === 'post' && m.share?.itemId) {
+        if (postIds.length > 0) {
+          const existingPosts = await Post.find(
+            { _id: { $in: postIds } },
+            '_id imageUrl mediaFiles eventDetails jobDetails linkPreview moderationStatus isDeleted content authorClerkId'
+          );
+          const postMap = new Map(existingPosts.map((p) => [p._id.toString(), p]));
+
+          const missingIds = [];
+          for (const m of postShares) {
             const idStr = m.share.itemId.toString();
-            if (!existingIdSet.has(idStr)) {
+            const post = postMap.get(idStr);
+
+            if (!post || post.isDeleted || post.moderationStatus === 'deleted') {
               if (!m.share.isDeleted) {
                 m.share.isDeleted = true;
                 missingIds.push(m.share.itemId);
               }
+            } else {
+              let updatedShare = false;
+              if (!m.share.imageUrl) {
+                let img = '';
+                let mType = 'image';
+                if (post.mediaFiles && post.mediaFiles.length > 0) {
+                  const first = post.mediaFiles[0];
+                  const isVid = first.mediaType === 'video' || (first.url && first.url.match(/\.(mp4|webm|mov|ogg)$/i));
+                  mType = isVid ? 'video' : (first.mediaType || 'image');
+                  img = first.thumbnailUrl || first.url || '';
+                } else if (post.imageUrl) {
+                  img = post.imageUrl;
+                  mType = post.mediaType || 'image';
+                } else if (post.eventDetails?.imageUrl) {
+                  img = post.eventDetails.imageUrl;
+                  mType = 'image';
+                } else if (post.jobDetails?.companyLogo) {
+                  img = post.jobDetails.companyLogo;
+                  mType = 'image';
+                } else if (post.linkPreview?.image || post.linkPreview?.thumbnailUrl) {
+                  img = post.linkPreview.image || post.linkPreview.thumbnailUrl;
+                  mType = 'link';
+                }
+
+                if (img) {
+                  m.share.imageUrl = img;
+                  m.share.mediaType = mType;
+                  updatedShare = true;
+                }
+              }
+
+              if (!m.share.title && post.eventDetails?.title) {
+                m.share.title = `${post.eventDetails.type || 'Event'}: ${post.eventDetails.title}`;
+                updatedShare = true;
+              }
+
+              if (updatedShare) {
+                Message.updateOne({ _id: m._id }, { $set: { share: m.share } }).catch(() => {});
+              }
             }
           }
-        });
 
-        if (missingIds.length > 0) {
-          Message.updateMany(
-            { type: 'share', 'share.itemId': { $in: missingIds } },
-            { $set: { 'share.isDeleted': true } }
-          ).catch(() => {});
+          if (missingIds.length > 0) {
+            Message.updateMany(
+              { type: 'share', 'share.itemId': { $in: missingIds } },
+              { $set: { 'share.isDeleted': true } }
+            ).catch(() => {});
+          }
+        }
+      }
+
+      if (eventShares.length > 0) {
+        const eventIds = eventShares
+          .map((m) => m.share.itemId)
+          .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+        if (eventIds.length > 0) {
+          const existingEvents = await Event.find(
+            { _id: { $in: eventIds } },
+            '_id title name imageUrl image date type location active moderationStatus'
+          );
+          const eventMap = new Map(existingEvents.map((e) => [e._id.toString(), e]));
+
+          for (const m of eventShares) {
+            const idStr = m.share.itemId.toString();
+            const event = eventMap.get(idStr);
+
+            if (event) {
+              let updatedShare = false;
+              if (!m.share.imageUrl && (event.imageUrl || event.image)) {
+                m.share.imageUrl = event.imageUrl || event.image;
+                m.share.mediaType = 'image';
+                updatedShare = true;
+              }
+              if (!m.share.title && (event.title || event.name)) {
+                m.share.title = event.title || event.name;
+                updatedShare = true;
+              }
+              if (updatedShare) {
+                Message.updateOne({ _id: m._id }, { $set: { share: m.share } }).catch(() => {});
+              }
+            }
+          }
         }
       }
     }
@@ -518,9 +600,32 @@ router.post('/forward', async (req, res) => {
       return res.status(400).json({ message: 'Missing sender, recipients, or messageIds' });
     }
 
-    const messages = await Message.find({ _id: { $in: messageIds } }).sort({ createdAt: 1 });
-    if (!messages || messages.length === 0) {
+    const rawMessages = await Message.find({ _id: { $in: messageIds } }).sort({ createdAt: 1 });
+    if (!rawMessages || rawMessages.length === 0) {
       return res.status(404).json({ message: 'No messages found to forward' });
+    }
+
+    // Filter out deleted messages and unavailable posts
+    const messages = [];
+    for (const m of rawMessages) {
+      if (m.isDeleted) continue;
+      if (m.type === 'share' && m.share) {
+        if (m.share.isDeleted) continue;
+        if (m.share.type === 'post' && m.share.itemId) {
+          try {
+            const postDoc = await Post.findById(m.share.itemId).select('isDeleted moderationStatus');
+            if (!postDoc || postDoc.isDeleted || postDoc.moderationStatus === 'deleted') {
+              continue;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+      messages.push(m);
+    }
+    if (messages.length === 0) {
+      return res.status(400).json({ message: 'Unavailable or deleted posts cannot be forwarded' });
     }
 
     const io = req.app?.get('io') || req.io;
@@ -543,7 +648,7 @@ router.post('/forward', async (req, res) => {
       const conversationId = Message.getConversationId(senderClerkId, recipientId);
 
       for (const msg of messages) {
-        if (msg.isDeleted) continue;
+        if (msg.isDeleted || (msg.type === 'share' && msg.share?.isDeleted)) continue;
 
         const newMsg = new Message({
           conversationId,
@@ -785,8 +890,21 @@ router.post('/share', async (req, res) => {
             : 'User';
           authorAvatar = authorUser?.imageUrl || authorUser?.photoUrl || '';
 
-          title = authorName ? `${authorName}'s Post` : 'Post';
-          description = post.content ? (post.content.substring(0, 140) + (post.content.length > 140 ? '...' : '')) : '';
+          const isEventPost = Boolean(post.eventDetails?.title || post.eventDetails?.type);
+          const isJobPost = Boolean(post.jobDetails?.title || post.jobDetails?.company);
+
+          if (isEventPost) {
+            const eventType = post.eventDetails.type || 'Event';
+            title = post.eventDetails.title ? `${eventType}: ${post.eventDetails.title}` : (authorName ? `${authorName}'s ${eventType}` : eventType);
+            const dateStr = post.eventDetails.date ? new Date(post.eventDetails.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            description = post.content || `${dateStr}${post.eventDetails.location ? ' • ' + post.eventDetails.location : ''}`;
+          } else if (isJobPost) {
+            title = `${post.jobDetails.title} at ${post.jobDetails.company}`;
+            description = post.content || `${post.jobDetails.location || ''} • ${post.jobDetails.role || ''}`;
+          } else {
+            title = authorName ? `${authorName}'s Post` : 'Post';
+            description = post.content ? (post.content.substring(0, 140) + (post.content.length > 140 ? '...' : '')) : '';
+          }
 
           // Extract media thumbnail
           if (post.mediaFiles && post.mediaFiles.length > 0) {
@@ -807,6 +925,12 @@ router.post('/share', async (req, res) => {
           } else if (post.imageUrl) {
             imageUrl = post.imageUrl;
             mediaType = post.mediaType || 'image';
+          } else if (post.eventDetails?.imageUrl) {
+            imageUrl = post.eventDetails.imageUrl;
+            mediaType = 'image';
+          } else if (post.jobDetails?.companyLogo) {
+            imageUrl = post.jobDetails.companyLogo;
+            mediaType = 'image';
           } else if (post.linkPreview?.image || post.linkPreview?.thumbnailUrl) {
             imageUrl = post.linkPreview.image || post.linkPreview.thumbnailUrl;
             mediaType = 'link';
@@ -825,16 +949,19 @@ router.post('/share', async (req, res) => {
         const job = await Job.findById(itemId);
         if (job) {
           title = job.title;
-          description = `${job.company} • ${job.location}`;
-          imageUrl = job.companyLogo;
+          description = `${job.company || ''}${job.location ? ' • ' + job.location : ''}`;
+          imageUrl = job.companyLogo || job.logo || '';
+          mediaType = 'image';
         }
       } else if (shareType === 'event') {
         isOtherAuthor = true;
         const event = await Event.findById(itemId);
         if (event) {
-          title = event.name;
-          description = `${new Date(event.date).toLocaleDateString()} • ${event.type}`;
-          imageUrl = event.image;
+          title = event.title || event.name || 'Event';
+          const eventDateStr = event.date ? new Date(event.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+          description = `${eventDateStr}${event.type ? ' • ' + event.type : ''}${event.location ? ' • ' + event.location : ''}`;
+          imageUrl = event.imageUrl || event.image || '';
+          mediaType = 'image';
         }
       } else if (shareType === 'profile') {
         if (itemId !== senderClerkId) {
