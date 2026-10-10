@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw, Plus, Play, Forward, CornerUpRight, CheckSquare, Copy, Calendar } from 'lucide-react';
+import { Search, Send, Phone, Video, MoreVertical, MessageSquare, Loader2, Circle, Check, CheckCheck, Smile, Ban, Palette, Trash2, User, UserX, ShieldAlert, Paperclip, X, Reply, Download, FileText, Eye, FileDown, Edit2, Archive, ArchiveRestore, BellOff, Bell, Pin, PinOff, Mail, MailOpen, Heart, HeartOff, Share2, Mic, Square, Clock, AlertCircle, ArrowRight, UserPlus, RotateCcw, Plus, Play, Forward, CornerUpRight, CheckSquare, Copy, Calendar, Image as ImageIcon, Camera, Headphones } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { socket } from '../services/socket';
@@ -16,6 +16,8 @@ import AudioPlayerWidget from './common/AudioPlayerWidget';
 import ExportChatModal from './modals/ExportChatModal';
 import ShareProfileInChatModal from './modals/ShareProfileInChatModal';
 import ForwardMessageModal from './modals/ForwardMessageModal';
+import CameraCaptureModal from './modals/CameraCaptureModal';
+import { compressImageWhatsAppStyle } from '../utils/imageCompressor';
 
 const formatMessageDateSeparator = (dateString) => {
   if (!dateString) return '';
@@ -259,6 +261,7 @@ const RealtimeChat = () => {
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShareProfileModalOpen, setIsShareProfileModalOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   // Multi-Selection, Forwarding & Context Menu State (WhatsApp-style)
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -299,6 +302,12 @@ const RealtimeChat = () => {
   const [onlineUsers, setOnlineUsers] = useState([]);
 
   const fileInputRef = useRef(null);
+  const mediaInputRef = useRef(null);
+  const docInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const audioInputRef = useRef(null);
+  const attachmentMenuRef = useRef(null);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
 
   // 3-Dots Menu & Settings State
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -343,6 +352,9 @@ const RealtimeChat = () => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setShowMoreMenu(false);
+      }
+      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(e.target) && !e.target.closest('.attachment-menu-trigger')) {
+        setShowAttachmentMenu(false);
       }
       if (mobileActionMenuRef.current && !mobileActionMenuRef.current.contains(e.target)) {
         setShowMobileActionMenu(false);
@@ -742,9 +754,16 @@ const RealtimeChat = () => {
     // If there is an attachment to send
     if (selectedFile) {
       const fileToSend = selectedFile;
-      const fileType = fileToSend.type.startsWith('image/') ? 'image' 
+      const isAudio = fileToSend.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(fileToSend.name);
+      const isDoc = !!fileToSend._isDocument || 
+                    (!fileToSend.type.startsWith('image/') && 
+                     !fileToSend.type.startsWith('video/') && 
+                     !isAudio);
+
+      const fileType = isDoc ? 'document'
+                     : fileToSend.type.startsWith('image/') ? 'image' 
                      : fileToSend.type.startsWith('video/') ? 'video' 
-                     : fileToSend.type.startsWith('audio/') ? 'audio'
+                     : isAudio ? 'audio'
                      : 'document';
       
       const localPreviewUrl = URL.createObjectURL(fileToSend);
@@ -797,7 +816,7 @@ const RealtimeChat = () => {
       (async () => {
         const formData = new FormData();
         formData.append('file', fileToSend);
-        formData.append('type', fileType === 'document' ? 'raw' : 'auto');
+        formData.append('type', isDoc ? 'raw' : (fileType === 'video' ? 'video' : 'auto'));
 
         try {
           const uploadRes = await fetch(`${API_BASE}/api/upload/file`, { method: 'POST', body: formData });
@@ -826,13 +845,14 @@ const RealtimeChat = () => {
               replyTo: replyData
             });
           } else {
+            const errData = await uploadRes.json().catch(() => ({}));
             setMessages((prev) => prev.map((m) => m._id === tempId ? { ...m, isUploading: false, isError: true } : m));
-            toast.error('Failed to upload file');
+            toast.error(errData.message || 'Failed to upload file');
           }
         } catch (err) {
           console.error('Upload error:', err);
           setMessages((prev) => prev.map((m) => m._id === tempId ? { ...m, isUploading: false, isError: true } : m));
-          toast.error('Upload error');
+          toast.error(err.message || 'Upload error');
         }
       })();
       return;
@@ -887,18 +907,67 @@ const RealtimeChat = () => {
     });
   };
 
-  const handleFileSelect = (e) => {
+  const handleMediaSelect = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-        setFilePreview(URL.createObjectURL(file));
+      let fileToUse = file;
+      const isImg = file.type.startsWith('image/') || /\.(jpe?g|png|webp|jfif|avif|heic|bmp)$/i.test(file.name);
+      
+      // Silently optimize large images in background without toast alerts
+      if (isImg && file.size > 500 * 1024) {
+        try {
+          fileToUse = await compressImageWhatsAppStyle(file);
+        } catch (err) {}
+      }
+
+      fileToUse._isDocument = false;
+      setSelectedFile(fileToUse);
+      if (fileToUse.type.startsWith('image/') || fileToUse.type.startsWith('video/')) {
+        setFilePreview(URL.createObjectURL(fileToUse));
       } else {
         setFilePreview(null);
       }
     }
     e.target.value = '';
+    setShowAttachmentMenu(false);
   };
+
+  const handleDocumentSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Mark as document: sent raw without compression, preserving 100% original quality
+      file._isDocument = true;
+      setSelectedFile(file);
+      setFilePreview(null);
+    }
+    e.target.value = '';
+    setShowAttachmentMenu(false);
+  };
+
+  const handleAudioSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      file._isDocument = false;
+      setSelectedFile(file);
+      setFilePreview(null);
+    }
+    e.target.value = '';
+    setShowAttachmentMenu(false);
+  };
+
+  const handleCameraPhotoCaptured = async (file) => {
+    let fileToUse = file;
+    if (file.size > 500 * 1024) {
+      try {
+        fileToUse = await compressImageWhatsAppStyle(file);
+      } catch (err) {}
+    }
+    fileToUse._isDocument = false;
+    setSelectedFile(fileToUse);
+    setFilePreview(URL.createObjectURL(fileToUse));
+  };
+
+  const handleFileSelect = handleMediaSelect;
 
   // Handle Pasting Images and Videos from Clipboard
   const handlePasteMedia = (e) => {
@@ -941,10 +1010,20 @@ const RealtimeChat = () => {
         finalFile = new File([mediaFile], `pasted_${Date.now()}.${ext}`, { type: mediaFile.type });
       }
 
-      setSelectedFile(finalFile);
-      setFilePreview(URL.createObjectURL(finalFile));
-      const isVideo = finalFile.type.startsWith('video/');
-      toast.success(isVideo ? 'Video pasted from clipboard! 🎥' : 'Image pasted from clipboard! 📸', { duration: 2500 });
+      // WhatsApp-style compress if image is large
+      (async () => {
+        let fileToUse = finalFile;
+        if (finalFile.type.startsWith('image/') && finalFile.size > 500 * 1024) {
+          try {
+            fileToUse = await compressImageWhatsAppStyle(finalFile);
+          } catch (err) {}
+        }
+        fileToUse._isDocument = false;
+        setSelectedFile(fileToUse);
+        setFilePreview(URL.createObjectURL(fileToUse));
+        const isVideo = fileToUse.type.startsWith('video/');
+        toast.success(isVideo ? 'Video pasted from clipboard! 🎥' : 'Image pasted from clipboard! 📸', { duration: 2500 });
+      })();
     }
   };
 
@@ -3011,9 +3090,9 @@ const RealtimeChat = () => {
             )}
             
             {selectedFile && (
-              <div className="mb-2 mx-1 sm:mx-2 p-2 bg-muted/40 border border-border/60 rounded-xl flex items-center justify-between w-fit max-w-[280px] shadow-sm">
+              <div className="mb-2 mx-1 sm:mx-2 p-2 bg-muted/40 border border-border/60 rounded-xl flex items-center justify-between w-fit max-w-[320px] shadow-sm animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  {filePreview ? (
+                  {filePreview && !selectedFile._isDocument ? (
                     selectedFile.type.startsWith('video/') ? (
                       <div className="w-9 h-9 rounded-lg bg-black overflow-hidden relative shrink-0 flex items-center justify-center border border-border/40">
                         <video src={filePreview} className="w-full h-full object-cover" />
@@ -3024,13 +3103,29 @@ const RealtimeChat = () => {
                     ) : (
                       <img src={filePreview} alt="preview" className="w-9 h-9 rounded-lg object-cover shrink-0 border border-border/40" />
                     )
+                  ) : (selectedFile.type?.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(selectedFile.name)) ? (
+                    <div className="w-9 h-9 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
+                      <Headphones className="w-5 h-5" />
+                    </div>
                   ) : (
-                    <FileText className="w-7 h-7 text-muted-foreground shrink-0" />
+                    <div className="w-9 h-9 rounded-lg bg-indigo-500/15 text-indigo-500 flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
                   )}
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-semibold truncate text-foreground">{selectedFile.name}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {selectedFile.type.startsWith('image/') ? 'Image attached' : selectedFile.type.startsWith('video/') ? 'Video attached' : 'File attached'}
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                      <span>{(selectedFile.size / 1024).toFixed(1)} KB</span>
+                      <span>•</span>
+                      <span>
+                        {selectedFile._isDocument
+                          ? 'Document'
+                          : selectedFile.type?.startsWith('video/')
+                          ? 'Video'
+                          : (selectedFile.type?.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(selectedFile.name))
+                          ? 'Audio'
+                          : 'Image'}
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -3077,65 +3172,145 @@ const RealtimeChat = () => {
               </div>
             ) : (
               <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
-                <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+                {/* Hidden File Inputs */}
+                <input 
+                  type="file" 
+                  ref={docInputRef} 
+                  accept="*/*" 
+                  onChange={handleDocumentSelect} 
+                  className="hidden" 
+                />
+                <input 
+                  type="file" 
+                  ref={cameraInputRef} 
+                  accept="image/*" 
+                  capture="environment" 
+                  onChange={handleMediaSelect} 
+                  className="hidden" 
+                />
+                <input 
+                  type="file" 
+                  ref={mediaInputRef} 
+                  accept="image/*,video/*" 
+                  onChange={handleMediaSelect} 
+                  className="hidden" 
+                />
+                <input 
+                  type="file" 
+                  ref={audioInputRef} 
+                  accept="audio/*" 
+                  onChange={handleAudioSelect} 
+                  className="hidden" 
+                />
 
-                {/* Mobile: Unified Plus (+) Action Menu */}
-                <div className="relative block sm:hidden" ref={mobileActionMenuRef}>
+                {/* Attachment Action Menu Trigger & Dropdown */}
+                <div className="relative" ref={attachmentMenuRef}>
+                  {/* Mobile Plus Button */}
                   <button
                     type="button"
-                    onClick={() => setShowMobileActionMenu(!showMobileActionMenu)}
+                    onClick={() => setShowAttachmentMenu((prev) => !prev)}
                     disabled={isCurrentPartnerBlocked}
-                    className={`p-2 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground rounded-xl transition-all disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center shrink-0 cursor-pointer active:scale-95 ${
-                      showMobileActionMenu ? 'bg-primary/20 text-primary ring-1 ring-primary/40' : ''
+                    className={`p-2 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground rounded-xl transition-all disabled:opacity-50 h-[38px] w-[38px] flex sm:hidden items-center justify-center shrink-0 cursor-pointer active:scale-95 attachment-menu-trigger ${
+                      showAttachmentMenu ? 'bg-primary/20 text-primary ring-1 ring-primary/40' : ''
                     }`}
-                    title="Add attachment or share"
+                    title="Add attachment"
                   >
-                    <Plus className={`w-4 h-4 transition-transform duration-200 ${showMobileActionMenu ? 'rotate-45' : ''}`} />
+                    <Plus className={`w-4 h-4 transition-transform duration-200 ${showAttachmentMenu ? 'rotate-45' : ''}`} />
                   </button>
 
-                  {showMobileActionMenu && (
-                    <div className="absolute left-0 bottom-full mb-2 w-48 bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95">
+                  {/* Desktop Paperclip Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachmentMenu((prev) => !prev)}
+                    disabled={isCurrentPartnerBlocked}
+                    className={`hidden sm:flex p-3 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground rounded-xl transition-all disabled:opacity-50 h-[46px] w-[46px] items-center justify-center shrink-0 cursor-pointer attachment-menu-trigger ${
+                      showAttachmentMenu ? 'bg-primary/20 text-primary ring-1 ring-primary/40' : ''
+                    }`}
+                    title="Attach file"
+                  >
+                    <Paperclip className={`w-5 h-5 transition-transform duration-200 ${showAttachmentMenu ? 'scale-110 text-primary' : ''}`} />
+                  </button>
+
+                  {/* Attachment Options Menu */}
+                  {showAttachmentMenu && (
+                    <div className="absolute left-0 bottom-full mb-2 w-56 sm:w-64 bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 origin-bottom-left">
+                      {/* 1. Document Option */}
                       <button
                         type="button"
                         onClick={() => {
-                          setShowMobileActionMenu(false);
-                          fileInputRef.current?.click();
+                          setShowAttachmentMenu(false);
+                          docInputRef.current?.click();
                         }}
-                        className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer group"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0">
-                          <Paperclip className="w-4 h-4" />
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                          <FileText className="w-4 h-4" />
                         </div>
-                        <span>Attach File / Media</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-foreground">Document</span>
+                          <span className="text-[10px] text-muted-foreground truncate">Send files or documents</span>
+                        </div>
                       </button>
+
+                      {/* 2. Camera Option */}
                       <button
                         type="button"
                         onClick={() => {
-                          setShowMobileActionMenu(false);
-                          setIsShareProfileModalOpen(true);
+                          setShowAttachmentMenu(false);
+                          setIsCameraModalOpen(true);
                         }}
-                        className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer group"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0">
-                          <UserPlus className="w-4 h-4" />
+                        <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                          <Camera className="w-4 h-4" />
                         </div>
-                        <span>Share Profile</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-foreground">Camera</span>
+                          <span className="text-[10px] text-muted-foreground truncate">Take a photo</span>
+                        </div>
+                      </button>
+
+                      {/* 3. Photos & Videos Option */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAttachmentMenu(false);
+                          mediaInputRef.current?.click();
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer group"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                          <ImageIcon className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-foreground">Photos & Videos</span>
+                          <span className="text-[10px] text-muted-foreground truncate">Send photos or videos</span>
+                        </div>
+                      </button>
+
+                      {/* 4. Audio Option */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAttachmentMenu(false);
+                          audioInputRef.current?.click();
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer group"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                          <Headphones className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-foreground">Audio</span>
+                          <span className="text-[10px] text-muted-foreground truncate">Send audio or music</span>
+                        </div>
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Desktop: Separate Buttons */}
-                <div className="hidden sm:flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isCurrentPartnerBlocked}
-                    className="p-3 bg-muted/40 hover:bg-muted text-muted-foreground rounded-xl transition-colors disabled:opacity-50 h-[46px] w-[46px] flex items-center justify-center shrink-0 cursor-pointer"
-                    title="Attach file or audio"
-                  >
-                    <Paperclip className="w-5 h-5" />
-                  </button>
+                {/* Desktop: Share Profile Direct Shortcut */}
+                <div className="hidden sm:flex items-center">
                   <button
                     type="button"
                     onClick={() => setIsShareProfileModalOpen(true)}
@@ -3352,6 +3527,16 @@ const RealtimeChat = () => {
         currentUser={user}
         activeContact={activeContact}
       />
+
+      {/* Live Camera Viewfinder Modal */}
+      {isCameraModalOpen && (
+        <CameraCaptureModal
+          isOpen={isCameraModalOpen}
+          onClose={() => setIsCameraModalOpen(false)}
+          onCapture={handleCameraPhotoCaptured}
+          onFallbackToFile={() => cameraInputRef.current?.click()}
+        />
+      )}
 
       {/* Floating Right Click Context Menu */}
       {contextMenu && (
