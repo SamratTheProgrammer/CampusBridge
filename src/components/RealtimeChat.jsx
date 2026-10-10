@@ -17,6 +17,7 @@ import ExportChatModal from './modals/ExportChatModal';
 import ShareProfileInChatModal from './modals/ShareProfileInChatModal';
 import ForwardMessageModal from './modals/ForwardMessageModal';
 import CameraCaptureModal from './modals/CameraCaptureModal';
+import ChatImageViewerModal from './modals/ChatImageViewerModal';
 import { compressImageWhatsAppStyle } from '../utils/imageCompressor';
 
 const formatMessageDateSeparator = (dateString) => {
@@ -252,6 +253,7 @@ const RealtimeChat = () => {
   };
 
   // New Chat Features State
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -699,10 +701,141 @@ const RealtimeChat = () => {
     }, 2000);
   };
 
+  // Send Multiple/Single Media Files WhatsApp style
+  const sendMediaFiles = async (filesToSend, caption = '') => {
+    if (!filesToSend || filesToSend.length === 0 || !activeContact || !user) return;
+
+    if (isCurrentPartnerBlocked) {
+      toast.error('Unblock user to send messages');
+      return;
+    }
+
+    const currentConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
+    const replyData = replyingTo ? {
+      messageId: replyingTo._id,
+      text: replyingTo.type === 'image' ? '📸 Image' : replyingTo.type === 'video' ? '🎥 Video' : (replyingTo.type === 'audio' || replyingTo.attachment?.type === 'audio') ? '🎤 Voice Note' : replyingTo.type === 'document' ? '📄 Document' : replyingTo.text,
+      senderName: replyingTo.senderClerkId === user.id ? 'You' : activeContact.name
+    } : null;
+
+    const tempMessages = filesToSend.map((fileToSend, idx) => {
+      const isAudio = fileToSend.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(fileToSend.name);
+      const isDoc = !!fileToSend._isDocument || 
+                    (!fileToSend.type.startsWith('image/') && 
+                     !fileToSend.type.startsWith('video/') && 
+                     !isAudio);
+
+      const fileType = isDoc ? 'document'
+                     : fileToSend.type.startsWith('image/') ? 'image' 
+                     : fileToSend.type.startsWith('video/') ? 'video' 
+                     : isAudio ? 'audio'
+                     : 'document';
+      
+      const localPreviewUrl = URL.createObjectURL(fileToSend);
+      const tempId = 'temp_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substring(2, 7);
+
+      return {
+        _id: tempId,
+        conversationId: currentConvId,
+        senderClerkId: user.id,
+        recipientClerkId: activeContact.clerkId,
+        text: idx === 0 ? (caption || '') : '',
+        type: fileType,
+        attachment: {
+          url: localPreviewUrl,
+          name: fileToSend.name,
+          type: fileType,
+          size: fileToSend.size
+        },
+        replyTo: idx === 0 ? replyData : null,
+        createdAt: new Date(Date.now() + idx * 40).toISOString(),
+        isRead: false,
+        isUploading: true,
+        fileToSend,
+        isDoc,
+        fileType
+      };
+    });
+
+    // Optimistic update & immediately free up input bar
+    setMessages((prev) => [...prev, ...tempMessages]);
+    setInputText('');
+    setSelectedFiles([]);
+    setSelectedFile(null);
+    setFilePreview(null);
+    setReplyingTo(null);
+
+    // Update contacts sidebar
+    setContacts(prev => {
+      const firstType = tempMessages[0].fileType;
+      const count = tempMessages.length;
+      const summary = count > 1 
+        ? `📸 ${count} Photos` 
+        : (caption || (firstType === 'image' ? '📸 Image' : firstType === 'video' ? '🎥 Video' : firstType === 'audio' ? '🎙️ Voice Message' : '📄 Document'));
+      const updated = prev.map(c => {
+        if (c.clerkId === activeContact.clerkId) {
+          return {
+            ...c,
+            lastMessage: summary,
+            lastMessageTime: new Date().toISOString()
+          };
+        }
+        return c;
+      });
+      return updated.sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+    });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    socket.emit('typing', { conversationId: currentConvId, userId: user.id, isTyping: false });
+
+    // Background asynchronous upload for each file
+    tempMessages.forEach(async (tMsg) => {
+      const formData = new FormData();
+      formData.append('file', tMsg.fileToSend);
+      formData.append('type', tMsg.isDoc ? 'raw' : (tMsg.fileType === 'video' ? 'video' : 'auto'));
+
+      try {
+        const uploadRes = await fetch(`${API_BASE}/api/upload/file`, { method: 'POST', body: formData });
+        if (uploadRes.ok) {
+          const data = await uploadRes.json();
+          const realAttachment = {
+            url: data.url,
+            name: data.name || tMsg.fileToSend.name,
+            type: tMsg.fileType,
+            size: data.size || tMsg.fileToSend.size
+          };
+
+          setMessages((prev) => prev.map((m) => m._id === tMsg._id ? {
+            ...m,
+            isUploading: false,
+            attachment: realAttachment
+          } : m));
+
+          socket.emit('send_message', {
+            senderClerkId: user.id,
+            recipientClerkId: activeContact.clerkId,
+            conversationId: currentConvId,
+            text: tMsg.text,
+            type: tMsg.fileType,
+            attachment: realAttachment,
+            replyTo: tMsg.replyTo
+          });
+        } else {
+          const errData = await uploadRes.json().catch(() => ({}));
+          setMessages((prev) => prev.map((m) => m._id === tMsg._id ? { ...m, isUploading: false, isError: true } : m));
+          toast.error(errData.message || 'Failed to upload file');
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        setMessages((prev) => prev.map((m) => m._id === tMsg._id ? { ...m, isUploading: false, isError: true } : m));
+        toast.error(err.message || 'Upload error');
+      }
+    });
+  };
+
   // Handle Send / Edit Message
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
-    if ((!inputText.trim() && !selectedFile) || !activeContact || !user) return;
+    if ((!inputText.trim() && !selectedFile && selectedFiles.length === 0) || !activeContact || !user) return;
 
     if (isCurrentPartnerBlocked) {
       toast.error('Unblock user to send messages');
@@ -742,119 +875,14 @@ const RealtimeChat = () => {
       return;
     }
 
-    const replyData = replyingTo ? {
-      messageId: replyingTo._id,
-      text: replyingTo.type === 'image' ? '📸 Image' : replyingTo.type === 'video' ? '🎥 Video' : (replyingTo.type === 'audio' || replyingTo.attachment?.type === 'audio') ? '🎤 Voice Note' : replyingTo.type === 'document' ? '📄 Document' : replyingTo.text,
-      senderName: replyingTo.senderClerkId === user.id ? 'You' : activeContact.name
-    } : null;
+    // If there is attachment(s) to send (WhatsApp style multi or single)
+    if (selectedFiles.length > 0) {
+      await sendMediaFiles(selectedFiles, text);
+      return;
+    }
 
-    const currentConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
-    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-
-    // If there is an attachment to send
     if (selectedFile) {
-      const fileToSend = selectedFile;
-      const isAudio = fileToSend.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(fileToSend.name);
-      const isDoc = !!fileToSend._isDocument || 
-                    (!fileToSend.type.startsWith('image/') && 
-                     !fileToSend.type.startsWith('video/') && 
-                     !isAudio);
-
-      const fileType = isDoc ? 'document'
-                     : fileToSend.type.startsWith('image/') ? 'image' 
-                     : fileToSend.type.startsWith('video/') ? 'video' 
-                     : isAudio ? 'audio'
-                     : 'document';
-      
-      const localPreviewUrl = URL.createObjectURL(fileToSend);
-
-      const tempMessage = {
-        _id: tempId,
-        conversationId: currentConvId,
-        senderClerkId: user.id,
-        recipientClerkId: activeContact.clerkId,
-        text,
-        type: fileType,
-        attachment: {
-          url: localPreviewUrl,
-          name: fileToSend.name,
-          type: fileType,
-          size: fileToSend.size
-        },
-        replyTo: replyData,
-        createdAt: new Date().toISOString(),
-        isRead: false,
-        isUploading: true
-      };
-
-      // Optimistic update & immediately free up the input bar
-      setMessages((prev) => [...prev, tempMessage]);
-      setInputText('');
-      setSelectedFile(null);
-      setFilePreview(null);
-      setReplyingTo(null);
-
-      // Update contacts sidebar
-      setContacts(prev => {
-        const updated = prev.map(c => {
-          if (c.clerkId === activeContact.clerkId) {
-            return {
-              ...c,
-              lastMessage: text || (fileType === 'image' ? '📸 Image' : fileType === 'video' ? '🎥 Video' : fileType === 'audio' ? '🎙️ Voice Message' : '📄 Document'),
-              lastMessageTime: new Date().toISOString()
-            };
-          }
-          return c;
-        });
-        return updated.sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
-      });
-
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      socket.emit('typing', { conversationId: currentConvId, userId: user.id, isTyping: false });
-
-      // Background asynchronous upload (WhatsApp style)
-      (async () => {
-        const formData = new FormData();
-        formData.append('file', fileToSend);
-        formData.append('type', isDoc ? 'raw' : (fileType === 'video' ? 'video' : 'auto'));
-
-        try {
-          const uploadRes = await fetch(`${API_BASE}/api/upload/file`, { method: 'POST', body: formData });
-          if (uploadRes.ok) {
-            const data = await uploadRes.json();
-            const realAttachment = {
-              url: data.url,
-              name: data.name || fileToSend.name,
-              type: fileType,
-              size: data.size || fileToSend.size
-            };
-
-            setMessages((prev) => prev.map((m) => m._id === tempId ? {
-              ...m,
-              isUploading: false,
-              attachment: realAttachment
-            } : m));
-
-            socket.emit('send_message', {
-              senderClerkId: user.id,
-              recipientClerkId: activeContact.clerkId,
-              conversationId: currentConvId,
-              text,
-              type: fileType,
-              attachment: realAttachment,
-              replyTo: replyData
-            });
-          } else {
-            const errData = await uploadRes.json().catch(() => ({}));
-            setMessages((prev) => prev.map((m) => m._id === tempId ? { ...m, isUploading: false, isError: true } : m));
-            toast.error(errData.message || 'Failed to upload file');
-          }
-        } catch (err) {
-          console.error('Upload error:', err);
-          setMessages((prev) => prev.map((m) => m._id === tempId ? { ...m, isUploading: false, isError: true } : m));
-          toast.error(err.message || 'Upload error');
-        }
-      })();
+      await sendMediaFiles([selectedFile], text);
       return;
     }
 
@@ -908,22 +936,26 @@ const RealtimeChat = () => {
   };
 
   const handleMediaSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      let fileToUse = file;
-      const isImg = file.type.startsWith('image/') || /\.(jpe?g|png|webp|jfif|avif|heic|bmp)$/i.test(file.name);
-      
-      // Silently optimize large images in background without toast alerts
-      if (isImg && file.size > 500 * 1024) {
-        try {
-          fileToUse = await compressImageWhatsAppStyle(file);
-        } catch (err) {}
-      }
+    const rawFiles = Array.from(e.target.files || []);
+    if (rawFiles.length > 0) {
+      const processedFiles = await Promise.all(
+        rawFiles.map(async (file) => {
+          let fileToUse = file;
+          const isImg = file.type.startsWith('image/') || /\.(jpe?g|png|webp|jfif|avif|heic|bmp)$/i.test(file.name);
+          if (isImg && file.size > 500 * 1024) {
+            try {
+              fileToUse = await compressImageWhatsAppStyle(file);
+            } catch (err) {}
+          }
+          fileToUse._isDocument = false;
+          return fileToUse;
+        })
+      );
 
-      fileToUse._isDocument = false;
-      setSelectedFile(fileToUse);
-      if (fileToUse.type.startsWith('image/') || fileToUse.type.startsWith('video/')) {
-        setFilePreview(URL.createObjectURL(fileToUse));
+      setSelectedFiles(processedFiles);
+      setSelectedFile(processedFiles[0]);
+      if (processedFiles[0].type.startsWith('image/') || processedFiles[0].type.startsWith('video/')) {
+        setFilePreview(URL.createObjectURL(processedFiles[0]));
       } else {
         setFilePreview(null);
       }
@@ -933,11 +965,13 @@ const RealtimeChat = () => {
   };
 
   const handleDocumentSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Mark as document: sent raw without compression, preserving 100% original quality
-      file._isDocument = true;
-      setSelectedFile(file);
+    const rawFiles = Array.from(e.target.files || []);
+    if (rawFiles.length > 0) {
+      rawFiles.forEach((file) => {
+        file._isDocument = true;
+      });
+      setSelectedFiles(rawFiles);
+      setSelectedFile(rawFiles[0]);
       setFilePreview(null);
     }
     e.target.value = '';
@@ -948,6 +982,7 @@ const RealtimeChat = () => {
     const file = e.target.files?.[0];
     if (file) {
       file._isDocument = false;
+      setSelectedFiles([file]);
       setSelectedFile(file);
       setFilePreview(null);
     }
@@ -955,16 +990,25 @@ const RealtimeChat = () => {
     setShowAttachmentMenu(false);
   };
 
-  const handleCameraPhotoCaptured = async (file) => {
-    let fileToUse = file;
-    if (file.size > 500 * 1024) {
-      try {
-        fileToUse = await compressImageWhatsAppStyle(file);
-      } catch (err) {}
-    }
-    fileToUse._isDocument = false;
-    setSelectedFile(fileToUse);
-    setFilePreview(URL.createObjectURL(fileToUse));
+  const handleCameraPhotoCaptured = async (captured) => {
+    const rawFiles = Array.isArray(captured) ? captured : [captured];
+    if (rawFiles.length === 0) return;
+
+    const compressedFiles = await Promise.all(
+      rawFiles.map(async (file) => {
+        let fileToUse = file;
+        if (file.size > 500 * 1024) {
+          try {
+            fileToUse = await compressImageWhatsAppStyle(file);
+          } catch (err) {}
+        }
+        fileToUse._isDocument = false;
+        return fileToUse;
+      })
+    );
+
+    // Directly send all captured camera photos into active chat WhatsApp style!
+    await sendMediaFiles(compressedFiles, inputText);
   };
 
   const handleFileSelect = handleMediaSelect;
@@ -976,53 +1020,61 @@ const RealtimeChat = () => {
     const clipboardData = e.clipboardData;
     if (!clipboardData) return;
 
-    let mediaFile = null;
+    let mediaFiles = [];
 
     // Check files array from clipboard
     if (clipboardData.files && clipboardData.files.length > 0) {
       for (let i = 0; i < clipboardData.files.length; i++) {
         const file = clipboardData.files[i];
         if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-          mediaFile = file;
-          break;
+          mediaFiles.push(file);
         }
       }
     }
 
     // Check clipboard items (e.g. copied screenshots from Windows Snipping Tool, browser)
-    if (!mediaFile && clipboardData.items && clipboardData.items.length > 0) {
+    if (mediaFiles.length === 0 && clipboardData.items && clipboardData.items.length > 0) {
       for (let i = 0; i < clipboardData.items.length; i++) {
         const item = clipboardData.items[i];
         if (item.kind === 'file' && (item.type.startsWith('image/') || item.type.startsWith('video/'))) {
-          mediaFile = item.getAsFile();
-          if (mediaFile) break;
+          const file = item.getAsFile();
+          if (file) mediaFiles.push(file);
         }
       }
     }
 
-    if (mediaFile) {
+    if (mediaFiles.length > 0) {
       e.preventDefault();
-      // Ensure file has a friendly name with appropriate extension
-      let finalFile = mediaFile;
-      if (!finalFile.name || finalFile.name === 'image.png' || finalFile.name === 'blob') {
-        const isVid = finalFile.type.startsWith('video/');
-        const ext = finalFile.type.split('/')[1] || (isVid ? 'mp4' : 'png');
-        finalFile = new File([mediaFile], `pasted_${Date.now()}.${ext}`, { type: mediaFile.type });
-      }
-
-      // WhatsApp-style compress if image is large
       (async () => {
-        let fileToUse = finalFile;
-        if (finalFile.type.startsWith('image/') && finalFile.size > 500 * 1024) {
-          try {
-            fileToUse = await compressImageWhatsAppStyle(finalFile);
-          } catch (err) {}
+        const processed = await Promise.all(
+          mediaFiles.map(async (mediaFile, idx) => {
+            let finalFile = mediaFile;
+            if (!finalFile.name || finalFile.name === 'image.png' || finalFile.name === 'blob') {
+              const isVid = finalFile.type.startsWith('video/');
+              const ext = finalFile.type.split('/')[1] || (isVid ? 'mp4' : 'png');
+              finalFile = new File([mediaFile], `pasted_${Date.now()}_${idx}.${ext}`, { type: mediaFile.type });
+            }
+            if (finalFile.type.startsWith('image/') && finalFile.size > 500 * 1024) {
+              try {
+                finalFile = await compressImageWhatsAppStyle(finalFile);
+              } catch (err) {}
+            }
+            finalFile._isDocument = false;
+            return finalFile;
+          })
+        );
+
+        setSelectedFiles(processed);
+        setSelectedFile(processed[0]);
+        if (processed[0].type.startsWith('image/') || processed[0].type.startsWith('video/')) {
+          setFilePreview(URL.createObjectURL(processed[0]));
         }
-        fileToUse._isDocument = false;
-        setSelectedFile(fileToUse);
-        setFilePreview(URL.createObjectURL(fileToUse));
-        const isVideo = fileToUse.type.startsWith('video/');
-        toast.success(isVideo ? 'Video pasted from clipboard! 🎥' : 'Image pasted from clipboard! 📸', { duration: 2500 });
+        toast.success(
+          processed.length > 1
+            ? `${processed.length} items pasted from clipboard! 📸`
+            : (processed[0].type.startsWith('video/') ? 'Video pasted from clipboard! 🎥' : 'Image pasted from clipboard! 📸'),
+          { duration: 2500 }
+        );
       })();
     }
   };
@@ -2648,6 +2700,9 @@ const RealtimeChat = () => {
                 }
 
                 const isSelected = selectedMessageIds.has(msg._id);
+                const prevMsg = index > 0 ? messages[index - 1] : null;
+                const isSameSenderAsPrev = prevMsg && prevMsg.senderClerkId === msg.senderClerkId && !showDateSeparator;
+                const isConsecutiveImage = isSameSenderAsPrev && prevMsg.attachment?.type === 'image' && msg.attachment?.type === 'image';
 
                 return (
                   <React.Fragment key={msg._id || Math.random()}>
@@ -2664,6 +2719,8 @@ const RealtimeChat = () => {
                         }
                       }}
                       className={`flex items-center gap-2 ${isMe ? 'justify-end' : 'justify-start'} group transition-colors rounded-2xl ${
+                        isConsecutiveImage ? '-mt-2.5 sm:-mt-3' : ''
+                      } ${
                         isSelectMode ? 'cursor-pointer p-1.5 hover:bg-muted/30 select-none' : ''
                       } ${isSelected ? 'bg-primary/10' : ''}`}
                     >
@@ -3151,7 +3208,59 @@ const RealtimeChat = () => {
               </div>
             )}
             
-            {selectedFile && (
+            {/* Multi-Photo Attachment Tray (WhatsApp Style) */}
+            {selectedFiles.length > 1 ? (
+              <div className="mb-2 mx-1 sm:mx-2 p-2.5 bg-muted/50 border border-border/70 rounded-2xl shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40 px-1">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                    <span>{selectedFiles.length} photos selected</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedFiles([]); setSelectedFile(null); setFilePreview(null); }}
+                    className="text-[11px] font-semibold text-rose-500 hover:text-rose-400 cursor-pointer"
+                  >
+                    Clear all
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin py-0.5">
+                  {selectedFiles.map((file, idx) => (
+                    <div key={idx} className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-border/60 group bg-card">
+                      {file.type?.startsWith('image/') ? (
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-muted/60 text-muted-foreground text-[10px] font-bold">
+                          {file.name.slice(-3).toUpperCase()}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = selectedFiles.filter((_, i) => i !== idx);
+                          setSelectedFiles(updated);
+                          if (updated.length === 0) {
+                            setSelectedFile(null);
+                            setFilePreview(null);
+                          } else {
+                            setSelectedFile(updated[0]);
+                          }
+                        }}
+                        className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/80 hover:bg-rose-600 text-white flex items-center justify-center transition-colors cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <X className="w-2.5 h-2.5 stroke-[3]" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : selectedFile ? (
               <div className="mb-2 mx-1 sm:mx-2 p-2 bg-muted/40 border border-border/60 rounded-xl flex items-center justify-between w-fit max-w-[320px] shadow-sm animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   {filePreview && !selectedFile._isDocument ? (
@@ -3193,14 +3302,14 @@ const RealtimeChat = () => {
                 </div>
                 <button 
                   type="button"
-                  onClick={() => { setSelectedFile(null); setFilePreview(null); }} 
+                  onClick={() => { setSelectedFiles([]); setSelectedFile(null); setFilePreview(null); }} 
                   className="p-1 hover:bg-muted rounded-full ml-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   title="Remove attachment"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-            )}
+            ) : null}
 
             {/* Recording Bar or Text Input Form */}
             {isVoiceRecording ? (
@@ -3239,6 +3348,7 @@ const RealtimeChat = () => {
                   type="file" 
                   ref={docInputRef} 
                   accept="*/*" 
+                  multiple
                   onChange={handleDocumentSelect} 
                   className="hidden" 
                 />
@@ -3254,6 +3364,7 @@ const RealtimeChat = () => {
                   type="file" 
                   ref={mediaInputRef} 
                   accept="image/*,video/*" 
+                  multiple
                   onChange={handleMediaSelect} 
                   className="hidden" 
                 />
@@ -3531,46 +3642,12 @@ const RealtimeChat = () => {
         </ModalPortal>
       )}
 
-      {/* Fullscreen Attachment Viewer Modal */}
+      {/* Fullscreen Attachment Viewer Modal (Mobile 2-finger zoom, clean desktop view) */}
       {fullscreenAttachment && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
-          <button 
-            onClick={() => setFullscreenAttachment(null)}
-            className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            title="Close"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          
-          <a 
-            href={fullscreenAttachment.url}
-            download
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-6 right-20 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            title="Download Original"
-          >
-            <Download className="w-6 h-6" />
-          </a>
-          
-          <div className="max-w-6xl w-full h-[85vh] flex items-center justify-center relative mt-8">
-            {fullscreenAttachment.type === 'image' ? (
-              <img 
-                src={fullscreenAttachment.url} 
-                alt="Fullscreen View" 
-                className="max-w-full max-h-full object-contain rounded-lg"
-              />
-            ) : fullscreenAttachment.type === 'document' ? (
-              <iframe 
-                src={getPdfViewUrl(fullscreenAttachment.url)} 
-                title="Document Viewer"
-                className="w-full h-full bg-white rounded-xl shadow-2xl"
-              />
-            ) : null}
-          </div>
-        </div>
-        </ModalPortal>
+        <ChatImageViewerModal
+          attachment={fullscreenAttachment}
+          onClose={() => setFullscreenAttachment(null)}
+        />
       )}
 
       {/* Export Chat Modal */}

@@ -1,18 +1,29 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ModalPortal from './ModalPortal';
-import { Camera, X, RotateCcw, Check, RefreshCw, AlertCircle, Upload, Zap, ZapOff } from 'lucide-react';
+import { Camera, X, Check, RefreshCw, AlertCircle, Upload, Trash2, Plus, Send, Zap, ZapOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const isMobileClient = () => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+};
 
 export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallbackToFile }) {
   const [stream, setStream] = useState(null);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [facingMode, setFacingMode] = useState('user'); // 'user' or 'environment'
+  // Default to back camera ('environment') on mobile devices, or webcam on desktop
+  const [facingMode, setFacingMode] = useState(() => isMobileClient() ? 'environment' : 'user');
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
   const [error, setError] = useState(null);
-  const [isFlashing, setIsFlashing] = useState(false);
-  const [isScreenFlashing, setIsScreenFlashing] = useState(false);
-  const [flashMode, setFlashMode] = useState('off'); // 'off' or 'on'
   const [isLoading, setIsLoading] = useState(true);
+
+  // Flash state (single toggle button, hardware torch for back camera + screen flash illumination for front/fallback)
+  const [flashMode, setFlashMode] = useState('off'); // 'off' or 'on'
+  const [isScreenFlashing, setIsScreenFlashing] = useState(false);
+
+  // Multi-photo capture state (WhatsApp style)
+  const [capturedPhotos, setCapturedPhotos] = useState([]); // [{ id, dataUrl, blob, file }]
+  const [activePreviewIndex, setActivePreviewIndex] = useState(null); // null = live viewfinder, number = previewing photo
+  const [shutterPulse, setShutterPulse] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -20,17 +31,38 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
 
   // Hardware torch controller for back camera
   const applyTorch = useCallback(async (enabled) => {
-    if (!streamRef.current) return;
-    const track = streamRef.current.getVideoTracks()[0];
+    const stream = streamRef.current;
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
     if (!track) return;
+
+    // 1. Standard WebRTC applyConstraints torch
     try {
-      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-      if ('torch' in capabilities) {
-        await track.applyConstraints({
-          advanced: [{ torch: enabled }]
-        });
-      }
+      await track.applyConstraints({
+        advanced: [{ torch: enabled }]
+      });
+      return;
     } catch (_) {}
+
+    // 2. Android fillLightMode constraint
+    try {
+      await track.applyConstraints({
+        advanced: [{ fillLightMode: enabled ? 'flash' : 'off' }]
+      });
+      return;
+    } catch (_) {}
+
+    // 3. ImageCapture API fallback (Standard W3C API for camera flash/torch)
+    if (typeof window !== 'undefined' && 'ImageCapture' in window) {
+      try {
+        const imageCapture = new window.ImageCapture(track);
+        if (imageCapture.track) {
+          await imageCapture.track.applyConstraints({
+            advanced: [{ torch: enabled }]
+          });
+        }
+      } catch (_) {}
+    }
   }, []);
 
   // Stop camera tracks helper: strictly and immediately stops all hardware tracks
@@ -74,6 +106,8 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
   // Safe close handler that always terminates hardware stream
   const handleClose = useCallback(() => {
     stopCamera();
+    setCapturedPhotos([]);
+    setActivePreviewIndex(null);
     onClose();
   }, [stopCamera, onClose]);
 
@@ -96,11 +130,27 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
     };
   }, [stopCamera]);
 
+  // Keep a ref of flashMode so startCamera can check initial flash without being re-triggered on toggle
+  const flashModeRef = useRef(flashMode);
+  useEffect(() => {
+    flashModeRef.current = flashMode;
+  }, [flashMode]);
+
+  // When modal opens on mobile, default to back camera
+  const prevIsOpenRef = useRef(isOpen);
+  useEffect(() => {
+    if (!prevIsOpenRef.current && isOpen && isMobileClient()) {
+      setFacingMode('environment');
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen]);
+
   // Start Camera Stream
   useEffect(() => {
     if (!isOpen) {
       stopCamera();
-      setCapturedImage(null);
+      setCapturedPhotos([]);
+      setActivePreviewIndex(null);
       setError(null);
       return;
     }
@@ -155,17 +205,11 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
           videoRef.current.play().catch(() => {});
         }
 
-        // If back camera and flash is on, apply torch
-        if (facingMode === 'environment' && flashMode === 'on') {
-          const track = mediaStream.getVideoTracks()[0];
-          if (track) {
-            try {
-              const cap = track.getCapabilities ? track.getCapabilities() : {};
-              if ('torch' in cap) {
-                track.applyConstraints({ advanced: [{ torch: true }] }).catch(() => {});
-              }
-            } catch (_) {}
-          }
+        // If back camera and flash is on, apply torch immediately
+        if (facingMode === 'environment' && flashModeRef.current === 'on') {
+          setTimeout(() => {
+            applyTorch(true);
+          }, 150);
         }
       } catch (err) {
         if (isCancelled) return;
@@ -181,7 +225,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
       isCancelled = true;
       stopCamera();
     };
-  }, [isOpen, facingMode, stopCamera]);
+  }, [isOpen, facingMode, stopCamera, applyTorch]);
 
   // Handle hardware torch changes when toggling flash or flipping camera
   useEffect(() => {
@@ -200,35 +244,42 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
       }
       videoRef.current.play().catch(() => {});
     }
-  }, [stream, capturedImage]);
+  }, [stream, activePreviewIndex]);
 
   // Flip camera between front and back
   const handleFlipCamera = () => {
-    setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
-  };
-
-  // Toggle flash mode on/off
-  const handleToggleFlash = () => {
-    const nextMode = flashMode === 'on' ? 'off' : 'on';
-    setFlashMode(nextMode);
-    toast(nextMode === 'on' ? 'Flash enabled' : 'Flash disabled', {
-      icon: nextMode === 'on' ? '⚡' : '🌑',
-      duration: 1400
+    setActivePreviewIndex(null);
+    setFacingMode((prev) => {
+      const next = prev === 'user' ? 'environment' : 'user';
+      if (next === 'user') {
+        applyTorch(false);
+      }
+      return next;
     });
   };
 
-  // Capture snapshot from live stream with flash support for front & back
+  // Toggle flash mode on/off (Single Button, silent without toast)
+  const handleToggleFlash = async () => {
+    const nextMode = flashMode === 'on' ? 'off' : 'on';
+    setFlashMode(nextMode);
+
+    // If back camera is active, immediately trigger the phone hardware torch!
+    if (facingMode === 'environment') {
+      await applyTorch(nextMode === 'on');
+    }
+  };
+
+  // Capture snapshot from live stream without stopping the camera (WhatsApp multi-photo style)
   const handleCapture = async () => {
     if (!videoRef.current) return;
 
-    // Front Camera Screen Flash or assist lighting
+    // Front camera or flash mode screen illumination: lit before canvas snapshot
     if (flashMode === 'on') {
       setIsScreenFlashing(true);
-      // Give 120ms so screen illumination lights up face before reading canvas frame
       await new Promise((resolve) => setTimeout(resolve, 120));
     } else {
-      setIsFlashing(true);
-      setTimeout(() => setIsFlashing(false), 200);
+      setShutterPulse(true);
+      setTimeout(() => setShutterPulse(false), 120);
     }
 
     const video = videoRef.current;
@@ -251,7 +302,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     if (flashMode === 'on') {
-      setTimeout(() => setIsScreenFlashing(false), 150);
+      setTimeout(() => setIsScreenFlashing(false), 100);
     }
 
     canvas.toBlob(
@@ -261,35 +312,55 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
           return;
         }
         const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-        setCapturedImage({ dataUrl, blob });
+        const photoFile = new File([blob], `camera_${Date.now()}_${capturedPhotos.length + 1}.jpg`, {
+          type: 'image/jpeg',
+          lastModified: Date.now()
+        });
+
+        const newPhotoItem = {
+          id: `photo_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          dataUrl,
+          blob,
+          file: photoFile
+        };
+
+        setCapturedPhotos((prev) => [...prev, newPhotoItem]);
+        // If user was viewing an old photo, return to live viewfinder so they see they can snap more
+        setActivePreviewIndex(null);
       },
       'image/jpeg',
       0.92
     );
   };
 
-  // Retake photo: clear snapshot overlay, camera underneath keeps streaming seamlessly
-  const handleRetake = () => {
-    setCapturedImage(null);
-    if (videoRef.current) {
-      if (streamRef.current && videoRef.current.srcObject !== streamRef.current) {
-        videoRef.current.srcObject = streamRef.current;
-      }
-      videoRef.current.play().catch(() => {});
+  // Remove a photo from captured strip
+  const handleRemovePhoto = (index, e) => {
+    if (e) e.stopPropagation();
+    setCapturedPhotos((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated;
+    });
+
+    if (activePreviewIndex === index) {
+      setActivePreviewIndex(null);
+    } else if (activePreviewIndex !== null && activePreviewIndex > index) {
+      setActivePreviewIndex((prev) => prev - 1);
     }
   };
 
-  // Confirm and attach photo
-  const handleConfirm = () => {
-    if (!capturedImage?.blob) return;
+  // Clear all captured photos and resume camera
+  const handleClearAll = () => {
+    setCapturedPhotos([]);
+    setActivePreviewIndex(null);
+  };
 
-    const file = new File([capturedImage.blob], `photo_${Date.now()}.jpg`, {
-      type: 'image/jpeg',
-      lastModified: Date.now()
-    });
+  // Confirm and send all captured photos
+  const handleSendAll = () => {
+    if (capturedPhotos.length === 0) return;
 
+    const filesToSend = capturedPhotos.map((p) => p.file);
     stopCamera();
-    onCapture(file);
+    onCapture(filesToSend);
     onClose();
   };
 
@@ -304,56 +375,68 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
           if (e.key === 'Escape') {
             handleClose();
           }
-          if (e.key === ' ' || e.key === 'Enter') {
-            if (!capturedImage) handleCapture();
-            else handleConfirm();
+          if (e.key === ' ' && activePreviewIndex === null) {
+            e.preventDefault();
+            handleCapture();
+          }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (capturedPhotos.length > 0) {
+              handleSendAll();
+            } else {
+              handleCapture();
+            }
           }
         }}
         tabIndex={-1}
       >
-        {/* Full-screen White Screen Flash (for front camera or dark environments) */}
+        {/* Full-screen Screen Flash for illumination (acts as flashlight/fill light on any device) */}
         {isScreenFlashing && (
           <div className="fixed inset-0 bg-[#fffdfa] pointer-events-none z-[300] transition-opacity duration-75" />
         )}
 
-        {/* Shutter Flash Animation */}
-        {isFlashing && (
-          <div className="fixed inset-0 bg-white pointer-events-none z-[260] animate-out fade-out duration-200" />
+        {/* Shutter Animation Feedback */}
+        {shutterPulse && (
+          <div className="fixed inset-0 bg-white/40 pointer-events-none z-[260] animate-out fade-out duration-100" />
         )}
 
         {/* Modal Window */}
         <div
-          className="relative w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[85vh] bg-slate-950 sm:border sm:border-white/10 sm:rounded-3xl overflow-hidden sm:shadow-2xl flex flex-col"
+          className="relative w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[88vh] bg-slate-950 sm:border sm:border-white/10 sm:rounded-3xl overflow-hidden sm:shadow-2xl flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header Bar */}
           <div className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-b from-black/90 via-black/60 to-transparent sm:relative sm:border-b sm:border-white/10 sm:bg-black/50 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0">
                 <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-white tracking-wide drop-shadow-md sm:drop-shadow-none flex items-center gap-2">
-                  {capturedImage ? 'Preview Photo' : 'Camera'}
-                  {!capturedImage && flashMode === 'on' && (
+                  {capturedPhotos.length > 0
+                    ? `Camera (${capturedPhotos.length} photo${capturedPhotos.length > 1 ? 's' : ''})`
+                    : 'Camera'}
+                  {activePreviewIndex === null && flashMode === 'on' && (
                     <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 tracking-wider">
                       Flash ON
                     </span>
                   )}
                 </h3>
                 <p className="text-[11px] sm:text-xs text-white/70 sm:text-white/50 drop-shadow-md sm:drop-shadow-none">
-                  {capturedImage
-                    ? 'Ready to send in chat'
+                  {activePreviewIndex !== null
+                    ? `Viewing photo ${activePreviewIndex + 1} of ${capturedPhotos.length}`
+                    : capturedPhotos.length > 0
+                    ? 'Snap more photos or tap Send below'
                     : facingMode === 'user'
-                    ? 'Front Camera (Screen flash enabled when active)'
-                    : 'Back Camera (Flash torch enabled when active)'}
+                    ? 'Front Camera'
+                    : 'Back Camera'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Flash Toggle button on header */}
-              {!capturedImage && (
+              {/* Single Flash Toggle Button (Header only, clean and accessible) */}
+              {activePreviewIndex === null && (
                 <button
                   type="button"
                   onClick={handleToggleFlash}
@@ -373,7 +456,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
               )}
 
               {/* Flip camera on header */}
-              {hasMultipleCameras && !capturedImage && (
+              {hasMultipleCameras && activePreviewIndex === null && (
                 <button
                   type="button"
                   onClick={handleFlipCamera}
@@ -384,6 +467,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                 </button>
               )}
 
+              {/* Close Button */}
               <button
                 type="button"
                 onClick={handleClose}
@@ -427,27 +511,32 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                   muted
                   className={`w-full h-full object-cover sm:object-contain sm:max-h-[55vh] ${
                     facingMode === 'user' ? 'scale-x-[-1]' : ''
-                  }`}
+                  } ${activePreviewIndex !== null ? 'hidden' : 'block'}`}
                 />
                 <canvas ref={canvasRef} className="hidden" />
 
-                {/* Front Camera Softbox Ring when Flash is ON */}
-                {flashMode === 'on' && facingMode === 'user' && !capturedImage && (
+                {/* Front Camera Softbox Glow when Flash is ON */}
+                {flashMode === 'on' && facingMode === 'user' && activePreviewIndex === null && (
                   <div className="absolute inset-0 pointer-events-none ring-8 ring-amber-100/30 shadow-[inset_0_0_100px_rgba(255,248,220,0.45)] z-10 transition-all duration-300" />
                 )}
 
-                {/* 2. Captured Image Snapshot Overlay */}
-                {capturedImage && (
-                  <img
-                    src={capturedImage.dataUrl}
-                    alt="Captured snapshot"
-                    className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:max-h-[55vh] z-15 bg-black animate-in fade-in duration-100"
-                  />
+                {/* 2. Active Preview Snapshot Overlay (When inspecting a clicked photo) */}
+                {activePreviewIndex !== null && capturedPhotos[activePreviewIndex] && (
+                  <div className="relative w-full h-full flex items-center justify-center bg-black">
+                    <img
+                      src={capturedPhotos[activePreviewIndex].dataUrl}
+                      alt="Captured snapshot"
+                      className="w-full h-full object-cover sm:object-contain sm:max-h-[55vh] animate-in fade-in duration-100"
+                    />
+                    <div className="absolute top-16 sm:top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-white text-[11px] font-semibold border border-white/10">
+                      Photo {activePreviewIndex + 1} of {capturedPhotos.length}
+                    </div>
+                  </div>
                 )}
 
-                {/* 3. Grid Overlay for framing */}
-                {!capturedImage && (
-                  <div className="absolute inset-0 pointer-events-none border border-white/10 grid grid-cols-3 grid-rows-3 opacity-25 z-5">
+                {/* 3. Grid Overlay for live framing */}
+                {activePreviewIndex === null && (
+                  <div className="absolute inset-0 pointer-events-none border border-white/10 grid grid-cols-3 grid-rows-3 opacity-20 z-5">
                     <div className="border-r border-b border-white/20" />
                     <div className="border-r border-b border-white/20" />
                     <div className="border-b border-white/20" />
@@ -460,7 +549,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                   </div>
                 )}
 
-                {isLoading && !capturedImage && (
+                {isLoading && activePreviewIndex === null && (
                   <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white gap-2 z-20">
                     <RefreshCw className="w-8 h-8 animate-spin text-primary" />
                     <span className="text-xs font-medium">Starting camera...</span>
@@ -470,50 +559,101 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
             )}
           </div>
 
-          {/* Bottom Action Bar */}
+          {/* WhatsApp-Style Multi-Photo Thumbnail Strip */}
+          {capturedPhotos.length > 0 && !error && (
+            <div className="relative z-30 px-4 py-2.5 bg-black/85 border-t border-white/10 flex items-center gap-2.5 overflow-x-auto scrollbar-none shrink-0">
+              <span className="text-[11px] text-white/50 font-semibold uppercase tracking-wider shrink-0 pl-1">
+                Photos ({capturedPhotos.length}):
+              </span>
+
+              <div className="flex items-center gap-2 py-0.5">
+                {capturedPhotos.map((photo, idx) => {
+                  const isSelected = activePreviewIndex === idx;
+                  return (
+                    <div
+                      key={photo.id || idx}
+                      onClick={() => setActivePreviewIndex(isSelected ? null : idx)}
+                      className={`relative w-14 h-14 rounded-xl overflow-hidden shrink-0 cursor-pointer border-2 transition-all ${
+                        isSelected
+                          ? 'border-primary ring-2 ring-primary/40 scale-105 shadow-md'
+                          : 'border-white/20 hover:border-white/50 opacity-80 hover:opacity-100'
+                      }`}
+                      title={`Preview photo ${idx + 1}`}
+                    >
+                      <img src={photo.dataUrl} alt={`Captured ${idx + 1}`} className="w-full h-full object-cover" />
+                      
+                      {/* Photo Index Badge */}
+                      <div className="absolute bottom-1 left-1 px-1.5 py-0.2 rounded bg-black/70 text-white text-[9px] font-bold">
+                        {idx + 1}
+                      </div>
+
+                      {/* Remove Button on Thumbnail */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemovePhoto(idx, e)}
+                        className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/80 hover:bg-rose-600 text-white flex items-center justify-center transition-colors cursor-pointer"
+                        title="Delete photo"
+                      >
+                        <X className="w-2.5 h-2.5 stroke-[3]" />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {/* "+ Take More" Tile Button */}
+                <button
+                  type="button"
+                  onClick={() => setActivePreviewIndex(null)}
+                  className={`w-14 h-14 rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-white/70 hover:text-white transition-all shrink-0 cursor-pointer ${
+                    activePreviewIndex === null
+                      ? 'border-primary/60 bg-primary/10 text-primary'
+                      : 'border-white/20 hover:border-white/40 bg-white/5'
+                  }`}
+                  title="Snap another photo"
+                >
+                  <Plus className="w-4 h-4 mb-0.5" />
+                  <span className="text-[9px] font-bold leading-tight">Add</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Action Bar (Clean: NO duplicate flash button here) */}
           {!error && (
-            <div className="absolute bottom-0 inset-x-0 z-30 pb-7 pt-5 px-6 bg-gradient-to-t from-black/95 via-black/70 to-transparent sm:relative sm:border-t sm:border-white/10 sm:bg-black/60 sm:py-4 shrink-0">
-              {capturedImage ? (
-                // Retake & Confirm Controls
+            <div className="relative z-30 pb-7 pt-4 px-6 bg-gradient-to-t from-black via-black/80 to-transparent sm:border-t sm:border-white/10 sm:bg-black/60 sm:py-4 shrink-0">
+              {activePreviewIndex !== null ? (
+                // Controls when inspecting a clicked snapshot
                 <div className="w-full flex items-center justify-between gap-3 sm:gap-4 max-w-md mx-auto">
                   <button
                     type="button"
-                    onClick={handleRetake}
-                    className="flex-1 py-3.5 sm:py-3 px-4 rounded-2xl bg-white/15 hover:bg-white/25 active:scale-95 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer backdrop-blur-md border border-white/10 shadow-lg"
+                    onClick={() => setActivePreviewIndex(null)}
+                    className="flex-1 py-3 px-4 rounded-2xl bg-white/15 hover:bg-white/25 active:scale-95 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer backdrop-blur-md border border-white/10 shadow-lg"
                   >
-                    <RotateCcw className="w-4 h-4" /> Retake
+                    <Camera className="w-4 h-4" /> Back to Camera
                   </button>
+
                   <button
                     type="button"
-                    onClick={handleConfirm}
-                    className="flex-1 py-3.5 sm:py-3 px-4 rounded-2xl bg-primary hover:bg-primary/90 active:scale-95 text-primary-foreground font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xl hover:shadow-primary/30 cursor-pointer"
+                    onClick={() => handleRemovePhoto(activePreviewIndex)}
+                    className="py-3 px-4 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-rose-500/30"
+                    title="Remove this photo"
                   >
-                    <Check className="w-4 h-4" /> Send Photo
+                    <Trash2 className="w-4 h-4" /> Remove
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSendAll}
+                    className="flex-1 py-3 px-4 rounded-2xl bg-primary hover:bg-primary/90 active:scale-95 text-primary-foreground font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xl cursor-pointer"
+                  >
+                    <Send className="w-4 h-4" /> Send ({capturedPhotos.length})
                   </button>
                 </div>
               ) : (
                 // Live Shutter & Controls
                 <div className="w-full flex items-center justify-between max-w-md mx-auto">
-                  {/* Left: Quick controls (Flash + Flip) */}
+                  {/* Left: Flip camera (or Clear All if photos exist) */}
                   <div className="w-24 flex items-center justify-start gap-2">
-                    {/* Flash toggle button */}
-                    <button
-                      type="button"
-                      onClick={handleToggleFlash}
-                      className={`p-3 rounded-full transition-all cursor-pointer border backdrop-blur-md shadow-md ${
-                        flashMode === 'on'
-                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-amber-500/30'
-                          : 'bg-white/15 hover:bg-white/25 text-white border-white/10'
-                      }`}
-                      title={flashMode === 'on' ? 'Turn Flash Off' : 'Turn Flash On'}
-                    >
-                      {flashMode === 'on' ? (
-                        <Zap className="w-5 h-5 fill-current" />
-                      ) : (
-                        <ZapOff className="w-5 h-5" />
-                      )}
-                    </button>
-
                     {hasMultipleCameras && (
                       <button
                         type="button"
@@ -524,28 +664,51 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                         <RefreshCw className="w-5 h-5" />
                       </button>
                     )}
+
+                    {capturedPhotos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearAll}
+                        className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        title="Clear all photos"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
 
-                  {/* Center: Big Shutter Snap Button */}
+                  {/* Center: Big Shutter Snap Button (Keep clicking photos) */}
                   <button
                     type="button"
                     onClick={handleCapture}
                     disabled={isLoading}
                     className="w-18 h-18 sm:w-16 sm:h-16 rounded-full border-4 border-white flex items-center justify-center p-1.5 cursor-pointer transition-transform active:scale-90 hover:scale-105 shadow-2xl disabled:opacity-50"
-                    title="Take Photo"
+                    title={capturedPhotos.length > 0 ? "Take another photo" : "Take photo"}
                   >
                     <div className="w-full h-full rounded-full bg-white transition-colors" />
                   </button>
 
-                  {/* Right: Cancel button */}
+                  {/* Right: Send all or Cancel */}
                   <div className="w-24 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="text-xs sm:text-sm font-medium text-white/70 hover:text-white px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
+                    {capturedPhotos.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={handleSendAll}
+                        className="py-2.5 px-3.5 sm:px-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-lg active:scale-95 cursor-pointer"
+                        title="Send captured photos"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Send ({capturedPhotos.length})</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleClose}
+                        className="text-xs sm:text-sm font-medium text-white/70 hover:text-white px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
