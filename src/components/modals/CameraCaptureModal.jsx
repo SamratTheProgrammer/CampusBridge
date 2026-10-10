@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ModalPortal from './ModalPortal';
-import { Camera, X, RotateCcw, Check, RefreshCw, AlertCircle, Upload } from 'lucide-react';
+import { Camera, X, RotateCcw, Check, RefreshCw, AlertCircle, Upload, Zap, ZapOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallbackToFile }) {
@@ -10,14 +10,33 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
   const [error, setError] = useState(null);
   const [isFlashing, setIsFlashing] = useState(false);
+  const [isScreenFlashing, setIsScreenFlashing] = useState(false);
+  const [flashMode, setFlashMode] = useState('off'); // 'off' or 'on'
   const [isLoading, setIsLoading] = useState(true);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
+  // Hardware torch controller for back camera
+  const applyTorch = useCallback(async (enabled) => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+      if ('torch' in capabilities) {
+        await track.applyConstraints({
+          advanced: [{ torch: enabled }]
+        });
+      }
+    } catch (_) {}
+  }, []);
+
   // Stop camera tracks helper: strictly and immediately stops all hardware tracks
   const stopCamera = useCallback(() => {
+    applyTorch(false);
+
     // 1. Stop tracks tracked in streamRef
     if (streamRef.current) {
       try {
@@ -50,7 +69,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
     }
 
     setStream(null);
-  }, []);
+  }, [applyTorch]);
 
   // Safe close handler that always terminates hardware stream
   const handleClose = useCallback(() => {
@@ -135,6 +154,19 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
           videoRef.current.srcObject = mediaStream;
           videoRef.current.play().catch(() => {});
         }
+
+        // If back camera and flash is on, apply torch
+        if (facingMode === 'environment' && flashMode === 'on') {
+          const track = mediaStream.getVideoTracks()[0];
+          if (track) {
+            try {
+              const cap = track.getCapabilities ? track.getCapabilities() : {};
+              if ('torch' in cap) {
+                track.applyConstraints({ advanced: [{ torch: true }] }).catch(() => {});
+              }
+            } catch (_) {}
+          }
+        }
       } catch (err) {
         if (isCancelled) return;
         console.error('Camera access error:', err);
@@ -151,6 +183,15 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
     };
   }, [isOpen, facingMode, stopCamera]);
 
+  // Handle hardware torch changes when toggling flash or flipping camera
+  useEffect(() => {
+    if (stream && facingMode === 'environment') {
+      applyTorch(flashMode === 'on');
+    } else {
+      applyTorch(false);
+    }
+  }, [stream, facingMode, flashMode, applyTorch]);
+
   // Ensure video element plays stream if videoRef is mounted or updated
   useEffect(() => {
     if (videoRef.current && streamRef.current) {
@@ -166,9 +207,29 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
     setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
   };
 
-  // Capture snapshot from live stream
-  const handleCapture = () => {
+  // Toggle flash mode on/off
+  const handleToggleFlash = () => {
+    const nextMode = flashMode === 'on' ? 'off' : 'on';
+    setFlashMode(nextMode);
+    toast(nextMode === 'on' ? 'Flash enabled' : 'Flash disabled', {
+      icon: nextMode === 'on' ? '⚡' : '🌑',
+      duration: 1400
+    });
+  };
+
+  // Capture snapshot from live stream with flash support for front & back
+  const handleCapture = async () => {
     if (!videoRef.current) return;
+
+    // Front Camera Screen Flash or assist lighting
+    if (flashMode === 'on') {
+      setIsScreenFlashing(true);
+      // Give 120ms so screen illumination lights up face before reading canvas frame
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    } else {
+      setIsFlashing(true);
+      setTimeout(() => setIsFlashing(false), 200);
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current || document.createElement('canvas');
@@ -176,11 +237,10 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
     canvas.height = video.videoHeight || 720;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Trigger visual shutter flash
-    setIsFlashing(true);
-    setTimeout(() => setIsFlashing(false), 200);
+    if (!ctx) {
+      setIsScreenFlashing(false);
+      return;
+    }
 
     // If front camera, mirror horizontally so photo matches mirror preview
     if (facingMode === 'user') {
@@ -189,6 +249,10 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
     }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    if (flashMode === 'on') {
+      setTimeout(() => setIsScreenFlashing(false), 150);
+    }
 
     canvas.toBlob(
       (blob) => {
@@ -204,7 +268,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
     );
   };
 
-  // Retake photo: clear snapshot overlay, camera underneath keeps streaming seamlessly with zero black screen!
+  // Retake photo: clear snapshot overlay, camera underneath keeps streaming seamlessly
   const handleRetake = () => {
     setCapturedImage(null);
     if (videoRef.current) {
@@ -247,12 +311,17 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
         }}
         tabIndex={-1}
       >
+        {/* Full-screen White Screen Flash (for front camera or dark environments) */}
+        {isScreenFlashing && (
+          <div className="fixed inset-0 bg-[#fffdfa] pointer-events-none z-[300] transition-opacity duration-75" />
+        )}
+
         {/* Shutter Flash Animation */}
         {isFlashing && (
           <div className="fixed inset-0 bg-white pointer-events-none z-[260] animate-out fade-out duration-200" />
         )}
 
-        {/* Modal Window: Restored to original balanced size (max-w-2xl, max-h-[85vh]) so all buttons are 100% visible */}
+        {/* Modal Window */}
         <div
           className="relative w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[85vh] bg-slate-950 sm:border sm:border-white/10 sm:rounded-3xl overflow-hidden sm:shadow-2xl flex flex-col"
           onClick={(e) => e.stopPropagation()}
@@ -264,17 +333,46 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                 <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div>
-                <h3 className="text-sm sm:text-base font-bold text-white tracking-wide drop-shadow-md sm:drop-shadow-none">
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-wide drop-shadow-md sm:drop-shadow-none flex items-center gap-2">
                   {capturedImage ? 'Preview Photo' : 'Camera'}
+                  {!capturedImage && flashMode === 'on' && (
+                    <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 tracking-wider">
+                      Flash ON
+                    </span>
+                  )}
                 </h3>
                 <p className="text-[11px] sm:text-xs text-white/70 sm:text-white/50 drop-shadow-md sm:drop-shadow-none">
-                  {capturedImage ? 'Ready to send in chat' : 'Position within frame and snap photo'}
+                  {capturedImage
+                    ? 'Ready to send in chat'
+                    : facingMode === 'user'
+                    ? 'Front Camera (Screen flash enabled when active)'
+                    : 'Back Camera (Flash torch enabled when active)'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Flip camera on header (especially handy on mobile) */}
+              {/* Flash Toggle button on header */}
+              {!capturedImage && (
+                <button
+                  type="button"
+                  onClick={handleToggleFlash}
+                  className={`p-2 sm:p-2.5 rounded-xl transition-all cursor-pointer border ${
+                    flashMode === 'on'
+                      ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-500/30 font-bold'
+                      : 'text-white/80 hover:text-white bg-black/40 hover:bg-white/10 border-white/10'
+                  }`}
+                  title={flashMode === 'on' ? 'Turn Flash Off' : 'Turn Flash On'}
+                >
+                  {flashMode === 'on' ? (
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                  ) : (
+                    <ZapOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                  )}
+                </button>
+              )}
+
+              {/* Flip camera on header */}
               {hasMultipleCameras && !capturedImage && (
                 <button
                   type="button"
@@ -297,7 +395,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
             </div>
           </div>
 
-          {/* Viewfinder Body (Full Screen on Mobile, Balanced Frame on Laptop) */}
+          {/* Viewfinder Body */}
           <div className="relative flex-1 min-h-0 bg-black flex items-center justify-center overflow-hidden w-full h-full sm:min-h-[360px] sm:max-h-[55vh]">
             {error ? (
               <div className="text-center p-6 max-w-md z-20">
@@ -321,7 +419,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
               </div>
             ) : (
               <>
-                {/* 1. Live Video Stream: KEPT PERMANENTLY MOUNTED (Never unmounts, completely eliminates black screen on retake!) */}
+                {/* 1. Live Video Stream */}
                 <video
                   ref={videoRef}
                   autoPlay
@@ -333,12 +431,17 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                 />
                 <canvas ref={canvasRef} className="hidden" />
 
-                {/* 2. Captured Image Snapshot Overlay: Sits on top of the live video */}
+                {/* Front Camera Softbox Ring when Flash is ON */}
+                {flashMode === 'on' && facingMode === 'user' && !capturedImage && (
+                  <div className="absolute inset-0 pointer-events-none ring-8 ring-amber-100/30 shadow-[inset_0_0_100px_rgba(255,248,220,0.45)] z-10 transition-all duration-300" />
+                )}
+
+                {/* 2. Captured Image Snapshot Overlay */}
                 {capturedImage && (
                   <img
                     src={capturedImage.dataUrl}
                     alt="Captured snapshot"
-                    className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:max-h-[55vh] z-10 bg-black animate-in fade-in duration-100"
+                    className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:max-h-[55vh] z-15 bg-black animate-in fade-in duration-100"
                   />
                 )}
 
@@ -367,7 +470,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
             )}
           </div>
 
-          {/* Bottom Action Bar: Always strictly visible and never cut off */}
+          {/* Bottom Action Bar */}
           {!error && (
             <div className="absolute bottom-0 inset-x-0 z-30 pb-7 pt-5 px-6 bg-gradient-to-t from-black/95 via-black/70 to-transparent sm:relative sm:border-t sm:border-white/10 sm:bg-black/60 sm:py-4 shrink-0">
               {capturedImage ? (
@@ -391,8 +494,26 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
               ) : (
                 // Live Shutter & Controls
                 <div className="w-full flex items-center justify-between max-w-md mx-auto">
-                  {/* Left: Flip camera button */}
-                  <div className="w-14 flex justify-start">
+                  {/* Left: Quick controls (Flash + Flip) */}
+                  <div className="w-24 flex items-center justify-start gap-2">
+                    {/* Flash toggle button */}
+                    <button
+                      type="button"
+                      onClick={handleToggleFlash}
+                      className={`p-3 rounded-full transition-all cursor-pointer border backdrop-blur-md shadow-md ${
+                        flashMode === 'on'
+                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-amber-500/30'
+                          : 'bg-white/15 hover:bg-white/25 text-white border-white/10'
+                      }`}
+                      title={flashMode === 'on' ? 'Turn Flash Off' : 'Turn Flash On'}
+                    >
+                      {flashMode === 'on' ? (
+                        <Zap className="w-5 h-5 fill-current" />
+                      ) : (
+                        <ZapOff className="w-5 h-5" />
+                      )}
+                    </button>
+
                     {hasMultipleCameras && (
                       <button
                         type="button"
@@ -417,7 +538,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                   </button>
 
                   {/* Right: Cancel button */}
-                  <div className="w-14 flex justify-end">
+                  <div className="w-24 flex justify-end">
                     <button
                       type="button"
                       onClick={handleClose}

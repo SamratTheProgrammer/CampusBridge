@@ -1267,6 +1267,58 @@ const RealtimeChat = () => {
     }
   };
 
+  // Universal message content extractor
+  const getMessageContentToCopy = (msg) => {
+    if (!msg || msg.isDeleted) return '';
+    if (msg.text && typeof msg.text === 'string' && msg.text.trim()) {
+      return msg.text;
+    }
+    if (msg.attachment?.url) {
+      return msg.attachment.url;
+    }
+    if (msg.audioUrl) {
+      return msg.audioUrl;
+    }
+    if (msg.share?.url) {
+      return msg.share.url;
+    }
+    if (msg.share?.title) {
+      return `${msg.share.title}${msg.share.link ? ' - ' + msg.share.link : ''}`;
+    }
+    if (msg.type === 'call_log') {
+      const typeStr = msg.callInfo?.callType === 'video' ? 'Video call' : 'Voice call';
+      const timeStr = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      return `${typeStr} • ${timeStr}`;
+    }
+    return '';
+  };
+
+  // Copy any message (text, attachment, link, shared post)
+  const copyMessage = (msg) => {
+    const textToCopy = getMessageContentToCopy(msg);
+    if (!textToCopy) {
+      toast.error('Nothing to copy from this message');
+      return;
+    }
+    copyMessageText(textToCopy);
+  };
+
+  // Copy selected messages
+  const handleCopySelected = () => {
+    if (selectedMessageIds.size === 0) return;
+    const selectedMsgs = messages.filter((m) => selectedMessageIds.has(m._id));
+    const combinedText = selectedMsgs
+      .map((m) => getMessageContentToCopy(m))
+      .filter(Boolean)
+      .join('\n');
+    if (combinedText) {
+      copyMessageText(combinedText);
+      exitSelectMode();
+    } else {
+      toast.error('Nothing to copy from selected messages');
+    }
+  };
+
   // WhatsApp-style Multi-Select Methods
   const toggleSelectMessage = (msgId) => {
     setSelectedMessageIds((prev) => {
@@ -1495,7 +1547,7 @@ const RealtimeChat = () => {
     setBulkDeleteModalOpen(false);
   };
 
-  // Mobile Touch Long-Press handlers (tap & hold ~500ms to trigger multi-select)
+  // Mobile Touch Long-Press handlers (tap & hold ~450ms copies message on phone)
   const handleTouchStart = (e, msg) => {
     if (isSelectMode) return;
     if (msg.isDeleted) return;
@@ -1510,8 +1562,8 @@ const RealtimeChat = () => {
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         try { navigator.vibrate(50); } catch (_) {}
       }
-      startSelectMode(msg._id);
-    }, 500);
+      copyMessage(msg);
+    }, 450);
   };
 
   const handleTouchMove = (e) => {
@@ -2242,6 +2294,15 @@ const RealtimeChat = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  onClick={handleCopySelected}
+                  disabled={selectedMessageIds.size === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                  title="Copy Selected"
+                >
+                  <Copy className="w-4 h-4 text-blue-500" />
+                  <span className="hidden sm:inline">Copy</span>
+                </button>
+                <button
                   onClick={handleForwardSelected}
                   disabled={selectedMessageIds.size === 0}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-all cursor-pointer"
@@ -2638,8 +2699,8 @@ const RealtimeChat = () => {
                                   <Forward className="w-3.5 h-3.5 text-emerald-500" /> Forward
                                 </button>
                               )}
-                              {msg.text && !msg.isDeleted && (
-                                <button onClick={(e) => { e.stopPropagation(); copyMessageText(msg.text); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
+                              {!msg.isDeleted && (
+                                <button onClick={(e) => { e.stopPropagation(); copyMessage(msg); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
                                   <Copy className="w-3.5 h-3.5 text-blue-500" /> Copy
                                 </button>
                               )}
@@ -2663,6 +2724,7 @@ const RealtimeChat = () => {
 
                       <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} min-w-0 max-w-full`}>
                         <div
+                          onContextMenu={(e) => handleMessageContextMenu(e, msg)}
                           className={`${
                             (!msg.text && msg.attachment?.type === 'image') ? 'p-1' : 'px-3.5 py-2 sm:px-4 sm:py-2.5'
                           } rounded-2xl text-sm shadow-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] flex flex-col max-w-full ${
@@ -3572,15 +3634,15 @@ const RealtimeChat = () => {
                   <Forward className="w-3.5 h-3.5 text-emerald-500" /> Forward
                 </button>
               )}
-              {contextMenu.message.text && !contextMenu.message.isDeleted && (
+              {!contextMenu.message.isDeleted && (
                 <button
                   onClick={() => {
-                    copyMessageText(contextMenu.message.text);
+                    copyMessage(contextMenu.message);
                     setContextMenu(null);
                   }}
                   className="w-full px-3.5 py-2 text-left text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
                 >
-                  <Copy className="w-3.5 h-3.5 text-blue-500" /> Copy Text
+                  <Copy className="w-3.5 h-3.5 text-blue-500" /> Copy Message
                 </button>
               )}
               {!contextMenu.message.isDeleted && (
