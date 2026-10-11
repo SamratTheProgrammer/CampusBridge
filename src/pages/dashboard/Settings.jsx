@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2, Sun, Moon, MonitorSmartphone, Palette, HelpCircle, Mail, MessageSquare, ExternalLink, Headphones, Volume2, VolumeX, Languages } from 'lucide-react'
-import { useUser, useSessionList, useSession } from '@clerk/clerk-react'
+import { User, Users, Briefcase, GraduationCap, Code, FileText, CheckCircle2, Save, Upload, Sparkles, Loader2, Lock, Shield, Globe, Laptop, Smartphone, Trash2, MapPin, AtSign, Check, AlertCircle, ChevronDown, Edit2, Sun, Moon, MonitorSmartphone, Palette, HelpCircle, Mail, MessageSquare, ExternalLink, Headphones, Volume2, VolumeX, Languages, ShieldCheck, Search, X } from 'lucide-react'
+import { useUser, useSessionList, useSession, useClerk } from '@clerk/clerk-react'
 import SettingsSkeleton from '../../components/skeletons/SettingsSkeleton'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import DeleteAccountModal from '../../components/modals/DeleteAccountModal'
+import PhoneVerificationModal from '../../components/modals/PhoneVerificationModal'
 import { AnimatePresence } from 'framer-motion'
 import ImageCropModal from '../../components/ImageCropModal'
 import { useCurrentDevice } from '../../hooks/useCurrentDevice'
@@ -18,6 +19,7 @@ import ringtoneService from '../../utils/ringtone'
 import DeviceSessionsManager from '../../components/settings/DeviceSessionsManager'
 import TranslationLanguageSetting from '../../components/settings/TranslationLanguageSetting'
 import LanguagesManager from '../../components/settings/LanguagesManager'
+import { COUNTRIES, getIso2FromFlag, formatToE164 } from '../../utils/countries'
 const JOB_TITLES = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
   "Mobile Developer", "iOS Developer", "Android Developer", "Web Developer",
@@ -78,55 +80,8 @@ const POPULAR_SKILLS = [
   "Agile Methodologies", "Scrum", "Jira", "Trello", "Confluence", "REST APIs", "GraphQL", "WebSockets", "Microservices"
 ].sort();
 
-const COUNTRIES = [
-  { name: 'Afghanistan', code: '+93', flag: '🇦🇫' }, { name: 'Albania', code: '+355', flag: '🇦🇱' }, { name: 'Algeria', code: '+213', flag: '🇩🇿' },
-  { name: 'Andorra', code: '+376', flag: '🇦🇩' }, { name: 'Angola', code: '+244', flag: '🇦🇴' }, { name: 'Argentina', code: '+54', flag: '🇦🇷' },
-  { name: 'Armenia', code: '+374', flag: '🇦🇲' }, { name: 'Australia', code: '+61', flag: '🇦🇺' }, { name: 'Austria', code: '+43', flag: '🇦🇹' },
-  { name: 'Azerbaijan', code: '+994', flag: '🇦🇿' }, { name: 'Bahrain', code: '+973', flag: '🇧🇭' }, { name: 'Bangladesh', code: '+880', flag: '🇧🇩' },
-  { name: 'Belarus', code: '+375', flag: '🇧🇾' }, { name: 'Belgium', code: '+32', flag: '🇧🇪' }, { name: 'Bhutan', code: '+975', flag: '🇧🇹' },
-  { name: 'Bolivia', code: '+591', flag: '🇧🇴' }, { name: 'Bosnia and Herzegovina', code: '+387', flag: '🇧🇦' }, { name: 'Brazil', code: '+55', flag: '🇧🇷' },
-  { name: 'Bulgaria', code: '+359', flag: '🇧🇬' }, { name: 'Cambodia', code: '+855', flag: '🇰🇭' }, { name: 'Cameroon', code: '+237', flag: '🇨🇲' },
-  { name: 'Canada', code: '+1', flag: '🇨🇦' }, { name: 'Chile', code: '+56', flag: '🇨🇱' }, { name: 'China', code: '+86', flag: '🇨🇳' },
-  { name: 'Colombia', code: '+57', flag: '🇨🇴' }, { name: 'Costa Rica', code: '+506', flag: '🇨🇷' }, { name: 'Croatia', code: '+385', flag: '🇭🇷' },
-  { name: 'Cuba', code: '+53', flag: '🇨🇺' }, { name: 'Cyprus', code: '+357', flag: '🇨🇾' }, { name: 'Czech Republic', code: '+420', flag: '🇨🇿' },
-  { name: 'Denmark', code: '+45', flag: '🇩🇰' }, { name: 'Ecuador', code: '+593', flag: '🇪🇨' }, { name: 'Egypt', code: '+20', flag: '🇪🇬' },
-  { name: 'El Salvador', code: '+503', flag: '🇸🇻' }, { name: 'Estonia', code: '+372', flag: '🇪🇪' }, { name: 'Ethiopia', code: '+251', flag: '🇪🇹' },
-  { name: 'Fiji', code: '+679', flag: '🇫🇯' }, { name: 'Finland', code: '+358', flag: '🇫🇮' }, { name: 'France', code: '+33', flag: '🇫🇷' },
-  { name: 'Georgia', code: '+995', flag: '🇬🇪' }, { name: 'Germany', code: '+49', flag: '🇩🇪' }, { name: 'Ghana', code: '+233', flag: '🇬🇭' },
-  { name: 'Greece', code: '+30', flag: '🇬🇷' }, { name: 'Guatemala', code: '+502', flag: '🇬🇹' }, { name: 'Honduras', code: '+504', flag: '🇭🇳' },
-  { name: 'Hong Kong', code: '+852', flag: '🇭🇰' }, { name: 'Hungary', code: '+36', flag: '🇭🇺' }, { name: 'Iceland', code: '+354', flag: '🇮🇸' },
-  { name: 'India', code: '+91', flag: '🇮🇳' }, { name: 'Indonesia', code: '+62', flag: '🇮🇩' }, { name: 'Iran', code: '+98', flag: '🇮🇷' },
-  { name: 'Iraq', code: '+964', flag: '🇮🇶' }, { name: 'Ireland', code: '+353', flag: '🇮🇪' }, { name: 'Israel', code: '+972', flag: '🇮🇱' },
-  { name: 'Italy', code: '+39', flag: '🇮🇹' }, { name: 'Jamaica', code: '+1-876', flag: '🇯🇲' }, { name: 'Japan', code: '+81', flag: '🇯🇵' },
-  { name: 'Jordan', code: '+962', flag: '🇯🇴' }, { name: 'Kazakhstan', code: '+7', flag: '🇰🇿' }, { name: 'Kenya', code: '+254', flag: '🇰🇪' },
-  { name: 'Kuwait', code: '+965', flag: '🇰🇼' }, { name: 'Lebanon', code: '+961', flag: '🇱🇧' }, { name: 'Malaysia', code: '+60', flag: '🇲🇾' },
-  { name: 'Maldives', code: '+960', flag: '🇲🇻' }, { name: 'Mexico', code: '+52', flag: '🇲🇽' }, { name: 'Monaco', code: '+377', flag: '🇲🇨' },
-  { name: 'Morocco', code: '+212', flag: '🇲🇦' }, { name: 'Myanmar', code: '+95', flag: '🇲🇲' }, { name: 'Nepal', code: '+977', flag: '🇳🇵' },
-  { name: 'Netherlands', code: '+31', flag: '🇳🇱' }, { name: 'New Zealand', code: '+64', flag: '🇳🇿' }, { name: 'Nigeria', code: '+234', flag: '🇳🇬' },
-  { name: 'Norway', code: '+47', flag: '🇳🇴' }, { name: 'Oman', code: '+968', flag: '🇴🇲' }, { name: 'Pakistan', code: '+92', flag: '🇵🇰' },
-  { name: 'Panama', code: '+507', flag: '🇵🇦' }, { name: 'Paraguay', code: '+595', flag: '🇵🇾' }, { name: 'Peru', code: '+51', flag: '🇵🇪' },
-  { name: 'Philippines', code: '+63', flag: '🇵🇭' }, { name: 'Poland', code: '+48', flag: '🇵🇱' }, { name: 'Portugal', code: '+351', flag: '🇵🇹' },
-  { name: 'Qatar', code: '+974', flag: '🇶🇦' }, { name: 'Romania', code: '+40', flag: '🇷🇴' }, { name: 'Russia', code: '+7', flag: '🇷🇺' },
-  { name: 'Saudi Arabia', code: '+966', flag: '🇸🇦' }, { name: 'Senegal', code: '+221', flag: '🇸🇳' }, { name: 'Serbia', code: '+381', flag: '🇷🇸' },
-  { name: 'Singapore', code: '+65', flag: '🇸🇬' }, { name: 'South Africa', code: '+27', flag: '🇿🇦' }, { name: 'South Korea', code: '+82', flag: '🇰🇷' },
-  { name: 'Spain', code: '+34', flag: '🇪🇸' }, { name: 'Sri Lanka', code: '+94', flag: '🇱🇰' }, { name: 'Sweden', code: '+46', flag: '🇸🇪' },
-  { name: 'Switzerland', code: '+41', flag: '🇨🇭' }, { name: 'Taiwan', code: '+886', flag: '🇹🇼' }, { name: 'Thailand', code: '+66', flag: '🇹🇭' },
-  { name: 'Tunisia', code: '+216', flag: '🇹🇳' }, { name: 'Turkey', code: '+90', flag: '🇹🇷' }, { name: 'Uganda', code: '+256', flag: '🇺🇬' },
-  { name: 'Ukraine', code: '+380', flag: '🇺🇦' }, { name: 'United Arab Emirates', code: '+971', flag: '🇦🇪' }, { name: 'United Kingdom', code: '+44', flag: '🇬🇧' },
-  { name: 'United States', code: '+1', flag: '🇺🇸' }, { name: 'Uruguay', code: '+598', flag: '🇺🇾' }, { name: 'Uzbekistan', code: '+998', flag: '🇺🇿' },
-  { name: 'Vatican City', code: '+379', flag: '🇻🇦' }, { name: 'Venezuela', code: '+58', flag: '🇻🇪' }, { name: 'Vietnam', code: '+84', flag: '🇻🇳' },
-  { name: 'Yemen', code: '+967', flag: '🇾🇪' }, { name: 'Zambia', code: '+260', flag: '🇿🇲' }, { name: 'Zimbabwe', code: '+263', flag: '🇿🇼' }
-];
-
-const getIso2FromFlag = (emoji) => {
-  if (!emoji) return 'in';
-  const code1 = emoji.codePointAt(0);
-  const code2 = emoji.codePointAt(2);
-  if (!code1 || !code2) return 'in';
-  return String.fromCharCode(code1 - 0x1F1E6 + 97) + String.fromCharCode(code2 - 0x1F1E6 + 97);
-};
-
 const Settings = () => {
+  const clerk = useClerk()
   const { user, isLoaded } = useUser()
   const { sessions } = useSessionList()
   const { session: currentSession } = useSession()
@@ -142,6 +97,7 @@ const Settings = () => {
   const [location, setLocation] = useState('')
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
+  const [phoneVisibility, setPhoneVisibility] = useState('public')
   const [aboutMe, setAboutMe] = useState('')
   const [socialLinks, setSocialLinks] = useState([])
   const [showSocialForm, setShowSocialForm] = useState(false)
@@ -178,9 +134,69 @@ const Settings = () => {
   const [editEduIndex, setEditEduIndex] = useState(null)
   const [newEdu, setNewEdu] = useState({ level: '', degree: '', degreeBase: '', stream: '', institution: '', startMonth: 'Jan', startYear: currentYear.toString(), endMonth: 'Dec', endYear: currentYear.toString(), isCurrent: false, grade: '' })
   
-  const [showSkillDropdown, setShowSkillDropdown] = useState(false)
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
+  const [countrySearch, setCountrySearch] = useState('')
+  const countryDropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target)) {
+        setShowCountryDropdown(false)
+      }
+    }
+    if (showCountryDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showCountryDropdown])
+
+  const filteredCountries = COUNTRIES.filter((c) => {
+    const q = countrySearch.trim().toLowerCase()
+    if (!q) return true
+    const cleanQueryCode = q.replace('+', '')
+    const cleanCountryCode = c.code.replace('+', '').toLowerCase()
+    return c.name.toLowerCase().includes(q) || cleanCountryCode.includes(cleanQueryCode) || c.code.toLowerCase().includes(q)
+  })
+  const [isEditingPhone, setIsEditingPhone] = useState(false)
+  const [isSendingPhoneOtp, setIsSendingPhoneOtp] = useState(false)
+  const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState(false)
+  const [pendingPhoneResource, setPendingPhoneResource] = useState(null)
+  const [tempPhoneToVerify, setTempPhoneToVerify] = useState('')
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES.find(c => c.code === '+91') || COUNTRIES[0])
+  const [rawPhoneNumber, setRawPhoneNumber] = useState('')
   const [hasInitialized, setHasInitialized] = useState(false)
+
+  const isPhoneValid = () => {
+    const digits = rawPhoneNumber.replace(/\D/g, '')
+    if (!digits) return false
+    if (selectedCountry.code === '+91') {
+      return digits.length === 10 && /^[6-9]/.test(digits)
+    }
+    return digits.length >= 6 && digits.length <= 15
+  }
+
+  const getPhoneValidationError = () => {
+    const digits = rawPhoneNumber.replace(/\D/g, '')
+    if (!digits) return ''
+    if (selectedCountry.code === '+91') {
+      if (!/^[6-9]/.test(digits)) {
+        return 'Indian mobile numbers must start with 6, 7, 8, or 9'
+      }
+      if (digits.length < 10) {
+        return `${10 - digits.length} more digit${10 - digits.length > 1 ? 's' : ''} needed (10 digits required)`
+      }
+      return ''
+    }
+    if (digits.length < 6) {
+      return 'Number must be at least 6 digits'
+    }
+    if (digits.length > 15) {
+      return 'Number cannot exceed 15 digits'
+    }
+    return ''
+  }
   
   const [isUploading, setIsUploading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -203,9 +219,9 @@ const Settings = () => {
     window.dispatchEvent(new CustomEvent('campusbridge_notification_sound_change', { detail: val }))
     if (val) {
       try { ringtoneService.playNotificationSound(true) } catch(e){}
-      toast.success('Notification sound turned ON 🔔')
+      toast.success('Notification sound turned ON')
     } else {
-      toast.success('Notification sound turned OFF 🔕')
+      toast.success('Notification sound turned OFF')
     }
   }
 
@@ -322,14 +338,29 @@ const Settings = () => {
       const emailPrefix = user.primaryEmailAddress?.emailAddress?.split('@')[0] || user.emailAddresses?.[0]?.emailAddress?.split('@')[0];
       const defaultUsername = (user.username || emailPrefix || user.firstName || '').toLowerCase().replace(/[^a-z0-9-_]/g, '');
       
-      // Always prefer MongoDB data over Clerk data
+      // Prefer Clerk verified phone if present, otherwise MongoDB
+      const clerkVerifiedPhone = user.phoneNumbers?.find(p => p.verification?.status === 'verified')?.phoneNumber;
+      const initialPhone = clerkVerifiedPhone || mongoProfile?.phone || user.unsafeMetadata?.phone || '';
+
+      // Always prefer MongoDB data over Clerk data for other profile fields
       setFirstName(mongoProfile?.firstName || user.firstName || '');
       setLastName(mongoProfile?.lastName || user.lastName || '');
       setUsernameValue(mongoProfile?.username || defaultUsername);
       setHeadline(mongoProfile?.headline || user.unsafeMetadata?.headline || '');
       setLocation(mongoProfile?.location || user.unsafeMetadata?.location || '');
       setAddress(mongoProfile?.address || user.unsafeMetadata?.address || '');
-      setPhone(mongoProfile?.phone || user.unsafeMetadata?.phone || '');
+      setPhone(initialPhone);
+
+      if (initialPhone) {
+        const countryMatch = COUNTRIES.find(c => initialPhone.startsWith(c.code));
+        if (countryMatch) {
+          setSelectedCountry(countryMatch);
+          setRawPhoneNumber(initialPhone.slice(countryMatch.code.length).trim());
+        } else {
+          setRawPhoneNumber(initialPhone.replace(/^\+\d+(-\d+)?\s*/, '').trim());
+        }
+      }
+      if (mongoProfile?.phoneVisibility) setPhoneVisibility(mongoProfile.phoneVisibility);
       setAboutMe(mongoProfile?.aboutMe || user.unsafeMetadata?.aboutMe || '');
       setSocialLinks(mongoProfile?.socialLinks?.length ? mongoProfile.socialLinks : (user.unsafeMetadata?.socialLinks || []));
       setResumeUrl(mongoProfile?.resumeUrl || user.unsafeMetadata?.resumeUrl || '');
@@ -464,6 +495,11 @@ const Settings = () => {
           location,
           address,
           phone,
+          isPhoneVerified: Boolean(
+            (clerkVerifiedPhoneObj && (phone.replace(/\s+/g, '') === clerkVerifiedPhoneObj.phoneNumber?.replace(/\s+/g, ''))) ||
+            (mongoProfile?.isPhoneVerified && phone === mongoProfile?.phone)
+          ),
+          phoneVisibility,
           aboutMe,
           socialLinks,
           resumeUrl,
@@ -495,6 +531,179 @@ const Settings = () => {
       setIsSaving(false)
     }
   }
+
+  const clerkVerifiedPhoneObj = user?.phoneNumbers?.find((p) => p.verification?.status === 'verified');
+  const isPhoneVerified = Boolean(clerkVerifiedPhoneObj || mongoProfile?.isPhoneVerified);
+  const currentVerifiedNumber = clerkVerifiedPhoneObj?.phoneNumber || (mongoProfile?.isPhoneVerified ? (mongoProfile?.phone || phone) : null);
+
+  const handleInitiatePhoneVerification = async () => {
+    if (!user) return;
+    const digits = rawPhoneNumber.replace(/\D/g, '');
+    if (selectedCountry.code === '+91') {
+      if (digits.length !== 10) {
+        toast.error('Indian mobile numbers must be exactly 10 digits');
+        return;
+      }
+      if (!/^[6-9]/.test(digits)) {
+        toast.error('Indian mobile numbers must start with 6, 7, 8, or 9');
+        return;
+      }
+    } else {
+      if (!digits || digits.length < 6 || digits.length > 15) {
+        toast.error('Please enter a valid phone number (6-15 digits)');
+        return;
+      }
+    }
+
+    const e164 = formatToE164(selectedCountry.code, digits);
+    setIsSendingPhoneOtp(true);
+
+    try {
+      const otpRes = await fetch(`${API_BASE}/api/users/phone-otp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user.id, phoneNumber: e164 })
+      });
+      const otpData = await otpRes.json().catch(() => ({}));
+
+      if (!otpRes.ok || !otpData.success) {
+        throw new Error(otpData.message || 'Failed to send verification code');
+      }
+
+      setPendingPhoneResource(null);
+      setTempPhoneToVerify(e164);
+      setShowPhoneVerifyModal(true);
+
+      toast.success(`Verification code sent to ${e164}`);
+    } catch (err) {
+      console.error('Phone verification initiation error:', err);
+      const msg = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Failed to send SMS code';
+      toast.error(msg);
+    } finally {
+      setIsSendingPhoneOtp(false);
+    }
+  };
+
+  const handleBackendOtpVerify = async (code) => {
+    const verifyRes = await fetch(`${API_BASE}/api/users/phone-otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clerkId: user.id,
+        phoneNumber: tempPhoneToVerify,
+        code
+      })
+    });
+    const data = await verifyRes.json().catch(() => ({}));
+    if (!verifyRes.ok || !data.success) {
+      throw new Error(data.message || 'Invalid verification code');
+    }
+
+    // Save phone and phoneVisibility to MongoDB profile
+    await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: tempPhoneToVerify,
+        isPhoneVerified: true,
+        phoneVisibility
+      })
+    });
+
+    try {
+      await user.update({
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          phone: tempPhoneToVerify,
+          isPhoneVerified: true,
+          phoneVisibility
+        }
+      });
+    } catch (e) {
+      console.warn('Clerk user update note:', e);
+    }
+
+    if (typeof refetchMongoProfile === 'function') {
+      await refetchMongoProfile();
+    }
+
+    setPhone(tempPhoneToVerify);
+    const match = COUNTRIES.find((c) => tempPhoneToVerify.startsWith(c.code));
+    if (match) {
+      setSelectedCountry(match);
+      setRawPhoneNumber(tempPhoneToVerify.slice(match.code.length).trim());
+    }
+    setIsEditingPhone(false);
+    setShowPhoneVerifyModal(false);
+    setPendingPhoneResource(null);
+    toast.success('Phone number verified successfully!');
+  };
+
+  const handlePhoneVerificationSuccess = async (verifiedResource) => {
+    try {
+      const e164 = verifiedResource.phoneNumber || tempPhoneToVerify;
+      
+      const finRes = await fetch(`${API_BASE}/api/users/clerk-phone/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clerkId: user.id,
+          phoneNumber: e164,
+          phoneNumberId: verifiedResource.id
+        })
+      });
+      
+      if (!finRes.ok) {
+        const finData = await finRes.json().catch(() => ({}));
+        console.warn('Backend finalize warning:', finData.message);
+      }
+
+      await user.reload();
+      if (typeof refetchMongoProfile === 'function') {
+        await refetchMongoProfile();
+      }
+
+      setPhone(e164);
+      const match = COUNTRIES.find((c) => e164.startsWith(c.code));
+      if (match) {
+        setSelectedCountry(match);
+        setRawPhoneNumber(e164.slice(match.code.length).trim());
+      }
+      setIsEditingPhone(false);
+      setShowPhoneVerifyModal(false);
+      setPendingPhoneResource(null);
+      toast.success('Phone number verified successfully!');
+    } catch (err) {
+      console.error('Phone verification post-processing error:', err);
+      toast.error('Phone was verified, but failed to synchronize profile');
+    }
+  };
+
+  const handleResendPhoneOtp = async () => {
+    setIsSendingPhoneOtp(true);
+    try {
+      if (pendingPhoneResource) {
+        await pendingPhoneResource.prepareVerification({ strategy: 'phone_code' });
+        toast.success(`New verification code sent to ${tempPhoneToVerify}`);
+      } else {
+        const otpRes = await fetch(`${API_BASE}/api/users/phone-otp/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clerkId: user.id, phoneNumber: tempPhoneToVerify })
+        });
+        const otpData = await otpRes.json().catch(() => ({}));
+        if (!otpRes.ok || !otpData.success) throw new Error(otpData.message || 'Failed to resend code');
+        toast.success(`New verification code sent to ${tempPhoneToVerify}`);
+      }
+    } catch (err) {
+      console.error('Resend OTP error:', err);
+      const msg = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || 'Failed to resend code';
+      toast.error(msg);
+      throw err;
+    } finally {
+      setIsSendingPhoneOtp(false);
+    }
+  };
 
   const handleUploadResume = async (e) => {
     const file = e.target.files?.[0]
@@ -827,53 +1036,186 @@ const Settings = () => {
                     <option value="Prefer not to say">Prefer not to say</option>
                   </select>
                 </div>
+                {/* Phone Number Section */}
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium text-foreground">Phone Number</label>
-                  <div className="flex flex-row items-center gap-2 relative w-full">
-                    <div className="relative w-[110px] sm:w-[140px] shrink-0">
-                      <button 
-                        onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                        onBlur={() => setTimeout(() => setShowCountryDropdown(false), 200)}
-                        className="w-full h-[42px] flex items-center justify-between bg-background border border-border/50 rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all"
-                      >
-                        <span className="flex items-center gap-2 truncate">
-                          <img src={`https://flagcdn.com/w20/${getIso2FromFlag(COUNTRIES.find(c => phone.startsWith(c.code))?.flag || '🇮🇳')}.png`} alt="flag" className="w-5 h-auto rounded-sm object-cover shadow-sm" />
-                          <span className="truncate">{COUNTRIES.find(c => phone.startsWith(c.code))?.code || '+91'}</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-foreground">Phone Number</label>
+                      {isPhoneVerified && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Verified
                         </span>
-                        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-                      </button>
-                      
-                      {showCountryDropdown && (
-                        <div className="absolute z-[100] w-[280px] sm:w-[300px] max-w-[calc(100vw-3rem)] mt-1 bg-background border border-border/50 rounded-lg shadow-xl max-h-60 overflow-y-auto left-0">
-                          {COUNTRIES.map(c => (
-                            <div 
-                              key={c.name}
-                              className="px-3 py-2.5 text-sm hover:bg-muted cursor-pointer flex items-center gap-3 transition-colors"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                const currentNumber = phone.replace(/^\+\d+(-\d+)?\s*/, '');
-                                setPhone(`${c.code} ${currentNumber}`);
-                                setShowCountryDropdown(false);
-                              }}
-                            >
-                              <img src={`https://flagcdn.com/w20/${getIso2FromFlag(c.flag)}.png`} alt="flag" className="w-5 h-auto rounded-sm object-cover shrink-0 shadow-sm" />
-                              <span className="font-medium text-foreground">{c.name}</span>
-                              <span className="text-muted-foreground ml-auto">{c.code}</span>
-                            </div>
-                          ))}
-                        </div>
                       )}
                     </div>
-                    <input 
-                      type="tel" 
-                      value={phone.replace(/^\+\d+(-\d+)?\s*/, '')} // Show only the number part in input
-                      onChange={(e) => {
-                        const code = COUNTRIES.find(c => phone.startsWith(c.code))?.code || '+91';
-                        setPhone(`${code} ${e.target.value}`);
-                      }} 
-                      placeholder="9876543210" 
-                      className="flex-1 w-full h-[42px] bg-background border border-border/50 rounded-xl px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" 
-                    />
+
+                    <div className="flex items-center gap-2 ml-auto">
+                      {/* Privacy / Visibility Selector with Lucide Icons (No Emojis) */}
+                      <div className="flex items-center gap-1.5 bg-background border border-border/60 rounded-lg px-2.5 py-1 shadow-sm">
+                        {phoneVisibility === 'public' && <Globe className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                        {phoneVisibility === 'connections' && <Users className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
+                        {phoneVisibility === 'private' && <Lock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                        <span className="text-[11px] font-medium text-muted-foreground hidden sm:inline">Visibility:</span>
+                        <select
+                          value={phoneVisibility}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPhoneVisibility(val);
+                            if (user?.id) {
+                              fetch(`${API_BASE}/api/users/${user.id}/profile`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ phoneVisibility: val })
+                              }).then(() => {
+                                if (typeof refetchMongoProfile === 'function') refetchMongoProfile();
+                                toast.success(`Phone visibility set to ${val === 'private' ? 'Private (Hidden)' : val === 'connections' ? 'Connections Only' : 'Public'}`);
+                              }).catch(() => {});
+                            }
+                          }}
+                          className="text-xs font-semibold bg-transparent text-foreground focus:outline-none cursor-pointer"
+                        >
+                          <option value="public">Public (Visible on Profile)</option>
+                          <option value="connections">Connections Only</option>
+                          <option value="private">Private (Hidden from Profile)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                      {/* Phone Input Row: Country Code + Phone Number ALWAYS side-by-side */}
+                      <div className="flex items-center gap-2.5 w-full">
+                        <div className="relative w-[110px] sm:w-[125px] shrink-0" ref={countryDropdownRef}>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setShowCountryDropdown(prev => !prev);
+                              setCountrySearch('');
+                            }}
+                            className="w-full h-[42px] flex items-center justify-between bg-background border border-border/50 rounded-xl px-2.5 sm:px-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all cursor-pointer shadow-sm hover:border-border"
+                          >
+                            <span className="flex items-center gap-1.5 truncate">
+                              <img src={`https://flagcdn.com/w20/${getIso2FromFlag(selectedCountry.flag)}.png`} alt="flag" className="w-4 h-auto rounded-sm object-cover shadow-sm" />
+                              <span className="font-semibold text-xs sm:text-sm">{selectedCountry.code}</span>
+                            </span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
+                          </button>
+                          
+                          {showCountryDropdown && (
+                            <div className="absolute z-[100] w-[270px] sm:w-[300px] max-w-[calc(100vw-2.5rem)] mt-1.5 bg-card border border-border/70 rounded-xl shadow-2xl left-0 backdrop-blur-xl overflow-hidden">
+                              {/* Search Input Box */}
+                              <div className="p-2 border-b border-border/50 bg-background/60">
+                                <div className="relative flex items-center">
+                                  <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 pointer-events-none" />
+                                  <input
+                                    type="text"
+                                    value={countrySearch}
+                                    onChange={(e) => setCountrySearch(e.target.value)}
+                                    placeholder="Search country or code (+91)..."
+                                    autoFocus
+                                    className="w-full h-8 pl-8 pr-7 bg-muted/60 border border-border/50 rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background transition-all"
+                                  />
+                                  {countrySearch && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setCountrySearch('')}
+                                      className="absolute right-2 p-0.5 text-muted-foreground hover:text-foreground rounded cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Country List with smooth scrolling */}
+                              <div className="max-h-60 overflow-y-auto overscroll-contain divide-y divide-border/20 py-1">
+                                {filteredCountries.length > 0 ? (
+                                  filteredCountries.map(c => {
+                                    const isSelected = selectedCountry.name === c.name;
+                                    return (
+                                      <div 
+                                        key={c.name}
+                                        className={`px-3 py-2 text-xs sm:text-sm cursor-pointer flex items-center gap-2.5 transition-colors ${isSelected ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-muted text-foreground'}`}
+                                        onClick={() => {
+                                          setSelectedCountry(c);
+                                          setPhone(`${c.code} ${rawPhoneNumber}`);
+                                          setShowCountryDropdown(false);
+                                          setCountrySearch('');
+                                        }}
+                                      >
+                                        <img src={`https://flagcdn.com/w20/${getIso2FromFlag(c.flag)}.png`} alt="flag" className="w-4 h-auto rounded-sm object-cover shrink-0 shadow-sm" />
+                                        <span className="truncate flex-1">{c.name}</span>
+                                        <span className="text-muted-foreground font-mono text-xs shrink-0">{c.code}</span>
+                                        {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <div className="py-6 px-3 text-center text-xs text-muted-foreground">
+                                    No country found for "{countrySearch}"
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <input 
+                          type="tel" 
+                          value={rawPhoneNumber}
+                          maxLength={selectedCountry.code === '+91' ? 10 : 15}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/[^0-9]/g, '');
+                            const max = selectedCountry.code === '+91' ? 10 : 15;
+                            const trimmed = digits.slice(0, max);
+                            setRawPhoneNumber(trimmed);
+                            setPhone(`${selectedCountry.code} ${trimmed}`);
+                          }} 
+                          placeholder={selectedCountry.code === '+91' ? "Enter 10-digit mobile number" : "Enter phone number"} 
+                          className={`flex-1 min-w-0 h-[42px] bg-background border rounded-xl px-3.5 sm:px-4 focus:outline-none focus:ring-2 text-sm font-medium text-foreground transition-all shadow-sm ${
+                            rawPhoneNumber && getPhoneValidationError() 
+                              ? 'border-destructive/60 focus:ring-destructive/30' 
+                              : isPhoneValid() 
+                                ? 'border-emerald-500/60 focus:ring-emerald-500/30' 
+                                : 'border-border/50 focus:ring-primary/50'
+                          }`} 
+                        />
+                      </div>
+
+                      {/* Phone Realtime Validation Error / Hint */}
+                      {rawPhoneNumber && getPhoneValidationError() && (
+                        <p className="text-[11px] text-destructive flex items-center gap-1 font-medium pl-1">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>{getPhoneValidationError()}</span>
+                        </p>
+                      )}
+                      {isPhoneValid() && (
+                        <p className="text-[11px] text-emerald-500 flex items-center gap-1 font-medium pl-1">
+                          <Check className="w-3 h-3 shrink-0" />
+                          <span>Valid {selectedCountry.name} mobile number format</span>
+                        </p>
+                      )}
+
+                    {/* Hidden Verification Action Row (kept in background for future OTP release) */}
+                    <div className="hidden items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleInitiatePhoneVerification}
+                        disabled={isSendingPhoneOtp || !isPhoneValid()}
+                        className="h-[42px] px-5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs sm:text-sm hover:bg-primary/90 flex items-center justify-center gap-2 transition-all shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {isSendingPhoneOtp ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Sending OTP...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-4 h-4" />
+                            <span>Verify via SMS</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="sm:col-span-2 mt-2 p-4 bg-muted/30 border border-border/50 rounded-xl flex items-center justify-between">
@@ -907,7 +1249,7 @@ const Settings = () => {
                       onClick={() => {
                         try {
                           ringtoneService.playNotificationSound(true)
-                          toast.success('Playing sound preview 🔔')
+                          toast.success('Playing sound preview')
                         } catch (e) {}
                       }}
                       className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 bg-primary/5 hover:bg-primary/10 px-2.5 py-1.5 rounded-lg border border-primary/20 transition-colors"
@@ -1861,6 +2203,17 @@ const Settings = () => {
 
         </div>
       </div>
+
+      <PhoneVerificationModal
+        isOpen={showPhoneVerifyModal}
+        onClose={() => setShowPhoneVerifyModal(false)}
+        phoneNumber={tempPhoneToVerify}
+        pendingPhoneResource={pendingPhoneResource}
+        onVerificationSuccess={handlePhoneVerificationSuccess}
+        onVerifyCode={!pendingPhoneResource ? handleBackendOtpVerify : undefined}
+        onResendOtp={handleResendPhoneOtp}
+        isResending={isSendingPhoneOtp}
+      />
 
       <DeleteAccountModal
         isOpen={isConfirmOpen}

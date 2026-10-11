@@ -6,6 +6,8 @@ import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../utils/api'
 import ModalPortal from './modals/ModalPortal'
 
+import useSearchHistory from '../hooks/useSearchHistory'
+
 const staticSearchData = [
   {
     category: 'Jobs & Events',
@@ -49,27 +51,24 @@ const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [dynamicResults, setDynamicResults] = useState({ users: [], events: [], jobs: [] })
-  const [searchHistory, setSearchHistory] = useState([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef(null)
   const itemRefs = useRef([])
   const navigate = useNavigate()
   const { user } = useUser()
 
+  const {
+    history: searchHistory,
+    addToHistory,
+    removeFromHistory,
+    clearHistory
+  } = useSearchHistory(user)
+
   const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || user?.unsafeMetadata?.role || 'student'
 
-  // Load search history from localStorage on open
+  // Focus input when modal opens
   useEffect(() => {
     if (isOpen) {
-      try {
-        const stored = localStorage.getItem('campusbridge_search_history')
-        if (stored) {
-          const parsed = JSON.parse(stored)
-          if (Array.isArray(parsed)) setSearchHistory(parsed)
-        }
-      } catch (e) {
-        console.error('Error loading search history:', e)
-      }
       setTimeout(() => {
         inputRef.current?.focus()
       }, 100)
@@ -80,62 +79,22 @@ const SearchModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen])
 
-  // Save entry to search history
+  // Save entry to search history (synced to local + DB)
   const saveToHistory = (entryOrTitle, itemPath = null, itemDesc = null) => {
     if (!entryOrTitle) return
-    let entry = null
     if (typeof entryOrTitle === 'string') {
       const q = entryOrTitle.trim()
       if (!q) return
-      entry = {
-        id: `hist-${Date.now()}`,
-        title: q,
+      addToHistory({
         query: q,
-        path: itemPath || null,
-        description: itemDesc || null,
-        type: itemPath ? 'nav' : 'search'
-      }
-    } else if (entryOrTitle.title) {
-      entry = {
-        id: entryOrTitle.id || `hist-${Date.now()}`,
-        title: entryOrTitle.title,
-        query: entryOrTitle.query || entryOrTitle.title,
-        path: entryOrTitle.path || null,
-        description: entryOrTitle.description || null,
-        type: entryOrTitle.path ? 'nav' : 'search'
-      }
+        title: q,
+        path: itemPath || '',
+        description: itemDesc || '',
+        type: itemPath ? 'nav' : 'text'
+      })
+    } else {
+      addToHistory(entryOrTitle)
     }
-    if (!entry) return
-
-    setSearchHistory((prev) => {
-      const filtered = prev.filter(
-        (h) => (h.title || h.query || '').toLowerCase() !== (entry.title || entry.query || '').toLowerCase()
-      )
-      const updated = [entry, ...filtered].slice(0, 8)
-      try {
-        localStorage.setItem('campusbridge_search_history', JSON.stringify(updated))
-      } catch (_) {}
-      return updated
-    })
-  }
-
-  const removeFromHistory = (e, indexToRemove) => {
-    e.stopPropagation()
-    setSearchHistory((prev) => {
-      const updated = prev.filter((_, idx) => idx !== indexToRemove)
-      try {
-        localStorage.setItem('campusbridge_search_history', JSON.stringify(updated))
-      } catch (_) {}
-      return updated
-    })
-  }
-
-  const clearAllHistory = (e) => {
-    e.stopPropagation()
-    setSearchHistory([])
-    try {
-      localStorage.removeItem('campusbridge_search_history')
-    } catch (_) {}
   }
 
   // Debounced Search API Call
@@ -324,10 +283,13 @@ const SearchModal = ({ isOpen, onClose }) => {
               setQuery(activeHistory.query || activeHistory.title)
             }
           }
-        } else if (allItems[selectedIndex]) {
-          handleSelect(allItems[selectedIndex])
-        } else if (query.trim()) {
-          saveToHistory(query.trim())
+        } else {
+          if (query.trim()) {
+            saveToHistory(query.trim())
+          }
+          if (allItems[selectedIndex]) {
+            handleSelect(allItems[selectedIndex])
+          }
         }
       }
     }
@@ -390,7 +352,10 @@ const SearchModal = ({ isOpen, onClose }) => {
                         </h3>
                         <button
                           type="button"
-                          onClick={clearAllHistory}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            clearHistory()
+                          }}
                           className="text-xs text-muted-foreground hover:text-red-500 font-medium transition-colors cursor-pointer flex items-center gap-1"
                         >
                           <Trash2 className="w-3 h-3" /> Clear all
@@ -399,8 +364,10 @@ const SearchModal = ({ isOpen, onClose }) => {
                       <ul className="flex flex-col gap-1">
                         {searchHistory.map((item, idx) => {
                           const isSelected = idx === selectedIndex
+                          const isPerson = item.image || item.role || item.type === 'user'
+
                           return (
-                            <li key={item.id || idx}>
+                            <li key={item.id || item.targetId || idx}>
                               <div
                                 ref={(el) => (itemRefs.current[idx] = el)}
                                 onClick={() => {
@@ -411,37 +378,75 @@ const SearchModal = ({ isOpen, onClose }) => {
                                   }
                                 }}
                                 onMouseEnter={() => setSelectedIndex(idx)}
-                                className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl transition-all text-left cursor-pointer group ${
+                                className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl transition-all text-left cursor-pointer group ${
                                   isSelected
                                     ? 'bg-primary/10 border border-primary/30 text-primary shadow-xs'
                                     : 'hover:bg-muted/60 text-foreground'
                                 }`}
                               >
                                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  <div className={`p-2 rounded-lg transition-colors shrink-0 flex items-center justify-center w-8 h-8 ${
-                                    isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:text-primary group-hover:bg-background'
-                                  }`}>
-                                    <Clock className="w-4 h-4" />
-                                  </div>
+                                  {item.image ? (
+                                    <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
+                                      <img
+                                        src={item.image}
+                                        alt={item.title || item.query}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.onerror = null;
+                                          e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.title || 'User')}`;
+                                        }}
+                                      />
+                                    </div>
+                                  ) : isPerson ? (
+                                    <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-gradient-to-tr from-primary/30 to-purple-500/20 text-primary font-bold text-xs flex items-center justify-center ring-1 ring-border/30">
+                                      {(item.title || item.query || 'U').charAt(0).toUpperCase()}
+                                    </div>
+                                  ) : (
+                                    <div className={`w-8 h-8 rounded-lg transition-colors shrink-0 flex items-center justify-center ${
+                                      isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:text-primary group-hover:bg-background'
+                                    }`}>
+                                      <Clock className="w-4 h-4" />
+                                    </div>
+                                  )}
+
                                   <div className="flex flex-col flex-1 min-w-0">
                                     <span className={`font-medium text-sm truncate ${isSelected ? 'text-primary' : 'text-foreground group-hover:text-primary'}`}>
                                       {item.title || item.query}
                                     </span>
                                     {item.description ? (
                                       <span className="text-xs text-muted-foreground truncate">{item.description}</span>
+                                    ) : item.role ? (
+                                      <span className="text-xs text-muted-foreground capitalize truncate">{item.role}</span>
                                     ) : (
                                       <span className="text-[11px] text-muted-foreground/70">Recent search</span>
                                     )}
                                   </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={(e) => removeFromHistory(e, idx)}
-                                  className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0 opacity-70 group-hover:opacity-100 cursor-pointer"
-                                  title="Remove from history"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {item.badge && (
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
+                                      item.role === 'mentor'
+                                        ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                        : item.role === 'alumni'
+                                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                        : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                                    }`}>
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      removeFromHistory(item)
+                                    }}
+                                    className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0 opacity-70 group-hover:opacity-100 cursor-pointer"
+                                    title="Remove from history"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                             </li>
                           )
@@ -460,7 +465,7 @@ const SearchModal = ({ isOpen, onClose }) => {
                     </div>
                   )
                 ) : (
-                  /* When user enters a query: Show results without static mentor clutter */
+                  /* When user enters a query: Show results */
                   currentDisplayData.length > 0 ? (
                     currentDisplayData.map((group, groupIdx) => (
                       <div key={group.category} className={groupIdx > 0 ? 'mt-6' : ''}>
@@ -471,6 +476,7 @@ const SearchModal = ({ isOpen, onClose }) => {
                           {group.items.map((item) => {
                             const currentIndex = runningItemIndex++
                             const isSelected = currentIndex === selectedIndex
+                            const isPerson = group.category === 'People & Members' || item.role || item.type === 'user'
 
                             return (
                               <li key={item.id}>
@@ -478,29 +484,47 @@ const SearchModal = ({ isOpen, onClose }) => {
                                   ref={(el) => (itemRefs.current[currentIndex] = el)}
                                   onClick={() => handleSelect(item)}
                                   onMouseEnter={() => setSelectedIndex(currentIndex)}
-                                  className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all text-left group ${
+                                  className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all text-left group ${
                                     isSelected
                                       ? 'bg-primary/10 border border-primary/30 text-primary shadow-xs'
                                       : 'hover:bg-muted/60 hover:text-primary text-foreground'
                                   }`}
                                 >
-                                  <div className={`p-2 rounded-lg transition-colors shadow-sm overflow-hidden shrink-0 flex items-center justify-center w-9 h-9 ${
-                                    isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted group-hover:bg-background'
-                                  }`}>
-                                    {item.image ? (
-                                      <img src={item.image} alt={item.title} className="w-full h-full object-cover rounded" />
+                                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                                    {isPerson ? (
+                                      <div className="relative shrink-0 w-10 h-10 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
+                                        <img
+                                          src={item.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.title || 'User')}`}
+                                          alt={item.title}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.title || 'User')}`;
+                                          }}
+                                        />
+                                      </div>
                                     ) : (
-                                      <item.icon className={`w-5 h-5 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-primary transition-colors'}`} />
+                                      <div className={`p-2 rounded-xl transition-colors shrink-0 flex items-center justify-center w-10 h-10 ${
+                                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:text-primary group-hover:bg-background'
+                                      }`}>
+                                        {item.image ? (
+                                          <img src={item.image} alt={item.title} className="w-full h-full object-cover rounded-lg" />
+                                        ) : (
+                                          <item.icon className={`w-5 h-5 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-primary transition-colors'}`} />
+                                        )}
+                                      </div>
                                     )}
+
+                                    <div className="flex flex-col flex-1 min-w-0">
+                                      <span className={`font-semibold text-sm truncate ${isSelected ? 'text-primary' : 'text-foreground group-hover:text-primary transition-colors'}`}>
+                                        {item.title}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground truncate">
+                                        {item.description}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex flex-col flex-1 overflow-hidden">
-                                    <span className={`font-medium truncate ${isSelected ? 'text-primary' : 'text-foreground group-hover:text-primary transition-colors'}`}>
-                                      {item.title}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground truncate">
-                                      {item.description}
-                                    </span>
-                                  </div>
+
                                   {item.badge && (
                                     <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
                                       item.role === 'mentor'
@@ -531,12 +555,12 @@ const SearchModal = ({ isOpen, onClose }) => {
                 )}
               </div>
               
-              <div className="px-4 py-3 bg-muted/30 border-t border-border/50 text-xs text-muted-foreground flex items-center justify-between">
-                <div className="hidden sm:flex items-center gap-4">
+              <div className="hidden sm:flex px-4 py-3 bg-muted/30 border-t border-border/50 text-xs text-muted-foreground items-center justify-between">
+                <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1"><kbd className="bg-muted px-1.5 py-0.5 rounded border border-border/50 text-[10px] font-sans">↑</kbd><kbd className="bg-muted px-1.5 py-0.5 rounded border border-border/50 text-[10px] font-sans">↓</kbd> to navigate</span>
                   <span className="flex items-center gap-1"><kbd className="bg-muted px-1.5 py-0.5 rounded border border-border/50 text-[10px] font-sans">Enter</kbd> to select</span>
                 </div>
-                <span><kbd className="bg-muted px-1.5 py-0.5 rounded border border-border/50 text-[10px] font-sans">ESC</kbd> to close</span>
+                <span className="inline-flex items-center gap-1"><kbd className="bg-muted px-1.5 py-0.5 rounded border border-border/50 text-[10px] font-sans">ESC</kbd> to close</span>
               </div>
             </motion.div>
           </div>

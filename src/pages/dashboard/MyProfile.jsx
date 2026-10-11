@@ -1,6 +1,6 @@
 import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle, Loader2, MessageSquareOff, Eye, EyeOff, Download, Copy, Languages, Cake } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle, Loader2, MessageSquareOff, Eye, EyeOff, Download, Copy, Languages, Cake, Smartphone, Users, Lock, CheckCircle2 } from 'lucide-react'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -806,6 +806,42 @@ const MyProfile = () => {
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5" />
                   {dbUser?.address || user?.unsafeMetadata?.address}
+                </span>
+              )}
+              {Boolean(dbUser?.phone || mongoProfile?.phone || user?.unsafeMetadata?.phone || user?.phoneNumbers?.[0]?.phoneNumber) && (
+                <span className="flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="font-mono font-medium">
+                    {dbUser?.phone || mongoProfile?.phone || user?.unsafeMetadata?.phone || user?.phoneNumbers?.[0]?.phoneNumber}
+                  </span>
+                  {(dbUser?.isPhoneVerified || mongoProfile?.isPhoneVerified || user?.phoneNumbers?.some(p => p.verification?.status === 'verified')) && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-full">
+                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                      Verified
+                    </span>
+                  )}
+                  {(() => {
+                    const vis = dbUser?.phoneVisibility || mongoProfile?.phoneVisibility || 'public';
+                    if (vis === 'public') {
+                      return (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                          <Globe className="w-2.5 h-2.5" /> Public
+                        </span>
+                      );
+                    }
+                    if (vis === 'connections') {
+                      return (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded border border-blue-500/20">
+                          <Users className="w-2.5 h-2.5" /> Connections
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border/50">
+                        <Lock className="w-2.5 h-2.5" /> Hidden
+                      </span>
+                    );
+                  })()}
                 </span>
               )}
               {(dbUser?.dateOfBirth || mongoProfile?.dateOfBirth) && (

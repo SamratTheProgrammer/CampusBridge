@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import Sidebar from '../components/dashboard/Sidebar'
 import PageTransition from '../components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
-import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2 } from 'lucide-react'
+import { Search, Bell, Menu, Sun, Moon, Users, Briefcase, Calendar, Loader2, Clock, Trash2, X } from 'lucide-react'
 import ThemeToggle from '../components/ThemeToggle'
 import LanguageSwitcher from '../components/common/LanguageSwitcher'
 import { useUser } from '@clerk/clerk-react'
@@ -20,6 +20,7 @@ import RouteIntegrityLoader from '../components/RouteIntegrityLoader'
 import AnnouncementModal from '../components/dashboard/AnnouncementModal'
 import DashboardAppBanner from '../components/dashboard/DashboardAppBanner'
 import SearchModal from '../components/SearchModal'
+import useSearchHistory from '../hooks/useSearchHistory'
 
 const DashboardLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -40,6 +41,12 @@ const DashboardLayout = () => {
   const searchRef = useRef(null)
   
   const { user, isLoaded, isSignedIn } = useUser()
+  const {
+    history: searchHistory,
+    addToHistory,
+    removeFromHistory,
+    clearHistory
+  } = useSearchHistory(user)
 
   useEffect(() => {
     sessionStorage.setItem('campusbridge_tab_initialized', 'true')
@@ -206,7 +213,7 @@ const DashboardLayout = () => {
           <div
             className={`${
               t.visible ? 'animate-in slide-in-from-top-2 fade-in' : 'animate-out slide-out-to-top-2 fade-out'
-            } max-w-md w-full bg-card shadow-lg rounded-2xl pointer-events-auto flex ring-1 ring-black/5 border border-border/50`}
+            } max-w-md w-full bg-card shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_70px_-10px_rgba(0,0,0,0.85)] rounded-2xl pointer-events-auto flex border-0`}
           >
             <div className="flex-1 w-0 p-4">
               <div className="flex items-start">
@@ -227,7 +234,7 @@ const DashboardLayout = () => {
                 </div>
               </div>
             </div>
-            <div className="flex border-l border-border/50">
+            <div className="flex border-l border-border/20">
               <button
                 onClick={() => {
                   toast.dismiss(t.id);
@@ -360,136 +367,294 @@ const DashboardLayout = () => {
                     setIsDropdownOpen(true)
                   }}
                   onFocus={() => setIsDropdownOpen(true)}
+                  onClick={() => setIsDropdownOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchQuery.trim()) {
+                      addToHistory(searchQuery.trim());
+                      if (filteredUsers.length > 0) {
+                        const topUser = filteredUsers[0];
+                        navigate(`/profile/${topUser.username || topUser.id}`);
+                        setSearchQuery('');
+                        setIsDropdownOpen(false);
+                      } else if (filteredJobs.length > 0) {
+                        navigate(`/dashboard/jobs/${filteredJobs[0].id}`);
+                        setSearchQuery('');
+                        setIsDropdownOpen(false);
+                      } else if (filteredEvents.length > 0) {
+                        navigate(`/dashboard/events`);
+                        setSearchQuery('');
+                        setIsDropdownOpen(false);
+                      }
+                    }
+                  }}
                   placeholder="Search for mentor, jobs, events..."
                   className="bg-transparent border-none outline-none text-sm w-full text-foreground placeholder:text-muted-foreground"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline transition-colors px-1"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline transition-colors px-1 cursor-pointer"
                   >
                     Clear
                   </button>
                 )}
               </div>
 
-              {isDropdownOpen && searchQuery && (
+              {isDropdownOpen && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-xl z-50 max-h-[380px] overflow-y-auto divide-y divide-border/40 scrollbar-none animate-in fade-in slide-in-from-top-1 duration-200">
-
-                  {filteredUsers.length > 0 && (
+                  {!searchQuery.trim() ? (
                     <div className="p-2">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" /> Mentors & Students
-                      </div>
-                      <div className="space-y-1 mt-1">
-                        {filteredUsers.map(userItem => (
+                      <div className="flex items-center justify-between px-3 py-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-primary" /> Recent Searches
+                        </span>
+                        {searchHistory.length > 0 && (
                           <button
-                            key={userItem.id}
-                            onClick={() => {
-                              navigate(`/profile/${userItem.username || userItem.id}`)
-                              setSearchQuery('')
-                              setIsDropdownOpen(false)
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              clearHistory();
                             }}
-                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-between gap-3 group"
+                            className="text-[11px] font-medium text-muted-foreground hover:text-red-500 transition-colors cursor-pointer flex items-center gap-1"
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
-                                <img
-                                  src={userItem.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userItem.name || 'User')}`}
-                                  alt={userItem.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userItem.name || 'User')}`;
-                                  }}
-                                />
+                            <Trash2 className="w-3 h-3" /> Clear all
+                          </button>
+                        )}
+                      </div>
+
+                      {searchHistory.length > 0 ? (
+                        <div className="space-y-1 mt-1">
+                          {searchHistory.map((item, idx) => {
+                            const isPerson = item.image || item.role || item.type === 'user';
+                            return (
+                              <div
+                                key={item.id || item.targetId || idx}
+                                onClick={() => {
+                                  if (item.path) {
+                                    addToHistory(item);
+                                    navigate(item.path);
+                                    setSearchQuery('');
+                                    setIsDropdownOpen(false);
+                                  } else {
+                                    setSearchQuery(item.query || item.title);
+                                  }
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-between gap-3 group cursor-pointer"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  {item.image ? (
+                                    <div className="relative shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
+                                      <img
+                                        src={item.image}
+                                        alt={item.title || item.query}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.onerror = null;
+                                          e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.title || 'User')}`;
+                                        }}
+                                      />
+                                    </div>
+                                  ) : isPerson ? (
+                                    <div className="relative shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border/60 bg-gradient-to-tr from-primary/30 to-purple-500/20 text-primary font-bold text-xs flex items-center justify-center ring-1 ring-border/30">
+                                      {(item.title || item.query || 'U').charAt(0).toUpperCase()}
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-muted/60 text-muted-foreground flex items-center justify-center shrink-0 border border-border/40 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                                      <Clock className="w-4 h-4" />
+                                    </div>
+                                  )}
+
+                                  <div className="flex flex-col min-w-0 flex-1">
+                                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                                      {item.title || item.query}
+                                    </span>
+                                    {item.description ? (
+                                      <span className="text-xs text-muted-foreground truncate">{item.description}</span>
+                                    ) : item.role ? (
+                                      <span className="text-xs text-muted-foreground capitalize truncate">{item.role}</span>
+                                    ) : (
+                                      <span className="text-[11px] text-muted-foreground/70">Recent search</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {item.badge && (
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
+                                      item.role === 'mentor'
+                                        ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                        : item.role === 'alumni'
+                                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                        : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                                    }`}>
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      removeFromHistory(item);
+                                    }}
+                                    className="p-1 rounded-md text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-70 group-hover:opacity-100 cursor-pointer"
+                                    title="Remove from history"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex flex-col min-w-0 flex-1">
-                                <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{userItem.name}</span>
-                                <span className="text-xs text-muted-foreground capitalize truncate">{userItem.headline || (userItem.company ? `At ${userItem.company}` : '')}</span>
-                              </div>
-                            </div>
-
-                            {/* Right side role badge */}
-                            <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
-                              userItem.role === 'mentor'
-                                ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
-                                : userItem.role === 'alumni'
-                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                                : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
-                            }`}>
-                              {userItem.role === 'mentor' ? 'Mentor' : userItem.role === 'alumni' ? 'Alumni' : 'Student'}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="py-6 text-center text-xs text-muted-foreground">
+                          No recent searches. Type to search people, jobs, or events.
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {filteredUsers.length > 0 && (
+                        <div className="p-2">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" /> Mentors & Students
+                          </div>
+                          <div className="space-y-1 mt-1">
+                            {filteredUsers.map(userItem => (
+                              <button
+                                key={userItem.id}
+                                onClick={() => {
+                                  addToHistory({
+                                    title: userItem.name,
+                                    query: userItem.name,
+                                    path: `/profile/${userItem.username || userItem.id}`,
+                                    image: userItem.imageUrl,
+                                    role: userItem.role,
+                                    badge: userItem.role === 'mentor' ? 'Mentor' : userItem.role === 'alumni' ? 'Alumni' : 'Student',
+                                    description: userItem.headline || (userItem.company ? `At ${userItem.company}` : ''),
+                                    type: 'user'
+                                  });
+                                  navigate(`/profile/${userItem.username || userItem.id}`)
+                                  setSearchQuery('')
+                                  setIsDropdownOpen(false)
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-between gap-3 group cursor-pointer"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
+                                    <img
+                                      src={userItem.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userItem.name || 'User')}`}
+                                      alt={userItem.name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userItem.name || 'User')}`;
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="flex flex-col min-w-0 flex-1">
+                                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{userItem.name}</span>
+                                    <span className="text-xs text-muted-foreground capitalize truncate">{userItem.headline || (userItem.company ? `At ${userItem.company}` : '')}</span>
+                                  </div>
+                                </div>
 
-                  {filteredJobs.length > 0 && (
-                    <div className="p-2">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Briefcase className="w-3.5 h-3.5" /> Jobs
-                      </div>
-                      <div className="space-y-1 mt-1">
-                        {filteredJobs.map(job => (
-                          <button
-                            key={job.id}
-                            onClick={() => {
-                              navigate(`/dashboard/jobs/${job.id}`)
-                              setSearchQuery('')
-                              setIsDropdownOpen(false)
-                            }}
-                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center gap-3 group"
-                          >
-                            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
-                              <Briefcase className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{job.title}</span>
-                              <span className="text-xs text-muted-foreground truncate">{job.company}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                                {/* Right side role badge */}
+                                <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
+                                  userItem.role === 'mentor'
+                                    ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                    : userItem.role === 'alumni'
+                                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                    : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                                }`}>
+                                  {userItem.role === 'mentor' ? 'Mentor' : userItem.role === 'alumni' ? 'Alumni' : 'Student'}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-                  {filteredEvents.length > 0 && (
-                    <div className="p-2">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5" /> Events
-                      </div>
-                      <div className="space-y-1 mt-1">
-                        {filteredEvents.map(event => (
-                          <button
-                            key={event.id}
-                            onClick={() => {
-                              navigate(`/dashboard/events`)
-                              setSearchQuery('')
-                              setIsDropdownOpen(false)
-                            }}
-                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center gap-3 group"
-                          >
-                            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/20">
-                              <Calendar className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{event.title}</span>
-                              <span className="text-xs text-muted-foreground truncate">{event.type}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                      {filteredJobs.length > 0 && (
+                        <div className="p-2">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
+                            <Briefcase className="w-3.5 h-3.5" /> Jobs
+                          </div>
+                          <div className="space-y-1 mt-1">
+                            {filteredJobs.map(job => (
+                              <button
+                                key={job.id}
+                                onClick={() => {
+                                  addToHistory({
+                                    title: job.title,
+                                    query: job.title,
+                                    path: `/dashboard/jobs/${job.id}`,
+                                    description: job.company,
+                                    type: 'job'
+                                  });
+                                  navigate(`/dashboard/jobs/${job.id}`)
+                                  setSearchQuery('')
+                                  setIsDropdownOpen(false)
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center gap-3 group cursor-pointer"
+                              >
+                                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                                  <Briefcase className="w-4 h-4" />
+                                </div>
+                                <div className="flex flex-col min-w-0 flex-1">
+                                  <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{job.title}</span>
+                                  <span className="text-xs text-muted-foreground truncate">{job.company}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-                  {!hasResults && (
-                    <div className="p-6 text-center text-sm text-muted-foreground">
-                      No results found for "{searchQuery}"
-                    </div>
-                  )}
+                      {filteredEvents.length > 0 && (
+                        <div className="p-2">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-primary px-3 py-1.5 flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5" /> Events
+                          </div>
+                          <div className="space-y-1 mt-1">
+                            {filteredEvents.map(event => (
+                              <button
+                                key={event.id}
+                                onClick={() => {
+                                  addToHistory({
+                                    title: event.title,
+                                    query: event.title,
+                                    path: `/dashboard/events`,
+                                    description: event.type,
+                                    type: 'event'
+                                  });
+                                  navigate(`/dashboard/events`)
+                                  setSearchQuery('')
+                                  setIsDropdownOpen(false)
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center gap-3 group cursor-pointer"
+                              >
+                                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                                  <Calendar className="w-4 h-4" />
+                                </div>
+                                <div className="flex flex-col min-w-0 flex-1">
+                                  <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{event.title}</span>
+                                  <span className="text-xs text-muted-foreground truncate">{event.type}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
+                      {!hasResults && (
+                        <div className="p-6 text-center text-sm text-muted-foreground">
+                          No results found for "{searchQuery}"
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>

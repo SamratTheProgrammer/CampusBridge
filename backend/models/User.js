@@ -53,6 +53,15 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
   },
+  isPhoneVerified: {
+    type: Boolean,
+    default: false,
+  },
+  phoneVisibility: {
+    type: String,
+    enum: ['public', 'private', 'connections'],
+    default: 'public',
+  },
   dateOfBirth: {
     type: String,
   },
@@ -164,6 +173,24 @@ const userSchema = new mongoose.Schema({
     isDismissed: {
       type: Boolean,
       default: false
+    }
+  }],
+  searchHistory: [{
+    query: String,
+    title: String,
+    description: String,
+    image: String,
+    type: {
+      type: String,
+      default: 'text'
+    },
+    path: String,
+    role: String,
+    badge: String,
+    targetId: String,
+    createdAt: {
+      type: Date,
+      default: Date.now
     }
   }]
 });

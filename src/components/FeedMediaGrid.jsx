@@ -68,14 +68,18 @@ const FeedMediaGrid = ({
         className={isMain ? "w-full max-h-[580px] flex items-center justify-center" : "w-full h-full flex items-center justify-center"}
       >
         {isVideo ? (
-          <div className={`relative cursor-pointer ${isMain ? 'w-fit max-w-full max-h-[580px] flex items-center justify-center' : 'w-full h-full'}`}>
+          <div 
+            onClick={handleTap}
+            className={`relative cursor-pointer ${isMain ? 'w-fit max-w-full max-h-[580px] flex items-center justify-center' : 'w-full h-full'}`}
+          >
             <AutoPlayVideo src={file.url} className={isMain ? 'w-auto max-w-full max-h-[580px] object-contain' : 'w-full h-full object-cover'} />
           </div>
         ) : (
           <img 
             src={optimizeUrl(file.url)} 
             alt="Post content" 
-            className={`cursor-pointer ${isMain ? 'w-auto max-w-full max-h-[580px] object-contain mx-auto' : 'w-full h-full object-cover'}`}
+            onClick={handleTap}
+            className={`cursor-pointer ${isMain ? 'w-auto max-w-full max-h-[580px] object-contain mx-auto' : 'w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300'}`}
           />
         )}
       </PinchZoomMedia>
@@ -86,15 +90,36 @@ const FeedMediaGrid = ({
     <div className="w-full space-y-3">
       {/* Standard Image & Video Grid */}
       {standardMediaFiles.length === 1 && (
-        <div className="w-full max-h-[580px] bg-black/90 dark:bg-black overflow-hidden flex items-center justify-center relative rounded-2xl">
+        <div 
+          className="w-full max-h-[580px] bg-black/90 dark:bg-black overflow-hidden flex items-center justify-center relative rounded-2xl cursor-pointer group"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onImageClick) {
+              onImageClick(standardMediaFiles, 0);
+            } else if (onContainerClick) {
+              onContainerClick();
+            }
+          }}
+        >
           <MediaItem file={standardMediaFiles[0]} idx={0} isMain={true} />
         </div>
       )}
 
       {standardMediaFiles.length === 2 && (
-        <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 gap-1" onClick={onContainerClick}>
+        <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 gap-1 rounded-2xl overflow-hidden" onClick={onContainerClick}>
           {standardMediaFiles.slice(0, 2).map((file, idx) => (
-            <div key={idx} className="relative w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900">
+            <div 
+              key={idx} 
+              className="relative w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900 cursor-pointer group"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onImageClick) {
+                  onImageClick(standardMediaFiles, idx);
+                } else if (onContainerClick) {
+                  onContainerClick();
+                }
+              }}
+            >
               <MediaItem file={file} idx={idx} isMain={false} />
             </div>
           ))}
@@ -102,25 +127,61 @@ const FeedMediaGrid = ({
       )}
 
       {standardMediaFiles.length === 3 && (
-        <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 gap-1" onClick={onContainerClick}>
-          <div className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900">
+        <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 gap-1 rounded-2xl overflow-hidden" onClick={onContainerClick}>
+          <div 
+            className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900 cursor-pointer group"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onImageClick) onImageClick(standardMediaFiles, 0);
+              else if (onContainerClick) onContainerClick();
+            }}
+          >
             <MediaItem file={standardMediaFiles[0]} idx={0} isMain={false} />
           </div>
           <div className="grid grid-rows-2 gap-1 h-full w-full">
-            <div className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900"><MediaItem file={standardMediaFiles[1]} idx={1} isMain={false} /></div>
-            <div className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900"><MediaItem file={standardMediaFiles[2]} idx={2} isMain={false} /></div>
+            <div 
+              className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900 cursor-pointer group"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onImageClick) onImageClick(standardMediaFiles, 1);
+                else if (onContainerClick) onContainerClick();
+              }}
+            >
+              <MediaItem file={standardMediaFiles[1]} idx={1} isMain={false} />
+            </div>
+            <div 
+              className="w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900 cursor-pointer group"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onImageClick) onImageClick(standardMediaFiles, 2);
+                else if (onContainerClick) onContainerClick();
+              }}
+            >
+              <MediaItem file={standardMediaFiles[2]} idx={2} isMain={false} />
+            </div>
           </div>
         </div>
       )}
 
       {standardMediaFiles.length >= 4 && (
-        <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 grid-rows-2 gap-1" onClick={onContainerClick}>
+        <div className="w-full h-[400px] sm:h-[500px] bg-black grid grid-cols-2 grid-rows-2 gap-1 rounded-2xl overflow-hidden" onClick={onContainerClick}>
           {standardMediaFiles.slice(0, 4).map((file, idx) => (
-            <div key={idx} className="relative w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900">
+            <div 
+              key={idx} 
+              className="relative w-full h-full overflow-hidden flex items-center justify-center bg-zinc-900 cursor-pointer group"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onImageClick) {
+                  onImageClick(standardMediaFiles, idx);
+                } else if (onContainerClick) {
+                  onContainerClick();
+                }
+              }}
+            >
               <MediaItem file={file} idx={idx} isMain={false} />
               {idx === 3 && standardMediaFiles.length > 4 && (
                 <div 
-                  className="absolute inset-0 bg-black/70 flex items-center justify-center text-white text-3xl font-bold backdrop-blur-sm cursor-pointer z-10"
+                  className="absolute inset-0 bg-black/65 hover:bg-black/75 flex items-center justify-center text-white text-3xl font-bold backdrop-blur-[2px] cursor-pointer z-10 transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (onImageClick) {

@@ -1,5 +1,6 @@
 import CardSkeleton from './skeletons/CardSkeleton'
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { X, Heart, MessageCircle, Share2, Loader2, MapPin, Building, Calendar as CalendarIcon, ExternalLink, MoreVertical, Edit3, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -55,6 +56,7 @@ const SharedItemViewer = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [mediaSlideDirection, setMediaSlideDirection] = useState(0);
   const [mediaAspectRatio, setMediaAspectRatio] = useState(null);
   const [windowSize, setWindowSize] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 1200,
@@ -670,33 +672,90 @@ const SharedItemViewer = () => {
                             senderName={data.author?.name}
                           />
                         </div>
-                      ) : isVideo ? (
-                        <PinchZoomMedia 
-                          className="w-full h-full flex items-center justify-center cursor-pointer"
-                          onTap={() => setViewerData({ files: safeMediaList, index: safeIndex })}
-                        >
-                          <AutoPlayVideo 
-                            src={activeMedia.url} 
-                            onRatioCalculated={(r) => setMediaAspectRatio(r)}
-                            className="w-full max-h-full object-contain bg-black" 
-                          />
-                        </PinchZoomMedia>
                       ) : (
-                        <PinchZoomMedia 
-                          className="w-full h-full flex items-center justify-center cursor-pointer"
-                          onTap={() => setViewerData({ files: safeMediaList, index: safeIndex })}
-                        >
-                          <img
-                            src={optimizedSrc}
-                            alt="Post media"
-                            onLoad={(e) => {
-                              if (e.target.naturalWidth && e.target.naturalHeight) {
-                                setMediaAspectRatio(e.target.naturalWidth / e.target.naturalHeight);
+                        <AnimatePresence initial={false} custom={mediaSlideDirection} mode="popLayout">
+                          <motion.div
+                            key={safeIndex}
+                            custom={mediaSlideDirection}
+                            variants={{
+                              enter: (dir) => ({
+                                x: dir > 0 ? '60%' : dir < 0 ? '-60%' : 0,
+                                opacity: 0,
+                                scale: 0.94,
+                              }),
+                              center: {
+                                x: 0,
+                                opacity: 1,
+                                scale: 1,
+                                transition: {
+                                  x: { type: 'spring', stiffness: 350, damping: 32, mass: 0.8 },
+                                  opacity: { duration: 0.22, ease: 'easeOut' },
+                                  scale: { duration: 0.22, ease: 'easeOut' },
+                                },
+                              },
+                              exit: (dir) => ({
+                                x: dir > 0 ? '-60%' : dir < 0 ? '60%' : 0,
+                                opacity: 0,
+                                scale: 0.94,
+                                transition: {
+                                  x: { type: 'spring', stiffness: 350, damping: 32, mass: 0.8 },
+                                  opacity: { duration: 0.2, ease: 'easeIn' },
+                                  scale: { duration: 0.2, ease: 'easeIn' },
+                                },
+                              }),
+                            }}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            drag={safeMediaList.length > 1 ? "x" : false}
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={0.4}
+                            onDragEnd={(e, { offset, velocity }) => {
+                              const swipeThreshold = 50;
+                              if (offset.x < -swipeThreshold || velocity.x < -300) {
+                                if (currentMediaIndex < safeMediaList.length - 1) {
+                                  setMediaSlideDirection(1);
+                                  setCurrentMediaIndex(prev => prev + 1);
+                                }
+                              } else if (offset.x > swipeThreshold || velocity.x > 300) {
+                                if (currentMediaIndex > 0) {
+                                  setMediaSlideDirection(-1);
+                                  setCurrentMediaIndex(prev => prev - 1);
+                                }
                               }
                             }}
-                            className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                          />
-                        </PinchZoomMedia>
+                            className="w-full h-full flex items-center justify-center will-change-transform select-none"
+                          >
+                            {isVideo ? (
+                              <PinchZoomMedia 
+                                className="w-full h-full flex items-center justify-center cursor-pointer"
+                                onTap={() => setViewerData({ files: safeMediaList, index: safeIndex })}
+                              >
+                                <AutoPlayVideo 
+                                  src={activeMedia.url} 
+                                  onRatioCalculated={(r) => setMediaAspectRatio(r)}
+                                  className="w-full max-h-full object-contain bg-black" 
+                                />
+                              </PinchZoomMedia>
+                            ) : (
+                              <PinchZoomMedia 
+                                className="w-full h-full flex items-center justify-center cursor-pointer"
+                                onTap={() => setViewerData({ files: safeMediaList, index: safeIndex })}
+                              >
+                                <img
+                                  src={optimizedSrc}
+                                  alt="Post media"
+                                  onLoad={(e) => {
+                                    if (e.target.naturalWidth && e.target.naturalHeight) {
+                                      setMediaAspectRatio(e.target.naturalWidth / e.target.naturalHeight);
+                                    }
+                                  }}
+                                  className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                                />
+                              </PinchZoomMedia>
+                            )}
+                          </motion.div>
+                        </AnimatePresence>
                       );
                     })()}
                     
@@ -714,23 +773,42 @@ const SharedItemViewer = () => {
                       <>
                         {currentMediaIndex > 0 && (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(prev => prev - 1); }}
-                            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition-all z-20 shadow-md"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMediaSlideDirection(-1);
+                              setCurrentMediaIndex(prev => prev - 1);
+                            }}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 hover:scale-110 active:scale-95 text-white p-2 rounded-full backdrop-blur-md transition-all z-20 shadow-xl border border-white/10"
+                            aria-label="Previous media"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
                           </button>
                         )}
                         {currentMediaIndex < data.mediaFiles.length - 1 && (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(prev => prev + 1); }}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition-all z-20 shadow-md"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMediaSlideDirection(1);
+                              setCurrentMediaIndex(prev => prev + 1);
+                            }}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 hover:scale-110 active:scale-95 text-white p-2 rounded-full backdrop-blur-md transition-all z-20 shadow-xl border border-white/10"
+                            aria-label="Next media"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
                           </button>
                         )}
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
                           {data.mediaFiles.map((_, i) => (
-                            <div key={i} className={`h-1.5 rounded-full transition-all ${i === currentMediaIndex ? 'w-4 bg-primary' : 'w-1.5 bg-white/50'}`} />
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMediaSlideDirection(i > currentMediaIndex ? 1 : -1);
+                                setCurrentMediaIndex(i);
+                              }}
+                              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${i === currentMediaIndex ? 'w-5 bg-primary' : 'w-1.5 bg-white/50 hover:bg-white/80'}`}
+                            />
                           ))}
                         </div>
                       </>

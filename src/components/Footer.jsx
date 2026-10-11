@@ -60,7 +60,12 @@ const Footer = () => {
               <li><Link to="/careers" className="text-muted-foreground hover:text-primary transition-colors text-sm">Careers</Link></li>
               <li><Link to="/#contact" onClick={() => { sessionStorage.setItem('campusbridge_tab_initialized', 'true'); sessionStorage.setItem('campusbridge_viewing_home', 'true'); }} className="text-muted-foreground hover:text-primary transition-colors text-sm">Contact Us</Link></li>
               <li>
-                <Link to="/admin/login" className="text-muted-foreground hover:text-primary transition-colors text-sm flex items-center gap-1.5 font-medium">
+                <Link 
+                  to="/admin/login" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-muted-foreground hover:text-primary transition-colors text-sm flex items-center gap-1.5 font-medium"
+                >
                   <Shield className="w-3.5 h-3.5 text-primary" /> Admin Portal
                 </Link>
               </li>
@@ -130,7 +135,12 @@ const Footer = () => {
             </Link>
             <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-            <Link to="/admin/login" className="hover:text-primary transition-colors flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all">
+            <Link 
+              to="/admin/login" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="hover:text-primary transition-colors flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all"
+            >
               <Shield className="w-3 h-3 text-primary" /> Admin Portal
             </Link>
           </div>

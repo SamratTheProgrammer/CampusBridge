@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import AutoPlayVideo from './AutoPlayVideo';
 import ModalPortal from './modals/ModalPortal';
@@ -13,6 +13,7 @@ const optimizeUrl = (url) => {
 
 const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [direction, setDirection] = useState(0);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -130,9 +131,44 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
     });
   }, [getClampedPosition]);
 
+  const handleNext = useCallback(() => {
+    if (currentIndex < files.length - 1) {
+      setDirection(1);
+      setCurrentIndex(prev => prev + 1);
+    }
+  }, [currentIndex, files.length]);
+
+  const handlePrev = useCallback(() => {
+    if (currentIndex > 0) {
+      setDirection(-1);
+      setCurrentIndex(prev => prev - 1);
+    }
+  }, [currentIndex]);
+
+  const handleGoTo = useCallback((newIdx) => {
+    if (newIdx === currentIndex) return;
+    setDirection(newIdx > currentIndex ? 1 : -1);
+    setCurrentIndex(newIdx);
+  }, [currentIndex]);
+
+  // Preload adjacent images for instantaneous zero-lag display
+  useEffect(() => {
+    if (!isOpen || files.length <= 1) return;
+    const nextIdx = (currentIndex + 1) % files.length;
+    const prevIdx = (currentIndex - 1 + files.length) % files.length;
+    [nextIdx, prevIdx].forEach(idx => {
+      const file = files[idx];
+      if (file?.url && (!file.mediaType || file.mediaType === 'image') && !file.url.match(/\.(mp4|webm|ogg)$/i)) {
+        const img = new Image();
+        img.src = optimizeUrl(file.url);
+      }
+    });
+  }, [isOpen, currentIndex, files]);
+
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(initialIndex);
+      setDirection(0);
       resetZoom();
     }
   }, [isOpen, initialIndex, resetZoom]);
@@ -146,10 +182,10 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
       if (!isOpen) return;
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowRight' && currentIndex < files.length - 1 && scale <= 1.05) {
-        setCurrentIndex(prev => prev + 1);
+        handleNext();
       }
       if (e.key === 'ArrowLeft' && currentIndex > 0 && scale <= 1.05) {
-        setCurrentIndex(prev => prev - 1);
+        handlePrev();
       }
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
@@ -166,7 +202,7 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex, files.length, onClose, scale, resetZoom, handleZoomIn, handleZoomOut]);
+  }, [isOpen, currentIndex, files.length, onClose, scale, resetZoom, handleZoomIn, handleZoomOut, handleNext, handlePrev]);
 
   // Touch event listeners for 2-finger pinch, 1-finger pan, swipe navigation, and double-tap zoom
   useEffect(() => {
@@ -376,9 +412,9 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
 
           if (dt < 400 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
             if (dx < -50 && currentIndex < files.length - 1) {
-              setCurrentIndex(prev => prev + 1);
+              handleNext();
             } else if (dx > 50 && currentIndex > 0) {
-              setCurrentIndex(prev => prev - 1);
+              handlePrev();
             }
           }
         }
@@ -406,7 +442,7 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
       window.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [containerEl, isOpen, currentIndex, files.length, resetZoom, getClampedPosition]);
+  }, [containerEl, isOpen, currentIndex, files.length, resetZoom, getClampedPosition, handleNext, handlePrev]);
 
   // Desktop Mouse Wheel to Zoom In / Out
   const handleWheel = (e) => {
@@ -542,24 +578,73 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
                   transform: `translate3d(${position.x}px, ${position.y}px, 0px) scale(${scale})`,
                   transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.2, 0, 0.2, 1)',
                   touchAction: 'none',
-                  cursor: scale > 1.05 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
+                  cursor: scale > 1.05 ? (isDragging ? 'grabbing' : 'grab') : (files.length > 1 ? 'grab' : 'zoom-in'),
                 }}
-                className="pointer-events-auto flex items-center justify-center will-change-transform select-none max-w-full max-h-full"
+                className="pointer-events-auto flex items-center justify-center will-change-transform select-none max-w-full max-h-full w-full h-full relative"
               >
-                {isVideo ? (
-                  <AutoPlayVideo 
-                    src={activeMedia.url} 
-                    className="max-w-[95vw] sm:max-w-[90vw] max-h-[85vh] sm:max-h-[88vh] object-contain rounded-lg shadow-2xl cursor-default" 
-                  />
-                ) : (
-                  <img 
-                    key={activeMedia.url}
-                    src={optimizeUrl(activeMedia.url)} 
-                    alt="Full view" 
-                    draggable={false}
-                    className="max-w-[95vw] sm:max-w-[90vw] max-h-[85vh] sm:max-h-[88vh] object-contain rounded-lg shadow-2xl pointer-events-none select-none"
-                  />
-                )}
+                <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                  <motion.div
+                    key={safeIndex}
+                    custom={direction}
+                    variants={{
+                      enter: (dir) => ({
+                        x: dir > 0 ? '60%' : dir < 0 ? '-60%' : 0,
+                        opacity: 0,
+                        scale: 0.94,
+                      }),
+                      center: {
+                        x: 0,
+                        opacity: 1,
+                        scale: 1,
+                        transition: {
+                          x: { type: 'spring', stiffness: 350, damping: 32, mass: 0.8 },
+                          opacity: { duration: 0.22, ease: 'easeOut' },
+                          scale: { duration: 0.22, ease: 'easeOut' },
+                        },
+                      },
+                      exit: (dir) => ({
+                        x: dir > 0 ? '-60%' : dir < 0 ? '60%' : 0,
+                        opacity: 0,
+                        scale: 0.94,
+                        transition: {
+                          x: { type: 'spring', stiffness: 350, damping: 32, mass: 0.8 },
+                          opacity: { duration: 0.2, ease: 'easeIn' },
+                          scale: { duration: 0.2, ease: 'easeIn' },
+                        },
+                      }),
+                    }}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    drag={scale <= 1.05 && files.length > 1 ? "x" : false}
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.4}
+                    onDragEnd={(e, { offset, velocity }) => {
+                      if (scale > 1.05) return;
+                      const swipeThreshold = 50;
+                      if (offset.x < -swipeThreshold || velocity.x < -300) {
+                        handleNext();
+                      } else if (offset.x > swipeThreshold || velocity.x > 300) {
+                        handlePrev();
+                      }
+                    }}
+                    className="w-full h-full flex items-center justify-center select-none will-change-transform"
+                  >
+                    {isVideo ? (
+                      <AutoPlayVideo 
+                        src={activeMedia.url} 
+                        className="max-w-[95vw] sm:max-w-[90vw] max-h-[85vh] sm:max-h-[88vh] object-contain rounded-lg shadow-2xl cursor-default" 
+                      />
+                    ) : (
+                      <img 
+                        src={optimizeUrl(activeMedia.url)} 
+                        alt="Full view" 
+                        draggable={false}
+                        className="max-w-[95vw] sm:max-w-[90vw] max-h-[85vh] sm:max-h-[88vh] object-contain rounded-lg shadow-2xl pointer-events-none select-none"
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
               {/* Navigation Buttons (shown when not zoomed in) */}
@@ -568,8 +653,8 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
                   {currentIndex > 0 && (
                     <button 
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setCurrentIndex(prev => prev - 1); }}
-                      className="pointer-events-auto absolute left-3 sm:left-6 md:left-8 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-black/60 hover:bg-black/90 text-white rounded-full transition-all border border-white/10 z-20 cursor-pointer shadow-xl"
+                      onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+                      className="pointer-events-auto absolute left-3 sm:left-6 md:left-8 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-black/60 hover:bg-black/90 hover:scale-110 active:scale-95 text-white rounded-full transition-all border border-white/15 z-20 cursor-pointer shadow-2xl backdrop-blur-md"
                       aria-label="Previous image"
                     >
                       <ChevronLeft className="w-5 h-5 sm:w-7 sm:h-7" />
@@ -579,8 +664,8 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
                   {currentIndex < files.length - 1 && (
                     <button 
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setCurrentIndex(prev => prev + 1); }}
-                      className="pointer-events-auto absolute right-3 sm:right-6 md:right-8 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-black/60 hover:bg-black/90 text-white rounded-full transition-all border border-white/10 z-20 cursor-pointer shadow-xl"
+                      onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                      className="pointer-events-auto absolute right-3 sm:right-6 md:right-8 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-black/60 hover:bg-black/90 hover:scale-110 active:scale-95 text-white rounded-full transition-all border border-white/15 z-20 cursor-pointer shadow-2xl backdrop-blur-md"
                       aria-label="Next image"
                     >
                       <ChevronRight className="w-5 h-5 sm:w-7 sm:h-7" />
@@ -588,14 +673,14 @@ const ImageViewerModal = ({ isOpen, mediaFiles = [], initialIndex = 0, onClose }
                   )}
 
                   {/* Dots indicator */}
-                  <div className="pointer-events-auto absolute bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-20 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                  <div className="pointer-events-auto absolute bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 bg-black/60 backdrop-blur-md px-3.5 py-2 rounded-full border border-white/15 shadow-2xl">
                     {files.map((_, i) => (
                       <button 
                         key={i} 
-                        type="button"
+                        type="button" 
                         aria-label={`Go to slide ${i + 1}`}
-                        className={`h-2 rounded-full transition-all cursor-pointer ${i === currentIndex ? 'w-6 bg-primary' : 'w-2 bg-white/40 hover:bg-white/70'}`}
-                        onClick={(e) => { e.stopPropagation(); setCurrentIndex(i); }}
+                        className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${i === currentIndex ? 'w-7 bg-primary shadow-[0_0_10px_rgba(139,92,246,0.7)]' : 'w-2 bg-white/40 hover:bg-white/80 hover:scale-125'}`}
+                        onClick={(e) => { e.stopPropagation(); handleGoTo(i); }}
                       />
                     ))}
                   </div>

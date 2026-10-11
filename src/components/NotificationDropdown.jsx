@@ -48,16 +48,16 @@ const NotificationDropdown = () => {
       try {
         ringtoneService.playNotificationSound(true); // force sound preview
       } catch (e) {}
-      toast.success('Notification sound turned ON 🔔');
+      toast.success('Notification sound turned ON');
     } else {
-      toast.success('Notification sound turned OFF 🔕');
+      toast.success('Notification sound turned OFF');
     }
   };
 
   const handleTestSound = () => {
     try {
       ringtoneService.playNotificationSound(true);
-      toast.success('Playing notification sound preview 🔔');
+      toast.success('Playing notification sound preview');
     } catch (e) {
       toast.error('Could not play sound');
     }
@@ -161,7 +161,7 @@ const NotificationDropdown = () => {
 
         if (perm === 'granted') {
           try {
-            const testNotif = new Notification('CampusBridge Notification 🔔', {
+            const testNotif = new Notification('CampusBridge Notification', {
               body: isSoundOn 
                 ? 'Browser notification sent with sound alert!' 
                 : 'Browser notification sent (sound muted).',
@@ -177,7 +177,7 @@ const NotificationDropdown = () => {
             if ('serviceWorker' in navigator) {
               try {
                 const reg = await navigator.serviceWorker.ready;
-                reg.showNotification('CampusBridge Notification 🔔', {
+                reg.showNotification('CampusBridge Notification', {
                   body: isSoundOn 
                     ? 'Browser notification sent with sound alert!' 
                     : 'Browser notification sent (sound muted).',
@@ -198,8 +198,8 @@ const NotificationDropdown = () => {
 
       toast.success(
         isSoundOn 
-          ? 'Browser notification sent with sound! 🔔' 
-          : 'Browser notification sent (sound is muted) 🔕'
+          ? 'Browser notification sent with sound!' 
+          : 'Browser notification sent (sound is muted)'
       );
     } catch (e) {
       toast.error('Failed to send test notification: ' + (e?.message || 'Error'));
@@ -342,7 +342,7 @@ const NotificationDropdown = () => {
             }}
             className={`${
               t.visible ? 'animate-in slide-in-from-top-3 fade-in duration-300' : 'animate-out slide-out-to-top-3 fade-out duration-200'
-            } max-w-md w-full bg-card/95 backdrop-blur-md shadow-2xl rounded-2xl pointer-events-auto flex items-stretch border border-border/80 ring-1 ring-primary/20 hover:border-primary/50 transition-all cursor-pointer group hover:scale-[1.01]`}
+            } max-w-md w-full bg-card/95 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_70px_-10px_rgba(0,0,0,0.85)] rounded-2xl pointer-events-auto flex items-stretch border-0 transition-all cursor-pointer group hover:scale-[1.01]`}
           >
             <div className="flex-1 min-w-0 p-4">
               <div className="flex items-start gap-3">

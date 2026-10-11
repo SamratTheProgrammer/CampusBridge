@@ -1,7 +1,7 @@
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import React, { useState, useEffect, useCallback } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, Languages, Cake } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, Languages, Cake, Smartphone, Users } from 'lucide-react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -866,16 +866,36 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                   <a href={`mailto:${mentor.email}`} className="text-sm text-primary hover:underline">{mentor.email}</a>
                 </div>
               </li>
-              <li className="flex items-start gap-4">
-                <MapPin className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Location</p>
-                  <p className="text-sm text-foreground">{mentor.location || 'Not specified'}</p>
-                  {mentor.address && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{mentor.address}</p>
-                  )}
-                </div>
-              </li>
+              {mentor?.phone && (isOwner || mentor?.phoneVisibility === 'public' || (mentor?.phoneVisibility === 'connections' && connectionStatus === 'accepted')) && (
+                <li className="flex items-start gap-4">
+                  <Smartphone className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase">Phone</p>
+                      {mentor.isPhoneVerified && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-full">
+                          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                          Verified
+                        </span>
+                      )}
+                      {isOwner && mentor.phoneVisibility && (
+                        <span className="inline-flex items-center gap-1 text-[9px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border/50 capitalize">
+                          {mentor.phoneVisibility === 'private' ? (
+                            <><Lock className="w-2 h-2" /> Hidden</>
+                          ) : mentor.phoneVisibility === 'connections' ? (
+                            <><Users className="w-2 h-2 text-blue-500" /> Connections</>
+                          ) : (
+                            <><Globe className="w-2 h-2 text-emerald-500" /> Public</>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    <a href={`tel:${mentor.phone}`} className="text-sm font-mono text-primary hover:underline">
+                      {mentor.phone}
+                    </a>
+                  </div>
+                </li>
+              )}
               {mentor.socialLinks?.map((link, i) => {
                 let Icon = Globe;
                 let colorClass = 'text-muted-foreground';

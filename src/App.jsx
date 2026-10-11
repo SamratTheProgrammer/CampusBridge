@@ -14,7 +14,7 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import PageTransition from './components/PageTransition'
 import { AnimatePresence } from 'framer-motion'
-import { Toaster } from 'react-hot-toast'
+import AppToaster from './components/common/AppToaster'
 import { ClerkProvider, useUser } from '@clerk/clerk-react'
 import ErrorBoundary from './components/ErrorBoundary'
 import RouteIntegrityLoader from './components/RouteIntegrityLoader'
@@ -379,7 +379,7 @@ function App() {
             <DiwaliWrapper />
             <SharedItemViewer />
             <PushNotificationPrompt />
-            <Toaster position="bottom-right" />
+            <AppToaster />
           </Router>
         </ProfileDataProvider>
       </ThemeProvider>

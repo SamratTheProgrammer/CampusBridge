@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, MessageSquareOff, MessageCircle, Languages, Cake } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, MessageSquareOff, MessageCircle, Languages, Cake, Smartphone, Users, Globe } from 'lucide-react'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { FaLinkedin as Linkedin, FaGithub as Github, FaGlobe as Globe, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
+import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
@@ -612,6 +612,30 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5" />
                     {student.address}
+                  </span>
+                )}
+                {/* Phone Number Display respecting phoneVisibility */}
+                {student?.phone && (isOwner || student?.phoneVisibility === 'public' || (student?.phoneVisibility === 'connections' && connectionStatus === 'accepted')) && (
+                  <span className="flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="font-mono font-medium">{student.phone}</span>
+                    {student.isPhoneVerified && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-full">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                        Verified
+                      </span>
+                    )}
+                    {isOwner && student.phoneVisibility && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border/50 capitalize">
+                        {student.phoneVisibility === 'private' ? (
+                          <><Lock className="w-2.5 h-2.5" /> Hidden</>
+                        ) : student.phoneVisibility === 'connections' ? (
+                          <><Users className="w-2.5 h-2.5 text-blue-500" /> Connections</>
+                        ) : (
+                          <><Globe className="w-2.5 h-2.5 text-emerald-500" /> Public</>
+                        )}
+                      </span>
+                    )}
                   </span>
                 )}
                 {/* Age Display */}

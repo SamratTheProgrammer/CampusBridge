@@ -502,6 +502,49 @@ body {
   display: none !important;
 }
 
+/* ==========================================================================
+   CampusBridge Toast Popup Animations (Dark & Light Theme Adaptive)
+   ========================================================================== */
+
+@keyframes cbToastPopup {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(0, -6px, 0) scale(1.04);
+  }
+  75% {
+    transform: translate3d(0, 2px, 0) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes cbToastExit {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.85);
+  }
+}
+
+.cb-toast-popup {
+  animation: cbToastPopup 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards;
+  will-change: transform, opacity;
+}
+
+.cb-toast-exit {
+  animation: cbToastExit 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
 
 
 

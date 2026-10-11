@@ -68,9 +68,9 @@ const TranslationLanguageSetting = () => {
 
     const langObj = getLanguageByCode(langCode);
     if (langCode === 'en') {
-      toast.success('Website restored to original English', { icon: '🌐' });
+      toast.success('Website restored to original English');
     } else {
-      toast.success(`Translating entire website to ${langObj.nativeName} (${langObj.name})...`, { icon: '✨' });
+      toast.success(`Translating entire website to ${langObj.nativeName} (${langObj.name})`);
     }
 
     setTimeout(() => {

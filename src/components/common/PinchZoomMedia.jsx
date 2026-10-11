@@ -117,6 +117,9 @@ const PinchZoomMedia = ({ children, onTap, className = '' }) => {
           resetPinch();
         }
       }
+      if (e.touches.length === 0) {
+        pinchStateRef.current.hasMoved = false;
+      }
     };
 
     el.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -133,8 +136,8 @@ const PinchZoomMedia = ({ children, onTap, className = '' }) => {
   }, [resetPinch]);
 
   const handleClick = (e) => {
-    // If not pinching and not dragging, trigger tap
-    if (!pinchStateRef.current.active && !pinchStateRef.current.hasMoved) {
+    // If not actively pinching with 2 fingers, trigger tap
+    if (!pinchStateRef.current.active) {
       if (onTap) {
         e.stopPropagation();
         onTap(e);
