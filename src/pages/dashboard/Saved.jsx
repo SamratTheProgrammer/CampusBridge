@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import API_BASE from '../../utils/api'
 import { formatSalaryWithLPA } from '../../utils/salaryHelper'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
+import NewRibbon from '../../components/common/NewRibbon'
 
 const Saved = () => {
   const [activeTab, setActiveTab] = useState('Jobs') // 'Jobs' | 'Events'
@@ -113,7 +114,8 @@ const Saved = () => {
                     const expired = isJobExpired()
 
                     return (
-                      <div key={job._id} className={`bg-card border ${expired ? 'border-rose-500/30 opacity-80' : 'border-border/40'} p-5 rounded-2xl flex flex-col justify-between group hover:border-primary/50 transition-colors`}>
+                      <div key={job._id} className={`bg-card border ${expired ? 'border-rose-500/30 opacity-80' : 'border-border/40'} p-5 rounded-2xl flex flex-col justify-between group hover:border-primary/50 transition-colors relative overflow-hidden`}>
+                        <NewRibbon createdAt={job.createdAt} id={job._id} />
                         <div>
                           <div className="flex justify-between items-start mb-4">
                             <div className="flex items-center gap-2">
@@ -176,7 +178,8 @@ const Saved = () => {
             >
               {savedEvents.length > 0 ? (
                 savedEvents.map(event => (
-                  <div key={event.id} className="bg-card border border-border/40 p-5 rounded-2xl flex flex-col justify-between group hover:border-primary/50 transition-colors">
+                  <div key={event.id} className="bg-card border border-border/40 p-5 rounded-2xl flex flex-col justify-between group hover:border-primary/50 transition-colors relative overflow-hidden">
+                    <NewRibbon createdAt={event.createdAt} id={event.id || event._id} />
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 font-bold">

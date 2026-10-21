@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar as CalendarIcon, Clock, MapPin, Users, X, Send } from 'lucide-react'
-import toast from 'react-hot-toast'
-import emailjs from '@emailjs/browser'
+import { motion } from 'framer-motion'
+import { Calendar as CalendarIcon, Clock, Users, ArrowRight } from 'lucide-react'
 import API_BASE from '../../utils/api'
+import NewRibbon from '../common/NewRibbon'
+import EventFallbackBanner from '../common/EventFallbackBanner'
+import defaultPP from '../../assets/default_pp.png'
 
 const EventCard = ({ event, index, onRegister }) => {
+  const navigate = useNavigate()
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0 })
 
   useEffect(() => {
@@ -63,17 +65,23 @@ const EventCard = ({ event, index, onRegister }) => {
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
-      className="bg-card border rounded-2xl overflow-hidden hover:shadow-lg transition-shadow group flex flex-col"
+      onClick={() => onRegister(event)}
+      className="bg-card border rounded-2xl overflow-hidden hover:shadow-lg transition-shadow group flex flex-col relative cursor-pointer"
     >
+      <NewRibbon createdAt={event.createdAt} id={event._id} />
       <div className="h-48 relative overflow-hidden bg-muted">
-        <img 
-          src={event.imageUrl || event.image || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'} 
-          alt={event.title} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute top-4 right-4 bg-background/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
+        {event.imageUrl || event.image ? (
+          <img 
+            src={event.imageUrl || event.image} 
+            alt={event.title} 
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <EventFallbackBanner type={event.type} title={event.title} />
+        )}
+        <div className="absolute top-4 left-4 bg-background/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          {event.type}
+          {event.type || 'Event'}
         </div>
       </div>
       
@@ -84,19 +92,42 @@ const EventCard = ({ event, index, onRegister }) => {
         
         <div className="space-y-2 mb-6 text-sm text-muted-foreground flex-1">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-primary" />
+            <CalendarIcon className="w-4 h-4 text-primary shrink-0" />
             <span>{event.date ? new Date(event.date).toLocaleDateString() : 'TBD'}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary" />
-            <span>{event.time}</span>
+            <Clock className="w-4 h-4 text-primary shrink-0" />
+            <span>{event.time || 'TBD'}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" />
-            <span>{event.location || event.mode || 'Virtual'}</span>
-          </div>
+          
+          {/* Host Display: DP and Name (NO meet URL or location as requested) */}
+          {event.organizer && (
+            <div 
+              onClick={(e) => {
+                e.stopPropagation();
+                const identifier = event.organizer.username || event.organizer.clerkId || event.organizer._id;
+                if (identifier) navigate(`/profile/${identifier}`);
+              }}
+              className="flex items-center gap-2 pt-1 cursor-pointer group/host hover:opacity-90 transition-opacity"
+              title="View Host Profile"
+            >
+              <img
+                src={event.organizer.imageUrl || defaultPP}
+                alt={event.organizer.name || 'Host'}
+                onError={(e) => { e.currentTarget.src = defaultPP; }}
+                className="w-5 h-5 rounded-full object-cover ring-1 ring-border group-hover/host:ring-primary/60 shrink-0"
+              />
+              <span className="text-xs font-semibold text-foreground group-hover/host:text-primary group-hover/host:underline truncate">
+                {event.organizer.name || `${event.organizer.firstName || ''} ${event.organizer.lastName || ''}`.trim() || 'Campus Host'}
+              </span>
+              <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary shrink-0">
+                Host
+              </span>
+            </div>
+          )}
         </div>
 
+        {/* Countdown Timer */}
         <div className="bg-muted rounded-xl p-3 mb-6 flex justify-between items-center text-sm font-medium">
           <div className="text-center">
             <span className="block text-foreground text-lg">{timeLeft.days}</span>
@@ -116,7 +147,11 @@ const EventCard = ({ event, index, onRegister }) => {
 
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => onRegister(event)}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRegister(event);
+            }}
             className="flex-1 bg-foreground text-background py-2.5 rounded-xl font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
           >
             Register Now
@@ -130,7 +165,6 @@ const EventCard = ({ event, index, onRegister }) => {
 const UpcomingEvents = () => {
   const [events, setEvents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedEvent, setSelectedEvent] = useState(null)
   
   const { user, isLoaded } = useUser()
   const navigate = useNavigate()
@@ -156,201 +190,58 @@ const UpcomingEvents = () => {
     fetchEvents()
   }, [])
 
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault()
-    if (!isLoaded || !user) {
-      navigate('/signup')
-      return
+  const handleRegisterClick = (event) => {
+    if (!isLoaded) return;
+    if (!user) {
+      // If not logged in, take them to login
+      navigate('/login', { state: { returnTo: '/dashboard/events', registerEventId: event._id } });
+      return;
     }
-
-    try {
-      const res = await fetch(`${API_BASE}/api/events/${selectedEvent._id}/apply`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ clerkId: user.id, clientHandledEmail: true })
-      })
-
-      if (res.ok) {
-        // Send EmailJS event confirmation email
-        try {
-          const attendeeEmail = user.primaryEmailAddress?.emailAddress;
-          const attendeeName = user.fullName || user.firstName || 'Participant';
-          const eventDate = selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString() : '';
-
-          const templateParams = {
-            to_email: attendeeEmail,
-            user_email: attendeeEmail,
-            email: attendeeEmail,
-            recipient: attendeeEmail,
-            to_name: attendeeName,
-            name: attendeeName,
-            user_name: attendeeName,
-            applicant_name: attendeeName,
-            event_name: selectedEvent.title,
-            event_title: selectedEvent.title,
-            title: selectedEvent.title,
-            event_date: eventDate,
-            date: eventDate,
-            event_time: selectedEvent.time || '',
-            time: selectedEvent.time || '',
-            event_location: selectedEvent.location || selectedEvent.type || 'Online',
-            location: selectedEvent.location || selectedEvent.type || 'Online',
-            event_link: selectedEvent.link || '',
-            link: selectedEvent.link || '',
-            from_name: 'CampusBridge',
-            message: `You have successfully registered for ${selectedEvent.title}.`
-          };
-
-          await emailjs.send(
-            import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_a3vg38b',
-            import.meta.env.VITE_EMAILJS_EVENT_TEMPLATE_ID || 'template_wlyvsuf',
-            templateParams,
-            import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'JAA5yhiRssyoyqKqW'
-          );
-        } catch (emailErr) {
-          console.error('EmailJS Error in UpcomingEvents:', emailErr);
-        }
-
-        toast.success('Successfully registered for the event!')
-      } else {
-        const data = await res.json()
-        toast.error(data.error || 'Failed to register')
-      }
-    } catch (error) {
-      toast.error('An error occurred during registration')
-    }
-    setSelectedEvent(null)
-  }
-
-  // Prevent scrolling when modal is open
-  useEffect(() => {
-    if (selectedEvent) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
-    return () => {
-      document.body.style.overflow = 'unset'
-    }
-  }, [selectedEvent])
-
-  if (isLoading) {
-    return (
-      <section className="py-24 bg-muted/20 relative">
-        <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12 text-center">
-          <p className="text-muted-foreground animate-pulse">Loading upcoming events...</p>
-        </div>
-      </section>
-    )
+    // If logged in, navigate to /dashboard/events and automatically open the register modal!
+    navigate('/dashboard/events', { state: { registerEventId: event._id } });
   }
 
   return (
-    <section className="py-24 bg-muted/20 relative">
-      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
-          <div className="max-w-2xl">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Upcoming Events</h2>
-            <p className="text-lg text-muted-foreground">
-              Level up your skills and expand your network with our exclusive events and workshops.
+    <section className="py-20 bg-background/50 border-t border-border/40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider mb-3">
+              Happening Soon
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground">Upcoming Campus Events</h2>
+            <p className="text-muted-foreground mt-2 text-base sm:text-lg max-w-xl">
+              Join workshops, masterclasses, and networking sessions hosted by industry leaders and alumni.
             </p>
           </div>
-          <button className="text-primary font-medium hover:underline w-fit">
-            View All Events &rarr;
+          <button 
+            onClick={() => navigate(user ? '/dashboard/events' : '/login')}
+            className="mt-6 md:mt-0 flex items-center gap-2 text-primary font-bold hover:gap-3 transition-all cursor-pointer self-start md:self-auto"
+          >
+            <span>View All Events</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
-        {events.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-dashed rounded-2xl">
-            <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-bold text-foreground mb-2">No Upcoming Events</h3>
+        {isLoading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map(n => (
+              <div key={n} className="bg-card border rounded-2xl h-96 animate-pulse" />
+            ))}
+          </div>
+        ) : events.length === 0 ? (
+          <div className="text-center py-12 bg-card border rounded-2xl p-8">
+            <h3 className="text-lg font-bold text-foreground mb-2">No Upcoming Events</h3>
             <p className="text-muted-foreground">Check back later for new workshops, webinars, and networking events.</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {events.map((event, index) => (
-              <EventCard key={event._id || index} event={event} index={index} onRegister={setSelectedEvent} />
+              <EventCard key={event._id || index} event={event} index={index} onRegister={handleRegisterClick} />
             ))}
           </div>
         )}
       </div>
-
-      <AnimatePresence>
-        {selectedEvent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-              onClick={() => setSelectedEvent(null)}
-            />
-            
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card border border-border/50 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative z-10"
-            >
-              <div className="relative h-32 bg-muted shrink-0">
-                <img src={selectedEvent.imageUrl || selectedEvent.image || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'} alt="Event Cover" className="w-full h-full object-cover opacity-60" />
-                <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
-                <button 
-                  onClick={() => setSelectedEvent(null)}
-                  className="absolute top-4 right-4 p-2 bg-background/50 hover:bg-background/80 backdrop-blur rounded-full transition-colors text-foreground shadow-sm"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                <div className="absolute bottom-0 left-0 p-6 translate-y-4">
-                  <div className="bg-primary text-primary-foreground text-[10px] font-bold px-3 py-1 rounded-full mb-2 w-fit uppercase tracking-wider shadow-sm">
-                    {selectedEvent.type}
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-foreground leading-tight drop-shadow-md">{selectedEvent.title}</h3>
-                </div>
-              </div>
-
-              <div className="p-6 pt-8 overflow-y-auto custom-scrollbar">
-                <p className="text-sm text-muted-foreground mb-6">
-                  Complete your registration for this event. Space is limited, so secure your spot now!
-                </p>
-                
-                <form onSubmit={handleRegisterSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">First Name</label>
-                      <input type="text" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground transition-all" placeholder="John" required />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">Last Name</label>
-                      <input type="text" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground transition-all" placeholder="Doe" required />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">Email Address</label>
-                    <input type="email" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground transition-all" placeholder="john@example.com" required />
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">University / Organization</label>
-                    <input type="text" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground transition-all" placeholder="e.g. Stanford University" required />
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">Why do you want to attend?</label>
-                    <textarea className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground h-24 resize-none transition-all" placeholder="Briefly describe what you hope to learn..." required></textarea>
-                  </div>
-                  
-                  <button type="submit" className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 mt-4 active:scale-[0.98]">
-                    Submit Registration <Send className="w-4 h-4" />
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </section>
   )
 }

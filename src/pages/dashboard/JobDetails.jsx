@@ -384,7 +384,11 @@ const JobDetails = () => {
             </button>
           )}
 
-          <button onClick={handleShare} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground bg-card border border-border/50 px-3 py-1.5 rounded-lg transition-colors shadow-sm">
+          <button 
+            type="button" 
+            onClick={handleShare} 
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground bg-card border border-border/50 px-3 py-1.5 rounded-lg transition-colors shadow-sm cursor-pointer"
+          >
             <Share2 className="w-4 h-4" /> Share
           </button>
         </div>
@@ -454,8 +458,9 @@ const JobDetails = () => {
           </div>
           {isMentor ? (
             <button 
+              type="button"
               onClick={handleShare}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Share2 className="w-4 h-4" /> Share with Students
             </button>

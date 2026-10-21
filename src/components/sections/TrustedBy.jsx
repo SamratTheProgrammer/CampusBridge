@@ -13,7 +13,7 @@ const TrustedBy = () => {
 
   return (
     <section className="py-12 border-y bg-muted/30">
-      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12 text-center">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 text-center">
         <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-8">
           Trusted by mentor working at top companies
         </p>

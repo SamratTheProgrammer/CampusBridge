@@ -7,6 +7,7 @@ import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import API_BASE from '../../utils/api'
 import { formatPendingRequestTime } from '../../utils/dateFormatter'
 import { formatSalaryWithLPA } from '../../utils/salaryHelper'
+import NewRibbon from '../common/NewRibbon'
 
 const JobOpportunities = () => {
   const [jobs, setJobs] = useState([])
@@ -53,7 +54,7 @@ const JobOpportunities = () => {
   }
   return (
     <section className="py-24 bg-muted/20">
-      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div className="max-w-2xl">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Latest Job Opportunities</h2>
@@ -78,8 +79,9 @@ const JobOpportunities = () => {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.4, delay: index * 0.1 }}
-                className="bg-card border rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-shadow group"
+                className="bg-card border rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-shadow group relative overflow-hidden"
               >
+                <NewRibbon createdAt={job.createdAt} id={job._id} />
                 <div className="flex items-start gap-4">
                   <div className="w-14 h-14 rounded-xl border bg-background flex items-center justify-center p-2 shrink-0 overflow-hidden">
                     <img 

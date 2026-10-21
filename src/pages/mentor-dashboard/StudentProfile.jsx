@@ -876,7 +876,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
 
       {/* Posts Section */}
       <div className="space-y-4 mt-6">
-        <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md pt-2 pb-2 border-b border-border/40 mb-2">
+        <div className="sticky top-0 md:top-16 z-30 bg-background pt-2.5 pb-2 border-b border-border/40 mb-2 px-3 sm:px-1 shadow-2xs">
           <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
         </div>
         {isLoadingPosts ? (

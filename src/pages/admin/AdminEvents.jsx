@@ -30,6 +30,7 @@ const AdminEvents = () => {
   const [type, setType] = useState('Workshop')
   const [mode, setMode] = useState('Online') // 'Online' | 'Offline'
   const [date, setDate] = useState('')
+  const [lastRegDate, setLastRegDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [location, setLocation] = useState('')
@@ -67,6 +68,7 @@ const AdminEvents = () => {
     setType('Workshop')
     setMode('Online')
     setDate('')
+    setLastRegDate('')
     setStartTime('')
     setEndTime('')
     setLocation('')
@@ -89,6 +91,7 @@ const AdminEvents = () => {
     setType(event.type || 'Workshop')
     setMode(event.mode || (event.location ? 'Offline' : 'Online'))
     setDate(event.date ? new Date(event.date).toISOString().split('T')[0] : '')
+    setLastRegDate(event.lastRegDate ? new Date(event.lastRegDate).toISOString().split('T')[0] : '')
     
     // Parse existing time string
     let parsedStartTime = '';
@@ -146,6 +149,7 @@ const AdminEvents = () => {
         type,
         mode,
         date,
+        lastRegDate: lastRegDate || null,
         time: `${startTime} - ${endTime}`,
         location: mode === 'Offline' ? location : '',
         link: mode === 'Online' ? link : '',
@@ -544,9 +548,9 @@ const AdminEvents = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Date</label>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Event Date</label>
                     <input
                       type="date"
                       required
@@ -555,27 +559,39 @@ const AdminEvents = () => {
                       className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Start</label>
-                      <input
-                        type="time"
-                        required
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">End</label>
-                      <input
-                        type="time"
-                        required
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">
+                      Last Registration Date <span className="lowercase font-normal text-muted-foreground/80">(Deadline)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={lastRegDate}
+                      onChange={(e) => setLastRegDate(e.target.value)}
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">End Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
                   </div>
                 </div>
 

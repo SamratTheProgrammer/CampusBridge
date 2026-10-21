@@ -7,6 +7,7 @@ import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
 import { getCompanyLogo, handleImageError } from '../../utils/logoHelper'
 import { formatSalaryWithLPA, calculateSalaryEquivalents } from '../../utils/salaryHelper'
+import CourseSelector from '../../components/common/CourseSelector'
 
 const AdminJobs = () => {
   const [jobs, setJobs] = useState([])
@@ -721,13 +722,22 @@ const AdminJobs = () => {
                       })()}
                     </div>
                     <div className="col-span-1 sm:col-span-2">
-                      <label className="block text-xs font-medium text-foreground mb-1">Valid Courses</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. BCA, MCA, B.Tech (comma separated)"
-                        value={newJobData.eligibility?.courses?.join(', ') || ''}
-                        onChange={(e) => setNewJobData({ ...newJobData, eligibility: { ...newJobData.eligibility, courses: e.target.value.split(',').map(c => c.trim()).filter(Boolean) } })}
-                        className="w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+                      <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center justify-between">
+                        <span>Valid Courses / Degrees</span>
+                        <span className="text-[11px] text-muted-foreground font-normal">
+                          Search or add custom course
+                        </span>
+                      </label>
+                      <CourseSelector 
+                        value={newJobData.eligibility?.courses || []}
+                        onChange={(courses) => setNewJobData({
+                          ...newJobData,
+                          eligibility: {
+                            ...newJobData.eligibility,
+                            courses
+                          }
+                        })}
+                        placeholder="Search (e.g. B.Tech, MCA) or type custom course..."
                       />
                     </div>
                   </div>

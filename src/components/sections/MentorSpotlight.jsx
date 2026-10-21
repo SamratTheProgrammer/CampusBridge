@@ -206,14 +206,29 @@ const MentorSpotlight = () => {
         if (res.ok) {
           const data = await res.json()
           if (Array.isArray(data) && data.length > 0) {
-            setMentors(data.slice(0, 3))
+            const shuffled = [...data];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            setMentors(shuffled.slice(0, 3))
           } else {
-            setMentors(fallbackSpotlightMentors)
+            const shuffled = [...fallbackSpotlightMentors];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            setMentors(shuffled.slice(0, 3))
           }
         }
       } catch (error) {
         console.error('Error fetching mentors:', error)
-        setMentors(fallbackSpotlightMentors)
+        const shuffled = [...fallbackSpotlightMentors];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        setMentors(shuffled.slice(0, 3))
       } finally {
         setIsLoading(false)
       }
@@ -223,7 +238,7 @@ const MentorSpotlight = () => {
 
   return (
     <section className="py-24">
-      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">Mentor Spotlight</h2>
           <p className="text-lg text-muted-foreground">

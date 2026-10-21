@@ -146,7 +146,7 @@ const Navbar = () => {
             : 'bg-transparent border-transparent py-2'
           }`}
       >
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12">
           <div className="flex h-16 items-center justify-between">
 
             {/* Logo */}

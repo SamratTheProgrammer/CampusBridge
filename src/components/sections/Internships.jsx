@@ -4,6 +4,7 @@ import { Building, MapPin, ExternalLink } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
+import NewRibbon from '../common/NewRibbon'
 
 const Internships = () => {
   const [internships, setInternships] = useState([])
@@ -43,7 +44,7 @@ const Internships = () => {
   }
   return (
     <section className="py-24">
-      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">Top Internships</h2>
           <p className="text-lg text-muted-foreground">
@@ -63,8 +64,9 @@ const Internships = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.4, delay: index * 0.1 }}
-                className="bg-card border rounded-2xl p-5 hover:border-primary/50 transition-colors shadow-sm flex flex-col sm:flex-row gap-5 items-start sm:items-center"
+                className="bg-card border rounded-2xl p-5 hover:border-primary/50 transition-colors shadow-sm flex flex-col sm:flex-row gap-5 items-start sm:items-center relative overflow-hidden"
               >
+                <NewRibbon createdAt={internship.createdAt} id={internship._id} />
                 {/* Company Logo */}
                 <div className="w-14 h-14 shrink-0 rounded-xl bg-muted border overflow-hidden flex items-center justify-center">
                   {internship.companyLogo ? (

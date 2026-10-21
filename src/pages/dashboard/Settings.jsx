@@ -113,6 +113,7 @@ const Settings = () => {
   const [skills, setSkills] = useState([])
   const [languages, setLanguages] = useState([])
   const [newSkill, setNewSkill] = useState('')
+  const [showSkillDropdown, setShowSkillDropdown] = useState(false)
   const [usernameValue, setUsernameValue] = useState('')
   const [usernameError, setUsernameError] = useState('')
   const [isCheckingUsername, setIsCheckingUsername] = useState(false)
@@ -1781,20 +1782,23 @@ const Settings = () => {
                       onFocus={() => setShowSkillDropdown(true)}
                       onBlur={() => setTimeout(() => setShowSkillDropdown(false), 200)}
                       onKeyDown={e => { 
-                        if(e.key === 'Enter' && newSkill) { 
-                          if(!skills.includes(newSkill.trim())) setSkills([...skills, newSkill.trim()]); 
-                          setNewSkill(''); 
-                          setShowSkillDropdown(false);
+                        if(e.key === 'Enter') {
+                          e.preventDefault();
+                          if(newSkill && !skills.includes(newSkill.trim())) { 
+                            setSkills([...skills, newSkill.trim()]); 
+                            setNewSkill(''); 
+                            setShowSkillDropdown(false);
+                          }
                         } 
                       }} 
                       placeholder="e.g. React, Python, MongoDB" 
                       className="flex-1 bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" 
                     />
-                    <button onClick={() => { 
+                    <button type="button" onClick={() => { 
                       if(newSkill && !skills.includes(newSkill.trim())) setSkills([...skills, newSkill.trim()]); 
                       setNewSkill(''); 
                       setShowSkillDropdown(false);
-                    }} className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors">Add</button>
+                    }} className="bg-primary/10 text-primary hover:bg-primary/20 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer">Add</button>
                   </div>
                   
                   {showSkillDropdown && (

@@ -104,8 +104,15 @@ const FeaturedMentor = () => {
           }
         }
 
-        // Sort: prioritize not connected (new) mentors first
-        allMentors.sort((a, b) => {
+        // Shuffle mentors randomly on load so the same mentors aren't shown repeatedly
+        const shuffledMentors = [...allMentors];
+        for (let i = shuffledMentors.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffledMentors[i], shuffledMentors[j]] = [shuffledMentors[j], shuffledMentors[i]];
+        }
+
+        // Prioritize not connected mentors first, maintaining shuffled order within groups
+        shuffledMentors.sort((a, b) => {
           const idA = a.clerkId || a._id
           const idB = b.clerkId || b._id
           const statusA = connMap[idA] || null
@@ -116,10 +123,15 @@ const FeaturedMentor = () => {
           return 0
         })
 
-        setMentors(allMentors)
+        setMentors(shuffledMentors)
       } catch (error) {
         console.error('Error fetching mentors:', error)
-        setMentors(sampleMentors)
+        const shuffledSamples = [...sampleMentors];
+        for (let i = shuffledSamples.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffledSamples[i], shuffledSamples[j]] = [shuffledSamples[j], shuffledSamples[i]];
+        }
+        setMentors(shuffledSamples)
       } finally {
         setIsLoading(false)
       }
@@ -267,7 +279,7 @@ const FeaturedMentor = () => {
 
   return (
     <section className="py-24 bg-muted/20">
-      <div className="container max-w-7xl mx-auto px-3 sm:px-8 lg:px-12">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12">
         <div className="flex flex-col items-center text-center mb-12 gap-4">
           <div className="max-w-2xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Featured Mentors</h2>

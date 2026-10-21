@@ -20,7 +20,7 @@ const AppDownloadSection = () => {
       <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-96 h-96 bg-purple-600/10 dark:bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-96 h-96 bg-indigo-600/10 dark:bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 relative z-10">
         <div className="bg-gradient-to-br from-card/90 via-card/70 to-card/90 border border-border/80 rounded-3xl p-6 sm:p-10 md:p-14 shadow-2xl backdrop-blur-xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
             

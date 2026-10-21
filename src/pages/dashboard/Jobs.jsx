@@ -10,13 +10,14 @@ import API_BASE from '../../utils/api'
 import { getAppUrl } from '../../utils/appUrl'
 import { formatSalaryWithLPA, formatEligibilitySummary, checkUserJobEligibility } from '../../utils/salaryHelper'
 import ShareModal from '../../components/modals/ShareModal'
+import NewRibbon, { isPostNew } from '../../components/common/NewRibbon'
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [jobType, setJobType] = useState('All')
   const [jobs, setJobs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('Active') // 'Active' | 'Applied' | 'Inactive'
+  const [activeTab, setActiveTab] = useState('All') // 'All' | 'Active' | 'Applied' | 'Inactive'
   const [showEligibleOnly, setShowEligibleOnly] = useState(false)
   const { user } = useUser()
   const [dbUser, setDbUser] = useState(null)
@@ -82,6 +83,7 @@ const Jobs = () => {
     return new Date() > d
   }
 
+  const allCount = jobs.length
   const activeCount = jobs.filter(j => !isJobExpired(j.deadline)).length
   const appliedCount = jobs.filter(j => appliedJobIds.has(String(j._id))).length
   const inactiveCount = jobs.filter(j => isJobExpired(j.deadline)).length
@@ -93,7 +95,8 @@ const Jobs = () => {
     // Tab logic
     const isExpired = isJobExpired(job.deadline)
     let matchesTab = true
-    if (activeTab === 'Active') matchesTab = !isExpired
+    if (activeTab === 'All') matchesTab = true
+    else if (activeTab === 'Active') matchesTab = !isExpired
     else if (activeTab === 'Applied') matchesTab = appliedJobIds.has(String(job._id))
     else if (activeTab === 'Inactive') matchesTab = isExpired
     
@@ -158,23 +161,36 @@ const Jobs = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-muted p-1 rounded-xl w-fit mb-4">
+      <div className="flex flex-wrap sm:flex-nowrap bg-muted p-1 rounded-xl w-fit max-w-full mb-4 gap-1">
+        <button
+          onClick={() => setActiveTab('All')}
+          className={`px-4 sm:px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'All' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <span>All Jobs</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            activeTab === 'All' ? 'bg-primary/10 text-primary font-bold' : 'bg-muted-foreground/15 text-muted-foreground'
+          }`}>
+            {allCount}
+          </span>
+        </button>
         <button
           onClick={() => setActiveTab('Active')}
-          className={`px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'Active' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <span>Active Jobs</span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
-            activeTab === 'Active' ? 'bg-primary/10 text-primary' : 'bg-muted-foreground/15 text-muted-foreground'
+            activeTab === 'Active' ? 'bg-primary/10 text-primary font-bold' : 'bg-muted-foreground/15 text-muted-foreground'
           }`}>
             {activeCount}
           </span>
         </button>
         <button
           onClick={() => setActiveTab('Applied')}
-          className={`px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'Applied' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -187,13 +203,13 @@ const Jobs = () => {
         </button>
         <button
           onClick={() => setActiveTab('Inactive')}
-          className={`px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'Inactive' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <span>Inactive (Date Over)</span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
-            activeTab === 'Inactive' ? 'bg-destructive/10 text-destructive' : 'bg-muted-foreground/15 text-muted-foreground'
+            activeTab === 'Inactive' ? 'bg-destructive/10 text-destructive font-bold' : 'bg-muted-foreground/15 text-muted-foreground'
           }`}>
             {inactiveCount}
           </span>
@@ -209,12 +225,15 @@ const Jobs = () => {
             </div>
       ) : filteredJobs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredJobs.map(job => (
+          {filteredJobs.map(job => {
+            const isNew = isPostNew(job.createdAt || job._id);
+            return (
             <Link
               to={`/dashboard/jobs/${job._id}`}
               key={job._id}
               className="bg-card border border-border/50 rounded-2xl p-6 hover:border-primary/50 transition-all hover:shadow-md group flex flex-col h-full relative overflow-hidden"
             >
+              <NewRibbon createdAt={job.createdAt} id={job._id} />
               {job.moderationStatus === 'paused' && (
                 <div className="absolute top-0 left-0 w-full bg-amber-500/10 text-amber-500 text-xs font-bold py-1.5 px-4 text-center border-b border-amber-500/20">
                   Paused by Admin: {job.moderationRemark || 'Under review'}
@@ -229,7 +248,7 @@ const Jobs = () => {
                     onError={(e) => handleImageError(e, job.company)}
                   />
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <div className={`flex flex-wrap items-center justify-end gap-1.5 ${isNew ? 'pr-8' : ''}`}>
                   {isJobExpired(job.deadline) && (
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
@@ -298,8 +317,9 @@ const Jobs = () => {
                 </span>
                 <div className="flex items-center gap-3">
                   <button 
+                    type="button"
                     onClick={(e) => handleShare(e, job._id)}
-                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors cursor-pointer relative z-10"
                     title="Share Job"
                   >
                     <Share2 className="w-4 h-4" />
@@ -314,7 +334,8 @@ const Jobs = () => {
                 </div>
               </div>
             </Link>
-          ))}
+          );
+        })}
         </div>
       ) : (
         <div className="bg-card border border-border/50 rounded-2xl p-12 text-center shadow-sm">

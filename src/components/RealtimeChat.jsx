@@ -2919,6 +2919,10 @@ const RealtimeChat = () => {
                                       }
                                       if (msg.share.type === 'profile') {
                                         navigate(`/profile/${msg.share.itemId}`);
+                                      } else if (msg.share.type === 'job') {
+                                        navigate(`/dashboard/jobs/${msg.share.itemId}`);
+                                      } else if (msg.share.type === 'event') {
+                                        navigate(`/dashboard/events/${msg.share.itemId}`);
                                       } else {
                                         navigate(`?${msg.share.type}=${msg.share.itemId}`);
                                       }

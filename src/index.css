@@ -79,9 +79,9 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    /* Soft dark border instead of harsh white/light grey */
-    --border: 217.2 32.6% 10%;
-    --input: 217.2 32.6% 10%;
+    /* Soft dark border with clear visibility */
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
   }
 
   /* DIWALI THEME (Festival of Lights) */

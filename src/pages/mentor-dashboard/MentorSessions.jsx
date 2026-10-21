@@ -14,6 +14,8 @@ import ImageCropModal from '../../components/ImageCropModal'
 import defaultPP from '../../assets/default_pp.png'
 import API_BASE from '../../utils/api'
 import { getAppUrl } from '../../utils/appUrl'
+import NewRibbon from '../../components/common/NewRibbon'
+import EventFallbackBanner from '../../components/common/EventFallbackBanner'
 
 const MentorSessions = () => {
   const { user } = useUser()
@@ -107,6 +109,27 @@ const MentorSessions = () => {
   const [croppedImagePreview, setCroppedImagePreview] = useState(null)
   const [sessionImageUrl, setSessionImageUrl] = useState('')
   const [editSessionImageUrl, setEditSessionImageUrl] = useState('')
+  const [createSessionType, setCreateSessionType] = useState('Hackathon')
+  const [customCreateType, setCustomCreateType] = useState('')
+  const [editSessionType, setEditSessionType] = useState('Workshop')
+  const [customEditType, setCustomEditType] = useState('')
+
+  const openEditModal = (session) => {
+    setSelectedSession(session)
+    const STANDARD_TYPES = [
+      'Workshop', 'Masterclass', 'Group Mentorship', 'Career Guidance',
+      'Mock Interview', 'Hackathon', 'Career Fair', 'Tech Talk',
+      'Networking', 'Webinar', 'Seminar', 'Competition'
+    ]
+    if (session.type && STANDARD_TYPES.includes(session.type)) {
+      setEditSessionType(session.type)
+      setCustomEditType('')
+    } else {
+      setEditSessionType('Others')
+      setCustomEditType(session.type || '')
+    }
+    setIsEditModalOpen(true)
+  }
 
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0]
@@ -243,11 +266,16 @@ const MentorSessions = () => {
       toast.dismiss('img-upload')
     }
 
+    const rawType = formData.get('type')
+    const customType = formData.get('customType')?.trim()
+    const finalType = (rawType === 'Others' || rawType === 'Other') ? (customType || 'Others') : rawType
+
     const newSession = {
       title: formData.get('title'),
-      type: formData.get('type'),
+      type: finalType,
       mode: formData.get('mode') || 'Online',
       date: formData.get('date'),
+      lastRegDate: formData.get('lastRegDate') || null,
       time: `${formData.get('startTime')} - ${formData.get('endTime')}`,
       location: formData.get('location') || '',
       link: formData.get('link') || '',
@@ -305,11 +333,16 @@ const MentorSessions = () => {
       toast.dismiss('img-upload')
     }
 
+    const rawType = formData.get('type')
+    const customType = formData.get('customType')?.trim()
+    const finalType = (rawType === 'Others' || rawType === 'Other') ? (customType || 'Others') : rawType
+
     const updatedData = {
       title: formData.get('title'),
-      type: formData.get('type'),
+      type: finalType,
       mode: formData.get('mode') || 'Online',
       date: formData.get('date'),
+      lastRegDate: formData.get('lastRegDate') || null,
       time: `${formData.get('startTime')} - ${formData.get('endTime')}`,
       location: formData.get('location'),
       link: formData.get('link'),
@@ -598,14 +631,21 @@ const MentorSessions = () => {
                 key={event._id} 
                 className="bg-card border border-border/50 hover:border-primary/50 rounded-3xl p-3 sm:p-3.5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group overflow-hidden relative"
               >
+                <NewRibbon createdAt={event.createdAt} id={event._id} />
                 {/* 1. Cover Image Banner with Floating Glassmorphic Badges */}
                 <div className="relative w-full h-44 sm:h-48 rounded-2xl overflow-hidden mb-4 shrink-0 bg-gradient-to-br from-purple-950/20 via-card to-indigo-950/20 border border-border/40">
-                  <img 
-                    src={eventImg} 
-                    alt={event.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent pointer-events-none" />
+                  {event.imageUrl ? (
+                    <>
+                      <img 
+                        src={event.imageUrl} 
+                        alt={event.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent pointer-events-none" />
+                    </>
+                  ) : (
+                    <EventFallbackBanner type={event.type} title={event.title} />
+                  )}
 
                   {/* Floating Category Pill (Top-Left) */}
                   <div className="absolute top-3 left-3 backdrop-blur-md bg-black/60 border border-white/15 px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold text-white shadow-sm z-10">
@@ -731,8 +771,8 @@ const MentorSessions = () => {
 
                     {isYours ? (
                       <button
-                        onClick={() => { setSelectedSession(event); setIsEditModalOpen(true); }}
-                        className="px-4 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-all shadow-sm"
+                        onClick={() => openEditModal(event)}
+                        className="px-4 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-all shadow-sm cursor-pointer"
                       >
                         Edit
                       </button>
@@ -787,6 +827,7 @@ const MentorSessions = () => {
                 key={session._id} 
                 className="bg-card border border-border/50 hover:border-primary/50 rounded-3xl p-3 sm:p-3.5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group overflow-hidden relative"
               >
+                <NewRibbon createdAt={session.createdAt} id={session._id} />
                 {/* 1. Cover Image Banner with Floating Glassmorphic Badges */}
                 <div className="relative w-full h-44 sm:h-48 rounded-2xl overflow-hidden mb-4 shrink-0 bg-gradient-to-br from-purple-950/20 via-card to-indigo-950/20 border border-border/40">
                   <img 
@@ -932,8 +973,8 @@ const MentorSessions = () => {
                     )}
 
                     <button 
-                      onClick={() => { setSelectedSession(session); setIsEditModalOpen(true); }}
-                      className="p-2 rounded-full bg-muted/60 hover:bg-muted text-foreground transition-colors border border-border/40"
+                      onClick={() => openEditModal(session)}
+                      className="p-2 rounded-full bg-muted/60 hover:bg-muted text-foreground transition-colors border border-border/40 cursor-pointer"
                       title="Edit Session"
                     >
                       <Edit className="w-3.5 h-3.5" />
@@ -1122,11 +1163,13 @@ const MentorSessions = () => {
                 </button>
               </div>
 
-              {selectedAvailableEvent.imageUrl && (
-                <div className="w-full h-48 rounded-xl overflow-hidden mb-5 border border-border/30">
+              <div className="w-full h-48 rounded-xl overflow-hidden mb-5 border border-border/30">
+                {selectedAvailableEvent.imageUrl ? (
                   <img src={selectedAvailableEvent.imageUrl} alt={selectedAvailableEvent.title} className="w-full h-full object-cover" />
-                </div>
-              )}
+                ) : (
+                  <EventFallbackBanner type={selectedAvailableEvent.type} title={selectedAvailableEvent.title} />
+                )}
+              </div>
 
               {/* Host Information */}
               <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl mb-4 border border-border/20">
@@ -1308,39 +1351,75 @@ const MentorSessions = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">{createCategory === 'event' ? 'Event Type' : 'Session Type'}</label>
-                  <select name="type" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                  <select 
+                    name="type" 
+                    value={createSessionType}
+                    onChange={(e) => setCreateSessionType(e.target.value)}
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
                     {createCategory === 'event' ? (
                       <>
-                        <option>Hackathon</option>
-                        <option>Career Fair</option>
-                        <option>Tech Talk</option>
-                        <option>Networking</option>
+                        <option value="Hackathon">Hackathon</option>
+                        <option value="Career Fair">Career Fair</option>
+                        <option value="Tech Talk">Tech Talk</option>
+                        <option value="Networking">Networking</option>
+                        <option value="Webinar">Webinar</option>
+                        <option value="Seminar">Seminar</option>
+                        <option value="Competition">Competition</option>
+                        <option value="Others">Others</option>
                       </>
                     ) : (
                       <>
-                        <option>Workshop</option>
-                        <option>Masterclass</option>
-                        <option>Group Mentorship</option>
-                        <option>Career Guidance</option>
-                        <option>Mock Interview</option>
+                        <option value="Workshop">Workshop</option>
+                        <option value="Masterclass">Masterclass</option>
+                        <option value="Group Mentorship">Group Mentorship</option>
+                        <option value="Career Guidance">Career Guidance</option>
+                        <option value="Mock Interview">Mock Interview</option>
+                        <option value="Others">Others</option>
                       </>
                     )}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Mode</label>
-                  <select name="mode" value={sessionMode} onChange={(e) => setSessionMode(e.target.value)} className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                  <select name="mode" value={sessionMode} onChange={(e) => setSessionMode(e.target.value)} className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
                     <option value="Online">Online</option>
                     <option value="Offline">Offline</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              {createSessionType === 'Others' && (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-150">
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Custom {createCategory === 'event' ? 'Event' : 'Session'} Type <span className="text-destructive font-bold">*</span>
+                  </label>
+                  <input 
+                    name="customType"
+                    value={customCreateType}
+                    onChange={(e) => setCustomCreateType(e.target.value)}
+                    required
+                    type="text" 
+                    placeholder="Enter custom event type (e.g. Cultural Fest, Gaming, Seminar, etc.)"
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Event Date</label>
                   <input name="date" required type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Last Registration Date <span className="text-xs text-muted-foreground font-normal">(Deadline)</span>
+                  </label>
+                  <input name="lastRegDate" type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Start Time</label>
                   <input name="startTime" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
@@ -1566,33 +1645,68 @@ const MentorSessions = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Session Type</label>
-                  <select name="type" defaultValue={selectedSession.type} className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                    <option>Workshop</option>
-                    <option>Masterclass</option>
-                    <option>Group Mentorship</option>
-                    <option>Career Guidance</option>
-                    <option>Mock Interview</option>
-                    <option>Hackathon</option>
-                    <option>Career Fair</option>
-                    <option>Tech Talk</option>
-                    <option>Networking</option>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Session / Event Type</label>
+                  <select 
+                    name="type" 
+                    value={editSessionType}
+                    onChange={(e) => setEditSessionType(e.target.value)}
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value="Workshop">Workshop</option>
+                    <option value="Masterclass">Masterclass</option>
+                    <option value="Group Mentorship">Group Mentorship</option>
+                    <option value="Career Guidance">Career Guidance</option>
+                    <option value="Mock Interview">Mock Interview</option>
+                    <option value="Hackathon">Hackathon</option>
+                    <option value="Career Fair">Career Fair</option>
+                    <option value="Tech Talk">Tech Talk</option>
+                    <option value="Networking">Networking</option>
+                    <option value="Webinar">Webinar</option>
+                    <option value="Seminar">Seminar</option>
+                    <option value="Competition">Competition</option>
+                    <option value="Others">Others</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Mode</label>
-                  <select name="mode" defaultValue={selectedSession.mode || 'Online'} className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                  <select name="mode" defaultValue={selectedSession.mode || 'Online'} className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
                     <option value="Online">Online</option>
                     <option value="Offline">Offline</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              {editSessionType === 'Others' && (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-150">
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Custom Type <span className="text-destructive font-bold">*</span>
+                  </label>
+                  <input 
+                    name="customType"
+                    value={customEditType}
+                    onChange={(e) => setCustomEditType(e.target.value)}
+                    required
+                    type="text"
+                    placeholder="Enter custom type..."
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Event Date</label>
                   <input name="date" defaultValue={selectedSession.date ? new Date(selectedSession.date).toISOString().split('T')[0] : ''} required type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Last Registration Date <span className="text-xs text-muted-foreground font-normal">(Deadline)</span>
+                  </label>
+                  <input name="lastRegDate" defaultValue={selectedSession.lastRegDate ? new Date(selectedSession.lastRegDate).toISOString().split('T')[0] : ''} type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Start Time</label>
                   <input name="startTime" defaultValue={selectedSession.time ? selectedSession.time.split(' - ')[0] : ''} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />

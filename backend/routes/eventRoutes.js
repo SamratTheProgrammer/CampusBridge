@@ -111,7 +111,7 @@ router.get('/mentor/:clerkId', async (req, res) => {
 // Create a new event or session
 router.post('/', async (req, res) => {
   try {
-    const { title, type, mode, date, time, location, link, description, clerkId, category, postToFeed, imageUrl } = req.body;
+    const { title, type, mode, date, lastRegDate, time, location, link, description, clerkId, category, postToFeed, imageUrl } = req.body;
     let organizerId = null;
     if (clerkId) {
       const user = await User.findOne({ clerkId });
@@ -123,6 +123,7 @@ router.post('/', async (req, res) => {
       type,
       mode: mode || 'Online',
       date,
+      lastRegDate: lastRegDate || null,
       time,
       location,
       link,
@@ -183,7 +184,7 @@ router.post('/', async (req, res) => {
 // Update an event
 router.put('/:id', async (req, res) => {
   try {
-    const { title, type, mode, date, time, location, link, description, active, imageUrl } = req.body;
+    const { title, type, mode, date, lastRegDate, time, location, link, description, active, imageUrl } = req.body;
     
     const event = await Event.findById(req.params.id);
     if (!event) {
@@ -194,6 +195,7 @@ router.put('/:id', async (req, res) => {
     event.type = type !== undefined ? type : event.type;
     event.mode = mode !== undefined ? mode : event.mode;
     event.date = date !== undefined ? date : event.date;
+    event.lastRegDate = lastRegDate !== undefined ? lastRegDate : event.lastRegDate;
     event.time = time !== undefined ? time : event.time;
     event.location = location !== undefined ? location : event.location;
     event.link = link !== undefined ? link : event.link;
@@ -239,6 +241,15 @@ router.post('/:id/apply', async (req, res) => {
     const event = await Event.findById(req.params.id);
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if registration deadline has passed
+    if (event.lastRegDate) {
+      const deadline = new Date(event.lastRegDate);
+      deadline.setHours(23, 59, 59, 999);
+      if (deadline < new Date()) {
+        return res.status(400).json({ error: 'Registration deadline for this event has passed' });
+      }
     }
 
     // Check if already applied
@@ -356,6 +367,7 @@ router.get('/registered/:clerkId', async (req, res) => {
         mode: app.event.mode || 'Online',
         format: app.event.mode === 'Offline' ? 'offline' : 'online',
         date: app.event.date,
+        lastRegDate: app.event.lastRegDate,
         time: app.event.time,
         location: app.event.location,
         link: app.event.link,

@@ -13,7 +13,7 @@ const Footer = () => {
       style={{ backgroundImage: `url(${footerBg})` }}
     >
       <div className="absolute inset-0 bg-background/90 dark:bg-background/80 pointer-events-none"></div>
-      <div className="container mx-auto px-4 lg:px-8 relative z-10">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 mb-12">
           {/* Brand & Socials */}
           <div className="lg:col-span-2">

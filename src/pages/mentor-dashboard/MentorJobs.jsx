@@ -15,6 +15,8 @@ import { getPdfViewUrl } from '../../utils/pdfViewer'
 import API_BASE from '../../utils/api'
 import { getAppUrl } from '../../utils/appUrl'
 import { formatSalaryWithLPA, calculateSalaryEquivalents, parseSalaryToForm, formatEligibilitySummary } from '../../utils/salaryHelper'
+import NewRibbon, { isPostNew } from '../../components/common/NewRibbon'
+import CourseSelector from '../../components/common/CourseSelector'
 
 // ─── Searchable Company Selector Component ──────────────────────────────────
 const CompanySelector = ({ value, onChange }) => {
@@ -400,8 +402,10 @@ const MentorJobs = () => {
     
     const coursesInput = eligibilityState.courses !== undefined 
       ? eligibilityState.courses 
-      : (formData.get('eligibility_courses') || '');
-    const coursesArray = coursesInput ? coursesInput.split(',').map(c => c.trim()).filter(Boolean) : [];
+      : (formData.get('eligibility_courses') || []);
+    const coursesArray = Array.isArray(coursesInput)
+      ? coursesInput.map(c => String(c).trim()).filter(Boolean)
+      : (typeof coursesInput === 'string' && coursesInput.trim() ? coursesInput.split(',').map(c => c.trim()).filter(Boolean) : []);
 
     const eligibility = {
       tenthMarks: formatEligibilityMark(eligibilityState.tenthVal, eligibilityState.tenthType),
@@ -718,8 +722,10 @@ const MentorJobs = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredJobs.map((job) => {
               const isExpired = Boolean(job.deadline && isJobExpired(job.deadline));
+              const isNew = isPostNew(job.createdAt || job._id);
               return (
-              <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+              <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group relative overflow-hidden">
+                <NewRibbon createdAt={job.createdAt} id={job._id} />
                 <div>
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex gap-3 items-center">
@@ -738,17 +744,19 @@ const MentorJobs = () => {
                         </p>
                       </div>
                     </div>
-                    {isExpired ? (
-                      <span className="bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
-                      </span>
-                    ) : job.active ? (
-                      <span className="bg-green-500/10 text-green-500 border border-green-500/20 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Active
-                      </span>
-                    ) : (
-                      <span className="bg-muted text-muted-foreground border border-border/50 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Closed</span>
-                    )}
+                    <div className={isNew ? 'pr-7' : ''}>
+                      {isExpired ? (
+                        <span className="bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
+                        </span>
+                      ) : job.active ? (
+                        <span className="bg-green-500/10 text-green-500 border border-green-500/20 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Active
+                        </span>
+                      ) : (
+                        <span className="bg-muted text-muted-foreground border border-border/50 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Closed</span>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3 mb-4">
@@ -799,8 +807,9 @@ const MentorJobs = () => {
                   </span>
                   <div className="flex gap-2.5 items-center">
                     <button 
+                      type="button"
                       onClick={(e) => handleShare(e, job)}
-                      className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors cursor-pointer"
+                      className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors cursor-pointer relative z-10"
                       title="Share Job"
                     >
                       <Share2 className="w-4 h-4" />
@@ -851,9 +860,11 @@ const MentorJobs = () => {
             {filteredAvailableJobs.map((job) => {
               const isMine = job.clerkId === user?.id;
               const isDeadlinePassed = Boolean(job.deadline && isJobExpired(job.deadline));
+              const isNew = isPostNew(job.createdAt || job._id);
 
               return (
-                <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+                <div key={job._id} className="bg-card border border-border/50 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group relative overflow-hidden">
+                  <NewRibbon createdAt={job.createdAt} id={job._id} />
                   <div>
                     <div className="flex justify-between items-start gap-2 mb-3.5">
                       <div className="flex gap-2.5 items-center min-w-0">
@@ -873,7 +884,7 @@ const MentorJobs = () => {
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-end gap-1 shrink-0">
+                      <div className={`flex flex-col items-end gap-1 shrink-0 ${isNew ? 'pr-7' : ''}`}>
                         {isDeadlinePassed ? (
                           <span className="bg-red-500/10 text-red-500 border border-red-500/20 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Expired
@@ -928,8 +939,9 @@ const MentorJobs = () => {
                     </span>
                     <div className="flex items-center gap-2.5">
                       <button 
+                        type="button"
                         onClick={(e) => handleShare(e, job)}
-                        className="text-muted-foreground hover:text-primary transition-colors p-1"
+                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors cursor-pointer relative z-10"
                         title="Share Job"
                       >
                         <Share2 className="w-4 h-4" />
@@ -1183,14 +1195,19 @@ const MentorJobs = () => {
                     </div>
                   </div>
                   <div className="col-span-1 sm:col-span-2">
-                    <label className="block text-xs font-medium text-foreground mb-1">Valid Courses</label>
-                    <input 
-                      name="eligibility_courses" 
-                      value={eligibilityState.courses || ''} 
-                      onChange={e => setEligibilityState(prev => ({ ...prev, courses: e.target.value }))}
-                      type="text" 
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                      placeholder="e.g. BCA, MCA, B.Tech, M.Tech (comma separated)" 
+                    <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5 text-primary" /> Valid Courses / Degrees
+                      </span>
+                      <span className="text-[11px] text-muted-foreground font-normal">
+                        Search or add any custom course
+                      </span>
+                    </label>
+                    <CourseSelector 
+                      name="eligibility_courses"
+                      value={eligibilityState.courses}
+                      onChange={(updatedCourses) => setEligibilityState(prev => ({ ...prev, courses: updatedCourses }))}
+                      placeholder="Search (e.g. B.Tech, MCA) or type custom course..."
                     />
                   </div>
                 </div>

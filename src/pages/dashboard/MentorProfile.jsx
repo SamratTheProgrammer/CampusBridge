@@ -978,7 +978,7 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
       </div>
 
       {/* Content Tabs */}
-      <div id="profile-content-tabs" className="mt-8 sticky top-16 z-20 bg-background/95 backdrop-blur-md pt-2 border-b border-border/50 flex items-center justify-between gap-4">
+      <div id="profile-content-tabs" className="mt-8 sticky top-0 md:top-16 z-30 bg-background border-b border-border/50 pt-2.5 px-3 sm:px-0 flex items-center justify-between gap-4 shadow-2xs">
         <div className="flex gap-2">
           <button
             onClick={() => setActiveTab('posts')}
@@ -1184,7 +1184,6 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
       ) : (
         /* Posts Section */
         <div className="space-y-4 mt-6">
-        <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
         {isLoadingPosts ? (
           <div className="flex justify-center p-8">
             <CardSkeleton />

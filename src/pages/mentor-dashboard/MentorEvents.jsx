@@ -10,6 +10,7 @@ import ConfirmModal from '../../components/modals/ConfirmModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
 import ImageInputWithUrl from '../../components/common/ImageInputWithUrl'
+import NewRibbon, { isPostNew } from '../../components/common/NewRibbon'
 
 const MentorEvents = () => {
   const { user } = useUser()
@@ -29,6 +30,11 @@ const MentorEvents = () => {
   
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [eventToDelete, setEventToDelete] = useState(null)
+  
+  const [createEventType, setCreateEventType] = useState('Workshop')
+  const [customCreateType, setCustomCreateType] = useState('')
+  const [editEventType, setEditEventType] = useState('Workshop')
+  const [customEditType, setCustomEditType] = useState('')
 
   const fetchEvents = async () => {
     if (!user) return
@@ -75,11 +81,16 @@ const MentorEvents = () => {
       toast.dismiss('img-upload')
     }
 
+    const rawType = formData.get('type')
+    const customType = formData.get('customType')?.trim()
+    const finalType = (rawType === 'Others' || rawType === 'Other') ? (customType || 'Others') : rawType
+
     const newEvent = {
       title: formData.get('title'),
-      type: formData.get('type'),
+      type: finalType,
       mode: formData.get('mode') || 'Online',
       date: formData.get('date'),
+      lastRegDate: formData.get('lastRegDate') || null,
       time: `${formData.get('startTime')} - ${formData.get('endTime')}`,
       location: formData.get('location'),
       link: formData.get('link'),
@@ -134,11 +145,16 @@ const MentorEvents = () => {
       toast.dismiss('img-upload')
     }
 
+    const rawType = formData.get('type')
+    const customType = formData.get('customType')?.trim()
+    const finalType = (rawType === 'Others' || rawType === 'Other') ? (customType || 'Others') : rawType
+
     const updatedData = {
       title: formData.get('title'),
-      type: formData.get('type'),
+      type: finalType,
       mode: formData.get('mode') || 'Online',
       date: formData.get('date'),
+      lastRegDate: formData.get('lastRegDate') || null,
       time: `${formData.get('startTime')} - ${formData.get('endTime')}`,
       location: formData.get('location'),
       link: formData.get('link'),
@@ -247,8 +263,11 @@ const MentorEvents = () => {
             </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredEvents.map((event) => (
-            <div key={event._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group relative">
+          {filteredEvents.map((event) => {
+            const isNew = isPostNew(event.createdAt || event._id);
+            return (
+            <div key={event._id} className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group relative overflow-hidden">
+              <NewRibbon createdAt={event.createdAt} id={event._id} />
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -260,9 +279,9 @@ const MentorEvents = () => {
                     </h3>
                   </div>
                   {event.active ? (
-                    <span className="bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shrink-0 absolute top-6 right-6">Upcoming</span>
+                    <span className={`bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shrink-0 absolute top-6 ${isNew ? 'right-12' : 'right-6'}`}>Upcoming</span>
                   ) : (
-                    <span className="bg-muted text-muted-foreground text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shrink-0 absolute top-6 right-6">Past</span>
+                    <span className={`bg-muted text-muted-foreground text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shrink-0 absolute top-6 ${isNew ? 'right-12' : 'right-6'}`}>Past</span>
                   )}
                 </div>
                 
@@ -322,7 +341,8 @@ const MentorEvents = () => {
                 </div>
               </div>
             </div>
-          ))}
+          );
+        })}
 
           {filteredEvents.length === 0 && (
             <div className="col-span-full py-12 text-center text-muted-foreground">
@@ -357,16 +377,27 @@ const MentorEvents = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Event Type</label>
-                  <select name="type" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                    <option>Workshop</option>
-                    <option>Masterclass</option>
-                    <option>AMA Session</option>
-                    <option>Group Mentorship</option>
+                  <select 
+                    name="type" 
+                    value={createEventType} 
+                    onChange={(e) => setCreateEventType(e.target.value)} 
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value="Workshop">Workshop</option>
+                    <option value="Masterclass">Masterclass</option>
+                    <option value="AMA Session">AMA Session</option>
+                    <option value="Group Mentorship">Group Mentorship</option>
+                    <option value="Hackathon">Hackathon</option>
+                    <option value="Career Fair">Career Fair</option>
+                    <option value="Tech Talk">Tech Talk</option>
+                    <option value="Webinar">Webinar</option>
+                    <option value="Seminar">Seminar</option>
+                    <option value="Others">Others</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Event Mode</label>
-                  <select name="mode" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                  <select name="mode" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
                     <option value="Online">Online</option>
                     <option value="Offline">Offline</option>
                   </select>
@@ -377,11 +408,37 @@ const MentorEvents = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              {createEventType === 'Others' && (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-150">
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Custom Event Type <span className="text-destructive font-bold">*</span>
+                  </label>
+                  <input 
+                    name="customType"
+                    value={customCreateType}
+                    onChange={(e) => setCustomCreateType(e.target.value)}
+                    required
+                    type="text" 
+                    placeholder="Enter custom event type (e.g. Cultural Fest, Gaming, etc.)"
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Event Date</label>
                   <input name="date" required type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Last Registration Date <span className="text-xs text-muted-foreground font-normal">(Deadline)</span>
+                  </label>
+                  <input name="lastRegDate" type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Start Time</label>
                   <input name="startTime" required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
@@ -462,11 +519,22 @@ const MentorEvents = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Event Type</label>
-                  <select name="type" defaultValue={selectedEvent.type} className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                    <option>Workshop</option>
-                    <option>Masterclass</option>
-                    <option>AMA Session</option>
-                    <option>Group Mentorship</option>
+                  <select 
+                    name="type" 
+                    value={editEventType} 
+                    onChange={(e) => setEditEventType(e.target.value)} 
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value="Workshop">Workshop</option>
+                    <option value="Masterclass">Masterclass</option>
+                    <option value="AMA Session">AMA Session</option>
+                    <option value="Group Mentorship">Group Mentorship</option>
+                    <option value="Hackathon">Hackathon</option>
+                    <option value="Career Fair">Career Fair</option>
+                    <option value="Tech Talk">Tech Talk</option>
+                    <option value="Webinar">Webinar</option>
+                    <option value="Seminar">Seminar</option>
+                    <option value="Others">Others</option>
                   </select>
                 </div>
                 <div>
@@ -475,11 +543,37 @@ const MentorEvents = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              {editEventType === 'Others' && (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-150">
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Custom Event Type <span className="text-destructive font-bold">*</span>
+                  </label>
+                  <input 
+                    name="customType"
+                    value={customEditType}
+                    onChange={(e) => setCustomEditType(e.target.value)}
+                    required
+                    type="text" 
+                    placeholder="Enter custom event type..."
+                    className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Event Date</label>
                   <input name="date" defaultValue={selectedEvent.date ? format(new Date(selectedEvent.date), 'yyyy-MM-dd') : ''} required type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Last Registration Date <span className="text-xs text-muted-foreground font-normal">(Deadline)</span>
+                  </label>
+                  <input name="lastRegDate" defaultValue={selectedEvent.lastRegDate ? format(new Date(selectedEvent.lastRegDate), 'yyyy-MM-dd') : ''} type="date" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Start Time</label>
                   <input name="startTime" defaultValue={selectedEvent.time ? selectedEvent.time.split(' - ')[0] : ''} required type="time" className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
