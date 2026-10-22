@@ -1397,7 +1397,7 @@ const DashboardHome = () => {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`!mt-0 bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm relative transition-all ${
+          className={`!mt-0 bg-card border border-border/50 rounded-2xl p-3.5 sm:p-5 shadow-sm relative transition-all ${
             (showEmojiPicker || showMediaDropdown) ? 'z-[60]' : 'z-10'
           } ${
             isDragging ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''
@@ -1410,11 +1410,11 @@ const DashboardHome = () => {
               <p className="text-xs text-muted-foreground mt-0.5">Images, videos, or audio files</p>
             </div>
           )}
-          <div className="flex gap-4 mb-4">
+          <div className="flex gap-3 sm:gap-4 mb-3 sm:mb-4">
             <img
               src={user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)}
               alt="Profile"
-              className="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => {
                 const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
                 navigate(role === 'mentor' ? '/mentor-dashboard/profile' : '/dashboard/profile');
@@ -1425,11 +1425,11 @@ const DashboardHome = () => {
                 value={newPostContent}
                 onChange={e => setNewPostContent(e.target.value)}
                 placeholder="Start a post..."
-                className={`w-full px-4 py-3 text-sm focus:outline-none resize-none min-h-[80px] ${
+                className={`w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-sm focus:outline-none resize-none min-h-[72px] sm:min-h-[80px] ${
                   newPostContent.length > 0 ? 'pr-11' : ''
                 } ${
                   selectedGradient 
-                    ? 'bg-transparent text-white placeholder:text-white/70 text-xl md:text-2xl font-bold text-center flex items-center justify-center min-h-[200px]' 
+                    ? 'bg-transparent text-white placeholder:text-white/70 text-lg sm:text-2xl font-bold text-center flex items-center justify-center min-h-[160px] sm:min-h-[200px]' 
                     : 'text-foreground bg-transparent'
                 }`}
                 style={selectedGradient ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : {}}
@@ -1668,8 +1668,8 @@ const DashboardHome = () => {
             </div>
           )}
 
-          <div className={`flex items-center justify-between pt-2 gap-2 flex-wrap relative ${showEmojiPicker ? 'z-0' : 'z-20'}`}>
-            <div className={`flex items-center gap-1 sm:gap-1.5 relative flex-wrap shrink min-w-0 py-0.5 overflow-visible ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
+          <div className={`flex items-center justify-between pt-2 gap-1.5 sm:gap-2 relative ${showEmojiPicker ? 'z-0' : 'z-20'}`}>
+            <div className={`flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 relative overflow-visible shrink min-w-0 py-0.5 ${showMediaDropdown ? 'z-[80]' : 'z-10'}`}>
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -1687,10 +1687,11 @@ const DashboardHome = () => {
                     setShowMediaDropdown(!showMediaDropdown);
                     setShowEmojiPicker(false);
                   }} 
-                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-2.5 sm:py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
                     showMediaDropdown ? 'bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/30' : 'text-blue-500'
                   }`}
                   title="Attach media (upload file or paste URL)"
+                  aria-label="Media"
                 >
                   <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
                   <span className="inline">Media</span>
@@ -1750,20 +1751,22 @@ const DashboardHome = () => {
               <button 
                 type="button" 
                 onClick={() => setIsVoiceModalOpen(true)} 
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
+                className={`flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 hover:bg-muted rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${
                   newPostMedia.some(m => m.type === 'audio') ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 ring-1 ring-purple-500/30' : 'text-purple-600 dark:text-purple-400 hover:text-purple-700'
                 }`}
                 title="Record voice or upload audio"
+                aria-label="Audio"
               >
                 <Mic className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
-                <span className="inline">Audio</span>
+                <span className="hidden sm:inline">Audio</span>
               </button>
 
               <button 
                 type="button" 
                 onClick={() => { setShowGradients(!showGradients); setNewPostImage(null); setImagePreview(null); }} 
-                className="flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-xs sm:text-sm whitespace-nowrap shrink-0"
+                className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2 sm:py-1.5 hover:bg-muted rounded-lg transition-colors text-pink-500 font-medium text-xs sm:text-sm whitespace-nowrap shrink-0"
                 title="Background Color"
+                aria-label="Background Color"
               >
                 <Palette className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
                 <span className="hidden sm:inline">Background</span>
@@ -1772,8 +1775,9 @@ const DashboardHome = () => {
               <button 
                 type="button"
                 onClick={() => setIsEventModalOpen(true)} 
-                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600 font-semibold' : 'hover:bg-muted text-orange-500'}`}
+                className={`flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newEventDetails.title ? 'bg-orange-500/10 text-orange-600 font-semibold' : 'hover:bg-muted text-orange-500'}`}
                 title="Attach Event"
+                aria-label="Attach Event"
               >
                 <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
                 <span className="hidden sm:inline">Event</span>
@@ -1783,8 +1787,9 @@ const DashboardHome = () => {
               <button 
                 type="button"
                 onClick={() => setIsJobModalOpen(true)} 
-                className={`flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600 font-semibold' : 'hover:bg-muted text-purple-500'}`}
+                className={`flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2 sm:py-1.5 rounded-lg transition-colors font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${newJobDetails.title ? 'bg-purple-500/10 text-purple-600 font-semibold' : 'hover:bg-muted text-purple-500'}`}
                 title="Attach Job"
+                aria-label="Attach Job"
               >
                 <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> 
                 <span className="hidden sm:inline">Job</span>
@@ -1794,7 +1799,7 @@ const DashboardHome = () => {
             <button 
               onClick={handleCreatePost}
               disabled={!newPostContent.trim() && newPostMedia.length === 0 && !newEventDetails.title && !newJobDetails.title && !attachedLinkPreview}
-              className="bg-primary text-primary-foreground px-4 sm:px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 shrink-0 ml-auto cursor-pointer active:scale-95"
+              className="bg-primary text-primary-foreground px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 flex items-center gap-2 shrink-0 ml-auto cursor-pointer active:scale-95"
             >
               Post
             </button>
