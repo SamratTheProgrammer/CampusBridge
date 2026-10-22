@@ -14,14 +14,16 @@ import ImageCropModal from '../../components/ImageCropModal'
 import defaultPP from '../../assets/default_pp.png'
 import API_BASE from '../../utils/api'
 import { getAppUrl } from '../../utils/appUrl'
-import NewRibbon from '../../components/common/NewRibbon'
+import NewRibbon, { isPostNew } from '../../components/common/NewRibbon'
 import EventFallbackBanner from '../../components/common/EventFallbackBanner'
+import SessionDetailsModal from '../../components/modals/SessionDetailsModal'
 
 const MentorSessions = () => {
   const { user } = useUser()
   const [activeTab, setActiveTab] = useState('events') // 'events' | 'available-events' | 'sessions' | 'one-on-one'
   const [timeFilter, setTimeFilter] = useState('upcoming') // 'upcoming' | 'completed'
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedDetailSession, setSelectedDetailSession] = useState(null)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [shareConfig, setShareConfig] = useState(null)
 
@@ -559,11 +561,14 @@ const MentorSessions = () => {
           </button>
           <button
             onClick={() => setActiveTab('one-on-one')}
-            className={`whitespace-nowrap flex-1 sm:flex-none px-3.5 sm:px-5 py-2 text-xs font-bold rounded-lg transition-all shrink-0 ${
+            className={`whitespace-nowrap flex-1 sm:flex-none px-3.5 sm:px-5 py-2 text-xs font-bold rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
               activeTab === 'one-on-one' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            1-on-1 Bookings ({individualSessions.length})
+            <span>1-on-1 Bookings ({individualSessions.length})</span>
+            {individualSessions.length > 0 && (
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" title="Active 1-on-1 bookings" />
+            )}
           </button>
         </div>
 
@@ -626,6 +631,8 @@ const MentorSessions = () => {
             const displayedAttendees = attendeesList.slice(0, 3);
             const eventImg = event.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60';
 
+            const isNew = isPostNew(event.createdAt || event._id)
+
             return (
               <div 
                 key={event._id} 
@@ -660,7 +667,7 @@ const MentorSessions = () => {
                   </div>
 
                   {/* Floating Status Pill (Top-Right) */}
-                  <div className={`absolute top-3 right-3 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-sm z-10 ${
+                  <div className={`absolute top-3 ${isNew ? 'right-14 sm:right-16' : 'right-3'} backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-sm z-10 ${
                     isPast 
                       ? 'bg-black/60 border border-white/15 text-slate-300' 
                       : (event.active && event.link) 
@@ -822,6 +829,8 @@ const MentorSessions = () => {
             const displayedAttendees = attendeesList.slice(0, 3);
             const sessionImg = session.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60';
 
+            const isNew = isPostNew(session.createdAt || session._id)
+
             return (
               <div 
                 key={session._id} 
@@ -850,7 +859,7 @@ const MentorSessions = () => {
                   </div>
 
                   {/* Floating Status Pill (Top-Right) */}
-                  <div className={`absolute top-3 right-3 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-sm z-10 ${
+                  <div className={`absolute top-3 ${isNew ? 'right-14 sm:right-16' : 'right-3'} backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-sm z-10 ${
                     isPast 
                       ? 'bg-black/60 border border-white/15 text-slate-300' 
                       : (session.active && session.link) 
@@ -1005,38 +1014,70 @@ const MentorSessions = () => {
             const student = session.student
             const studentName = student ? (student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim()) : 'Student'
             const studentImg = student?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${studentName}`
+            const studentProfileId = student?.username || student?.clerkId || student?._id
+            const isNew = isPostNew(session.createdAt || session._id)
 
             return (
-              <div key={session._id} className="bg-card border border-border/30 hover:border-border/60 rounded-2xl p-4 sm:p-5 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group overflow-hidden">
+              <div key={session._id} className="bg-card border border-border/40 hover:border-primary/40 rounded-3xl p-4 sm:p-5 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group overflow-hidden relative">
+                <NewRibbon createdAt={session.createdAt} id={session._id} />
                 <div className="relative z-10 flex-1 flex flex-col">
                   {/* Header */}
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <div className={`flex items-center justify-between mb-3 ${isNew ? 'pr-9 sm:pr-11' : ''}`}>
+                    <span className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
                       {session.type || '1-on-1 Mentorship'}
                     </span>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
-                      session.status === 'pending' ? 'bg-amber-500/10 text-amber-500' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {session.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                        session.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {session.status}
+                      </span>
+                      <button
+                        onClick={() => setSelectedDetailSession(session)}
+                        className="text-[11px] font-bold text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors"
+                      >
+                        Details <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Session Title (Gigantic) */}
-                  <h3 className="font-black text-foreground text-xl mb-4 leading-tight line-clamp-2">
+                  {/* Session Title */}
+                  <h3 
+                    onClick={() => setSelectedDetailSession(session)}
+                    className="font-black text-foreground text-xl mb-4 leading-snug line-clamp-2 cursor-pointer hover:text-primary transition-colors"
+                  >
                     {session.type || 'Mentorship Session'}
                   </h3>
 
                   {/* Middle Block (Ticket Style) */}
-                  <div className="relative bg-muted/50 rounded-2xl p-4 mb-4 border border-border/20 flex-1 flex flex-col justify-center">
-                    {/* Floating Avatar Overlapping Top Border */}
-                    <div className="absolute -top-5 right-4 w-10 h-10 rounded-full border-[3px] border-card bg-muted overflow-hidden shadow-sm transition-transform group-hover:scale-110 duration-300">
-                      <img src={studentImg} alt={studentName} className="w-full h-full object-cover" />
-                    </div>
+                  <div 
+                    onClick={() => setSelectedDetailSession(session)}
+                    className="relative bg-muted/40 hover:bg-muted/60 rounded-2xl p-4 mb-4 border border-border/25 hover:border-primary/40 flex-1 flex flex-col justify-center cursor-pointer transition-all"
+                    title="Click to view full student agenda, goals & attached links"
+                  >
+                    {/* Floating Avatar Overlapping Top Border - Clickable for Student Profile */}
+                    <Link
+                      to={studentProfileId ? `/profile/${studentProfileId}` : '#'}
+                      onClick={(e) => e.stopPropagation()}
+                      title={`View ${studentName}'s Profile`}
+                      className="absolute -top-4 right-4 z-20 group/dp block"
+                    >
+                      <div className="relative w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-primary via-purple-500 to-indigo-500 shadow-md group-hover/dp:scale-110 group-hover/dp:shadow-lg group-hover/dp:shadow-primary/30 transition-all duration-300">
+                        <img 
+                          src={studentImg} 
+                          alt={studentName} 
+                          className="w-full h-full rounded-full object-cover bg-card border border-card" 
+                        />
+                      </div>
+                    </Link>
 
                     <div className="flex flex-col gap-3 pt-1">
                       {/* Date & Time */}
                       <div>
-                        <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Date & Time</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-primary" /> Date & Time
+                        </p>
                         <p className="text-sm font-bold text-foreground">
                           {session.date ? new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} • {session.time}
                         </p>
@@ -1044,11 +1085,10 @@ const MentorSessions = () => {
                       
                       {/* Mode & Duration */}
                       <div>
-                        <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Mode & Duration</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                          {session.mode === 'Offline' ? <MapPin className="w-3 h-3 text-amber-500" /> : <Globe className="w-3 h-3 text-blue-500" />} Mode & Duration
+                        </p>
                         <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                          <span className={session.mode === 'Offline' ? 'text-amber-500' : 'text-blue-500'}>
-                            {session.mode === 'Offline' ? <MapPin className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
-                          </span>
                           <span>
                             {session.mode} • {session.duration || 30} min
                           </span>
@@ -1057,9 +1097,61 @@ const MentorSessions = () => {
 
                       {/* Student Name */}
                       <div>
-                        <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Student</p>
-                        <p className="text-sm font-bold text-foreground truncate">{studentName}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                          <Users className="w-3 h-3 text-primary" /> Student Mentee
+                        </p>
+                        <Link
+                          to={studentProfileId ? `/profile/${studentProfileId}` : '#'}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-sm font-bold text-foreground hover:text-primary transition-colors truncate block"
+                        >
+                          {studentName}
+                        </Link>
+                        {student?.email && <p className="text-[11px] text-muted-foreground truncate">{student.email}</p>}
                       </div>
+
+                      {/* Location if Offline */}
+                      {session.mode === 'Offline' && session.location && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-amber-500" /> Campus Venue
+                          </p>
+                          <p className="text-xs text-foreground font-medium">{session.location}</p>
+                        </div>
+                      )}
+
+                      {/* Message / Notes */}
+                      {session.message && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Student Agenda / Note</p>
+                          <p className="text-xs text-foreground/90 italic line-clamp-2">"{session.message}"</p>
+                        </div>
+                      )}
+
+                      {/* Goals */}
+                      {session.goals && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Goals & Questions</p>
+                          <p className="text-xs text-foreground/90 line-clamp-2">{session.goals}</p>
+                        </div>
+                      )}
+
+                      {/* Attachment Link */}
+                      {session.attachmentUrl && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Attached Link</p>
+                          <a
+                            href={session.attachmentUrl.startsWith('http') ? session.attachmentUrl : `https://${session.attachmentUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-primary hover:underline flex items-center gap-1 truncate font-medium"
+                          >
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{session.attachmentUrl}</span>
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1070,7 +1162,7 @@ const MentorSessions = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleSessionAction(session._id, 'declined')}
-                        className="flex-1 bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive py-2.5 rounded-xl text-xs font-bold transition-colors"
+                        className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/25 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
                       >
                         Decline
                       </button>
@@ -1785,6 +1877,23 @@ const MentorSessions = () => {
         shareUrl={shareConfig?.shareUrl} 
         shareType={shareConfig?.shareType} 
         itemId={shareConfig?.itemId} 
+      />
+
+      {/* Session Details Modal (Shows what student said/agenda, attached link, student profile & actions) */}
+      <SessionDetailsModal
+        isOpen={Boolean(selectedDetailSession)}
+        onClose={() => setSelectedDetailSession(null)}
+        session={selectedDetailSession}
+        currentUserRole="mentor"
+        onAccept={(id) => {
+          setSelectedDetailSession(null)
+          setSessionToAccept(selectedDetailSession)
+          setIsAcceptModalOpen(true)
+        }}
+        onDecline={(id) => {
+          setSelectedDetailSession(null)
+          handleSessionAction(id, 'declined')
+        }}
       />
     </div>
   )

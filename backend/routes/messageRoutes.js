@@ -145,6 +145,8 @@ router.get('/conversations/:clerkId', async (req, res) => {
           }
         }
 
+        const isLastMessageFromMe = lastMessage ? String(lastMessage.senderClerkId) === String(clerkId) : false;
+
         return {
           id: partnerUser.clerkId,
           clerkId: partnerUser.clerkId,
@@ -157,6 +159,10 @@ router.get('/conversations/:clerkId', async (req, res) => {
           conversationId,
           lastMessage: displayLastMessage,
           lastMessageTime: lastMessage ? lastMessage.createdAt : null,
+          lastMessageSenderClerkId: lastMessage ? lastMessage.senderClerkId : null,
+          isLastMessageFromMe,
+          lastMessageIsRead: lastMessage ? Boolean(lastMessage.isRead) : false,
+          lastMessageIsDelivered: lastMessage ? Boolean(lastMessage.isDelivered) : false,
           unread: unreadCount,
         };
       })

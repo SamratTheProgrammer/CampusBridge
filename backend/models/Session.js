@@ -45,6 +45,18 @@ const sessionSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    goals: {
+      type: String,
+      default: '',
+    },
+    attachmentUrl: {
+      type: String,
+      default: '',
+    },
+    declineReason: {
+      type: String,
+      default: '',
+    },
     status: {
       type: String,
       enum: ['pending', 'accepted', 'declined', 'completed', 'cancelled'],

@@ -310,6 +310,21 @@ const RealtimeChat = () => {
   const audioInputRef = useRef(null);
   const attachmentMenuRef = useRef(null);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const chatInputRef = useRef(null);
+
+  // Auto-resize chat textarea like WhatsApp
+  useEffect(() => {
+    if (chatInputRef.current) {
+      chatInputRef.current.style.height = 'auto';
+      const minH = window.innerWidth < 640 ? 38 : 46;
+      if (!inputText) {
+        chatInputRef.current.style.height = `${minH}px`;
+      } else {
+        const scrollHeight = chatInputRef.current.scrollHeight;
+        chatInputRef.current.style.height = `${Math.min(Math.max(scrollHeight, minH), 130)}px`;
+      }
+    }
+  }, [inputText]);
 
   // 3-Dots Menu & Settings State
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -620,12 +635,35 @@ const RealtimeChat = () => {
       if (cId === conversationId) {
         setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
       }
+      setContacts((prev) =>
+        prev.map((c) => {
+          if (c.conversationId === cId) {
+            return {
+              ...c,
+              lastMessageIsRead: true,
+              lastMessageIsDelivered: true
+            };
+          }
+          return c;
+        })
+      );
     };
 
     const handleMessagesDelivered = ({ userId }) => {
       if (userId === activeContactId) {
         setMessages((prev) => prev.map((m) => (!m.isDelivered && m.recipientClerkId === userId) ? { ...m, isDelivered: true } : m));
       }
+      setContacts((prev) =>
+        prev.map((c) => {
+          if (c.clerkId === userId) {
+            return {
+              ...c,
+              lastMessageIsDelivered: true
+            };
+          }
+          return c;
+        })
+      );
     };
 
     const handleMessageDeletedMe = ({ messageId }) => {
@@ -776,7 +814,11 @@ const RealtimeChat = () => {
           return {
             ...c,
             lastMessage: summary,
-            lastMessageTime: new Date().toISOString()
+            lastMessageTime: new Date().toISOString(),
+            lastMessageSenderClerkId: user.id,
+            isLastMessageFromMe: true,
+            lastMessageIsRead: false,
+            lastMessageIsDelivered: false
           };
         }
         return c;
@@ -835,7 +877,12 @@ const RealtimeChat = () => {
   // Handle Send / Edit Message
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
-    if ((!inputText.trim() && !selectedFile && selectedFiles.length === 0) || !activeContact || !user) return;
+    if ((!inputText.trim() && !selectedFile && selectedFiles.length === 0) || !activeContact || !user) {
+      if (!selectedFile && selectedFiles.length === 0) {
+        setInputText('');
+      }
+      return;
+    }
 
     if (isCurrentPartnerBlocked) {
       toast.error('Unblock user to send messages');
@@ -887,6 +934,14 @@ const RealtimeChat = () => {
     }
 
     // Normal text message (immediate sending)
+    const currentConvId = activeContact.conversationId || getConvId(user.id, activeContact.clerkId);
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const replyData = replyingTo ? {
+      messageId: replyingTo._id,
+      text: replyingTo.type === 'image' ? '📸 Image' : replyingTo.type === 'video' ? '🎥 Video' : (replyingTo.type === 'audio' || replyingTo.attachment?.type === 'audio') ? '🎤 Voice Note' : replyingTo.type === 'document' ? '📄 Document' : replyingTo.text,
+      senderName: replyingTo.senderClerkId === user.id ? 'You' : activeContact.name
+    } : null;
+
     const tempMessage = {
       _id: tempId,
       conversationId: currentConvId,
@@ -912,7 +967,11 @@ const RealtimeChat = () => {
           return {
             ...c,
             lastMessage: text,
-            lastMessageTime: new Date().toISOString()
+            lastMessageTime: new Date().toISOString(),
+            lastMessageSenderClerkId: user.id,
+            isLastMessageFromMe: true,
+            lastMessageIsRead: false,
+            lastMessageIsDelivered: false
           };
         }
         return c;
@@ -1931,7 +1990,11 @@ const RealtimeChat = () => {
             return {
               ...c,
               lastMessage: '🎙️ Voice Message',
-              lastMessageTime: new Date().toISOString()
+              lastMessageTime: new Date().toISOString(),
+              lastMessageSenderClerkId: user.id,
+              isLastMessageFromMe: true,
+              lastMessageIsRead: false,
+              lastMessageIsDelivered: false
             };
           }
           return c;
@@ -2271,10 +2334,22 @@ const RealtimeChat = () => {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className={`text-xs truncate flex-1 ${isUnread ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
-                        {isBlocked ? 'User is blocked' : contact.lastMessage}
-                      </p>
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <div className={`text-xs truncate flex-1 flex items-center min-w-0 ${isUnread ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
+                        {/* WhatsApp-style tick for sent message */}
+                        {!isBlocked && (contact.isLastMessageFromMe || (contact.lastMessageSenderClerkId && contact.lastMessageSenderClerkId === user?.id)) && contact.lastMessage && contact.lastMessage !== 'Start a conversation' && (
+                          <span className="inline-flex items-center mr-1 shrink-0" title={contact.lastMessageIsRead ? 'Read' : contact.lastMessageIsDelivered ? 'Delivered' : 'Sent'}>
+                            {contact.lastMessageIsRead ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
+                            ) : contact.lastMessageIsDelivered ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-muted-foreground/70 dark:text-muted-foreground/80" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5 text-muted-foreground/70 dark:text-muted-foreground/80" />
+                            )}
+                          </span>
+                        )}
+                        <span className="truncate">{isBlocked ? 'User is blocked' : contact.lastMessage}</span>
+                      </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isUnread && !isBlocked && (
                           <span className="bg-primary text-primary-foreground text-[10px] font-bold min-w-5 h-5 px-1.5 rounded-full shrink-0 flex items-center justify-center animate-pulse">
@@ -2767,7 +2842,7 @@ const RealtimeChat = () => {
                                 </button>
                               )}
                               {isMe && !msg.isDeleted && msg.type === 'text' && (
-                                <button onClick={(e) => { e.stopPropagation(); setEditingMessage(msg); setInputText(msg.text); setActiveMessageMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
+                                <button onClick={(e) => { e.stopPropagation(); setEditingMessage(msg); setInputText(msg.text); setActiveMessageMenu(null); setTimeout(() => chatInputRef.current?.focus(), 50); }} className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-muted flex items-center gap-2 cursor-pointer">
                                   <Edit2 className="w-3.5 h-3.5 text-amber-500" /> Edit
                                 </button>
                               )}
@@ -3080,9 +3155,9 @@ const RealtimeChat = () => {
                               )
                             )}
 
-                              <div className="flex items-end gap-2">
-                                <span>{msg.text}</span>
-                                {msg.isEdited && <span className="text-[10px] opacity-60 mb-0.5">(edited)</span>}
+                              <div className="flex items-end gap-2 flex-wrap sm:flex-nowrap">
+                                <span className="whitespace-pre-wrap break-words">{msg.text}</span>
+                                {msg.isEdited && <span className="text-[10px] opacity-60 mb-0.5 shrink-0">(edited)</span>}
                               </div>
                             </>
                           )}
@@ -3346,7 +3421,7 @@ const RealtimeChat = () => {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
+              <form onSubmit={handleSendMessage} className="flex items-end gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
                 {/* Hidden File Inputs */}
                 <input 
                   type="file" 
@@ -3498,26 +3573,31 @@ const RealtimeChat = () => {
                     <UserPlus className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="flex-1 relative flex items-center min-w-0">
-                  <input
-                    type="text"
+                <div className="flex-1 relative flex items-end min-w-0">
+                  <textarea
+                    ref={chatInputRef}
+                    rows={1}
                     value={inputText}
                     onChange={handleInputChange}
                     onPaste={handlePasteMedia}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSendMessage(e);
+                        if (!e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                        // Shift + Enter automatically inserts a new line in textarea
                       }
                     }}
                     disabled={isCurrentPartnerBlocked}
                     placeholder={isCurrentPartnerBlocked ? 'You have blocked this user' : `Message ${activeContact.name}...`}
-                    className="w-full bg-muted/40 border border-border/50 rounded-xl pl-3 sm:pl-4 pr-8 sm:pr-10 py-2 sm:py-3 h-[38px] sm:h-[46px] text-xs sm:text-sm focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-0"
+                    className="w-full bg-muted/40 border border-border/50 rounded-xl pl-3 sm:pl-4 pr-9 sm:pr-10 py-2 sm:py-2.5 min-h-[38px] sm:min-h-[46px] max-h-[130px] text-xs sm:text-sm focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-[border-color] disabled:opacity-50 disabled:cursor-not-allowed min-w-0 resize-none overflow-y-auto leading-relaxed custom-scrollbar"
                   />
                   <button
                     type="button"
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="absolute right-2.5 text-muted-foreground hover:text-foreground transition-colors p-1"
+                    className="absolute right-2.5 bottom-1.5 sm:bottom-2.5 text-muted-foreground hover:text-foreground transition-colors p-1"
+                    title="Insert emoji"
                   >
                     <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
@@ -3533,6 +3613,7 @@ const RealtimeChat = () => {
                         onEmojiClick={(emojiData) => {
                           setInputText(prev => prev + emojiData.emoji);
                           setShowEmojiPicker(false);
+                          setTimeout(() => chatInputRef.current?.focus(), 50);
                         }} 
                       />
                     </div>
@@ -3554,8 +3635,10 @@ const RealtimeChat = () => {
 
                 <button
                   type="submit"
-                  disabled={(!inputText.trim() && !selectedFile) || isCurrentPartnerBlocked}
-                  className="bg-primary text-primary-foreground p-2 sm:p-3 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center rounded-xl hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                  onClick={handleSendMessage}
+                  disabled={(!inputText.trim() && !selectedFile && selectedFiles.length === 0) || isCurrentPartnerBlocked}
+                  className="bg-primary text-primary-foreground p-2 sm:p-3 h-[38px] w-[38px] sm:h-[46px] sm:w-[46px] flex items-center justify-center rounded-xl hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0 cursor-pointer active:scale-95"
+                  title="Send message"
                 >
                   <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>

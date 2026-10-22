@@ -20,6 +20,7 @@ import DeviceSessionsManager from '../../components/settings/DeviceSessionsManag
 import TranslationLanguageSetting from '../../components/settings/TranslationLanguageSetting'
 import LanguagesManager from '../../components/settings/LanguagesManager'
 import { COUNTRIES, getIso2FromFlag, formatToE164 } from '../../utils/countries'
+import WorldwideLocationSelector from '../../components/common/WorldwideLocationSelector'
 const JOB_TITLES = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
   "Mobile Developer", "iOS Developer", "Android Developer", "Web Developer",
@@ -94,6 +95,9 @@ const Settings = () => {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [headline, setHeadline] = useState('')
+  const [country, setCountry] = useState('')
+  const [stateVal, setStateVal] = useState('')
+  const [city, setCity] = useState('')
   const [location, setLocation] = useState('')
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
@@ -348,6 +352,9 @@ const Settings = () => {
       setLastName(mongoProfile?.lastName || user.lastName || '');
       setUsernameValue(mongoProfile?.username || defaultUsername);
       setHeadline(mongoProfile?.headline || user.unsafeMetadata?.headline || '');
+      setCountry(mongoProfile?.country || user.unsafeMetadata?.country || '');
+      setStateVal(mongoProfile?.state || user.unsafeMetadata?.state || '');
+      setCity(mongoProfile?.city || user.unsafeMetadata?.city || '');
       setLocation(mongoProfile?.location || user.unsafeMetadata?.location || '');
       setAddress(mongoProfile?.address || user.unsafeMetadata?.address || '');
       setPhone(initialPhone);
@@ -461,6 +468,8 @@ const Settings = () => {
         }
       }
 
+      const compositeLocation = location || [city, stateVal, country].filter(Boolean).join(', ');
+
       // Save to Clerk (fallback/auth layer)
       try {
         await user.update({
@@ -470,7 +479,10 @@ const Settings = () => {
           unsafeMetadata: {
             ...user.unsafeMetadata,
             headline,
-            location,
+            country,
+            state: stateVal,
+            city,
+            location: compositeLocation,
             address,
             phone,
             aboutMe,
@@ -497,7 +509,10 @@ const Settings = () => {
           firstName,
           lastName,
           headline,
-          location,
+          country,
+          state: stateVal,
+          city,
+          location: compositeLocation,
           address,
           phone,
           isPhoneVerified: Boolean(
@@ -970,13 +985,20 @@ const Settings = () => {
                   <label className="text-sm font-medium text-foreground">Headline (Tagline)</label>
                   <input type="text" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="MCA Student | Seeking SDE Internships" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">Location</label>
-                  <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kolkata, India" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">Address</label>
-                  <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Kolkata" className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground transition-all" />
+                <div className="sm:col-span-2">
+                  <WorldwideLocationSelector
+                    country={country}
+                    state={stateVal}
+                    city={city}
+                    address={address}
+                    onChange={({ country: c, state: s, city: ci, address: a, location: l }) => {
+                      setCountry(c)
+                      setStateVal(s)
+                      setCity(ci)
+                      setAddress(a)
+                      setLocation(l)
+                    }}
+                  />
                 </div>
                 <div className="space-y-2 sm:col-span-2 bg-muted/20 border border-border/50 rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-1">

@@ -32,6 +32,8 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
   const { user } = useUser()
   const navigate = useNavigate()
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+  const [pendingSessionsCount, setPendingSessionsCount] = useState(0)
   const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 100, isEligibleForVerification: true })
   const [verificationStatus, setVerificationStatus] = useState('Pending')
   const [isVerified, setIsVerified] = useState(false)
@@ -56,7 +58,6 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
         setIsLoadingProfile(false)
       }
     }
-    fetchUserProfile()
 
     const fetchUnread = async () => {
       try {
@@ -69,11 +70,34 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
         console.error('Failed to fetch unread count', err)
       }
     }
+
+    const fetchPendingCounts = async () => {
+      try {
+        const [reqRes, sessRes] = await Promise.all([
+          fetch(`${API_BASE}/api/mentorship/mentor/${user.id}`),
+          fetch(`${API_BASE}/api/sessions/user/${user.id}`)
+        ])
+        if (reqRes.ok) {
+          const reqData = await reqRes.json()
+          const pendingReqs = (Array.isArray(reqData) ? reqData : []).filter(r => r.status === 'pending').length
+          setPendingRequestsCount(pendingReqs)
+        }
+        if (sessRes.ok) {
+          const sessData = await sessRes.json()
+          const pendingSess = (Array.isArray(sessData) ? sessData : []).filter(s => s.status === 'pending').length
+          setPendingSessionsCount(pendingSess)
+        }
+      } catch (err) {}
+    }
+
+    fetchUserProfile()
     fetchUnread()
+    fetchPendingCounts()
 
     const handleUpdate = () => {
       fetchUnread()
       fetchUserProfile()
+      fetchPendingCounts()
     }
     socket.on('update_sidebar', handleUpdate)
     socket.on('messages_read', handleUpdate)
@@ -105,10 +129,22 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
   const navItems = [
     { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true },
     { name: 'My Students', path: '/mentor-dashboard/mentees', icon: Users },
-    { name: 'Student Requests', path: '/mentor-dashboard/requests', icon: BookOpen },
+    { 
+      name: 'Student Requests', 
+      path: '/mentor-dashboard/requests', 
+      icon: BookOpen, 
+      badge: pendingRequestsCount > 0 ? pendingRequestsCount : null,
+      hasDot: pendingRequestsCount > 0
+    },
     { name: 'Mentor Directory', path: '/mentor-dashboard/mentor', icon: Compass },
     { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase },
-    { name: 'Events & Sessions', path: '/mentor-dashboard/sessions', icon: Calendar },
+    { 
+      name: 'Events & Sessions', 
+      path: '/mentor-dashboard/sessions', 
+      icon: Calendar,
+      badge: pendingSessionsCount > 0 ? pendingSessionsCount : null,
+      hasDot: pendingSessionsCount > 0
+    },
     { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: unreadMessages > 0 ? unreadMessages : null },
     { name: 'Analytics', path: '/mentor-dashboard/analytics', icon: BarChart },
     { name: 'Settings', path: '/mentor-dashboard/settings', icon: Settings },

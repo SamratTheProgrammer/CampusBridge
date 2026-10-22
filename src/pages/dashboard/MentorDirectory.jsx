@@ -18,6 +18,7 @@ const MentorDirectory = () => {
   const [connections, setConnections] = useState({}) // map of clerkId -> status
   const [searchTerm, setSearchTerm] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('') // '' | 'connected' | 'not_connected'
   const [domainFilter, setDomainFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -33,13 +34,15 @@ const MentorDirectory = () => {
     const fetchData = async () => {
       try {
         const [mentorsRes, connsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/users/mentors/all`),
+          fetch(`${API_BASE}/api/users/mentors/all${user?.id ? `?userId=${user.id}` : ''}`),
           user ? fetch(`${API_BASE}/api/connections/user/${user.id}`) : Promise.resolve({ ok: false })
         ]);
 
+        let allMentorsList = [];
         if (mentorsRes.ok) {
           const data = await mentorsRes.json()
-          setMentors(data)
+          allMentorsList = Array.isArray(data) ? data : [];
+          setMentors(allMentorsList);
         }
 
         if (connsRes.ok) {
@@ -47,36 +50,41 @@ const MentorDirectory = () => {
           const connMap = {};
           const acceptedMentors = []
           
-          connsData.forEach(c => {
-            const isTargetMentor = ['mentor', 'alumni'].includes(c.targetUser?.role?.toLowerCase());
-            if (c.requesterClerkId === user.id) {
-              connMap[c.recipientClerkId] = c.status;
+          if (Array.isArray(connsData)) {
+            connsData.forEach(c => {
+              const targetClerkId = c.targetUser?.clerkId || c.targetUser?.id || (c.requesterClerkId === user?.id ? c.recipientClerkId : c.requesterClerkId);
+              const targetMongoId = c.targetUser?._id ? String(c.targetUser._id) : null;
+              
+              // Register status for all variations of IDs
+              if (c.recipientClerkId) connMap[c.recipientClerkId] = c.status;
+              if (c.requesterClerkId) connMap[c.requesterClerkId] = c.status;
+              if (c.targetUser?.clerkId) connMap[c.targetUser.clerkId] = c.status;
+              if (targetClerkId) connMap[targetClerkId] = c.status;
+              if (targetMongoId) connMap[targetMongoId] = c.status;
+
+              // Check if target user is a mentor either by role or presence in mentors list
+              const richMentor = allMentorsList.find(m => 
+                (targetClerkId && m.clerkId === targetClerkId) || 
+                (targetMongoId && String(m._id) === targetMongoId) ||
+                (c.recipientClerkId && m.clerkId === c.recipientClerkId) ||
+                (c.requesterClerkId && m.clerkId === c.requesterClerkId)
+              );
+              const isTargetMentor = c.targetUser?.role?.toLowerCase() === 'mentor' || Boolean(richMentor);
+
               if (c.status === 'accepted' && isTargetMentor) {
                 acceptedMentors.push({
                   id: c._id,
-                  clerkId: c.targetUser?.clerkId || c.targetUser?.id,
-                  username: c.targetUser?.username,
-                  name: c.targetUser?.name || 'Unknown Mentor',
-                  company: c.targetUser?.university || 'Not specified',
-                  role: c.targetUser?.interest || 'Mentor',
-                  image: c.targetUser?.image || defaultPP,
+                  clerkId: targetClerkId || richMentor?.clerkId,
+                  mongoId: targetMongoId || (richMentor?._id ? String(richMentor._id) : null),
+                  username: c.targetUser?.username || richMentor?.username,
+                  name: c.targetUser?.name || `${richMentor?.firstName || ''} ${richMentor?.lastName || ''}`.trim() || 'Unknown Mentor',
+                  company: richMentor?.company || richMentor?.location || c.targetUser?.university || 'CampusBridge Mentor',
+                  role: richMentor?.headline || c.targetUser?.interest || 'Mentor',
+                  image: c.targetUser?.image || richMentor?.imageUrl || defaultPP,
                 })
               }
-            } else if (c.recipientClerkId === user.id) {
-              connMap[c.requesterClerkId] = c.status;
-              if (c.status === 'accepted' && isTargetMentor) {
-                acceptedMentors.push({
-                  id: c._id,
-                  clerkId: c.targetUser?.clerkId || c.targetUser?.id,
-                  username: c.targetUser?.username,
-                  name: c.targetUser?.name || 'Unknown Mentor',
-                  company: c.targetUser?.university || 'Not specified',
-                  role: c.targetUser?.interest || 'Mentor',
-                  image: c.targetUser?.image || defaultPP,
-                })
-              }
-            }
-          });
+            });
+          }
           setConnections(connMap);
           setMyMentorsList(acceptedMentors);
         }
@@ -155,7 +163,20 @@ const MentorDirectory = () => {
   }
 
   const filteredMentors = mentors.filter(mentor => {
-    if (connections[mentor.clerkId] === 'accepted') return false;
+    // Strictly pure mentors only - NEVER show alumni in mentor directory
+    if (mentor.role !== 'mentor' || mentor.role === 'alumni') return false;
+
+    // Exclude self if logged in
+    if (user && (mentor.clerkId === user.id || String(mentor._id) === user.id)) return false;
+    
+    // Status filtering
+    const isConnected = 
+      connections[mentor.clerkId] === 'accepted' || 
+      connections[String(mentor._id)] === 'accepted' ||
+      myMentorsList.some(m => (m.clerkId && m.clerkId === mentor.clerkId) || (m.mongoId && m.mongoId === String(mentor._id)) || m.id === mentor._id);
+
+    if (statusFilter === 'connected' && !isConnected) return false;
+    if (statusFilter === 'not_connected' && isConnected) return false;
     
     const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim().toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || 
@@ -178,7 +199,7 @@ const MentorDirectory = () => {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, domainFilter, locationFilter, activeTab])
+  }, [searchTerm, domainFilter, locationFilter, statusFilter, activeTab])
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-8">
@@ -190,17 +211,22 @@ const MentorDirectory = () => {
         <div className="flex border-b border-border/40 mt-6 gap-6">
           <button 
             onClick={() => setActiveTab('discover')}
-            className={`pb-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'discover' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'discover' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           >
-            Discover Mentors
+            All Mentors
+            {filteredMentors.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'discover' ? 'bg-primary/20 text-primary font-bold' : 'bg-muted text-muted-foreground'}`}>
+                {filteredMentors.length}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => setActiveTab('myMentors')}
             className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'myMentors' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           >
-            My Mentors
+            Connected Mentors
             {myMentorsList.length > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'myMentors' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'myMentors' ? 'bg-emerald-500/20 text-emerald-500 font-bold' : 'bg-muted text-muted-foreground'}`}>
                 {myMentorsList.length}
               </span>
             )}
@@ -266,6 +292,11 @@ const MentorDirectory = () => {
               )}
             </div>
             <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="flex-1 sm:flex-none bg-card border border-border/50 rounded-xl px-3 sm:px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-xs sm:text-sm">
+                <option value="">All Mentors</option>
+                <option value="connected">Connected Only</option>
+                <option value="not_connected">Not Connected</option>
+              </select>
               <select value={domainFilter} onChange={(e) => setDomainFilter(e.target.value)} className="flex-1 sm:flex-none bg-card border border-border/50 rounded-xl px-3 sm:px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-xs sm:text-sm">
                 <option value="">All Domains</option>
                 <option value="engineer">Engineering</option>
@@ -294,7 +325,14 @@ const MentorDirectory = () => {
                   <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="flex flex-row items-center gap-4 sm:gap-5 min-w-0 group hover:opacity-90 transition-opacity">
                     <img src={mentor.imageUrl || defaultPP} alt={mentor.firstName || 'Mentor'} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 bg-muted border border-border/50 group-hover:ring-2 group-hover:ring-primary/40 transition-all" />
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors truncate">{mentor.firstName} {mentor.lastName || ''}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors truncate">{mentor.firstName} {mentor.lastName || ''}</h3>
+                        {(connections[mentor.clerkId] === 'accepted' || connections[String(mentor._id)] === 'accepted' || myMentorsList.some(m => m.clerkId === mentor.clerkId)) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+                            <CheckCircle2 className="w-3 h-3" /> Connected
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs sm:text-sm font-medium text-foreground truncate">{mentor.headline || 'Mentor'}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 truncate">
                         <MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{mentor.location || 'Location not specified'}</span>

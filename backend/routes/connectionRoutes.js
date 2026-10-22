@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { clerkClient } from '@clerk/clerk-sdk-node';
 import Connection from '../models/Connection.js';
 import User from '../models/User.js';
@@ -8,29 +9,54 @@ import { escapeRegex } from '../utils/regexHelper.js';
 
 const router = express.Router();
 
-// Helper to populate user details (since we use clerkId instead of ObjectId refs)
+// Helper to query user by clerkId, _id, username, or email
+const findUserByIdentifier = async (identifier) => {
+  if (!identifier || identifier === 'undefined') return null;
+  let query = [{ clerkId: identifier }, { username: identifier }, { email: String(identifier).toLowerCase().trim() }];
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    query.push({ _id: identifier });
+  }
+  return await User.findOne({ $or: query });
+};
+
+// Helper to populate user details (supports clerkId or ObjectId refs)
 const populateUserDetails = async (connections, currentUserId) => {
+  const currentUser = await findUserByIdentifier(currentUserId);
+  const currentUserIds = new Set([
+    currentUserId,
+    currentUser?.clerkId,
+    currentUser?._id ? String(currentUser._id) : null,
+    currentUser?.username
+  ].filter(Boolean));
+
   return await Promise.all(connections.map(async (conn) => {
     // If current user is requester, get recipient details. If current is recipient, get requester details.
-    const targetId = conn.requesterClerkId === currentUserId ? conn.recipientClerkId : conn.requesterClerkId;
-    let targetUser = await User.findOne({ clerkId: targetId });
+    const isRequester = currentUserIds.has(conn.requesterClerkId);
+    const targetId = isRequester ? conn.recipientClerkId : conn.requesterClerkId;
+
+    let targetUser = await findUserByIdentifier(targetId);
     if (!targetUser) {
-      targetUser = await Mentor.findOne({ clerkId: targetId });
+      targetUser = await Mentor.findOne({
+        $or: [
+          { clerkId: targetId },
+          ...(mongoose.Types.ObjectId.isValid(targetId) ? [{ _id: targetId }] : [])
+        ]
+      });
     }
     
     return {
       ...conn.toObject(),
       targetUser: targetUser ? {
-        id: targetUser.clerkId || targetUser._id,
-        _id: targetUser.clerkId || targetUser._id,
-        clerkId: targetUser.clerkId || targetUser._id,
+        id: targetUser.clerkId || String(targetUser._id),
+        _id: String(targetUser._id),
+        clerkId: targetUser.clerkId || String(targetUser._id),
         name: targetUser.firstName ? `${targetUser.firstName} ${targetUser.lastName || ''}`.trim() : (targetUser.name || 'User'),
         course: targetUser.education?.[0]?.degree || targetUser.headline || 'Member',
         university: targetUser.education?.[0]?.institution || targetUser.company || 'CampusBridge',
         interest: targetUser.skills?.[0] || targetUser.headline || 'Member',
         image: targetUser.imageUrl || targetUser.image,
         username: targetUser.username,
-        role: targetUser.role || 'student'
+        role: targetUser.role || (targetUser.company || targetUser.headline?.toLowerCase().includes('mentor') ? 'mentor' : 'student')
       } : { name: 'User' }
     };
   }));
@@ -166,10 +192,15 @@ router.put('/:id', async (req, res) => {
 router.get('/user/:clerkId', async (req, res) => {
   try {
     const { clerkId } = req.params;
+    const user = await findUserByIdentifier(clerkId);
+    const userIds = [clerkId, user?.clerkId, user?._id ? String(user._id) : null].filter(Boolean);
     
     // Find where user is either requester or recipient
     const connections = await Connection.find({
-      $or: [{ requesterClerkId: clerkId }, { recipientClerkId: clerkId }]
+      $or: [
+        { requesterClerkId: { $in: userIds } },
+        { recipientClerkId: { $in: userIds } }
+      ]
     }).sort({ createdAt: -1 });
 
     const enriched = await populateUserDetails(connections, clerkId);

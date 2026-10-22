@@ -29,6 +29,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
   const { signOut } = useClerk()
   const { user } = useUser()
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [pendingSessionsCount, setPendingSessionsCount] = useState(0)
 
   useEffect(() => {
     if (!user) return
@@ -44,9 +45,25 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
         console.error('Failed to fetch unread count', err)
       }
     }
-    fetchUnread()
 
-    const handleUpdate = () => fetchUnread()
+    const fetchPendingSessions = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/sessions/user/${user.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          const pending = (Array.isArray(data) ? data : []).filter(s => s.status === 'pending').length
+          setPendingSessionsCount(pending)
+        }
+      } catch (err) {}
+    }
+
+    fetchUnread()
+    fetchPendingSessions()
+
+    const handleUpdate = () => {
+      fetchUnread()
+      fetchPendingSessions()
+    }
     socket.on('update_sidebar', handleUpdate)
     socket.on('messages_read', handleUpdate)
 
@@ -69,7 +86,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'My Network', path: '/dashboard/network', icon: Users },
     { name: 'Mentor Directory', path: '/dashboard/mentor', icon: Compass },
-    { name: 'Sessions', path: '/dashboard/sessions', icon: BookOpen },
+    { 
+      name: 'Sessions', 
+      path: '/dashboard/sessions', 
+      icon: BookOpen, 
+      hasDot: pendingSessionsCount > 0,
+      badge: pendingSessionsCount > 0 ? pendingSessionsCount : null 
+    },
     { name: 'Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase },
     { name: 'Events', path: '/dashboard/events', icon: Calendar },
     { name: 'Messages', path: '/dashboard/messages', icon: MessageSquare, badge: unreadMessages > 0 ? unreadMessages : null },

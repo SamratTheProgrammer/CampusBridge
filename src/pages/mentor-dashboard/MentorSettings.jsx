@@ -26,6 +26,7 @@ import { useProfileData } from '../../context/ProfileDataContext'
 import DeviceSessionsManager from '../../components/settings/DeviceSessionsManager'
 import TranslationLanguageSetting from '../../components/settings/TranslationLanguageSetting'
 import { COUNTRIES, getIso2FromFlag, formatToE164 } from '../../utils/countries'
+import WorldwideLocationSelector from '../../components/common/WorldwideLocationSelector'
 import LanguagesManager from '../../components/settings/LanguagesManager'
 
 const MentorSettings = () => {
@@ -50,6 +51,10 @@ const MentorSettings = () => {
   const [lastName, setLastName] = useState('')
   const [headline, setHeadline] = useState('')
   const [aboutMe, setAboutMe] = useState('')
+  const [country, setCountry] = useState('')
+  const [stateVal, setStateVal] = useState('')
+  const [city, setCity] = useState('')
+  const [location, setLocation] = useState('')
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
   const [phoneVisibility, setPhoneVisibility] = useState('public')
@@ -304,6 +309,10 @@ const MentorSettings = () => {
             setRawPhoneNumber(initialPhone.replace(/^\+\d+(-\d+)?\s*/, '').trim());
           }
         }
+        setCountry(mongoProfile.country || user.unsafeMetadata?.country || '');
+        setStateVal(mongoProfile.state || user.unsafeMetadata?.state || '');
+        setCity(mongoProfile.city || user.unsafeMetadata?.city || '');
+        setLocation(mongoProfile.location || user.unsafeMetadata?.location || '');
         setAddress(mongoProfile.address || user.unsafeMetadata?.address || '');
         setYearsOfExperience(mongoProfile.yearsOfExperience !== undefined && mongoProfile.yearsOfExperience !== null ? String(mongoProfile.yearsOfExperience).replace(/[^0-9]/g, '') : '');
         setExperienceList(Array.isArray(mongoProfile.experience) ? mongoProfile.experience : []);
@@ -339,6 +348,10 @@ const MentorSettings = () => {
             setRawPhoneNumber(initialPhone.replace(/^\+\d+(-\d+)?\s*/, '').trim());
           }
         }
+        setCountry(user.unsafeMetadata?.country || '');
+        setStateVal(user.unsafeMetadata?.state || '');
+        setCity(user.unsafeMetadata?.city || '');
+        setLocation(user.unsafeMetadata?.location || '');
         setAddress(user.unsafeMetadata?.address || '');
       }
       setHasInitialized(true);
@@ -562,6 +575,8 @@ const MentorSettings = () => {
     if (!user) return
     setIsSaving(true)
     try {
+      const compositeLocation = location || [city, stateVal, country].filter(Boolean).join(', ');
+
       const res = await fetch(`${API_BASE}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -570,6 +585,10 @@ const MentorSettings = () => {
           lastName,
           headline,
           aboutMe,
+          country,
+          state: stateVal,
+          city,
+          location: compositeLocation,
           address,
           phone,
           isPhoneVerified: Boolean(
@@ -622,6 +641,10 @@ const MentorSettings = () => {
           unsafeMetadata: {
             ...user.unsafeMetadata,
             headline,
+            country,
+            state: stateVal,
+            city,
+            location: compositeLocation,
             address,
             phone
           }
@@ -1057,18 +1080,21 @@ const MentorSettings = () => {
                   ></textarea>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Address / Location</label>
-                    <input 
-                      type="text" 
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="e.g. Kolkata, West Bengal"
-                      className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
-                    />
-                  </div>
+                <WorldwideLocationSelector
+                  country={country}
+                  state={stateVal}
+                  city={city}
+                  address={address}
+                  onChange={({ country: c, state: s, city: ci, address: a, location: l }) => {
+                    setCountry(c)
+                    setStateVal(s)
+                    setCity(ci)
+                    setAddress(a)
+                    setLocation(l)
+                  }}
+                />
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1.5">Years of Experience</label>
                     <div className="relative flex items-center">

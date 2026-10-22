@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import Connection from '../models/Connection.js';
+import Session from '../models/Session.js';
+import Event from '../models/Event.js';
+import Review from '../models/Review.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
 import { createNotificationHelper, getNotificationIo } from './notificationRoutes.js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
@@ -169,13 +172,32 @@ router.delete('/:clerkId', async (req, res) => {
   }
 });
 
-// Get all mentors
+// Get all mentors (excluding alumni and optionally connected mentors)
 router.get('/mentors/all', async (req, res) => {
   try {
-    const mentors = await User.find({ 
-      role: { $in: ['mentor', 'alumni'] },
+    const { userId } = req.query;
+    let excludedUserIds = [];
+
+    if (userId && userId !== 'undefined') {
+      const user = await findUserByIdentifier(userId);
+      const userIds = [userId, user?.clerkId, user?._id ? String(user._id) : null].filter(Boolean);
+      excludedUserIds = Array.from(new Set(userIds));
+    }
+
+    let filter = { 
+      role: 'mentor',
       profileVisibility: { $ne: 'hidden' }
-    }).sort({ isVerified: -1, verificationStatus: 1, createdAt: -1 });
+    };
+
+    if (excludedUserIds.length > 0) {
+      const validObjectIds = excludedUserIds.filter(id => mongoose.Types.ObjectId.isValid(id)).map(id => new mongoose.Types.ObjectId(id));
+      filter.$and = [
+        { clerkId: { $nin: excludedUserIds } },
+        ...(validObjectIds.length > 0 ? [{ _id: { $nin: validObjectIds } }] : [])
+      ];
+    }
+
+    const mentors = await User.find(filter).sort({ isVerified: -1, verificationStatus: 1, createdAt: -1 });
     res.status(200).json(mentors);
   } catch (error) {
     console.error('Error fetching mentors:', error);
@@ -196,26 +218,29 @@ router.get('/search/all', async (req, res) => {
   }
 });
 
-// Get suggested mentors (excluding existing friends and self)
+// Get suggested mentors (excluding existing friends, self, and alumni)
 router.get('/mentors/suggested', async (req, res) => {
   try {
     const { userId } = req.query;
     let excludedClerkIds = [];
 
     if (userId && userId !== 'undefined') {
+      const user = await findUserByIdentifier(userId);
+      const userIds = [userId, user?.clerkId, user?._id ? String(user._id) : null].filter(Boolean);
+
       const connections = await Connection.find({
-        $or: [{ requesterClerkId: userId }, { recipientClerkId: userId }],
+        $or: [{ requesterClerkId: { $in: userIds } }, { recipientClerkId: { $in: userIds } }],
         status: 'accepted'
       });
       excludedClerkIds = [
-        userId,
-        ...connections.map(c => c.requesterClerkId === userId ? c.recipientClerkId : c.requesterClerkId)
+        ...userIds,
+        ...connections.map(c => userIds.includes(c.requesterClerkId) ? c.recipientClerkId : c.requesterClerkId)
       ];
     }
 
     const mentors = await User.find({ 
       clerkId: { $nin: excludedClerkIds },
-      role: { $in: ['mentor', 'alumni'] },
+      role: 'mentor',
       profileVisibility: { $ne: 'hidden' }
     }).sort({ isVerified: -1, verificationStatus: 1, createdAt: -1 }).limit(5);
     res.status(200).json(mentors);
@@ -236,9 +261,10 @@ const findUserByIdentifier = async (identifier) => {
 };
 
 // Get user profile
-router.get('/:clerkId', async (req, res) => {
+const getUserProfileHandler = async (req, res) => {
   try {
-    const user = await findUserByIdentifier(req.params.clerkId);
+    const identifier = req.params.identifier || req.params.clerkId;
+    const user = await findUserByIdentifier(identifier);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -275,12 +301,55 @@ router.get('/:clerkId', async (req, res) => {
       }
     }
 
-    res.status(200).json(user);
+    const userObj = user.toObject();
+
+    // Dynamically calculate completed sessions and ratings for mentors
+    if (user.role === 'mentor') {
+      try {
+        const [oneOnOneCount, hostedCount, reviews] = await Promise.all([
+          Session.countDocuments({
+            mentor: user._id,
+            status: { $in: ['completed', 'accepted'] }
+          }),
+          Event.countDocuments({
+            organizer: user._id
+          }),
+          Review.find({
+            $or: [
+              { mentor: user._id },
+              { referenceId: user._id }
+            ]
+          }).select('contentRating mentorRating')
+        ]);
+
+        const completedCount = (oneOnOneCount || 0) + (hostedCount || 0);
+        userObj.totalSessions = completedCount;
+        userObj.completedSessions = completedCount;
+
+        if (reviews.length > 0) {
+          const sum = reviews.reduce((acc, r) => acc + (r.mentorRating || r.contentRating || 5), 0);
+          userObj.rating = Number((sum / reviews.length).toFixed(1));
+          userObj.reviewsCount = reviews.length;
+        } else {
+          userObj.rating = user.rating || 5.0;
+          userObj.reviewsCount = 0;
+        }
+      } catch (err) {
+        console.error('Error computing dynamic mentor stats:', err);
+        userObj.totalSessions = 0;
+        userObj.completedSessions = 0;
+      }
+    }
+
+    res.status(200).json(userObj);
   } catch (error) {
     console.error('Error fetching user:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+};
+
+router.get('/profile/:identifier', getUserProfileHandler);
+router.get('/:clerkId', getUserProfileHandler);
 
 // Record profile view explicitly
 router.post('/:clerkId/view', async (req, res) => {
@@ -356,6 +425,9 @@ router.put('/:clerkId/profile', async (req, res) => {
       lastName, 
       headline, 
       department,
+      country,
+      state,
+      city,
       location, 
       address,
       phone,
@@ -396,6 +468,9 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (firstName !== undefined) targetUser.firstName = firstName;
     if (lastName !== undefined) targetUser.lastName = lastName;
     if (headline !== undefined) targetUser.headline = headline;
+    if (country !== undefined) targetUser.country = country;
+    if (state !== undefined) targetUser.state = state;
+    if (city !== undefined) targetUser.city = city;
     if (location !== undefined) targetUser.location = location;
     if (address !== undefined) targetUser.address = address;
     if (phone !== undefined) targetUser.phone = phone;

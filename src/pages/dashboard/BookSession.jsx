@@ -5,7 +5,8 @@ import { useUser } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import {
   ChevronLeft, Calendar as CalendarIcon, Clock, Video, FileText, Briefcase,
-  GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2, Globe, MapPin, Sparkles, User
+  GraduationCap, MessageSquare, Star, ChevronRight, Check, CheckCircle2, Globe, MapPin, Sparkles, User,
+  Link2, Target, AlertCircle, HelpCircle
 } from 'lucide-react'
 import API_BASE from '../../utils/api'
 
@@ -65,6 +66,8 @@ const BookSession = () => {
   const [mode, setMode] = useState('Online')
   const [location, setLocation] = useState('')
   const [message, setMessage] = useState('')
+  const [goals, setGoals] = useState('')
+  const [attachmentUrl, setAttachmentUrl] = useState('')
   const [isBooking, setIsBooking] = useState(false)
 
   // Calendar navigation state
@@ -72,13 +75,38 @@ const BookSession = () => {
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
 
+  const isSelf = Boolean(user?.id && mentor?.clerkId && user.id === mentor.clerkId)
+
   useEffect(() => {
     const fetchMentor = async () => {
       setIsLoadingMentor(true)
       try {
-        const res = await fetch(`${API_BASE}/api/users/profile/${id}`)
+        let res = await fetch(`${API_BASE}/api/users/${id}`)
+        if (!res.ok) {
+          res = await fetch(`${API_BASE}/api/users/profile/${id}`)
+        }
         if (res.ok) {
           const data = await res.json()
+
+          // Query actual completed sessions for this mentor dynamically
+          try {
+            const mentorClerkOrMongo = data.clerkId || data._id || id;
+            const sessRes = await fetch(`${API_BASE}/api/sessions/user/${mentorClerkOrMongo}`);
+            if (sessRes.ok) {
+              const sessData = await sessRes.json();
+              if (Array.isArray(sessData)) {
+                const count = sessData.filter(s => 
+                  (s.mentor?.clerkId === mentorClerkOrMongo || s.mentor?._id === mentorClerkOrMongo || String(s.mentor) === String(mentorClerkOrMongo) || s.mentor?.clerkId === data.clerkId || String(s.mentor?._id) === String(data._id)) &&
+                  (s.status === 'completed' || s.status === 'accepted')
+                ).length;
+                data.totalSessions = count;
+                data.completedSessions = count;
+              }
+            }
+          } catch (e) {
+            // fallback
+          }
+
           setMentor(data)
         } else {
           setMentor({
@@ -88,9 +116,9 @@ const BookSession = () => {
             headline: 'Senior Software Engineer at Google',
             role: 'mentor',
             skills: ['React', 'System Design', 'Node.js', 'Career Growth'],
-            rating: 4.9,
-            reviewsCount: 38,
-            totalSessions: 120,
+            rating: 5.0,
+            reviewsCount: 0,
+            totalSessions: 0,
             bio: 'Passionate about mentoring early-career engineers, breaking into tech, and mastering system design.'
           })
         }
@@ -103,9 +131,9 @@ const BookSession = () => {
           headline: 'Senior Software Engineer at Google',
           role: 'mentor',
           skills: ['React', 'System Design', 'Node.js', 'Career Growth'],
-          rating: 4.9,
-          reviewsCount: 38,
-          totalSessions: 120,
+          rating: 5.0,
+          reviewsCount: 0,
+          totalSessions: 0,
           bio: 'Passionate about mentoring early-career engineers, breaking into tech, and mastering system design.'
         })
       } finally {
@@ -118,6 +146,10 @@ const BookSession = () => {
   }, [id])
 
   const handleNext = () => {
+    if (step === 1 && isSelf) {
+      toast.error('You cannot book a mentorship session with yourself.')
+      return
+    }
     setStep(prev => Math.min(prev + 1, 7))
   }
 
@@ -132,35 +164,77 @@ const BookSession = () => {
       return
     }
 
+    if (isSelf) {
+      toast.error('You cannot book a mentorship session with yourself.')
+      return
+    }
+
+    if (!selectedDate || !selectedTime) {
+      toast.error('Please select both a date and time slot for your session.')
+      return
+    }
+
     setIsBooking(true)
     try {
-      const res = await fetch(`${API_BASE}/api/sessions/book`, {
+      const payload = {
+        mentorId: mentor?._id || mentor?.clerkId || id,
+        mentorClerkId: mentor?.clerkId,
+        studentId: user.id,
+        studentClerkId: user.id,
+        type: sessionType,
+        sessionType,
+        date: selectedDate,
+        time: selectedTime,
+        duration: parseInt(duration, 10),
+        mode,
+        location: mode === 'Offline' ? location : undefined,
+        message,
+        notes: message,
+        goals,
+        attachmentUrl,
+      }
+
+      let res = await fetch(`${API_BASE}/api/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mentorId: mentor?._id || mentor?.clerkId || id,
-          studentId: user.id,
-          sessionType,
-          date: selectedDate,
-          time: selectedTime,
-          duration: parseInt(duration, 10),
-          mode,
-          location: mode === 'Offline' ? location : undefined,
-          notes: message,
-        })
+        body: JSON.stringify(payload)
       })
+
+      if (!res.ok) {
+        res = await fetch(`${API_BASE}/api/sessions/book`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+      }
 
       const data = await res.json()
 
       if (res.ok) {
-        toast.success('Session booked successfully!')
+        toast.success('Session request submitted successfully!')
         const isMentorDashboard = window.location.pathname.startsWith('/mentor-dashboard')
         const basePath = isMentorDashboard ? '/mentor-dashboard' : '/dashboard'
+        const sessionResult = data.session || data
         navigate(`${basePath}/mentor/${id}/book/success`, {
-          state: { booking: { ...data.session, mentor } }
+          state: {
+            booking: {
+              ...sessionResult,
+              mentor,
+              date: selectedDate,
+              time: selectedTime,
+              sessionType,
+              type: sessionType,
+              mode,
+              location: mode === 'Offline' ? location : undefined,
+              duration,
+              message,
+              goals,
+              attachmentUrl
+            }
+          }
         })
       } else {
-        toast.error(data.message || 'Failed to book session')
+        toast.error(data.error || data.message || 'Failed to book session')
       }
     } catch (err) {
       console.error('Booking error:', err)
@@ -242,7 +316,13 @@ const BookSession = () => {
                       <Star className="w-3.5 h-3.5 fill-amber-500" /> {mentor?.rating || 4.9}
                     </span>
                     <span>•</span>
-                    <span>{mentor?.totalSessions || 50}+ Sessions Completed</span>
+                    <span>
+                      {typeof mentor?.totalSessions === 'number'
+                        ? mentor.totalSessions >= 10
+                          ? `${mentor.totalSessions}+ Sessions Completed`
+                          : `${mentor.totalSessions} Session${mentor.totalSessions === 1 ? '' : 's'} Completed`
+                        : `${mentor?.completedSessions ?? 0} Sessions Completed`}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -267,10 +347,21 @@ const BookSession = () => {
                 </div>
               )}
 
+              {isSelf && (
+                <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3 text-amber-700 dark:text-amber-300">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-bold">This is your own profile</p>
+                    <p className="text-muted-foreground">You cannot book a mentorship session with yourself. Please select another mentor from the directory to request a session.</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end pt-6">
                 <button
                   onClick={handleNext}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors flex items-center gap-2 shadow-lg shadow-primary/25"
+                  disabled={isSelf}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors flex items-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   Choose Topic & Schedule <ChevronRight className="w-4 h-4" />
                 </button>
@@ -293,7 +384,7 @@ const BookSession = () => {
                     setSessionType(type.id)
                     handleNext()
                   }}
-                  className={`p-5 rounded-2xl border text-left transition-all group relative ${
+                  className={`p-5 rounded-2xl border text-left transition-all group relative cursor-pointer ${
                     sessionType === type.id
                       ? 'border-primary bg-primary/5 ring-1 ring-primary'
                       : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted/50'
@@ -322,14 +413,14 @@ const BookSession = () => {
               <div className="flex items-center justify-between mb-6">
                 <button
                   onClick={() => currentMonth === 0 ? (setCurrentMonth(11), setCurrentYear(y => y - 1)) : setCurrentMonth(m => m - 1)}
-                  className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
+                  className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <h3 className="font-semibold text-foreground">{monthNames[currentMonth]} {currentYear}</h3>
                 <button
                   onClick={() => currentMonth === 11 ? (setCurrentMonth(0), setCurrentYear(y => y + 1)) : setCurrentMonth(m => m + 1)}
-                  className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
+                  className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -361,7 +452,7 @@ const BookSession = () => {
                         setTimeout(handleNext, 250)
                       }}
                       className={`
-                        w-8 h-8 mx-auto rounded-full flex items-center justify-center text-sm transition-all
+                        w-8 h-8 mx-auto rounded-full flex items-center justify-center text-sm transition-all cursor-pointer
                         ${isSelected ? 'bg-primary text-primary-foreground font-bold shadow-md shadow-primary/30' : ''}
                         ${!isSelected && !isPast ? 'hover:bg-muted text-foreground' : ''}
                         ${isPast ? 'text-muted-foreground/30 cursor-not-allowed' : ''}
@@ -394,7 +485,7 @@ const BookSession = () => {
                       <button
                         key={time}
                         onClick={() => { setSelectedTime(time); handleNext(); }}
-                        className={`py-2.5 px-4 rounded-xl border text-sm font-medium transition-all text-center
+                        className={`py-2.5 px-4 rounded-xl border text-sm font-medium transition-all text-center cursor-pointer
                           ${selectedTime === time
                             ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20'
                             : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted text-foreground'}`}
@@ -420,7 +511,7 @@ const BookSession = () => {
                 <button
                   key={dur.id}
                   onClick={() => { setDuration(dur.id); handleNext(); }}
-                  className={`py-4 px-4 rounded-xl border text-center transition-all
+                  className={`py-4 px-4 rounded-xl border text-center transition-all cursor-pointer
                     ${duration === dur.id
                       ? 'border-primary bg-primary/5 ring-1 ring-primary'
                       : 'border-border/50 bg-card hover:border-primary/50 hover:bg-muted'}`}
@@ -439,7 +530,7 @@ const BookSession = () => {
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Session Mode & Details</h2>
-            <p className="text-muted-foreground text-sm">Select how you would like to connect with your mentor.</p>
+            <p className="text-muted-foreground text-sm">Provide details so the mentor has all context before accepting your request.</p>
 
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-6">
               
@@ -450,7 +541,7 @@ const BookSession = () => {
                   <button
                     type="button"
                     onClick={() => setMode('Online')}
-                    className={`p-4 rounded-xl border flex items-center gap-3 transition-all text-left ${
+                    className={`p-4 rounded-xl border flex items-center gap-3 transition-all text-left cursor-pointer ${
                       mode === 'Online' 
                         ? 'border-primary bg-primary/5 ring-1 ring-primary text-primary' 
                         : 'border-border/50 bg-background text-foreground hover:bg-muted'
@@ -466,7 +557,7 @@ const BookSession = () => {
                   <button
                     type="button"
                     onClick={() => setMode('Offline')}
-                    className={`p-4 rounded-xl border flex items-center gap-3 transition-all text-left ${
+                    className={`p-4 rounded-xl border flex items-center gap-3 transition-all text-left cursor-pointer ${
                       mode === 'Offline' 
                         ? 'border-primary bg-primary/5 ring-1 ring-primary text-primary' 
                         : 'border-border/50 bg-background text-foreground hover:bg-muted'
@@ -484,32 +575,65 @@ const BookSession = () => {
               {/* Location notes if Offline */}
               {mode === 'Offline' && (
                 <div className="animate-in fade-in duration-200">
-                  <label className="block text-sm font-medium text-foreground mb-2">Preferred Campus Location / Room</label>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-amber-500" /> Preferred Campus Location / Room
+                  </label>
                   <input
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Central Library 2nd Floor / Block A Cafe"
+                    placeholder="e.g. Central Library 2nd Floor / Block A Discussion Room"
                     className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-foreground"
                   />
                 </div>
               )}
 
+              {/* Message to Mentor */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Message to Mentor (Optional)</label>
+                <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
+                  <MessageSquare className="w-4 h-4 text-primary" /> Session Agenda / Message to Mentor
+                </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="E.g., I'd like to discuss my recent project and get your feedback on the architecture..."
+                  placeholder="Introduce yourself briefly and explain what you want to achieve in this session..."
                   className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none placeholder:text-muted-foreground text-foreground"
                 ></textarea>
+              </div>
+
+              {/* Specific Goals / Questions */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
+                  <Target className="w-4 h-4 text-emerald-500" /> Specific Goals / Questions (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={goals}
+                  onChange={(e) => setGoals(e.target.value)}
+                  placeholder="e.g. 1. How to prepare for System Design round? 2. Resume critique for Backend roles..."
+                  className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none placeholder:text-muted-foreground text-foreground"
+                ></textarea>
+              </div>
+
+              {/* Attachment / Project / Resume Link */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
+                  <Link2 className="w-4 h-4 text-blue-500" /> Project, Resume, or GitHub Link (Optional)
+                </label>
+                <input
+                  type="url"
+                  value={attachmentUrl}
+                  onChange={(e) => setAttachmentUrl(e.target.value)}
+                  placeholder="https://github.com/username/project or Google Drive link"
+                  className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-foreground"
+                />
               </div>
 
               <div className="flex justify-end pt-2">
                 <button
                   onClick={handleNext}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-primary/25 cursor-pointer"
                 >
                   Continue to Summary
                 </button>
@@ -523,7 +647,7 @@ const BookSession = () => {
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-foreground">Booking Summary</h2>
-            <p className="text-muted-foreground text-sm">Review your session details before confirming.</p>
+            <p className="text-muted-foreground text-sm">Review your session details before sending the request to the mentor.</p>
 
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm space-y-6">
 
@@ -531,18 +655,29 @@ const BookSession = () => {
                 <img
                   src={mentor?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mentor?.firstName || 'Mentor'}`}
                   alt={mentor?.firstName}
-                  className="w-16 h-16 rounded-full object-cover ring-2 ring-border"
+                  className="w-16 h-16 rounded-2xl object-cover ring-2 ring-primary/20"
                 />
                 <div>
-                  <h3 className="font-bold text-foreground">{mentor?.firstName} {mentor?.lastName}</h3>
-                  <p className="text-sm text-muted-foreground">{mentor?.headline || 'Mentor'}</p>
+                  <h3 className="font-bold text-foreground text-lg">{mentor?.firstName} {mentor?.lastName}</h3>
+                  <p className="text-sm text-muted-foreground">{mentor?.headline || 'Mentor & Industry Expert'}</p>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                    <span className="flex items-center gap-1 text-amber-500 font-bold">
+                      <Star className="w-3.5 h-3.5 fill-amber-500" /> {mentor?.rating || 4.9}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {typeof mentor?.totalSessions === 'number'
+                        ? `${mentor.totalSessions} session${mentor.totalSessions === 1 ? '' : 's'}`
+                        : `${mentor?.completedSessions ?? 0} sessions`}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 <div className="flex justify-between items-start">
                   <div className="text-sm text-muted-foreground">Topic</div>
-                  <div className="text-sm font-medium text-foreground text-right">{selectedSession?.title || 'General Mentorship'}</div>
+                  <div className="text-sm font-bold text-foreground text-right">{selectedSession?.title || 'General Mentorship'}</div>
                 </div>
                 <div className="flex justify-between items-start">
                   <div className="text-sm text-muted-foreground">Session Mode</div>
@@ -556,7 +691,7 @@ const BookSession = () => {
                 </div>
                 {mode === 'Offline' && (
                   <div className="flex justify-between items-start">
-                    <div className="text-sm text-muted-foreground">Location</div>
+                    <div className="text-sm text-muted-foreground">Campus Location</div>
                     <div className="text-sm font-medium text-foreground text-right">{location || 'Campus Library / Study Center'}</div>
                   </div>
                 )}
@@ -567,7 +702,7 @@ const BookSession = () => {
                   </div>
                 </div>
                 <div className="flex justify-between items-start">
-                  <div className="text-sm text-muted-foreground">Time</div>
+                  <div className="text-sm text-muted-foreground">Time Slot</div>
                   <div className="text-sm font-medium text-foreground text-right">{selectedTime || 'Not selected'}</div>
                 </div>
                 <div className="flex justify-between items-start">
@@ -575,20 +710,56 @@ const BookSession = () => {
                   <div className="text-sm font-medium text-foreground text-right">{duration} Minutes</div>
                 </div>
                 {message && (
-                  <div className="flex justify-between items-start">
-                    <div className="text-sm text-muted-foreground">Message</div>
-                    <div className="text-sm text-foreground text-right max-w-xs truncate">{message}</div>
+                  <div className="flex justify-between items-start pt-2 border-t border-border/30">
+                    <div className="text-sm text-muted-foreground">Message / Agenda</div>
+                    <div className="text-sm text-foreground text-right max-w-xs">{message}</div>
+                  </div>
+                )}
+                {goals && (
+                  <div className="flex justify-between items-start pt-2 border-t border-border/30">
+                    <div className="text-sm text-muted-foreground">Key Goals</div>
+                    <div className="text-sm text-foreground text-right max-w-xs">{goals}</div>
+                  </div>
+                )}
+                {attachmentUrl && (
+                  <div className="flex justify-between items-start pt-2 border-t border-border/30">
+                    <div className="text-sm text-muted-foreground">Link / Portfolio</div>
+                    <a
+                      href={attachmentUrl.startsWith('http') ? attachmentUrl : `https://${attachmentUrl}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-primary hover:underline text-right max-w-xs truncate flex items-center gap-1"
+                    >
+                      <Link2 className="w-3.5 h-3.5" /> {attachmentUrl}
+                    </a>
                   </div>
                 )}
               </div>
 
+              {isSelf && (
+                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-xs text-destructive flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>You cannot book a mentorship session with yourself.</span>
+                </div>
+              )}
+
               <div className="pt-6 border-t border-border/40">
                 <button
                   onClick={handleConfirm}
-                  disabled={!selectedDate || !selectedTime || isBooking}
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!selectedDate || !selectedTime || isBooking || isSelf}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  <CheckCircle2 className="w-5 h-5" /> {isBooking ? 'Booking Session...' : 'Confirm Booking'}
+                  {isBooking ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                      <span>Submitting Request to Mentor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>Confirm & Send Request to Mentor</span>
+                    </>
+                  )}
                 </button>
               </div>
 

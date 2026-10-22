@@ -583,6 +583,14 @@ const AdminSupportMessages = () => {
                     rows={4}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!isSendingReply && replyText.trim()) {
+                          handleSendReply(e);
+                        }
+                      }
+                    }}
                     placeholder={`Type your reply to ${selectedMessage.name}...`}
                     className="w-full px-4 py-3 bg-background border border-border/50 rounded-2xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                   />

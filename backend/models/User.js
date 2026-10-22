@@ -44,6 +44,18 @@ const userSchema = new mongoose.Schema({
   department: {
     type: String,
   },
+  country: {
+    type: String,
+    default: '',
+  },
+  state: {
+    type: String,
+    default: '',
+  },
+  city: {
+    type: String,
+    default: '',
+  },
   location: {
     type: String,
   },

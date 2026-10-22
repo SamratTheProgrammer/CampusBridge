@@ -99,7 +99,7 @@ router.get('/mentor/:clerkId', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     const events = await Event.find({ organizer: user._id, moderationStatus: { $ne: 'deleted' } })
-      .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company')
+      .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company username')
       .populate('attendees', 'name firstName lastName imageUrl username clerkId')
       .sort({ createdAt: -1 });
     res.json(events);
