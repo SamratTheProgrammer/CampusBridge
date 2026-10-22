@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, MessageSquareOff, MessageCircle, Languages, Cake, Smartphone, Users, Globe } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, ArrowUp, ChevronUp, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, MessageSquareOff, MessageCircle, Languages, Cake, Smartphone, Users, Globe } from 'lucide-react'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -63,6 +63,105 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
   useRealtimePosts({ setPosts, userFilterId: student?.clerkId })
   const [commentText, setCommentText] = useState('')
   const [isCommenting, setIsCommenting] = useState(false)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+
+  const [isLaunchingTop, setIsLaunchingTop] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Appears only after scrolling past several posts (around 3-4 posts, ~1250px)
+      setShowScrollTop(window.scrollY > 1250)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const scrollToTopAnimated = () => {
+    const startPosition = window.pageYOffset || document.documentElement.scrollTop
+    if (startPosition <= 0) return
+
+    setIsLaunchingTop(true)
+    const duration = Math.min(950, Math.max(650, startPosition * 0.42))
+    let startTime = null
+    let animationFrameId = null
+
+    // Cancel animation gracefully if user manually touches or scrolls during animation
+    const cancelOnInteraction = () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
+      window.removeEventListener('wheel', cancelOnInteraction)
+      window.removeEventListener('touchmove', cancelOnInteraction)
+      setIsLaunchingTop(false)
+    }
+
+    window.addEventListener('wheel', cancelOnInteraction, { passive: true, once: true })
+    window.addEventListener('touchmove', cancelOnInteraction, { passive: true, once: true })
+
+    // Luxurious easeInOutCubic curve for smooth physics-based acceleration & deceleration
+    const easeInOutCubic = (t) => {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+    }
+
+    const step = (currentTime) => {
+      if (!startTime) startTime = currentTime
+      const timeElapsed = currentTime - startTime
+      const progress = Math.min(timeElapsed / duration, 1)
+      const ease = easeInOutCubic(progress)
+
+      window.scrollTo(0, Math.round(startPosition * (1 - ease)))
+
+      if (timeElapsed < duration) {
+        animationFrameId = requestAnimationFrame(step)
+      } else {
+        window.scrollTo(0, 0)
+        setIsLaunchingTop(false)
+        window.removeEventListener('wheel', cancelOnInteraction)
+        window.removeEventListener('touchmove', cancelOnInteraction)
+      }
+    }
+
+    animationFrameId = requestAnimationFrame(step)
+  }
+
+  // Sticky left sidebar height tracking (FB-style: locks when reaching the bottom of left details)
+  const sidebarRef = useRef(null)
+  const [stickyTop, setStickyTop] = useState('5rem')
+
+  useEffect(() => {
+    const updateSticky = () => {
+      const el = sidebarRef.current
+      if (!el) return
+
+      const sidebarHeight = el.offsetHeight
+      const viewportHeight = window.innerHeight
+      const topNavbar = 80 // 5rem navbar offset
+      const bottomPadding = 32 // 2rem bottom offset so last card isn't clipped
+
+      if (sidebarHeight + topNavbar + bottomPadding <= viewportHeight) {
+        setStickyTop(`${topNavbar}px`)
+      } else {
+        const offset = viewportHeight - sidebarHeight - bottomPadding
+        setStickyTop(`${offset}px`)
+      }
+    }
+
+    updateSticky()
+    window.addEventListener('resize', updateSticky)
+
+    let observer
+    if (typeof ResizeObserver !== 'undefined' && sidebarRef.current) {
+      observer = new ResizeObserver(updateSticky)
+      observer.observe(sidebarRef.current)
+    }
+
+    const timer = setTimeout(updateSticky, 200)
+
+    return () => {
+      window.removeEventListener('resize', updateSticky)
+      if (observer) observer.disconnect()
+      clearTimeout(timer)
+    }
+  }, [student])
 
   useEffect(() => {
     if (initialUser) {
@@ -728,10 +827,15 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
         </div>
       ) : (
       <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Facebook-like Two Column Layout: Left = Details/Intro, Right = Posts Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
         
         {/* Left Column - Details */}
-        <div className="md:col-span-2 space-y-6">
+        <aside 
+          ref={sidebarRef} 
+          style={{ top: stickyTop }} 
+          className="lg:col-span-5 xl:col-span-4 lg:sticky space-y-6"
+        >
           
           {/* About */}
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
@@ -741,55 +845,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
             </p>
           </div>
 
-          {/* Experience Section */}
-          {student.experience?.length > 0 && (
-            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-primary" />
-                Experience
-              </h3>
-              <div className="space-y-4">
-                {student.experience.map((exp, idx) => (
-                  <div key={idx} className="relative pl-4 border-l-2 border-primary/20">
-                    <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
-                    <h4 className="font-semibold text-foreground text-sm">{exp.role}</h4>
-                    <p className="text-sm font-medium text-foreground/90">{exp.company}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{exp.duration}</p>
-                    {exp.description && (
-                      <p className="text-xs text-foreground/80 mt-2 whitespace-pre-wrap leading-relaxed">{exp.description}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Education Section */}
-          {student.education?.length > 0 && (
-            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-primary" />
-                Education
-              </h3>
-              <div className="space-y-4">
-                {student.education.map((edu, idx) => (
-                  <div key={idx} className="relative pl-4 border-l-2 border-primary/20">
-                    <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
-                    <h4 className="font-semibold text-foreground text-sm">{edu.degree}</h4>
-                    <p className="text-sm font-medium text-foreground/90">{edu.institution}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{edu.duration || edu.year}</p>
-                    {(edu.grade || edu.score) && <p className="text-xs text-muted-foreground mt-0.5">Grade: {edu.grade || edu.score}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column - Stats & Info */}
-        <div className="space-y-6">
-          
-          {/* Info Card */}
+          {/* Academic Info Card */}
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
               <GraduationCap className="w-5 h-5 text-primary" />
@@ -846,6 +902,50 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
             </div>
           )}
 
+          {/* Experience Section */}
+          {student.experience?.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-primary" />
+                Experience
+              </h3>
+              <div className="space-y-4">
+                {student.experience.map((exp, idx) => (
+                  <div key={idx} className="relative pl-4 border-l-2 border-primary/20">
+                    <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
+                    <h4 className="font-semibold text-foreground text-sm">{exp.role}</h4>
+                    <p className="text-sm font-medium text-foreground/90">{exp.company}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{exp.duration}</p>
+                    {exp.description && (
+                      <p className="text-xs text-foreground/80 mt-2 whitespace-pre-wrap leading-relaxed">{exp.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Education Section */}
+          {student.education?.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                Education
+              </h3>
+              <div className="space-y-4">
+                {student.education.map((edu, idx) => (
+                  <div key={idx} className="relative pl-4 border-l-2 border-primary/20">
+                    <div className="absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5" />
+                    <h4 className="font-semibold text-foreground text-sm">{edu.degree}</h4>
+                    <p className="text-sm font-medium text-foreground/90">{edu.institution}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{edu.duration || edu.year}</p>
+                    {(edu.grade || edu.score) && <p className="text-xs text-muted-foreground mt-0.5">Grade: {edu.grade || edu.score}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Languages Known Card */}
           {student.languages?.length > 0 && (
             <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
@@ -871,14 +971,42 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
               </div>
             </div>
           )}
-        </div>
-      </div>
+        </aside>
 
-      {/* Posts Section */}
-      <div className="space-y-4 mt-6">
-        <div className="sticky top-0 md:top-16 z-30 bg-background pt-2.5 pb-2 border-b border-border/40 mb-2 px-3 sm:px-1 shadow-2xs">
-          <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
-        </div>
+        {/* Right Column - Posts Feed */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-4 min-w-0">
+          <div className="sticky top-0 md:top-16 z-30 bg-background/95 backdrop-blur pt-2.5 pb-2 border-b border-border/40 mb-2 px-3 sm:px-1 shadow-2xs">
+            <h2 className="text-xl font-bold text-foreground px-1">Posts</h2>
+          </div>
+
+          {/* Instagram-style Transparent Smooth Scroll-To-Top Arrow - centered over Posts Feed */}
+          <div className="sticky top-20 md:top-28 z-40 flex justify-center -my-3 pointer-events-none">
+            <AnimatePresence>
+              {showScrollTop && (
+                <motion.button
+                  initial={{ opacity: 0, y: -15, scale: 0.8 }}
+                  animate={isLaunchingTop 
+                    ? { opacity: 0, y: -35, scale: 0.75 } 
+                    : { opacity: 1, y: [0, -5, 0], scale: 1 }
+                  }
+                  exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                  whileHover={!isLaunchingTop ? { scale: 1.15, y: -4 } : {}}
+                  whileTap={!isLaunchingTop ? { scale: 0.9, y: -10 } : {}}
+                  transition={{
+                    y: isLaunchingTop ? { duration: 0.35, ease: "easeOut" } : { repeat: Infinity, duration: 2.2, ease: "easeInOut" },
+                    opacity: { duration: 0.25 },
+                    scale: { type: 'spring', damping: 20, stiffness: 350 }
+                  }}
+                  onClick={scrollToTopAnimated}
+                  className="pointer-events-auto w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 dark:bg-card/60 dark:hover:bg-card/85 backdrop-blur-md border border-white/20 text-white shadow-xl flex items-center justify-center cursor-pointer transition-colors group"
+                  title="Scroll smoothly to top"
+                  aria-label="Scroll to top"
+                >
+                  <ChevronUp className={`w-5 h-5 text-white/95 group-hover:text-white transition-transform stroke-[2.5] ${isLaunchingTop ? '-translate-y-2' : 'group-hover:-translate-y-1'}`} />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
         {isLoadingPosts ? (
           <div className="flex justify-center p-8">
             <CardSkeleton />
@@ -1083,10 +1211,10 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
                         }}
                         className="mb-4 bg-muted/30 hover:bg-muted/60 border border-border/50 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200 group"
                       >
-                        {/* FB-Style Top Image Banner */}
+                        {/* Event Image Banner */}
                         {(post.imageUrl || post.eventDetails.imageUrl) ? (
                           <div 
-                            className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
+                            className="w-full h-44 sm:h-52 bg-muted overflow-hidden relative rounded-t-xl"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (typeof setViewerData === 'function') {
@@ -1332,6 +1460,7 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
             <p className="text-muted-foreground text-sm">No posts yet.</p>
           </div>
         )}
+        </div>
       </div>
       </>
       )}
@@ -1442,6 +1571,8 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
       currentUserId={user?.id}
       currentUserRole="mentor"
     />
+
+    {/* Modals */}
     </div>
     </>
   )

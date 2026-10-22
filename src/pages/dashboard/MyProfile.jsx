@@ -1,6 +1,6 @@
 import PostSkeleton from '../../components/skeletons/PostSkeleton'
 import React, { useState, useEffect, useRef } from 'react'
-import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, User, Star, ThumbsUp, MessageCircle, Loader2, MessageSquareOff, Eye, EyeOff, Download, Copy, Languages, Cake, Smartphone, Users, Lock, CheckCircle2 } from 'lucide-react'
+import { Edit3, MapPin, Briefcase, GraduationCap, Link as LinkIcon, Calendar, Clock, Code, Heart, MessageSquare, Share2, MoreHorizontal, Send, Trash2, X, Image as ImageIcon, Globe, FileText, BookOpen, AlertCircle, ArrowRight, ArrowLeft, ArrowUp, ChevronUp, User, Star, ThumbsUp, MessageCircle, Loader2, MessageSquareOff, Eye, EyeOff, Download, Copy, Languages, Cake, Smartphone, Users, Lock, CheckCircle2 } from 'lucide-react'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import { FaLinkedin, FaGithub, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -81,113 +81,105 @@ const MyProfile = () => {
   const profileMenuRef = useRef(null)
   const contentGridRef = useRef(null)
   const postsContainerRef = useRef(null)
+  const [showScrollTop, setShowScrollTop] = useState(false)
 
-  // Two-stage coordinated scroll: window scrolls down until content grid reaches navbar,
-  // then sticks firmly while only the right posts column scrolls smoothly.
+  const [isLaunchingTop, setIsLaunchingTop] = useState(false)
+
   useEffect(() => {
-    const handleWheel = (e) => {
-      if (window.innerWidth < 768) return; // Natural scroll on mobile devices
-      const contentGrid = contentGridRef.current;
-      const postsContainer = postsContainerRef.current;
-      const detailsContainer = detailsContainerRef.current;
-      if (!contentGrid || !postsContainer || !detailsContainer) return;
+    const handleScroll = () => {
+      // Appears only after scrolling past several posts (around 3-4 posts, ~1250px)
+      setShowScrollTop(window.scrollY > 1250)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
-      const targetTop = 88; // 64px header + 24px padding
+  const scrollToTopAnimated = () => {
+    const startPosition = window.pageYOffset || document.documentElement.scrollTop
+    if (startPosition <= 0) return
 
-      const rect = contentGrid.getBoundingClientRect();
+    setIsLaunchingTop(true)
+    const duration = Math.min(950, Math.max(650, startPosition * 0.42))
+    let startTime = null
+    let animationFrameId = null
 
-      if (e.deltaY > 0) {
-        // SCROLLING DOWN
-        if (rect.top > targetTop + 1) {
-          // Stage 1: Window has not yet reached the content grid
-          e.preventDefault();
-          const neededScroll = rect.top - targetTop;
-          if (e.deltaY <= neededScroll) {
-            window.scrollBy({ top: e.deltaY, behavior: 'instant' });
-          } else {
-            window.scrollBy({ top: neededScroll, behavior: 'instant' });
-            if (detailsContainer.contains(e.target)) {
-              detailsContainer.scrollTop += (e.deltaY - neededScroll);
-            } else {
-              postsContainer.scrollTop += (e.deltaY - neededScroll);
-            }
-          }
-        } else {
-          // Stage 2: Locked at content grid!
-          e.preventDefault();
-          if (detailsContainer.contains(e.target)) {
-            detailsContainer.scrollTop += e.deltaY;
-          } else {
-            postsContainer.scrollTop += e.deltaY;
-          }
-        }
-      } else if (e.deltaY < 0) {
-        // SCROLLING UP
-        if (detailsContainer.contains(e.target) && detailsContainer.scrollTop > 0) {
-          e.preventDefault();
-          const canScrollUp = detailsContainer.scrollTop;
-          if (-e.deltaY <= canScrollUp) {
-            detailsContainer.scrollTop += e.deltaY;
-          } else {
-            detailsContainer.scrollTop = 0;
-            const leftover = e.deltaY + canScrollUp;
-            window.scrollBy({ top: leftover, behavior: 'instant' });
-          }
-        } else if (!detailsContainer.contains(e.target) && postsContainer.scrollTop > 0) {
-          e.preventDefault();
-          const canScrollUp = postsContainer.scrollTop;
-          if (-e.deltaY <= canScrollUp) {
-            postsContainer.scrollTop += e.deltaY;
-          } else {
-            postsContainer.scrollTop = 0;
-            const leftover = e.deltaY + canScrollUp;
-            window.scrollBy({ top: leftover, behavior: 'instant' });
-          }
-        } else if (window.scrollY > 0) {
-          // Neither container has internal scroll up left, scroll window back UP to reveal cover & avatar
-          e.preventDefault();
-          window.scrollBy({ top: e.deltaY, behavior: 'instant' });
-        }
+    // Cancel animation gracefully if user manually touches or scrolls during animation
+    const cancelOnInteraction = () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
+      window.removeEventListener('wheel', cancelOnInteraction)
+      window.removeEventListener('touchmove', cancelOnInteraction)
+      setIsLaunchingTop(false)
+    }
+
+    window.addEventListener('wheel', cancelOnInteraction, { passive: true, once: true })
+    window.addEventListener('touchmove', cancelOnInteraction, { passive: true, once: true })
+
+    // Luxurious easeInOutCubic curve for smooth physics-based acceleration & deceleration
+    const easeInOutCubic = (t) => {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+    }
+
+    const step = (currentTime) => {
+      if (!startTime) startTime = currentTime
+      const timeElapsed = currentTime - startTime
+      const progress = Math.min(timeElapsed / duration, 1)
+      const ease = easeInOutCubic(progress)
+
+      window.scrollTo(0, Math.round(startPosition * (1 - ease)))
+
+      if (timeElapsed < duration) {
+        animationFrameId = requestAnimationFrame(step)
+      } else {
+        window.scrollTo(0, 0)
+        setIsLaunchingTop(false)
+        window.removeEventListener('wheel', cancelOnInteraction)
+        window.removeEventListener('touchmove', cancelOnInteraction)
       }
-    };
+    }
 
-    const handleKeyDown = (e) => {
-      if (window.innerWidth < 768) return;
-      const contentGrid = contentGridRef.current;
-      const postsContainer = postsContainerRef.current;
-      const detailsContainer = detailsContainerRef.current;
-      if (!contentGrid || !postsContainer || !detailsContainer) return;
+    animationFrameId = requestAnimationFrame(step)
+  }
 
-      const activeEl = document.activeElement;
-      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
-        return;
+  // Sticky left sidebar height tracking (FB-style: locks when reaching the bottom of left details)
+  const sidebarRef = useRef(null)
+  const [stickyTop, setStickyTop] = useState('5rem')
+
+  useEffect(() => {
+    const updateSticky = () => {
+      const el = sidebarRef.current
+      if (!el) return
+
+      const sidebarHeight = el.offsetHeight
+      const viewportHeight = window.innerHeight
+      const topNavbar = 80 // 5rem navbar offset
+      const bottomPadding = 32 // 2rem bottom offset so last card isn't clipped
+
+      if (sidebarHeight + topNavbar + bottomPadding <= viewportHeight) {
+        setStickyTop(`${topNavbar}px`)
+      } else {
+        const offset = viewportHeight - sidebarHeight - bottomPadding
+        setStickyTop(`${offset}px`)
       }
+    }
 
-      const targetTop = 88;
-      const rect = contentGrid.getBoundingClientRect();
+    updateSticky()
+    window.addEventListener('resize', updateSticky)
 
-      // Simple routing: if mouse is over details, scroll details, else posts
-      // but keydown doesn't easily know mouse position. Default to postsContainer.
-      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
-        if (rect.top <= targetTop + 2) {
-          e.preventDefault();
-          postsContainer.scrollTop += (e.key === 'ArrowDown' ? 80 : 300);
-        }
-      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
-        if (postsContainer.scrollTop > 0) {
-          e.preventDefault();
-          postsContainer.scrollTop -= (e.key === 'ArrowUp' ? 80 : 300);
-        }
-      }
-    };
+    let observer
+    if (typeof ResizeObserver !== 'undefined' && sidebarRef.current) {
+      observer = new ResizeObserver(updateSticky)
+      observer.observe(sidebarRef.current)
+    }
 
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('keydown', handleKeyDown);
+    const timer = setTimeout(updateSticky, 200)
+
     return () => {
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
+      window.removeEventListener('resize', updateSticky)
+      if (observer) observer.disconnect()
+      clearTimeout(timer)
+    }
+  }, [dbUser, mongoProfile])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -925,10 +917,14 @@ const MyProfile = () => {
         </div>
       </div>
 
-      <div ref={contentGridRef} className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      <div ref={contentGridRef} className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
         
         {/* Left Column - Details */}
-        <div className="md:col-span-1 space-y-6 md:h-[calc(100vh-1.5rem)] md:overflow-y-auto scrollbar-none">
+        <aside 
+          ref={sidebarRef} 
+          style={{ top: stickyTop }} 
+          className="lg:col-span-5 xl:col-span-4 lg:sticky space-y-6"
+        >
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-foreground mb-4">About Me</h3>
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
@@ -1037,11 +1033,11 @@ const MyProfile = () => {
               </div>
             </div>
           )}
-        </div>
+        </aside>
 
         {/* Right Column - User Posts & Reviews */}
-        <div ref={postsContainerRef} className="md:col-span-2 space-y-6 md:h-[calc(100vh-1.5rem)] md:overflow-y-auto scrollbar-none">
-          <div className="sticky top-0 z-30 bg-background pt-2 pb-2 px-4 sm:px-0 border-b border-border/40 flex items-center justify-between gap-4 mb-2">
+        <div ref={postsContainerRef} className="lg:col-span-7 xl:col-span-8 space-y-6 min-w-0">
+          <div className="sticky top-0 md:top-16 z-30 bg-background/95 backdrop-blur pt-2.5 pb-2 px-4 sm:px-0 border-b border-border/40 flex items-center justify-between gap-4 mb-2 shadow-2xs">
             {isMentorUser ? (
               <div className="flex gap-4">
                 <button
@@ -1069,6 +1065,35 @@ const MyProfile = () => {
                 </span>
               </div>
             )}
+          </div>
+
+          {/* Instagram-style Transparent Smooth Scroll-To-Top Arrow - centered over Posts Feed */}
+          <div className="sticky top-20 md:top-28 z-40 flex justify-center -my-3 pointer-events-none">
+            <AnimatePresence>
+              {showScrollTop && (
+                <motion.button
+                  initial={{ opacity: 0, y: -15, scale: 0.8 }}
+                  animate={isLaunchingTop 
+                    ? { opacity: 0, y: -35, scale: 0.75 } 
+                    : { opacity: 1, y: [0, -5, 0], scale: 1 }
+                  }
+                  exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                  whileHover={!isLaunchingTop ? { scale: 1.15, y: -4 } : {}}
+                  whileTap={!isLaunchingTop ? { scale: 0.9, y: -10 } : {}}
+                  transition={{
+                    y: isLaunchingTop ? { duration: 0.35, ease: "easeOut" } : { repeat: Infinity, duration: 2.2, ease: "easeInOut" },
+                    opacity: { duration: 0.25 },
+                    scale: { type: 'spring', damping: 20, stiffness: 350 }
+                  }}
+                  onClick={scrollToTopAnimated}
+                  className="pointer-events-auto w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 dark:bg-card/60 dark:hover:bg-card/85 backdrop-blur-md border border-white/20 text-white shadow-xl flex items-center justify-center cursor-pointer transition-colors group"
+                  title="Scroll smoothly to top"
+                  aria-label="Scroll to top"
+                >
+                  <ChevronUp className={`w-5 h-5 text-white/95 group-hover:text-white transition-transform stroke-[2.5] ${isLaunchingTop ? '-translate-y-2' : 'group-hover:-translate-y-1'}`} />
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
 
           {profileTab === 'reviews' && isMentorUser ? (
@@ -1403,7 +1428,7 @@ const MyProfile = () => {
                               >
                                 {(post.imageUrl || post.eventDetails.imageUrl) ? (
                                   <div 
-                                    className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
+                                    className="w-full h-44 sm:h-52 bg-muted overflow-hidden relative rounded-t-xl"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (typeof setViewerData === 'function') {
@@ -1735,6 +1760,8 @@ const MyProfile = () => {
         currentUserId={user?.id}
         currentUserRole={isMentorUser ? 'mentor' : 'student'}
       />
+
+      {/* Modals */}
     </div>
   )
 }

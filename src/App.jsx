@@ -17,6 +17,7 @@ import { AnimatePresence } from 'framer-motion'
 import AppToaster from './components/common/AppToaster'
 import { ClerkProvider, useUser } from '@clerk/clerk-react'
 import ErrorBoundary from './components/ErrorBoundary'
+import ErrorPage from './pages/ErrorPage'
 import RouteIntegrityLoader from './components/RouteIntegrityLoader'
 import EventPopup from './components/EventPopup'
 import IndependenceDayConfetti from './components/IndependenceDayConfetti'
@@ -276,7 +277,12 @@ function AnimatedRoutes() {
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        {/* Dynamic Error & 404 Routes */}
+        <Route path="/error" element={<PageTransition><div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-200"><Navbar /><main className="flex-1"><ErrorPage /></main><Footer /></div></PageTransition>} />
+        <Route path="/error/:code" element={<PageTransition><div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-200"><Navbar /><main className="flex-1"><ErrorPage /></main><Footer /></div></PageTransition>} />
+        <Route path="/404" element={<PageTransition><div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-200"><Navbar /><main className="flex-1"><ErrorPage errorCode="404" /></main><Footer /></div></PageTransition>} />
+        <Route path="*" element={<PageTransition><div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-200"><Navbar /><main className="flex-1"><ErrorPage errorCode="404" /></main><Footer /></div></PageTransition>} />
       </Routes>
     </AnimatePresence>
   )

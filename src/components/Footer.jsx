@@ -9,17 +9,17 @@ import footerBg from '../assets/footer-logo.png'
 const Footer = () => {
   return (
     <footer 
-      className="bg-background border-t pt-16 pb-8 bg-no-repeat bg-[length:240px_auto] sm:bg-cover bg-bottom sm:bg-center relative overflow-hidden"
+      className="bg-background border-t pt-12 pb-8 bg-no-repeat bg-[length:240px_auto] sm:bg-cover bg-bottom sm:bg-center relative overflow-hidden"
       style={{ backgroundImage: `url(${footerBg})` }}
     >
-      <div className="absolute inset-0 bg-background/90 dark:bg-background/80 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-background/95 dark:bg-background/90 pointer-events-none"></div>
       <div className="container max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 mb-10">
           {/* Brand & Socials */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center ">
-              <img src={logoLight} alt="CampusBridge" className="h-12 md:h-24 w-auto block dark:hidden" />
-              <img src={logoDark} alt="CampusBridge" className="h-12 md:h-24 w-auto hidden dark:block" />
+            <Link to="/" className="flex items-center mb-3">
+              <img src={logoLight} alt="CampusBridge" className="h-12 md:h-16 w-auto block dark:hidden" />
+              <img src={logoDark} alt="CampusBridge" className="h-12 md:h-16 w-auto hidden dark:block" />
             </Link>
             <p className="text-muted-foreground mb-6 max-w-sm">
               Empowering students and mentor to connect, grow, and build successful careers together.

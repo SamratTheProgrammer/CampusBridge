@@ -1,7 +1,7 @@
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
-import React, { useState, useEffect, useCallback } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, Languages, Cake, Smartphone, Users } from 'lucide-react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, ArrowUp, ChevronUp, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, Languages, Cake, Smartphone, Users } from 'lucide-react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -75,7 +75,105 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('posts')
   const [replyingReviewId, setReplyingReviewId] = useState(null)
   const [replyText, setReplyText] = useState('')
-  const [isSubmittingReply, setIsSubmittingReply] = useState(false)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+
+  const [isLaunchingTop, setIsLaunchingTop] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Appears only after scrolling past several posts (around 3-4 posts, ~1250px)
+      setShowScrollTop(window.scrollY > 1250)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const scrollToTopAnimated = () => {
+    const startPosition = window.pageYOffset || document.documentElement.scrollTop
+    if (startPosition <= 0) return
+
+    setIsLaunchingTop(true)
+    const duration = Math.min(950, Math.max(650, startPosition * 0.42))
+    let startTime = null
+    let animationFrameId = null
+
+    // Cancel animation gracefully if user manually touches or scrolls during animation
+    const cancelOnInteraction = () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
+      window.removeEventListener('wheel', cancelOnInteraction)
+      window.removeEventListener('touchmove', cancelOnInteraction)
+      setIsLaunchingTop(false)
+    }
+
+    window.addEventListener('wheel', cancelOnInteraction, { passive: true, once: true })
+    window.addEventListener('touchmove', cancelOnInteraction, { passive: true, once: true })
+
+    // Luxurious easeInOutCubic curve for smooth physics-based acceleration & deceleration
+    const easeInOutCubic = (t) => {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+    }
+
+    const step = (currentTime) => {
+      if (!startTime) startTime = currentTime
+      const timeElapsed = currentTime - startTime
+      const progress = Math.min(timeElapsed / duration, 1)
+      const ease = easeInOutCubic(progress)
+
+      window.scrollTo(0, Math.round(startPosition * (1 - ease)))
+
+      if (timeElapsed < duration) {
+        animationFrameId = requestAnimationFrame(step)
+      } else {
+        window.scrollTo(0, 0)
+        setIsLaunchingTop(false)
+        window.removeEventListener('wheel', cancelOnInteraction)
+        window.removeEventListener('touchmove', cancelOnInteraction)
+      }
+    }
+
+    animationFrameId = requestAnimationFrame(step)
+  }
+
+  // Sticky left sidebar height tracking (FB-style: locks when reaching the bottom of left details)
+  const sidebarRef = useRef(null)
+  const [stickyTop, setStickyTop] = useState('5rem')
+
+  useEffect(() => {
+    const updateSticky = () => {
+      const el = sidebarRef.current
+      if (!el) return
+
+      const sidebarHeight = el.offsetHeight
+      const viewportHeight = window.innerHeight
+      const topNavbar = 80 // 5rem navbar offset
+      const bottomPadding = 32 // 2rem bottom offset so last card isn't clipped
+
+      if (sidebarHeight + topNavbar + bottomPadding <= viewportHeight) {
+        setStickyTop(`${topNavbar}px`)
+      } else {
+        const offset = viewportHeight - sidebarHeight - bottomPadding
+        setStickyTop(`${offset}px`)
+      }
+    }
+
+    updateSticky()
+    window.addEventListener('resize', updateSticky)
+
+    let observer
+    if (typeof ResizeObserver !== 'undefined' && sidebarRef.current) {
+      observer = new ResizeObserver(updateSticky)
+      observer.observe(sidebarRef.current)
+    }
+
+    const timer = setTimeout(updateSticky, 200)
+
+    return () => {
+      window.removeEventListener('resize', updateSticky)
+      if (observer) observer.disconnect()
+      clearTimeout(timer)
+    }
+  }, [mentor])
 
   useEffect(() => {
     if (initialUser) {
@@ -790,238 +888,269 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
         </div>
       ) : (
         <>
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Facebook-like Two Column Layout: Left = Details/Intro, Right = Posts Feed & Reviews */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
 
-            {/* Left Column (Main Content) */}
-            <div className="lg:col-span-2 space-y-6">
-          {/* About Section */}
-          <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground mb-4">About</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-              {mentor.aboutMe || "No about information provided yet."}
-            </p>
-          </div>
-
-          {/* Experience Section */}
-          {mentor.experience && mentor.experience.length > 0 && (
-            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-foreground mb-4">Experience</h2>
-              <div className="space-y-6">
-                {mentor.experience.map((exp, index) => (
-                  <div key={index} className="flex gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 border border-border/50">
-                      <Briefcase className="w-5 h-5 text-foreground/70" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-foreground text-sm sm:text-base">{exp.title}</h4>
-                      <p className="text-sm text-foreground/80 mt-0.5">{exp.company}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{exp.type ? `${exp.type} • ` : ''}{exp.duration}</p>
-                      {exp.description && (
-                        <p className="text-sm text-foreground/70 mt-2 leading-relaxed">{exp.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+            {/* Left Column (Details & Info) */}
+            <aside 
+              ref={sidebarRef} 
+              style={{ top: stickyTop }} 
+              className="lg:col-span-5 xl:col-span-4 lg:sticky space-y-6"
+            >
+              {/* About Section */}
+              <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-foreground mb-4">About</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {mentor.aboutMe || "No about information provided yet."}
+                </p>
               </div>
-            </div>
-          )}
 
-          {/* Education Section */}
-          {mentor.education && mentor.education.length > 0 && (
-            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-foreground mb-4">Education</h2>
-              <div className="space-y-6">
-                {mentor.education.map((edu, index) => (
-                  <div key={index} className="flex gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 border border-border/50">
-                      <GraduationCap className="w-5 h-5 text-foreground/70" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        {edu.level && edu.level !== 'Other' && <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">{edu.level}</span>}
-                        <h4 className="font-bold text-foreground text-sm sm:text-base">{edu.degree}</h4>
-                      </div>
-                      <p className="text-sm text-foreground/80 mt-0.5">{edu.institution}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{edu.duration}</p>
-                      {edu.grade && <p className="text-sm text-foreground/70 mt-1">Grade: {edu.grade}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column (Sidebar) */}
-        <div className="space-y-6">
-          {/* Contact Details */}
-          <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground mb-4">Contact & Links</h2>
-            <ul className="space-y-4">
-              <li className="flex items-start gap-4">
-                <Mail className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Email</p>
-                  <a href={`mailto:${mentor.email}`} className="text-sm text-primary hover:underline">{mentor.email}</a>
+              {/* Total Experience Card */}
+              {mentor.yearsOfExperience && (
+                <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Total Experience</h2>
+                  <p className="text-lg font-extrabold text-foreground flex items-center gap-2 mt-1">
+                    <Briefcase className="w-5 h-5 text-primary" />
+                    {(() => {
+                      const num = parseInt(String(mentor.yearsOfExperience).replace(/[^0-9]/g, ''), 10);
+                      if (isNaN(num)) return mentor.yearsOfExperience;
+                      return num === 1 ? '1 Year' : `${num} Years`;
+                    })()}
+                  </p>
                 </div>
-              </li>
-              {mentor?.phone && (isOwner || mentor?.phoneVisibility === 'public' || (mentor?.phoneVisibility === 'connections' && connectionStatus === 'accepted')) && (
-                <li className="flex items-start gap-4">
-                  <Smartphone className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Phone</p>
-                      {mentor.isPhoneVerified && (
-                        <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-full">
-                          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
-                          Verified
-                        </span>
-                      )}
-                      {isOwner && mentor.phoneVisibility && (
-                        <span className="inline-flex items-center gap-1 text-[9px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border/50 capitalize">
-                          {mentor.phoneVisibility === 'private' ? (
-                            <><Lock className="w-2 h-2" /> Hidden</>
-                          ) : mentor.phoneVisibility === 'connections' ? (
-                            <><Users className="w-2 h-2 text-blue-500" /> Connections</>
-                          ) : (
-                            <><Globe className="w-2 h-2 text-emerald-500" /> Public</>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    <a href={`tel:${mentor.phone}`} className="text-sm font-mono text-primary hover:underline">
-                      {mentor.phone}
-                    </a>
-                  </div>
-                </li>
               )}
-              {mentor.socialLinks?.map((link, i) => {
-                let Icon = Globe;
-                let colorClass = 'text-muted-foreground';
-                if (link.platform === 'LinkedIn') { Icon = Linkedin; colorClass = 'text-[#0A66C2]'; }
-                if (link.platform === 'GitHub') { Icon = Github; }
-                if (link.platform === 'Instagram') { Icon = Instagram; colorClass = 'text-[#E1306C]'; }
-                if (link.platform === 'Facebook') { Icon = Facebook; colorClass = 'text-[#1877F2]'; }
-                if (link.platform === 'Twitter') { Icon = Twitter; colorClass = 'text-[#1DA1F2]'; }
-                
-                return (
-                  <li key={i} className="flex items-center gap-4">
-                    <Icon className={`w-5 h-5 shrink-0 ${colorClass}`} />
+
+              {/* Skills */}
+              {mentor.skills && mentor.skills.length > 0 && (
+                <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold text-foreground mb-4">Skills & Expertise</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {mentor.skills.map((skill, index) => (
+                      <span key={index} className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-lg text-xs font-medium">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Experience Section */}
+              {mentor.experience && mentor.experience.length > 0 && (
+                <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold text-foreground mb-4">Experience</h2>
+                  <div className="space-y-6">
+                    {mentor.experience.map((exp, index) => (
+                      <div key={index} className="flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 border border-border/50">
+                          <Briefcase className="w-5 h-5 text-foreground/70" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-foreground text-sm sm:text-base">{exp.title}</h4>
+                          <p className="text-sm text-foreground/80 mt-0.5">{exp.company}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{exp.type ? `${exp.type} • ` : ''}{exp.duration}</p>
+                          {exp.description && (
+                            <p className="text-sm text-foreground/70 mt-2 leading-relaxed">{exp.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Education Section */}
+              {mentor.education && mentor.education.length > 0 && (
+                <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold text-foreground mb-4">Education</h2>
+                  <div className="space-y-6">
+                    {mentor.education.map((edu, index) => (
+                      <div key={index} className="flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 border border-border/50">
+                          <GraduationCap className="w-5 h-5 text-foreground/70" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            {edu.level && edu.level !== 'Other' && <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">{edu.level}</span>}
+                            <h4 className="font-bold text-foreground text-sm sm:text-base">{edu.degree}</h4>
+                          </div>
+                          <p className="text-sm text-foreground/80 mt-0.5">{edu.institution}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{edu.duration}</p>
+                          {edu.grade && <p className="text-sm text-foreground/70 mt-1">Grade: {edu.grade}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Languages Known Card */}
+              {mentor.languages && mentor.languages.length > 0 && (
+                <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                    <Languages className="w-5 h-5 text-primary" />
+                    Languages Known
+                  </h2>
+                  <div className="flex flex-wrap gap-2.5">
+                    {mentor.languages.map((item, idx) => {
+                      const langName = typeof item === 'object' ? item.language : item;
+                      const prof = typeof item === 'object' ? item.proficiency : null;
+                      return (
+                        <div key={idx} className="bg-muted border border-border/50 rounded-xl px-3.5 py-1.5 flex items-center gap-2">
+                          <span className="text-xs font-bold text-foreground">{langName}</span>
+                          {prof && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${getProficiencyBadgeClass(prof)}`}>
+                              {prof}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Contact Details */}
+              <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-foreground mb-4">Contact & Links</h2>
+                <ul className="space-y-4">
+                  <li className="flex items-start gap-4">
+                    <Mail className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">{link.platform}</p>
-                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline max-w-[200px] truncate block">
-                        {link.url}
-                      </a>
+                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Email</p>
+                      <a href={`mailto:${mentor.email}`} className="text-sm text-primary hover:underline">{mentor.email}</a>
                     </div>
                   </li>
-                )
-              })}
-            </ul>
-          </div>
-
-          {/* Total Experience Card */}
-          {mentor.yearsOfExperience && (
-            <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Total Experience</h2>
-              <p className="text-lg font-extrabold text-foreground flex items-center gap-2 mt-1">
-                <Briefcase className="w-5 h-5 text-primary" />
-                {(() => {
-                  const num = parseInt(String(mentor.yearsOfExperience).replace(/[^0-9]/g, ''), 10);
-                  if (isNaN(num)) return mentor.yearsOfExperience;
-                  return num === 1 ? '1 Year' : `${num} Years`;
-                })()}
-              </p>
-            </div>
-          )}
-
-          {/* Skills */}
-          {mentor.skills && mentor.skills.length > 0 && (
-            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-foreground mb-4">Skills</h2>
-              <div className="flex flex-wrap gap-2">
-                {mentor.skills.map((skill, index) => (
-                  <span key={index} className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-lg text-xs font-medium">
-                    {skill}
-                  </span>
-                ))}
+                  {mentor?.phone && (isOwner || mentor?.phoneVisibility === 'public' || (mentor?.phoneVisibility === 'connections' && connectionStatus === 'accepted')) && (
+                    <li className="flex items-start gap-4">
+                      <Smartphone className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <p className="text-xs font-medium text-muted-foreground uppercase">Phone</p>
+                          {mentor.isPhoneVerified && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-full">
+                              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                              Verified
+                            </span>
+                          )}
+                          {isOwner && mentor.phoneVisibility && (
+                            <span className="inline-flex items-center gap-1 text-[9px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border/50 capitalize">
+                              {mentor.phoneVisibility === 'private' ? (
+                                <><Lock className="w-2 h-2" /> Hidden</>
+                              ) : mentor.phoneVisibility === 'connections' ? (
+                                <><Users className="w-2 h-2 text-blue-500" /> Connections</>
+                              ) : (
+                                <><Globe className="w-2 h-2 text-emerald-500" /> Public</>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        <a href={`tel:${mentor.phone}`} className="text-sm font-mono text-primary hover:underline">
+                          {mentor.phone}
+                        </a>
+                      </div>
+                    </li>
+                  )}
+                  {mentor.socialLinks?.map((link, i) => {
+                    let Icon = Globe;
+                    let colorClass = 'text-muted-foreground';
+                    if (link.platform === 'LinkedIn') { Icon = Linkedin; colorClass = 'text-[#0A66C2]'; }
+                    if (link.platform === 'GitHub') { Icon = Github; }
+                    if (link.platform === 'Instagram') { Icon = Instagram; colorClass = 'text-[#E1306C]'; }
+                    if (link.platform === 'Facebook') { Icon = Facebook; colorClass = 'text-[#1877F2]'; }
+                    if (link.platform === 'Twitter') { Icon = Twitter; colorClass = 'text-[#1DA1F2]'; }
+                    
+                    return (
+                      <li key={i} className="flex items-center gap-4">
+                        <Icon className={`w-5 h-5 shrink-0 ${colorClass}`} />
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase mb-1">{link.platform}</p>
+                          <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline max-w-[200px] truncate block">
+                            {link.url}
+                          </a>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
               </div>
-            </div>
-          )}
+            </aside>
 
-          {/* Languages Known Card */}
-          {mentor.languages && mentor.languages.length > 0 && (
-            <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                <Languages className="w-5 h-5 text-primary" />
-                Languages Known
-              </h2>
-              <div className="flex flex-wrap gap-2.5">
-                {mentor.languages.map((item, idx) => {
-                  const langName = typeof item === 'object' ? item.language : item;
-                  const prof = typeof item === 'object' ? item.proficiency : null;
-                  return (
-                    <div key={idx} className="bg-muted border border-border/50 rounded-xl px-3.5 py-1.5 flex items-center gap-2">
-                      <span className="text-xs font-bold text-foreground">{langName}</span>
-                      {prof && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${getProficiencyBadgeClass(prof)}`}>
-                          {prof}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
+            {/* Right Column (Posts Feed & Reviews) */}
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6 min-w-0">
+              {/* Content Tabs */}
+              <div id="profile-content-tabs" className="sticky top-0 md:top-16 z-30 bg-background/95 backdrop-blur border-b border-border/50 pt-2.5 px-3 sm:px-0 flex items-center justify-between gap-4 shadow-2xs">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setActiveTab('posts')}
+                    className={`pb-3 px-4 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+                      activeTab === 'posts'
+                        ? 'text-primary border-b-2 border-primary'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Posts
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-normal">
+                      {posts.length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('reviews')}
+                    className={`pb-3 px-4 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+                      activeTab === 'reviews'
+                        ? 'text-primary border-b-2 border-primary'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Star className="w-3.5 h-3.5 fill-current text-yellow-500" />
+                    Reviews
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 font-semibold border border-yellow-400/20">
+                      {mentorStats?.totalRatings || 0}
+                    </span>
+                  </button>
+                </div>
+
+                {activeTab === 'reviews' && user && user.id !== (mentor?.clerkId || mentor?._id) && (
+                  <button
+                    onClick={() => {
+                      setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
+                      setIsReviewModalOpen(true);
+                    }}
+                    className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 mb-2"
+                  >
+                    <Star className="w-3 h-3 fill-current" />
+                    Write a Review
+                  </button>
+                )}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Content Tabs */}
-      <div id="profile-content-tabs" className="mt-8 sticky top-0 md:top-16 z-30 bg-background border-b border-border/50 pt-2.5 px-3 sm:px-0 flex items-center justify-between gap-4 shadow-2xs">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('posts')}
-            className={`pb-3 px-4 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
-              activeTab === 'posts'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Posts
-            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-normal">
-              {posts.length}
-            </span>
-          </button>
-          <button
-            onClick={() => setActiveTab('reviews')}
-            className={`pb-3 px-4 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
-              activeTab === 'reviews'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Star className="w-3.5 h-3.5 fill-current text-yellow-500" />
-            Reviews
-            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 font-semibold border border-yellow-400/20">
-              {mentorStats?.totalRatings || 0}
-            </span>
-          </button>
-        </div>
-
-        {activeTab === 'reviews' && user && user.id !== (mentor?.clerkId || mentor?._id) && (
-          <button
-            onClick={() => {
-              setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
-              setIsReviewModalOpen(true);
-            }}
-            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 mb-2"
-          >
-            <Star className="w-3 h-3 fill-current" />
-            Write a Review
-          </button>
-        )}
-      </div>
+              {/* Instagram-style Transparent Smooth Scroll-To-Top Arrow - centered over Posts Feed */}
+              <div className="sticky top-20 md:top-28 z-40 flex justify-center -my-3 pointer-events-none">
+                <AnimatePresence>
+                  {showScrollTop && (
+                    <motion.button
+                      initial={{ opacity: 0, y: -15, scale: 0.8 }}
+                      animate={isLaunchingTop 
+                        ? { opacity: 0, y: -35, scale: 0.75 } 
+                        : { opacity: 1, y: [0, -5, 0], scale: 1 }
+                      }
+                      exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                      whileHover={!isLaunchingTop ? { scale: 1.15, y: -4 } : {}}
+                      whileTap={!isLaunchingTop ? { scale: 0.9, y: -10 } : {}}
+                      transition={{
+                        y: isLaunchingTop ? { duration: 0.35, ease: "easeOut" } : { repeat: Infinity, duration: 2.2, ease: "easeInOut" },
+                        opacity: { duration: 0.25 },
+                        scale: { type: 'spring', damping: 20, stiffness: 350 }
+                      }}
+                      onClick={scrollToTopAnimated}
+                      className="pointer-events-auto w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 dark:bg-card/60 dark:hover:bg-card/85 backdrop-blur-md border border-white/20 text-white shadow-xl flex items-center justify-center cursor-pointer transition-colors group"
+                      title="Scroll smoothly to top"
+                      aria-label="Scroll to top"
+                    >
+                      <ChevronUp className={`w-5 h-5 text-white/95 group-hover:text-white transition-transform stroke-[2.5] ${isLaunchingTop ? '-translate-y-2' : 'group-hover:-translate-y-1'}`} />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
 
       {activeTab === 'reviews' ? (
         <div className="space-y-6 mt-6 animate-in fade-in duration-200">
@@ -1386,10 +1515,10 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                       }}
                       className="mb-4 bg-muted/30 hover:bg-muted/60 border border-border/50 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200 group"
                     >
-                      {/* FB-Style Top Image Banner */}
+                      {/* Event Image Banner */}
                       {(post.imageUrl || post.eventDetails.imageUrl) ? (
                         <div 
-                          className="w-full h-48 sm:h-64 bg-muted overflow-hidden relative"
+                          className="w-full h-44 sm:h-52 bg-muted overflow-hidden relative rounded-t-xl"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (typeof setViewerData === 'function') {
@@ -1640,6 +1769,8 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
         )}
       </div>
       )}
+            </div>
+          </div>
       </>
       )}
 
@@ -1771,6 +1902,8 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
         currentUserId={user?.id}
         currentUserRole={sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student'}
       />
+
+      {/* Modals */}
     </div>
   )
 }

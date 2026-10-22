@@ -4,8 +4,7 @@ import { ShieldCheck, Loader2, Lock } from 'lucide-react'
 
 const RouteIntegrityLoader = ({
   title = 'Verifying route integrity...',
-  subtitle = 'Securing session and authenticating permissions...',
-  badge = '256-bit SSL • Verified Session'
+  subtitle = 'Securing session and authenticating permissions...'
 }) => {
   return (
     <div className="min-h-screen w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
@@ -42,18 +41,9 @@ const RouteIntegrityLoader = ({
         </h2>
 
         {/* Subtitle */}
-        <p className="text-sm text-muted-foreground leading-relaxed mb-6 max-w-xs">
+        <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
           {subtitle}
         </p>
-
-        {/* Security verification badge */}
-        {badge && (
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/60 border border-border/50 text-[11px] font-medium text-muted-foreground shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <Lock className="w-3 h-3 text-muted-foreground/80" />
-            <span>{badge}</span>
-          </div>
-        )}
       </motion.div>
     </div>
   )

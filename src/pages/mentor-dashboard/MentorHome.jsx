@@ -52,6 +52,7 @@ import {
   Download,
   Upload,
   ChevronDown,
+  ChevronUp,
   ArrowLeft,
   MessageSquareOff,
   Eye,
@@ -96,6 +97,100 @@ const MentorHome = () => {
   const [recommendedMentors, setRecommendedMentors] = useState([])
   const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 0, missingFields: [] })
   const [verificationStatus, setVerificationStatus] = useState('Pending')
+
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  const [isLaunchingTop, setIsLaunchingTop] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const containerTop = feedScrollRef.current ? feedScrollRef.current.scrollTop : 0
+      const winTop = window.pageYOffset || document.documentElement.scrollTop || 0
+      const currentScroll = Math.max(containerTop, winTop)
+      // Show arrow only after 8-10 or more posts are scrolled (~3200px)
+      setShowScrollTop(currentScroll > 3200)
+    }
+
+    const feedEl = feedScrollRef.current
+    if (feedEl) {
+      feedEl.addEventListener('scroll', handleScroll, { passive: true })
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+
+    return () => {
+      if (feedEl) feedEl.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
+
+  const scrollToTopAnimated = () => {
+    const feedEl = feedScrollRef.current
+    const startFeed = feedEl ? feedEl.scrollTop : 0
+    const startWin = window.pageYOffset || document.documentElement.scrollTop || 0
+    const startPosition = Math.max(startFeed, startWin)
+
+    if (startPosition <= 0) return
+
+    setIsLaunchingTop(true)
+    const duration = Math.min(1000, Math.max(700, startPosition * 0.22))
+    let startTime = null
+    let animationFrameId = null
+
+    // Cancel animation gracefully if user manually touches or scrolls during animation
+    const cancelOnInteraction = () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
+      if (feedEl) {
+        feedEl.removeEventListener('wheel', cancelOnInteraction)
+        feedEl.removeEventListener('touchmove', cancelOnInteraction)
+      }
+      window.removeEventListener('wheel', cancelOnInteraction)
+      window.removeEventListener('touchmove', cancelOnInteraction)
+      setIsLaunchingTop(false)
+    }
+
+    if (feedEl) {
+      feedEl.addEventListener('wheel', cancelOnInteraction, { passive: true, once: true })
+      feedEl.addEventListener('touchmove', cancelOnInteraction, { passive: true, once: true })
+    }
+    window.addEventListener('wheel', cancelOnInteraction, { passive: true, once: true })
+    window.addEventListener('touchmove', cancelOnInteraction, { passive: true, once: true })
+
+    // Luxurious easeInOutCubic curve for smooth physics-based acceleration & deceleration
+    const easeInOutCubic = (t) => {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+    }
+
+    const step = (currentTime) => {
+      if (!startTime) startTime = currentTime
+      const timeElapsed = currentTime - startTime
+      const progress = Math.min(timeElapsed / duration, 1)
+      const ease = easeInOutCubic(progress)
+      const factor = 1 - ease
+
+      if (feedEl && startFeed > 0) {
+        feedEl.scrollTop = Math.round(startFeed * factor)
+      }
+      if (startWin > 0) {
+        window.scrollTo(0, Math.round(startWin * factor))
+      }
+
+      if (timeElapsed < duration) {
+        animationFrameId = requestAnimationFrame(step)
+      } else {
+        if (feedEl) feedEl.scrollTop = 0
+        window.scrollTo(0, 0)
+        setIsLaunchingTop(false)
+        if (feedEl) {
+          feedEl.removeEventListener('wheel', cancelOnInteraction)
+          feedEl.removeEventListener('touchmove', cancelOnInteraction)
+        }
+        window.removeEventListener('wheel', cancelOnInteraction)
+        window.removeEventListener('touchmove', cancelOnInteraction)
+      }
+    }
+
+    animationFrameId = requestAnimationFrame(step)
+  }
 
   // Dynamic States
   const [profileViews, setProfileViews] = useState(0)
@@ -1153,12 +1248,41 @@ const MentorHome = () => {
           </div>
         )}
 
+        {/* Instagram-style Transparent Smooth Scroll-To-Top Arrow - centered over Mentor Dashboard Feed */}
+        <div className="sticky top-20 md:top-3 z-40 flex justify-center pointer-events-none h-0 overflow-visible">
+          <AnimatePresence>
+            {showScrollTop && (
+              <motion.button
+                initial={{ opacity: 0, y: -15, scale: 0.8 }}
+                animate={isLaunchingTop 
+                  ? { opacity: 0, y: -35, scale: 0.75 } 
+                  : { opacity: 1, y: [0, -5, 0], scale: 1 }
+                }
+                exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                whileHover={!isLaunchingTop ? { scale: 1.15, y: -4 } : {}}
+                whileTap={!isLaunchingTop ? { scale: 0.9, y: -10 } : {}}
+                transition={{
+                  y: isLaunchingTop ? { duration: 0.35, ease: "easeOut" } : { repeat: Infinity, duration: 2.2, ease: "easeInOut" },
+                  opacity: { duration: 0.25 },
+                  scale: { type: 'spring', damping: 20, stiffness: 350 }
+                }}
+                onClick={scrollToTopAnimated}
+                className="pointer-events-auto w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 dark:bg-card/60 dark:hover:bg-card/85 backdrop-blur-md border border-white/20 text-white shadow-xl flex items-center justify-center cursor-pointer transition-colors group"
+                title="Scroll smoothly to top"
+                aria-label="Scroll to top"
+              >
+                <ChevronUp className={`w-5 h-5 text-white/95 group-hover:text-white transition-transform stroke-[2.5] ${isLaunchingTop ? '-translate-y-2' : 'group-hover:-translate-y-1'}`} />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Create Post with Drag & Drop */}
         <div 
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm relative transition-all ${
+          className={`!mt-0 bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm relative transition-all ${
             (showNewPostEmojiPicker || showMediaDropdown) ? 'z-[60]' : 'z-10'
           } ${
             isDragging ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''
