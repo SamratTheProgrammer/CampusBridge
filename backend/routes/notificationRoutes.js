@@ -34,6 +34,7 @@ let globalIoInstance = null;
 export const setNotificationIo = (io) => {
   globalIoInstance = io;
 };
+export const getNotificationIo = () => globalIoInstance;
 
 // Helper to create notification internally
 export const createNotificationHelper = async ({ recipientClerkId, senderClerkId, type, title, message, link, io }) => {
@@ -53,9 +54,18 @@ export const createNotificationHelper = async ({ recipientClerkId, senderClerkId
     let senderName = '';
     let senderImage = '';
 
-    if (senderInfo.user) {
-      senderName = `${senderInfo.user.firstName} ${senderInfo.user.lastName || ''}`.trim();
-      senderImage = senderInfo.user.imageUrl;
+    if (finalSender === 'admin' || type === 'admin' || type === 'admin_warning') {
+      senderName = 'CampusBridge Admin';
+      senderImage = '/icon-192x192.png';
+    } else if (senderInfo.user) {
+      senderName = `${senderInfo.user.firstName || ''} ${senderInfo.user.lastName || ''}`.trim() || senderInfo.user.username || 'User';
+      senderImage = senderInfo.user.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(senderName)}`;
+    } else if (finalSender && finalSender !== 'system') {
+      senderName = 'User';
+      senderImage = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(finalSender)}`;
+    } else {
+      senderName = 'CampusBridge';
+      senderImage = '/icon-192x192.png';
     }
 
     const notification = new Notification({
@@ -83,7 +93,7 @@ export const createNotificationHelper = async ({ recipientClerkId, senderClerkId
         title: notification.title || 'CampusBridge',
         body: notification.message || 'You have a new update.',
         url: notification.link || '/',
-        icon: '/icon-192x192.png',
+        icon: senderImage || '/icon-192x192.png',
         badge: '/icon-192x192.png',
         tag: `cb-${notification.type || 'alert'}-${Date.now()}`
       });
@@ -142,7 +152,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all notifications for a user
+// Get all notifications for a user (dynamically resolved with latest sender DP & name)
 router.get('/:clerkId', async (req, res) => {
   try {
     const { clerkId } = req.params;
@@ -152,11 +162,86 @@ router.get('/:clerkId', async (req, res) => {
 
     const { allIds } = await resolveUserIdentifiers(clerkId);
 
-    const notifications = await Notification.find({ recipientClerkId: { $in: allIds } })
+    const rawNotifications = await Notification.find({ recipientClerkId: { $in: allIds } })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(50)
+      .lean();
 
     const unreadCount = await Notification.countDocuments({ recipientClerkId: { $in: allIds }, isRead: false });
+
+    // Collect all unique sender identifiers
+    const senderClerkIds = Array.from(new Set(rawNotifications.map(n => n.senderClerkId).filter(Boolean)));
+
+    const userQueries = [
+      { clerkId: { $in: senderClerkIds } },
+      { username: { $in: senderClerkIds } }
+    ];
+    const validObjectIds = senderClerkIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+    if (validObjectIds.length > 0) {
+      userQueries.push({ _id: { $in: validObjectIds } });
+    }
+
+    const senderUsers = senderClerkIds.length > 0
+      ? await User.find({ $or: userQueries }, 'clerkId username firstName lastName imageUrl').lean()
+      : [];
+
+    const userMap = new Map();
+    senderUsers.forEach(u => {
+      if (u.clerkId) userMap.set(u.clerkId, u);
+      if (u.username) userMap.set(u.username, u);
+      if (u._id) userMap.set(String(u._id), u);
+    });
+
+    // Dynamically assign current profile picture & name
+    const notifications = rawNotifications.map(n => {
+      let dynamicImage = n.senderImage;
+      let dynamicName = n.senderName;
+
+      if (n.senderClerkId === 'admin' || n.type === 'admin' || n.type === 'admin_warning') {
+        dynamicImage = '/icon-192x192.png';
+        if (!dynamicName) dynamicName = 'CampusBridge Admin';
+      } else {
+        const senderUser = n.senderClerkId ? userMap.get(n.senderClerkId) : null;
+        if (senderUser) {
+          const fullName = `${senderUser.firstName || ''} ${senderUser.lastName || ''}`.trim();
+          dynamicName = fullName || senderUser.username || n.senderName || 'User';
+          if (senderUser.imageUrl && senderUser.imageUrl.trim() !== '') {
+            dynamicImage = senderUser.imageUrl;
+          } else {
+            dynamicImage = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(dynamicName)}`;
+          }
+        } else {
+          if (!dynamicImage || dynamicImage.trim() === '') {
+            const seed = dynamicName || n.senderClerkId || 'User';
+            dynamicImage = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
+          }
+        }
+      }
+
+      return {
+        ...n,
+        senderName: dynamicName || 'User',
+        senderImage: dynamicImage
+      };
+    });
+
+    // Asynchronously backfill notifications in DB where senderImage was missing or out of date
+    const bulkUpdates = [];
+    rawNotifications.forEach(raw => {
+      const updated = notifications.find(x => String(x._id) === String(raw._id));
+      if (updated && (raw.senderImage !== updated.senderImage || raw.senderName !== updated.senderName)) {
+        bulkUpdates.push({
+          updateOne: {
+            filter: { _id: raw._id },
+            update: { $set: { senderImage: updated.senderImage, senderName: updated.senderName } }
+          }
+        });
+      }
+    });
+
+    if (bulkUpdates.length > 0) {
+      Notification.bulkWrite(bulkUpdates).catch(err => console.debug('Backfill bulkWrite skipped:', err.message));
+    }
 
     res.status(200).json({
       notifications,

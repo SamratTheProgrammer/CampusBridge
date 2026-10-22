@@ -654,7 +654,7 @@ router.post('/jobs', async (req, res) => {
       recipientClerkId: recipient.clerkId,
       senderClerkId: 'admin',
       senderName: 'CampusBridge Admin',
-      senderImage: '',
+      senderImage: '/icon-192x192.png',
       type: 'job_posted',
       title: 'New Job Posted!',
       message: `${company} is hiring for ${title}!`,

@@ -395,6 +395,10 @@ const MyProfile = () => {
         body: JSON.stringify({ imageUrl: user.imageUrl })
       })
       
+      window.dispatchEvent(new CustomEvent('campusbridge_user_profile_updated', {
+        detail: { imageUrl: user.imageUrl }
+      }));
+
       toast.success('Profile picture updated!', { id: 'pic-upload' })
     } catch (error) {
       console.error(error)
@@ -453,6 +457,10 @@ const MyProfile = () => {
         body: JSON.stringify({ imageUrl: user.imageUrl })
       })
       
+      window.dispatchEvent(new CustomEvent('campusbridge_user_profile_updated', {
+        detail: { imageUrl: user.imageUrl }
+      }));
+
       toast.success('Profile picture removed!', { id: 'pic-remove' })
     } catch (error) {
       console.error(error)

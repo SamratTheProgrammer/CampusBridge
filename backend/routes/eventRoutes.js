@@ -162,8 +162,8 @@ router.post('/', async (req, res) => {
         const notifications = allUsers.map(u => ({
           recipientClerkId: u.clerkId,
           senderClerkId: user.clerkId,
-          senderName: user.firstName + ' ' + user.lastName,
-          senderImage: user.imageUrl,
+          senderName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Event Host',
+          senderImage: user.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.firstName || 'Host')}`,
           type: 'event_posted',
           title: 'New Event Scheduled!',
           message: `${user.firstName} is hosting a new ${type}: ${title}`,

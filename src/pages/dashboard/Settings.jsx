@@ -405,6 +405,10 @@ const Settings = () => {
           imageUrl: user.imageUrl
         })
       });
+
+      window.dispatchEvent(new CustomEvent('campusbridge_user_profile_updated', {
+        detail: { imageUrl: user.imageUrl }
+      }));
       
       toast.success('Profile picture updated!', { id: 'pic-upload' })
     } catch (err) {

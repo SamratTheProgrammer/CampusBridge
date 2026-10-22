@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
           recipientClerkId: mentorUser.clerkId,
           senderClerkId: reviewerUser.clerkId,
           senderName: reviewerName,
-          senderImage: reviewerUser.imageUrl,
+          senderImage: reviewerUser.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(reviewerName)}`,
           type: 'mentor_review',
           title: 'New Mentor Review',
           message: `Left a ${mentorRating}-star review on your mentorship.`,

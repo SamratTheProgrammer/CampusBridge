@@ -1,9 +1,10 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import Connection from '../models/Connection.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
-import { createNotificationHelper } from './notificationRoutes.js';
+import { createNotificationHelper, getNotificationIo } from './notificationRoutes.js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
 import { deleteCloudinaryAsset } from '../utils/cloudinary.js';
 
@@ -54,7 +55,19 @@ router.post('/sync', async (req, res) => {
       user.email = normalizedEmail;
       if (firstName) user.firstName = firstName;
       if (lastName !== undefined) user.lastName = lastName;
-      if (imageUrl) user.imageUrl = imageUrl;
+      if (imageUrl && user.imageUrl !== imageUrl) {
+        user.imageUrl = imageUrl;
+        Notification.updateMany(
+          { senderClerkId: user.clerkId },
+          { $set: { senderImage: imageUrl } }
+        ).catch(() => {});
+        const io = req.app?.get('io') || req.io || getNotificationIo();
+        if (io) {
+          io.emit('user_dp_updated', { clerkId: user.clerkId, imageUrl });
+        }
+      } else if (imageUrl) {
+        user.imageUrl = imageUrl;
+      }
       if (coverPhoto !== undefined && coverPhoto !== null) {
         if (user.coverPhoto && user.coverPhoto !== coverPhoto && coverPhoto) {
           deleteCloudinaryAsset(user.coverPhoto).catch(e => console.error('Cloudinary cleanup error:', e));
@@ -375,7 +388,22 @@ router.put('/:clerkId/profile', async (req, res) => {
     if (experience !== undefined) targetUser.experience = experience;
     if (education !== undefined) targetUser.education = education;
     if (skills !== undefined) targetUser.skills = skills;
-    if (imageUrl !== undefined) targetUser.imageUrl = imageUrl;
+    if (imageUrl !== undefined) {
+      targetUser.imageUrl = imageUrl;
+      // Sync DP to all notifications sent by this user
+      Notification.updateMany(
+        { senderClerkId: targetUser.clerkId },
+        { $set: { senderImage: imageUrl } }
+      ).catch(err => console.debug('Syncing notification senderImage skipped:', err.message));
+
+      const io = req.app?.get('io') || req.io || getNotificationIo();
+      if (io) {
+        io.emit('user_dp_updated', {
+          clerkId: targetUser.clerkId,
+          imageUrl: imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(targetUser.firstName || 'User')}`
+        });
+      }
+    }
     if (coverPhoto !== undefined) {
       if (targetUser.coverPhoto && targetUser.coverPhoto !== coverPhoto) {
         deleteCloudinaryAsset(targetUser.coverPhoto).catch(e => console.error('Cloudinary cleanup error:', e));

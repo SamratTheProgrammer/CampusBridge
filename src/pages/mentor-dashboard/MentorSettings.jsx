@@ -368,6 +368,10 @@ const MentorSettings = () => {
         body: JSON.stringify({ imageUrl: user.imageUrl })
       })
 
+      window.dispatchEvent(new CustomEvent('campusbridge_user_profile_updated', {
+        detail: { imageUrl: user.imageUrl }
+      }));
+
       toast.success('Profile picture updated!', { id: 'pic-upload' })
     } catch (err) {
       toast.error('Failed to update profile picture', { id: 'pic-upload' })

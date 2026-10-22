@@ -229,6 +229,17 @@ const NotificationDropdown = () => {
     }
   };
 
+  const getNotificationDP = (n) => {
+    if (n?.senderImage && typeof n.senderImage === 'string' && n.senderImage.trim() !== '') {
+      return n.senderImage;
+    }
+    if (n?.senderClerkId === 'admin' || n?.type === 'admin' || n?.type === 'admin_warning') {
+      return '/icon-192x192.png';
+    }
+    const seed = n?.senderName || n?.senderClerkId || 'User';
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
+  };
+
   const navigateNotification = (link, notificationItem = null) => {
     if (!link) return;
     
@@ -283,6 +294,49 @@ const NotificationDropdown = () => {
     navigate(targetLink, { state: { _ts: Date.now() } });
   };
 
+  // Real-time listener for dynamic DP changes across the platform
+  useEffect(() => {
+    const handleUserDpUpdated = ({ clerkId, imageUrl }) => {
+      if (!clerkId) return;
+      setNotifications(prev =>
+        prev.map(item => {
+          if (item.senderClerkId === clerkId) {
+            return {
+              ...item,
+              senderImage: imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.senderName || 'User')}`
+            };
+          }
+          return item;
+        })
+      );
+    };
+
+    const handleLocalProfileUpdate = (e) => {
+      const updatedUrl = e.detail?.imageUrl;
+      if (user?.id) {
+        setNotifications(prev =>
+          prev.map(item => {
+            if (item.senderClerkId === user.id) {
+              return {
+                ...item,
+                senderImage: updatedUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.senderName || 'User')}`
+              };
+            }
+            return item;
+          })
+        );
+      }
+    };
+
+    socket.on('user_dp_updated', handleUserDpUpdated);
+    window.addEventListener('campusbridge_user_profile_updated', handleLocalProfileUpdate);
+
+    return () => {
+      socket.off('user_dp_updated', handleUserDpUpdated);
+      window.removeEventListener('campusbridge_user_profile_updated', handleLocalProfileUpdate);
+    };
+  }, [user]);
+
   useEffect(() => {
     const handleNewNotification = (notification) => {
       const adminToken = sessionStorage.getItem('adminToken');
@@ -292,7 +346,12 @@ const NotificationDropdown = () => {
 
       if (notification.recipientClerkId !== currentUserId) return;
 
-      setNotifications(prev => [notification, ...prev]);
+      const dynamicNotif = {
+        ...notification,
+        senderImage: getNotificationDP(notification)
+      };
+
+      setNotifications(prev => [dynamicNotif, ...prev]);
       setUnreadCount(prev => prev + 1);
       
       // Play sound if enabled
@@ -303,12 +362,14 @@ const NotificationDropdown = () => {
         }
       } catch(e){}
 
+      const dpUrl = getNotificationDP(notification);
+
       // Native browser notification for background/system alerts
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         try {
           const bNotif = new Notification(notification.title || 'CampusBridge', {
             body: notification.message || 'You have a new notification',
-            icon: notification.senderImage || '/icon-192x192.png',
+            icon: dpUrl,
             badge: '/icon-192x192.png',
             tag: `cb-${notification._id || Date.now()}`
           });
@@ -324,7 +385,7 @@ const NotificationDropdown = () => {
             navigator.serviceWorker.ready.then(reg => {
               reg.showNotification(notification.title || 'CampusBridge', {
                 body: notification.message || 'You have a new notification',
-                icon: notification.senderImage || '/icon-192x192.png',
+                icon: dpUrl,
                 tag: `cb-${notification._id || Date.now()}`
               });
             }).catch(() => {});
@@ -346,24 +407,20 @@ const NotificationDropdown = () => {
           >
             <div className="flex-1 min-w-0 p-4">
               <div className="flex items-start gap-3">
-                {notification.senderImage ? (
-                  <div className="relative shrink-0 pt-0.5">
-                    <img
-                      className="h-10 w-10 rounded-full object-cover ring-2 ring-background"
-                      src={notification.senderImage}
-                      alt={notification.senderName || 'User'}
-                    />
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-card border border-border flex items-center justify-center shadow-xs">
-                      {getNotificationIcon(notification.type)}
-                    </div>
+                <div className="relative shrink-0 pt-0.5">
+                  <img
+                    className="h-10 w-10 rounded-full object-cover ring-2 ring-background bg-muted shadow-xs"
+                    src={dpUrl}
+                    alt={notification.senderName || 'User'}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(notification.senderName || 'User')}`;
+                    }}
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-card border border-border flex items-center justify-center shadow-xs">
+                    {getNotificationIcon(notification.type)}
                   </div>
-                ) : (
-                  <div className="shrink-0 pt-0.5">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                  </div>
-                )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-foreground truncate">
@@ -718,20 +775,20 @@ const NotificationDropdown = () => {
                     onClick={() => handleNotificationClick(n)}
                     className={`p-3.5 hover:bg-muted/50 transition-colors cursor-pointer flex gap-3 items-start relative group ${!n.isRead ? 'bg-primary/5' : ''}`}
                   >
-                    {/* Icon or Sender DP */}
+                    {/* Dynamic Sender DP & Badge */}
                     <div className="relative shrink-0 mt-0.5">
-                      {n.senderImage ? (
-                        <>
-                          <img src={n.senderImage} alt={n.senderName} className="w-9 h-9 rounded-full object-cover border border-border/50" />
-                          <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border border-border/50 shadow-sm">
-                            {getNotificationIcon(n.type)}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border/50 shadow-sm">
-                          {getNotificationIcon(n.type)}
-                        </div>
-                      )}
+                      <img 
+                        src={getNotificationDP(n)} 
+                        alt={n.senderName || 'User'} 
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(n.senderName || 'User')}`;
+                        }}
+                        className="w-9 h-9 rounded-full object-cover border border-border/50 bg-muted shrink-0 shadow-xs" 
+                      />
+                      <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border border-border/50 shadow-xs flex items-center justify-center">
+                        {getNotificationIcon(n.type)}
+                      </div>
                     </div>
 
                     {/* Content */}

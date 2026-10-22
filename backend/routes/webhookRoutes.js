@@ -1,8 +1,9 @@
 import express from 'express';
 import { Webhook } from 'svix';
 import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import { deleteUserDataCompletely } from '../utils/userCleanup.js';
-import { createNotificationHelper } from './notificationRoutes.js';
+import { createNotificationHelper, getNotificationIo } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -90,6 +91,16 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
         user.email = userData.email;
         user.firstName = userData.firstName;
         user.lastName = userData.lastName;
+        if (userData.imageUrl && user.imageUrl !== userData.imageUrl) {
+          Notification.updateMany(
+            { senderClerkId: id },
+            { $set: { senderImage: userData.imageUrl } }
+          ).catch(() => {});
+          const io = getNotificationIo();
+          if (io) {
+            io.emit('user_dp_updated', { clerkId: id, imageUrl: userData.imageUrl });
+          }
+        }
         user.imageUrl = userData.imageUrl;
         user.headline = userData.headline;
         user.location = userData.location;
