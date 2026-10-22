@@ -46,8 +46,15 @@ const MentorDashboardLayout = () => {
     history: searchHistory,
     addToHistory,
     removeFromHistory,
-    clearHistory
+    clearHistory,
+    refreshHistory
   } = useSearchHistory(user)
+
+  useEffect(() => {
+    if (isDropdownOpen) {
+      refreshHistory();
+    }
+  }, [isDropdownOpen, refreshHistory]);
 
   useEffect(() => {
     sessionStorage.setItem('campusbridge_tab_initialized', 'true')
@@ -497,13 +504,34 @@ const MentorDashboardLayout = () => {
                         {searchHistory.length > 0 ? (
                           <div className="space-y-1 mt-1">
                             {searchHistory.map((item, idx) => {
-                              const isPerson = item.image || item.role || item.type === 'user';
+                              const isPerson = item.image || item.role || item.type === 'user' || (item.path && item.path.startsWith('/profile/'));
+                              const allUsersList = [...(mentorsList || []), ...(studentsList || [])];
+                              const liveUser = allUsersList.find(u => 
+                                (item.targetId && (u.clerkId === item.targetId || u.id === item.targetId || u._id === item.targetId)) ||
+                                (item.id && (u.clerkId === item.id || u.id === item.id || u._id === item.id)) ||
+                                (u.username && item.path?.toLowerCase().includes(`/profile/${u.username.toLowerCase()}`)) ||
+                                (u.clerkId && item.path?.includes(u.clerkId))
+                              ) || (user && (item.targetId === user.id || item.id === user.id || (user.username && item.path?.toLowerCase().includes(`/profile/${user.username.toLowerCase()}`)) || item.path?.includes(user.id)) ? {
+                                imageUrl: user.imageUrl,
+                                name: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                                role: user.publicMetadata?.role || user.unsafeMetadata?.role || 'mentor'
+                              } : null);
+
+                              const displayImage = liveUser?.imageUrl !== undefined ? liveUser.imageUrl : item.image;
+                              const displayTitle = liveUser?.name || item.title || item.query;
+                              const displayRole = (liveUser?.role || item.role || '').toLowerCase();
+                              const displayDesc = liveUser?.headline || (liveUser?.company ? `At ${liveUser.company}` : item.description);
+
                               return (
                                 <div
                                   key={item.id || item.targetId || idx}
                                   onClick={() => {
                                     if (item.path) {
-                                      addToHistory(item);
+                                      addToHistory({
+                                        ...item,
+                                        image: displayImage,
+                                        title: displayTitle
+                                      });
                                       navigate(item.path);
                                       setSearchQuery('');
                                       setIsDropdownOpen(false);
@@ -514,21 +542,21 @@ const MentorDashboardLayout = () => {
                                   className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-between gap-3 group cursor-pointer"
                                 >
                                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    {item.image ? (
+                                    {displayImage ? (
                                       <div className="relative shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
                                         <img
-                                          src={item.image}
-                                          alt={item.title || item.query}
+                                          src={displayImage}
+                                          alt={displayTitle}
                                           className="w-full h-full object-cover"
                                           onError={(e) => {
                                             e.target.onerror = null;
-                                            e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.title || 'User')}`;
+                                            e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayTitle || 'User')}`;
                                           }}
                                         />
                                       </div>
                                     ) : isPerson ? (
                                       <div className="relative shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border/60 bg-gradient-to-tr from-primary/30 to-purple-500/20 text-primary font-bold text-xs flex items-center justify-center ring-1 ring-border/30">
-                                        {(item.title || item.query || 'U').charAt(0).toUpperCase()}
+                                        {(displayTitle || 'U').charAt(0).toUpperCase()}
                                       </div>
                                     ) : (
                                       <div className="w-8 h-8 rounded-lg bg-muted/60 text-muted-foreground flex items-center justify-center shrink-0 border border-border/40 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
@@ -538,12 +566,12 @@ const MentorDashboardLayout = () => {
 
                                     <div className="flex flex-col min-w-0 flex-1">
                                       <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                                        {item.title || item.query}
+                                        {displayTitle}
                                       </span>
-                                      {item.description ? (
-                                        <span className="text-xs text-muted-foreground truncate">{item.description}</span>
-                                      ) : item.role ? (
-                                        <span className="text-xs text-muted-foreground capitalize truncate">{item.role}</span>
+                                      {displayDesc ? (
+                                        <span className="text-xs text-muted-foreground truncate">{displayDesc}</span>
+                                      ) : displayRole ? (
+                                        <span className="text-xs text-muted-foreground capitalize truncate">{displayRole}</span>
                                       ) : (
                                         <span className="text-[11px] text-muted-foreground/70">Recent search</span>
                                       )}
@@ -553,9 +581,9 @@ const MentorDashboardLayout = () => {
                                   <div className="flex items-center gap-2 shrink-0">
                                     {item.badge && (
                                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
-                                        item.role === 'mentor'
+                                        displayRole === 'mentor'
                                           ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
-                                          : item.role === 'alumni'
+                                          : displayRole === 'alumni'
                                           ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
                                           : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
                                       }`}>
@@ -598,6 +626,8 @@ const MentorDashboardLayout = () => {
                                   key={mentor.id}
                                   onClick={() => {
                                     addToHistory({
+                                      id: mentor.id,
+                                      targetId: mentor.id,
                                       title: mentor.name,
                                       query: mentor.name,
                                       path: `/profile/${mentor.username || mentor.id}`,
@@ -656,6 +686,8 @@ const MentorDashboardLayout = () => {
                                   key={student.id}
                                   onClick={() => {
                                     addToHistory({
+                                      id: student.id,
+                                      targetId: student.id,
                                       title: student.name,
                                       query: student.name,
                                       path: `/profile/${student.username || student.id}`,

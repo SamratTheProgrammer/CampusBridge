@@ -56,6 +56,77 @@ export const fetchSearchHistory = async (clerkId) => {
 };
 
 /**
+ * Hydrate local search history items with fresh user data (live DP, full name, role, etc.)
+ */
+export const hydrateLocalHistoryWithUsers = (historyList, usersList = [], currentUser = null) => {
+  if (!Array.isArray(historyList) || historyList.length === 0) return [];
+  if (!Array.isArray(usersList) && !currentUser) return historyList;
+
+  const usersMap = {};
+  if (Array.isArray(usersList)) {
+    for (const u of usersList) {
+      if (u.clerkId) usersMap[u.clerkId] = u;
+      if (u._id) usersMap[u._id] = u;
+      if (u.id) usersMap[u.id] = u;
+      if (u.username) usersMap[u.username.toLowerCase()] = u;
+      if (u.name) usersMap[u.name.toLowerCase()] = u;
+    }
+  }
+
+  return historyList.map(item => {
+    const isUser = item.type === 'user' || (item.path && item.path.startsWith('/profile/')) || item.role;
+    if (!isUser) return item;
+
+    let matched = null;
+    const tid = item.targetId || item.id;
+    if (tid && usersMap[tid]) matched = usersMap[tid];
+
+    if (!matched && item.path && item.path.startsWith('/profile/')) {
+      const slug = item.path.replace(/^\/profile\//, '').split('?')[0].split('#')[0].trim();
+      if (slug) {
+        matched = usersMap[slug] || usersMap[slug.toLowerCase()];
+      }
+    }
+
+    if (!matched && item.title) {
+      matched = usersMap[item.title.toLowerCase()];
+    }
+
+    // Also check current logged-in user
+    if (currentUser) {
+      const isCurrent =
+        (currentUser.id && (tid === currentUser.id || item.targetId === currentUser.id)) ||
+        (currentUser.username && item.path?.toLowerCase().includes(currentUser.username.toLowerCase())) ||
+        (currentUser.fullName && (item.title === currentUser.fullName || item.query === currentUser.fullName));
+      if (isCurrent) {
+        matched = {
+          ...matched,
+          imageUrl: currentUser.imageUrl || matched?.imageUrl,
+          name: currentUser.fullName || `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || matched?.name,
+          role: currentUser.publicMetadata?.role || currentUser.unsafeMetadata?.role || matched?.role || 'student'
+        };
+      }
+    }
+
+    if (matched) {
+      const fullName = `${matched.firstName || ''} ${matched.lastName || ''}`.trim() || matched.name || item.title;
+      const imageUrl = matched.imageUrl !== undefined ? matched.imageUrl : item.image;
+      return {
+        ...item,
+        type: 'user',
+        title: fullName,
+        image: imageUrl,
+        role: (matched.role || item.role || '').toLowerCase(),
+        description: matched.headline || (matched.company ? `At ${matched.company}` : item.description),
+        badge: (matched.role === 'mentor' ? 'Mentor' : (matched.role === 'alumni' ? 'Alumni' : 'Student'))
+      };
+    }
+
+    return item;
+  });
+};
+
+/**
  * Add an item to search history (optimistic update + DB sync)
  */
 export const saveSearchHistoryItem = async (clerkId, rawItem) => {
@@ -79,16 +150,17 @@ export const saveSearchHistoryItem = async (clerkId, rawItem) => {
   } else {
     const titleOrQuery = (rawItem.title || rawItem.query || rawItem.name || '').trim();
     if (!titleOrQuery) return getLocalSearchHistory();
+    const isProfilePath = rawItem.path && rawItem.path.startsWith('/profile/');
     item = {
       query: titleOrQuery,
       title: rawItem.title || rawItem.name || titleOrQuery,
       description: rawItem.description || rawItem.headline || '',
       image: rawItem.image || rawItem.imageUrl || '',
-      type: rawItem.type || (rawItem.path ? 'nav' : (rawItem.role ? 'user' : 'text')),
+      type: rawItem.type || (isProfilePath ? 'user' : (rawItem.path ? 'nav' : (rawItem.role ? 'user' : 'text'))),
       path: rawItem.path || '',
       role: rawItem.role || '',
       badge: rawItem.badge || '',
-      targetId: rawItem.id || rawItem._id || `hist-${Date.now()}`
+      targetId: rawItem.targetId || rawItem.id || rawItem._id || (isProfilePath ? rawItem.path.replace(/^\/profile\//, '') : `hist-${Date.now()}`)
     };
   }
 

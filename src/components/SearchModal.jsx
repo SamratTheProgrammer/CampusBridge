@@ -51,6 +51,7 @@ const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [dynamicResults, setDynamicResults] = useState({ users: [], events: [], jobs: [] })
+  const [allUsersList, setAllUsersList] = useState([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef(null)
   const itemRefs = useRef([])
@@ -61,14 +62,26 @@ const SearchModal = ({ isOpen, onClose }) => {
     history: searchHistory,
     addToHistory,
     removeFromHistory,
-    clearHistory
+    clearHistory,
+    refreshHistory
   } = useSearchHistory(user)
 
   const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || user?.unsafeMetadata?.role || 'student'
 
-  // Focus input when modal opens
+  // Focus input and refresh search history when modal opens
   useEffect(() => {
     if (isOpen) {
+      if (typeof refreshHistory === 'function') {
+        refreshHistory();
+      }
+      if (allUsersList.length === 0) {
+        fetch(`${API_BASE}/api/users/search/all`)
+          .then(r => r.ok ? r.json() : [])
+          .then(data => {
+            if (Array.isArray(data)) setAllUsersList(data);
+          })
+          .catch(() => {});
+      }
       setTimeout(() => {
         inputRef.current?.focus()
       }, 100)
@@ -77,7 +90,7 @@ const SearchModal = ({ isOpen, onClose }) => {
       setDynamicResults({ users: [], events: [], jobs: [] })
       setSelectedIndex(0)
     }
-  }, [isOpen])
+  }, [isOpen, refreshHistory, allUsersList.length])
 
   // Save entry to search history (synced to local + DB)
   const saveToHistory = (entryOrTitle, itemPath = null, itemDesc = null) => {
@@ -160,13 +173,15 @@ const SearchModal = ({ isOpen, onClose }) => {
         category: 'People & Members',
         items: dynamicResults.users.map(u => ({
           id: u._id || u.clerkId,
+          targetId: u.clerkId || u._id,
           title: `${u.firstName} ${u.lastName || ''}`.trim(),
           path: `/profile/${u.username || u.clerkId}`,
           icon: Users,
           description: u.headline || (u.company ? `At ${u.company}` : (u.role === 'mentor' ? 'Verified Mentor' : 'Student Member')),
           image: u.imageUrl,
           role: (u.role || '').toLowerCase(),
-          badge: (u.role || '').toLowerCase() === 'mentor' ? 'Mentor' : (u.role || '').toLowerCase() === 'alumni' ? 'Alumni' : 'Student'
+          badge: (u.role || '').toLowerCase() === 'mentor' ? 'Mentor' : (u.role || '').toLowerCase() === 'alumni' ? 'Alumni' : 'Student',
+          type: 'user'
         }))
       })
     }
@@ -364,7 +379,23 @@ const SearchModal = ({ isOpen, onClose }) => {
                       <ul className="flex flex-col gap-1">
                         {searchHistory.map((item, idx) => {
                           const isSelected = idx === selectedIndex
-                          const isPerson = item.image || item.role || item.type === 'user'
+                          const isPerson = item.image || item.role || item.type === 'user' || (item.path && item.path.startsWith('/profile/'))
+                          const combinedUserPool = [...allUsersList, ...(dynamicResults.users || [])]
+                          const liveUser = combinedUserPool.find(u => 
+                            (item.targetId && (u.clerkId === item.targetId || u.id === item.targetId || u._id === item.targetId)) ||
+                            (item.id && (u.clerkId === item.id || u.id === item.id || u._id === item.id)) ||
+                            (u.username && item.path?.toLowerCase().includes(`/profile/${u.username.toLowerCase()}`)) ||
+                            (u.clerkId && item.path?.includes(u.clerkId))
+                          ) || (user && (item.targetId === user.id || item.id === user.id || (user.username && item.path?.toLowerCase().includes(`/profile/${user.username.toLowerCase()}`)) || item.path?.includes(user.id)) ? {
+                            imageUrl: user.imageUrl,
+                            name: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                            role: user.publicMetadata?.role || user.unsafeMetadata?.role || 'student'
+                          } : null);
+
+                          const displayImage = liveUser?.imageUrl !== undefined ? liveUser.imageUrl : item.image;
+                          const displayTitle = liveUser?.name || item.title || item.query;
+                          const displayRole = (liveUser?.role || item.role || '').toLowerCase();
+                          const displayDesc = liveUser?.headline || (liveUser?.company ? `At ${liveUser.company}` : item.description);
 
                           return (
                             <li key={item.id || item.targetId || idx}>
@@ -372,7 +403,11 @@ const SearchModal = ({ isOpen, onClose }) => {
                                 ref={(el) => (itemRefs.current[idx] = el)}
                                 onClick={() => {
                                   if (item.path) {
-                                    handleSelect(item)
+                                    handleSelect({
+                                      ...item,
+                                      image: displayImage,
+                                      title: displayTitle
+                                    })
                                   } else {
                                     setQuery(item.query || item.title)
                                   }
@@ -385,21 +420,21 @@ const SearchModal = ({ isOpen, onClose }) => {
                                 }`}
                               >
                                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  {item.image ? (
+                                  {displayImage ? (
                                     <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted flex items-center justify-center ring-1 ring-border/30">
                                       <img
-                                        src={item.image}
-                                        alt={item.title || item.query}
+                                        src={displayImage}
+                                        alt={displayTitle}
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
                                           e.target.onerror = null;
-                                          e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.title || 'User')}`;
+                                          e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayTitle || 'User')}`;
                                         }}
                                       />
                                     </div>
                                   ) : isPerson ? (
                                     <div className="relative shrink-0 w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-gradient-to-tr from-primary/30 to-purple-500/20 text-primary font-bold text-xs flex items-center justify-center ring-1 ring-border/30">
-                                      {(item.title || item.query || 'U').charAt(0).toUpperCase()}
+                                      {(displayTitle || 'U').charAt(0).toUpperCase()}
                                     </div>
                                   ) : (
                                     <div className={`w-8 h-8 rounded-lg transition-colors shrink-0 flex items-center justify-center ${
@@ -411,12 +446,12 @@ const SearchModal = ({ isOpen, onClose }) => {
 
                                   <div className="flex flex-col flex-1 min-w-0">
                                     <span className={`font-medium text-sm truncate ${isSelected ? 'text-primary' : 'text-foreground group-hover:text-primary'}`}>
-                                      {item.title || item.query}
+                                      {displayTitle}
                                     </span>
-                                    {item.description ? (
-                                      <span className="text-xs text-muted-foreground truncate">{item.description}</span>
-                                    ) : item.role ? (
-                                      <span className="text-xs text-muted-foreground capitalize truncate">{item.role}</span>
+                                    {displayDesc ? (
+                                      <span className="text-xs text-muted-foreground truncate">{displayDesc}</span>
+                                    ) : displayRole ? (
+                                      <span className="text-xs text-muted-foreground capitalize truncate">{displayRole}</span>
                                     ) : (
                                       <span className="text-[11px] text-muted-foreground/70">Recent search</span>
                                     )}
@@ -424,15 +459,15 @@ const SearchModal = ({ isOpen, onClose }) => {
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">
-                                  {item.badge && (
+                                  {(item.badge || (displayRole ? (displayRole === 'mentor' ? 'Mentor' : displayRole === 'alumni' ? 'Alumni' : 'Student') : null)) && (
                                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all ${
-                                      item.role === 'mentor'
+                                      displayRole === 'mentor'
                                         ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
-                                        : item.role === 'alumni'
+                                        : displayRole === 'alumni'
                                         ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
                                         : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
                                     }`}>
-                                      {item.badge}
+                                      {item.badge || (displayRole === 'mentor' ? 'Mentor' : displayRole === 'alumni' ? 'Alumni' : 'Student')}
                                     </span>
                                   )}
                                   <button

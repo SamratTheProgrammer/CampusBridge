@@ -48,11 +48,27 @@ export function useSearchHistory(user) {
     return clearAllSearchHistory(clerkId);
   }, [clerkId]);
 
+  const refreshHistory = useCallback(async () => {
+    if (clerkId) {
+      try {
+        const list = await fetchSearchHistory(clerkId);
+        if (Array.isArray(list)) {
+          setHistory(list);
+          return list;
+        }
+      } catch (err) {
+        console.debug('Error in refreshHistory:', err);
+      }
+    }
+    return getLocalSearchHistory();
+  }, [clerkId]);
+
   return {
     history,
     addToHistory,
     removeFromHistory,
     clearHistory,
+    refreshHistory,
   };
 }
 
