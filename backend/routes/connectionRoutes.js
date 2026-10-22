@@ -1,4 +1,5 @@
 import express from 'express';
+import { clerkClient } from '@clerk/clerk-sdk-node';
 import Connection from '../models/Connection.js';
 import User from '../models/User.js';
 import Mentor from '../models/Mentor.js';
@@ -247,16 +248,26 @@ router.get('/suggestions/:clerkId', async (req, res) => {
     }).limit(30);
 
     const capitalizeRole = (r) => r ? (r.charAt(0).toUpperCase() + r.slice(1)) : 'Member';
-    const formatUser = (u, defaultRole) => ({
-      clerkId: u.clerkId || u._id,
-      name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
-      role: u.role || defaultRole,
-      headline: u.headline || u.bio || `${capitalizeRole(u.role || defaultRole)} at CampusBridge`,
-      image: u.imageUrl || u.image || null,
-      username: u.username,
-      institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
-      skills: u.skills || u.expertise || []
-    });
+    const formatUser = (u, defaultRole) => {
+      const name = u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User');
+      if (!u.imageUrl && u.clerkId) {
+        clerkClient.users.getUser(u.clerkId).then(cu => {
+          if (cu?.imageUrl) {
+            User.updateOne({ clerkId: u.clerkId }, { $set: { imageUrl: cu.imageUrl } }).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+      return {
+        clerkId: u.clerkId || u._id,
+        name,
+        role: u.role || defaultRole,
+        headline: u.headline || u.bio || `${capitalizeRole(u.role || defaultRole)} at CampusBridge`,
+        image: u.imageUrl || u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+        username: u.username,
+        institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
+        skills: u.skills || u.expertise || []
+      };
+    };
 
     // Shuffle users and mentors independently, then combine and shuffle together
     const formattedUsers = shuffleArray(users.map(u => formatUser(u, 'student')));
@@ -340,12 +351,21 @@ router.get('/discover/:clerkId', async (req, res) => {
         }
       }
 
+      const name = u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User');
+      if (!u.imageUrl && uId) {
+        clerkClient.users.getUser(uId).then(cu => {
+          if (cu?.imageUrl) {
+            User.updateOne({ clerkId: uId }, { $set: { imageUrl: cu.imageUrl } }).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+
       return {
         clerkId: uId,
-        name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
+        name,
         role: u.role || 'student',
         headline: u.headline || u.bio || `${(u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : 'Student')} at CampusBridge`,
-        image: u.imageUrl || u.image || null,
+        image: u.imageUrl || u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
         username: u.username,
         institution: u.education?.[0]?.institution || u.company || 'CampusBridge',
         skills: u.skills || u.expertise || [],

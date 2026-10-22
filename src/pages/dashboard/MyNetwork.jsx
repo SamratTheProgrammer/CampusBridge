@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import API_BASE from '../../utils/api'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { formatConnectionTime, formatPendingRequestTime } from '../../utils/dateFormatter'
+import defaultPP from '../../assets/default_pp.png'
 
 const MyNetwork = () => {
   const { user } = useUser();
@@ -309,8 +310,9 @@ const MyNetwork = () => {
                         <div className="flex items-start gap-4">
                           <Link to={`/profile/${target?.username || target?.clerkId}`}>
                             <img
-                              src={target?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${target?.name}`}
-                              alt={target?.name}
+                              src={target?.image || defaultPP}
+                              alt={target?.name || 'User'}
+                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                               className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
                             />
                           </Link>
@@ -417,8 +419,9 @@ const MyNetwork = () => {
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <img
-                            src={req.targetUser?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.targetUser?.name}`}
-                            alt={req.targetUser?.name}
+                            src={req.targetUser?.image || defaultPP}
+                            alt={req.targetUser?.name || 'User'}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                             className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
                           />
                           <div className="min-w-0">
@@ -476,8 +479,9 @@ const MyNetwork = () => {
                       >
                         <Link to={`/profile/${req.targetUser?.username || req.targetUser?.clerkId}`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity">
                           <img
-                            src={req.targetUser?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.targetUser?.name}`}
-                            alt={req.targetUser?.name}
+                            src={req.targetUser?.image || defaultPP}
+                            alt={req.targetUser?.name || 'User'}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                             className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
                           />
                           <div className="min-w-0">
@@ -529,8 +533,9 @@ const MyNetwork = () => {
                       <div className="flex items-center gap-3 min-w-0">
                         <Link to={`/profile/${item.username || item.clerkId}`}>
                           <img
-                            src={item.image}
-                            alt={item.name}
+                            src={item.image || defaultPP}
+                            alt={item.name || 'User'}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                             className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
                           />
                         </Link>

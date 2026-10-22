@@ -1263,8 +1263,9 @@ const DashboardHome = () => {
           <div className="px-4 pb-4 relative text-center">
             <div className="flex justify-center -mt-8 mb-3">
               <img 
-                src={isLoaded && user ? (user.hasImage ? user.imageUrl : getAvatarFallback(user.fullName)) : getAvatarFallback('U')} 
-                alt="Profile" 
+                src={isLoaded && user ? (user.imageUrl || getAvatarFallback(user.fullName)) : getAvatarFallback('U')} 
+                alt={user?.fullName || 'Profile'} 
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                 className="w-16 h-16 rounded-full object-cover border-4 border-card relative z-10 bg-card cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => {
                   const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
@@ -1412,8 +1413,9 @@ const DashboardHome = () => {
           )}
           <div className="flex gap-3 sm:gap-4 mb-3 sm:mb-4">
             <img
-              src={user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)}
-              alt="Profile"
+              src={user?.imageUrl || getAvatarFallback(user?.fullName)}
+              alt={user?.fullName || 'Profile'}
+              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
               className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => {
                 const role = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
@@ -1954,7 +1956,7 @@ const DashboardHome = () => {
               const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
               const commentsArray = post.comments || []
               const totalComments = getTotalCommentsCount(commentsArray)
-              const postAuthorDP = (post.authorClerkId === user?.id) ? (user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)) : (post.author?.image || getAvatarFallback(post.author?.name))
+              const postAuthorDP = (post.authorClerkId === user?.id) ? (user?.imageUrl || getAvatarFallback(user?.fullName)) : (post.author?.image || getAvatarFallback(post.author?.name))
               const showComments = activeCommentPostId === post._id
 
               if (post.moderationStatus === 'paused') {

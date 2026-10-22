@@ -674,7 +674,7 @@ const MyProfile = () => {
 
   const coverPhotoUrl = dbUser?.coverPhoto || user?.unsafeMetadata?.coverPhoto
   const hasCoverPhoto = Boolean(coverPhotoUrl)
-  const profilePhotoUrl = user?.hasImage ? user.imageUrl : getAvatarFallback(user?.fullName)
+  const profilePhotoUrl = user?.imageUrl || dbUser?.imageUrl || getAvatarFallback(user?.fullName)
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 sm:pb-8">
@@ -738,6 +738,7 @@ const MyProfile = () => {
               <img 
                 src={profilePhotoUrl} 
                 alt="Profile" 
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                 className="w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg cursor-pointer transition-all hover:brightness-90"
                 onClick={() => setViewerData({ files: [profilePhotoUrl], index: 0 })}
               />

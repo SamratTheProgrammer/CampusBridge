@@ -78,7 +78,7 @@ const LikesModal = ({ isOpen, onClose, post, likes: directLikes, currentUserId, 
                     {/* DP / Avatar */}
                     <img 
                       src={like.image || defaultPP} 
-                      onError={handleImageError}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                       alt={like.name || 'User'} 
                       className="w-10 h-10 rounded-full object-cover shrink-0 border border-border/50 cursor-pointer group-hover:scale-105 transition-transform" 
                       onClick={() => handleUserClick(like)}

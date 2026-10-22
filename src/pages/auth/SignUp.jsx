@@ -188,6 +188,7 @@ const SignUp = () => {
             username,
             firstName,
             lastName,
+            imageUrl: completeSignUp?.imageUrl || undefined,
             role: selectedRole
           })
         })

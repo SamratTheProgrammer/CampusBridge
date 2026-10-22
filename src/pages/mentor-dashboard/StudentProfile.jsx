@@ -584,7 +584,8 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
               <div className="shrink-0 sm:ml-2 md:ml-3">
                 <img 
                   src={student.imageUrl || student.image || getAvatarFallback()} 
-                  alt={student.firstName || student.name} 
+                  alt={student.firstName || student.name || 'Student'} 
+                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getAvatarFallback(); }}
                   className={`w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
                   onClick={isLocked ? undefined : () => setViewerData({ files: [student.imageUrl || student.image || getAvatarFallback()], index: 0 })}
                 />

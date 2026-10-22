@@ -661,6 +661,7 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                 <img
                   src={avatarUrl}
                   alt={fullName}
+                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getAvatarFallback(); }}
                   className={`w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
                   onClick={isLocked ? undefined : () => setViewerData({ files: [avatarUrl], index: 0 })}
                 />

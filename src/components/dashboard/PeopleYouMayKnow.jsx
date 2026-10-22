@@ -267,7 +267,8 @@ const PeopleYouMayKnow = () => {
               <Link to={profileLink} className="relative block">
                 <img
                   src={item.image || defaultPP}
-                  alt={item.name}
+                  alt={item.name || 'User'}
+                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                   className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover shadow-sm transition-transform duration-300 group-hover:scale-105 ${
                     isMentor ? 'ring-2 ring-purple-500/40' : 'ring-2 ring-primary/30'
                   }`}
@@ -470,7 +471,8 @@ const PeopleYouMayKnow = () => {
                             >
                               <img
                                 src={item.image || defaultPP}
-                                alt={item.name}
+                                alt={item.name || 'User'}
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                                 className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover shadow-xs transition-transform group-hover:scale-105 ${
                                   isMentor ? 'ring-2 ring-purple-500/40' : 'ring-2 ring-primary/30'
                                 }`}

@@ -229,7 +229,7 @@ const MentorDirectory = () => {
                     filteredMentors.slice(0, 8).map(mentor => (
                       <div key={`dropdown-${mentor._id}`} className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
                         <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="flex items-center gap-3 flex-1 min-w-0">
-                          <img src={mentor.imageUrl || defaultPP} alt={mentor.firstName} className="w-10 h-10 rounded-full object-cover shrink-0 bg-muted" />
+                          <img src={mentor.imageUrl || defaultPP} alt={mentor.firstName || 'Mentor'} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }} className="w-10 h-10 rounded-full object-cover shrink-0 bg-muted" />
                           <div className="flex flex-col min-w-0">
                             <span className="font-semibold text-sm text-foreground leading-tight truncate">{mentor.firstName} {mentor.lastName || ''}</span>
                             <span className="text-xs text-muted-foreground mt-0.5 truncate">{mentor.headline || 'Mentor'}</span>
@@ -292,7 +292,7 @@ const MentorDirectory = () => {
               paginatedMentors.map(mentor => (
                 <div key={mentor._id} className="bg-card border border-border/50 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 hover:shadow-md transition-shadow">
                   <Link to={`/profile/${mentor.username || mentor.clerkId}`} className="flex flex-row items-center gap-4 sm:gap-5 min-w-0 group hover:opacity-90 transition-opacity">
-                    <img src={mentor.imageUrl || defaultPP} alt={mentor.firstName} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 bg-muted border border-border/50 group-hover:ring-2 group-hover:ring-primary/40 transition-all" />
+                    <img src={mentor.imageUrl || defaultPP} alt={mentor.firstName || 'Mentor'} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 bg-muted border border-border/50 group-hover:ring-2 group-hover:ring-primary/40 transition-all" />
                     <div className="min-w-0 flex-1">
                       <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors truncate">{mentor.firstName} {mentor.lastName || ''}</h3>
                       <p className="text-xs sm:text-sm font-medium text-foreground truncate">{mentor.headline || 'Mentor'}</p>

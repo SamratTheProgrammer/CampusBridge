@@ -47,6 +47,17 @@ router.post('/sync', async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
+    // Resolve imageUrl from Clerk if not provided in payload
+    let resolvedImageUrl = imageUrl;
+    if (!resolvedImageUrl && clerkId) {
+      try {
+        const clerkUser = await clerkClient.users.getUser(clerkId);
+        if (clerkUser?.imageUrl) {
+          resolvedImageUrl = clerkUser.imageUrl;
+        }
+      } catch (e) {}
+    }
+
     // Check if user already exists by clerkId
     let user = await User.findOne({ clerkId });
 
@@ -55,18 +66,18 @@ router.post('/sync', async (req, res) => {
       user.email = normalizedEmail;
       if (firstName) user.firstName = firstName;
       if (lastName !== undefined) user.lastName = lastName;
-      if (imageUrl && user.imageUrl !== imageUrl) {
-        user.imageUrl = imageUrl;
+      if (!user.imageUrl && resolvedImageUrl) {
+        user.imageUrl = resolvedImageUrl;
+      } else if (resolvedImageUrl && user.imageUrl !== resolvedImageUrl) {
+        user.imageUrl = resolvedImageUrl;
         Notification.updateMany(
           { senderClerkId: user.clerkId },
-          { $set: { senderImage: imageUrl } }
+          { $set: { senderImage: resolvedImageUrl } }
         ).catch(() => {});
         const io = req.app?.get('io') || req.io || getNotificationIo();
         if (io) {
-          io.emit('user_dp_updated', { clerkId: user.clerkId, imageUrl });
+          io.emit('user_dp_updated', { clerkId: user.clerkId, imageUrl: resolvedImageUrl });
         }
-      } else if (imageUrl) {
-        user.imageUrl = imageUrl;
       }
       if (coverPhoto !== undefined && coverPhoto !== null) {
         if (user.coverPhoto && user.coverPhoto !== coverPhoto && coverPhoto) {
@@ -111,7 +122,7 @@ router.post('/sync', async (req, res) => {
       username: finalUsername,
       firstName,
       lastName,
-      imageUrl,
+      imageUrl: resolvedImageUrl,
       coverPhoto,
       role: role || 'student',
     });
@@ -239,16 +250,24 @@ router.get('/:clerkId', async (req, res) => {
       await user.save();
     }
 
-    // Auto-sync coverPhoto from Clerk if different or missing in DB
+    // Auto-sync coverPhoto and imageUrl from Clerk if different or missing in DB
     if (user.clerkId) {
       try {
         const clerkUser = await clerkClient.users.getUser(user.clerkId);
+        let updated = false;
+        if (!user.imageUrl && clerkUser?.imageUrl) {
+          user.imageUrl = clerkUser.imageUrl;
+          updated = true;
+        }
         const clerkCover = clerkUser?.unsafeMetadata?.coverPhoto;
         if (clerkCover && user.coverPhoto !== clerkCover) {
           if (user.coverPhoto && user.coverPhoto !== clerkCover) {
             deleteCloudinaryAsset(user.coverPhoto).catch(() => {});
           }
           user.coverPhoto = clerkCover;
+          updated = true;
+        }
+        if (updated) {
           await user.save();
         }
       } catch (e) {
