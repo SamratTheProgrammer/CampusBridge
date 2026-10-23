@@ -1318,7 +1318,7 @@ const MentorSettings = () => {
                         type="date" 
                         value={dateOfBirth} 
                         onChange={(e) => setDateOfBirth(e.target.value)} 
-                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                        className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer dark:[color-scheme:dark]" 
                       />
                     </div>
                     <div>

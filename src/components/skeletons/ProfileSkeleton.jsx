@@ -13,14 +13,14 @@ const ProfileSkeleton = () => {
 
         <div className="px-4 sm:px-6 pb-6 relative">
           {/* Top Row: Avatar and Actions */}
-          <div className="flex justify-between items-end w-full -mt-16 sm:-mt-20 relative z-10">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end w-full -mt-16 sm:-mt-20 relative z-10 gap-4 sm:gap-0">
             {/* Avatar Circle */}
             <div className="w-24 h-24 sm:w-36 sm:h-36 rounded-full border-4 border-card bg-card shadow-md shrink-0 overflow-hidden">
               <Skeleton className="w-full h-full rounded-full" />
             </div>
 
             {/* Action Buttons on Right */}
-            <div className="flex gap-2 sm:gap-3 items-center justify-end mb-2 sm:mb-4">
+            <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-start sm:justify-end w-full sm:w-auto mb-1 sm:mb-4">
               <Skeleton className="h-10 w-24 sm:w-28 rounded-xl" />
               <Skeleton className="h-10 w-28 sm:w-32 rounded-xl" />
             </div>

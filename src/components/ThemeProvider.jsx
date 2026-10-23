@@ -88,6 +88,7 @@ export function ThemeProvider({
       baseTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
     }
     root.classList.add(baseTheme)
+    root.style.colorScheme = baseTheme
 
     // 2. Apply Event Theme based on globalTheme
     if (globalTheme && globalTheme !== 'system' && globalTheme !== 'none') {
