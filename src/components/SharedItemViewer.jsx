@@ -282,7 +282,11 @@ const SharedItemViewer = () => {
         const res = await fetch(`${API_BASE}/api/connections/status/${user.id}/${data.authorClerkId}`);
         if (res.ok) {
           const json = await res.json();
-          setConnectionStatus(json.status);
+          if (json.status === 'pending' && !json.isRequester) {
+            setConnectionStatus('none');
+          } else {
+            setConnectionStatus(json.status);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch connection status', err);
@@ -305,8 +309,14 @@ const SharedItemViewer = () => {
         })
       });
       if (res.ok) {
-        setConnectionStatus('pending');
-        toast.success('Connection request sent!');
+        const resData = await res.json().catch(() => ({}));
+        if (resData.autoAccepted) {
+          setConnectionStatus('accepted');
+          toast.success(resData.message || 'They already sent you a connection request! Connected successfully! 🎉');
+        } else {
+          setConnectionStatus('pending');
+          toast.success('Connection request sent!');
+        }
       } else {
         const errData = await res.json();
         toast.error(errData.message || 'Failed to connect');

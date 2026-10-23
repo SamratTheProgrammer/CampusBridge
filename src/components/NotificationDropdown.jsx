@@ -284,6 +284,14 @@ const NotificationDropdown = () => {
     }
 
     const userRole = sessionStorage.getItem('campusbridge_user_role') || user?.publicMetadata?.role || 'student';
+    // Route corrections for role-appropriate tabs
+    if (targetLink.includes('/requests') && userRole !== 'mentor') {
+      targetLink = '/dashboard/network';
+    }
+    if (targetLink.includes('/my-mentors')) {
+      targetLink = userRole === 'mentor' ? '/mentor-dashboard/network' : '/dashboard/mentor';
+    }
+
     // Only mentors use /mentor-dashboard. Alumni and students use /dashboard!
     if (userRole === 'mentor' && targetLink.startsWith('/dashboard')) {
       targetLink = targetLink.replace('/dashboard', '/mentor-dashboard');

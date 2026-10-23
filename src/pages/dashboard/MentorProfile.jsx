@@ -46,6 +46,7 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   const [unfriendConfirm, setUnfriendConfirm] = useState(false)
   const [connectMessage, setConnectMessage] = useState('')
   const [isConnecting, setIsConnecting] = useState(false)
+  const [isIncomingPending, setIsIncomingPending] = useState(false)
   const [viewerData, setViewerData] = useState(null)
 
   // Post states
@@ -198,7 +199,18 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
           const connRes = await fetch(`${API_BASE}/api/connections/status/${user.id}/${currentMentor.clerkId}`)
           if (connRes.ok) {
             const connData = await connRes.json()
-            setConnectionStatus(connData.status || 'none')
+            if (connData.status === 'pending') {
+              if (connData.isRequester) {
+                setConnectionStatus('pending');
+                setIsIncomingPending(false);
+              } else {
+                setConnectionStatus('none');
+                setIsIncomingPending(true);
+              }
+            } else {
+              setConnectionStatus(connData.status || 'none');
+              setIsIncomingPending(false);
+            }
             setConnectionId(connData.connectionId || null)
           }
         }
@@ -523,9 +535,18 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
         })
       });
       if (res.ok) {
-        setConnectionStatus('pending');
-        setIsConnectModalOpen(false);
-        toast.success('Connection request sent!');
+        const data = await res.json().catch(() => ({}));
+        if (data.autoAccepted) {
+          setConnectionStatus('accepted');
+          setIsIncomingPending(false);
+          setIsConnectModalOpen(false);
+          toast.success(data.message || 'They already sent you a connection request! Connected successfully! 🎉');
+        } else {
+          setConnectionStatus('pending');
+          setIsIncomingPending(false);
+          setIsConnectModalOpen(false);
+          toast.success('Connection request sent!');
+        }
       } else {
         const text = await res.text();
         try {
@@ -720,13 +741,16 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                           if (!user) {
                             toast.error('Please login to connect');
                             navigate('/login');
+                          } else if (isIncomingPending) {
+                            handleConnect();
                           } else {
                             setIsConnectModalOpen(true);
                           }
                         }}
-                        className="bg-background border border-border/50 text-foreground hover:bg-muted p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+                        disabled={isConnecting}
+                        className="bg-background border border-border/50 text-foreground hover:bg-muted p-2 sm:px-4 sm:py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
                       >
-                        <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Connect</span>
+                        {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} <span className="hidden sm:inline">Connect</span>
                       </button>
                     )}
                     

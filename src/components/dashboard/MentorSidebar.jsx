@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { NavLink, Link, useNavigate } from 'react-router-dom'
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useClerk, useUser } from '@clerk/clerk-react'
 import { socket } from '../../services/socket'
 import { calculateProfileCompleteness } from '../../utils/profileCompleteness'
@@ -31,9 +31,55 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
   const { signOut } = useClerk()
   const { user } = useUser()
   const navigate = useNavigate()
+  const location = useLocation()
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const [pendingSessionsCount, setPendingSessionsCount] = useState(0)
+  const [seenRequestsCount, setSeenRequestsCount] = useState(() => {
+    return parseInt(localStorage.getItem('cb_mentor_seen_requests_count') || '0', 10)
+  })
+  const [seenSessionsCount, setSeenSessionsCount] = useState(() => {
+    return parseInt(localStorage.getItem('cb_mentor_seen_sessions_count') || '0', 10)
+  })
+
+  // When visiting requests or sessions, mark them as seen
+  useEffect(() => {
+    if (location.pathname.startsWith('/mentor-dashboard/requests')) {
+      const toSave = Math.max(pendingRequestsCount, 1)
+      localStorage.setItem('cb_mentor_seen_requests_count', String(toSave))
+      setSeenRequestsCount(toSave)
+    }
+    if (location.pathname.startsWith('/mentor-dashboard/sessions')) {
+      const toSave = Math.max(pendingSessionsCount, 1)
+      localStorage.setItem('cb_mentor_seen_sessions_count', String(toSave))
+      setSeenSessionsCount(toSave)
+    }
+    if (location.pathname.startsWith('/mentor-dashboard/messages')) {
+      setUnreadMessages(0)
+    }
+  }, [location.pathname, pendingRequestsCount, pendingSessionsCount])
+
+  useEffect(() => {
+    const handleRequestsViewed = (e) => {
+      const count = typeof e?.detail?.count === 'number' ? e.detail.count : pendingRequestsCount
+      const toSave = Math.max(count, pendingRequestsCount, 1)
+      localStorage.setItem('cb_mentor_seen_requests_count', String(toSave))
+      setSeenRequestsCount(toSave)
+    }
+    const handleSessionsViewed = (e) => {
+      const count = typeof e?.detail?.count === 'number' ? e.detail.count : pendingSessionsCount
+      const toSave = Math.max(count, pendingSessionsCount, 1)
+      localStorage.setItem('cb_mentor_seen_sessions_count', String(toSave))
+      setSeenSessionsCount(toSave)
+    }
+    window.addEventListener('campusbridge:mentor_requests_viewed', handleRequestsViewed)
+    window.addEventListener('campusbridge:mentor_sessions_viewed', handleSessionsViewed)
+    return () => {
+      window.removeEventListener('campusbridge:mentor_requests_viewed', handleRequestsViewed)
+      window.removeEventListener('campusbridge:mentor_sessions_viewed', handleSessionsViewed)
+    }
+  }, [pendingRequestsCount, pendingSessionsCount])
+
   const [profileCompleteness, setProfileCompleteness] = useState({ percentage: 100, isEligibleForVerification: true })
   const [verificationStatus, setVerificationStatus] = useState('Pending')
   const [isVerified, setIsVerified] = useState(false)
@@ -81,11 +127,21 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
           const reqData = await reqRes.json()
           const pendingReqs = (Array.isArray(reqData) ? reqData : []).filter(r => r.status === 'pending').length
           setPendingRequestsCount(pendingReqs)
+          if (window.location.pathname.startsWith('/mentor-dashboard/requests')) {
+            const toSave = Math.max(pendingReqs, 1)
+            localStorage.setItem('cb_mentor_seen_requests_count', String(toSave))
+            setSeenRequestsCount(toSave)
+          }
         }
         if (sessRes.ok) {
           const sessData = await sessRes.json()
           const pendingSess = (Array.isArray(sessData) ? sessData : []).filter(s => s.status === 'pending').length
           setPendingSessionsCount(pendingSess)
+          if (window.location.pathname.startsWith('/mentor-dashboard/sessions')) {
+            const toSave = Math.max(pendingSess, 1)
+            localStorage.setItem('cb_mentor_seen_sessions_count', String(toSave))
+            setSeenSessionsCount(toSave)
+          }
         }
       } catch (err) {}
     }
@@ -121,10 +177,35 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
   const isLocked = !isLoadingProfile && (profileCompleteness.percentage < 80 || !isApproved)
 
   const handleItemClick = (e, item) => {
+    if (item?.path === '/mentor-dashboard/requests') {
+      const toSave = Math.max(pendingRequestsCount, 1)
+      localStorage.setItem('cb_mentor_seen_requests_count', String(toSave))
+      setSeenRequestsCount(toSave)
+    }
+    if (item?.path === '/mentor-dashboard/sessions') {
+      const toSave = Math.max(pendingSessionsCount, 1)
+      localStorage.setItem('cb_mentor_seen_sessions_count', String(toSave))
+      setSeenSessionsCount(toSave)
+    }
+    if (item?.path === '/mentor-dashboard/messages') {
+      setUnreadMessages(0)
+    }
     if (onClose) {
       onClose()
     }
   }
+
+  const effectiveRequestsBadge = (() => {
+    if (location.pathname.startsWith('/mentor-dashboard/requests')) return null
+    const diff = pendingRequestsCount - seenRequestsCount
+    return diff > 0 ? diff : null
+  })()
+
+  const effectiveSessionsBadge = (() => {
+    if (location.pathname.startsWith('/mentor-dashboard/sessions')) return null
+    const diff = pendingSessionsCount - seenSessionsCount
+    return diff > 0 ? diff : null
+  })()
 
   const navItems = [
     { name: 'Dashboard', path: '/mentor-dashboard', icon: LayoutDashboard, exact: true },
@@ -133,8 +214,8 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
       name: 'Student Requests', 
       path: '/mentor-dashboard/requests', 
       icon: BookOpen, 
-      badge: pendingRequestsCount > 0 ? pendingRequestsCount : null,
-      hasDot: pendingRequestsCount > 0
+      badge: effectiveRequestsBadge,
+      hasDot: Boolean(effectiveRequestsBadge)
     },
     { name: 'Mentor Directory', path: '/mentor-dashboard/mentor', icon: Compass },
     { name: 'Jobs', path: '/mentor-dashboard/jobs', icon: Briefcase },
@@ -142,8 +223,8 @@ const MentorSidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) =
       name: 'Events & Sessions', 
       path: '/mentor-dashboard/sessions', 
       icon: Calendar,
-      badge: pendingSessionsCount > 0 ? pendingSessionsCount : null,
-      hasDot: pendingSessionsCount > 0
+      badge: effectiveSessionsBadge,
+      hasDot: Boolean(effectiveSessionsBadge)
     },
     { name: 'Messages', path: '/mentor-dashboard/messages', icon: MessageSquare, badge: unreadMessages > 0 ? unreadMessages : null },
     { name: 'Analytics', path: '/mentor-dashboard/analytics', icon: BarChart },

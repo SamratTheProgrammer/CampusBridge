@@ -133,10 +133,16 @@ const PeopleYouMayKnow = () => {
       });
 
       if (res.ok) {
-        toast.success(`Connection request sent to ${targetName}! 🎉`);
-        setConnectionStates((prev) => ({ ...prev, [targetClerkId]: 'pending' }));
+        const data = await res.json().catch(() => ({}));
+        if (data.autoAccepted) {
+          toast.success(data.message || `${targetName} had already sent you a request! Connected successfully! 🎉`);
+          setConnectionStates((prev) => ({ ...prev, [targetClerkId]: 'accepted' }));
+        } else {
+          toast.success(`Connection request sent to ${targetName}! 🎉`);
+          setConnectionStates((prev) => ({ ...prev, [targetClerkId]: 'pending' }));
+        }
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         toast.error(data.message || 'Failed to send request');
       }
     } catch (err) {

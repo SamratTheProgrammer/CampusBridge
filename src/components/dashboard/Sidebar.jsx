@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { NavLink, Link } from 'react-router-dom'
+import { NavLink, Link, useLocation } from 'react-router-dom'
 import { useClerk, useUser } from '@clerk/clerk-react'
 import { socket } from '../../services/socket'
 import {
@@ -28,8 +28,36 @@ import API_BASE from '../../utils/api'
 const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
   const { signOut } = useClerk()
   const { user } = useUser()
+  const location = useLocation()
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [pendingSessionsCount, setPendingSessionsCount] = useState(0)
+  const [seenSessionsCount, setSeenSessionsCount] = useState(() => {
+    return parseInt(localStorage.getItem('cb_seen_sessions_count') || '0', 10)
+  })
+
+  // Whenever user is on /dashboard/sessions or /dashboard/messages, mark as seen
+  useEffect(() => {
+    if (location.pathname.startsWith('/dashboard/sessions')) {
+      const toSave = Math.max(pendingSessionsCount, 1)
+      localStorage.setItem('cb_seen_sessions_count', String(toSave))
+      setSeenSessionsCount(toSave)
+    }
+    if (location.pathname.startsWith('/dashboard/messages')) {
+      setUnreadMessages(0)
+    }
+  }, [location.pathname, pendingSessionsCount])
+
+  // Listen for custom event when sessions page is viewed
+  useEffect(() => {
+    const handleSessionsViewed = (e) => {
+      const count = typeof e?.detail?.count === 'number' ? e.detail.count : pendingSessionsCount
+      const toSave = Math.max(count, pendingSessionsCount, 1)
+      localStorage.setItem('cb_seen_sessions_count', String(toSave))
+      setSeenSessionsCount(toSave)
+    }
+    window.addEventListener('campusbridge:sessions_viewed', handleSessionsViewed)
+    return () => window.removeEventListener('campusbridge:sessions_viewed', handleSessionsViewed)
+  }, [pendingSessionsCount])
 
   useEffect(() => {
     if (!user) return
@@ -53,6 +81,11 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
           const data = await res.json()
           const pending = (Array.isArray(data) ? data : []).filter(s => s.status === 'pending').length
           setPendingSessionsCount(pending)
+          if (window.location.pathname.startsWith('/dashboard/sessions')) {
+            const toSave = Math.max(pending, 1)
+            localStorage.setItem('cb_seen_sessions_count', String(toSave))
+            setSeenSessionsCount(toSave)
+          }
         }
       } catch (err) {}
     }
@@ -82,6 +115,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
     }
   }, [user])
 
+  // Effective badge: if user visited sessions or already saw all current pending sessions, hide badge
+  const effectiveSessionsBadge = (() => {
+    if (location.pathname.startsWith('/dashboard/sessions')) return null
+    const diff = pendingSessionsCount - seenSessionsCount
+    return diff > 0 ? diff : null
+  })()
+
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'My Network', path: '/dashboard/network', icon: Users },
@@ -90,8 +130,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
       name: 'Sessions', 
       path: '/dashboard/sessions', 
       icon: BookOpen, 
-      hasDot: pendingSessionsCount > 0,
-      badge: pendingSessionsCount > 0 ? pendingSessionsCount : null 
+      hasDot: Boolean(effectiveSessionsBadge),
+      badge: effectiveSessionsBadge 
     },
     { name: 'Jobs & Internships', path: '/dashboard/jobs', icon: Briefcase },
     { name: 'Events', path: '/dashboard/events', icon: Calendar },
@@ -101,7 +141,15 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
     { name: 'Settings', path: '/dashboard/settings', icon: Settings },
   ]
 
-  const handleItemClick = () => {
+  const handleItemClick = (item) => {
+    if (item?.path === '/dashboard/sessions') {
+      const toSave = Math.max(pendingSessionsCount, 1)
+      localStorage.setItem('cb_seen_sessions_count', String(toSave))
+      setSeenSessionsCount(toSave)
+    }
+    if (item?.path === '/dashboard/messages') {
+      setUnreadMessages(0)
+    }
     if (onClose) {
       onClose()
     }
@@ -162,7 +210,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
             key={item.name}
             to={item.path}
             end={item.exact}
-            onClick={handleItemClick}
+            onClick={() => handleItemClick(item)}
             title={isCollapsed ? item.name : undefined}
             className={({ isActive }) => `
               flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm transition-all relative

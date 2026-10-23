@@ -70,6 +70,7 @@ const MentorshipRequests = () => {
 
   useEffect(() => {
     fetchData()
+    window.dispatchEvent(new CustomEvent('campusbridge:mentor_requests_viewed'))
   }, [user])
 
   // Connection Request Action

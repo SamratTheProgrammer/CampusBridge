@@ -229,11 +229,12 @@ const RealtimeChat = () => {
   const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   
   const searchParams = new URLSearchParams(location.search);
-  const targetUserId = searchParams.get('userId') || location.state?.selectedUserId || location.state?.clerkId;
+  const targetUserId = searchParams.get('userId') || searchParams.get('user') || location.state?.selectedUserId || location.state?.clerkId;
 
   const [contacts, setContacts] = useState([]);
   const [activeContact, setActiveContact] = useState(null);
   const activeContactRef = useRef(activeContact);
+  const hasUserClosedChatRef = useRef(false);
   useEffect(() => {
     activeContactRef.current = activeContact;
   }, [activeContact]);
@@ -407,6 +408,187 @@ const RealtimeChat = () => {
     };
   }, [user]);
 
+  // Global ESC key listener to exit modals, popups, active chat, or chat page
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        // Priority 1: Modals
+        if (fullscreenAttachment) {
+          e.preventDefault();
+          setFullscreenAttachment(null);
+          return;
+        }
+        if (isCameraModalOpen) {
+          e.preventDefault();
+          setIsCameraModalOpen(false);
+          return;
+        }
+        if (forwardModalOpen) {
+          e.preventDefault();
+          setForwardModalOpen(false);
+          return;
+        }
+        if (isExportModalOpen) {
+          e.preventDefault();
+          setIsExportModalOpen(false);
+          return;
+        }
+        if (isShareProfileModalOpen) {
+          e.preventDefault();
+          setIsShareProfileModalOpen(false);
+          return;
+        }
+        if (deleteModalMsg) {
+          e.preventDefault();
+          setDeleteModalMsg(null);
+          return;
+        }
+        if (bulkDeleteModalOpen) {
+          e.preventDefault();
+          setBulkDeleteModalOpen(false);
+          return;
+        }
+        if (personToDelete) {
+          e.preventDefault();
+          setPersonToDelete(null);
+          return;
+        }
+
+        // Priority 2: Floating context menus, pickers & dropdowns
+        if (showEmojiPicker) {
+          e.preventDefault();
+          setShowEmojiPicker(false);
+          return;
+        }
+        if (showMoreMenu) {
+          e.preventDefault();
+          setShowMoreMenu(false);
+          return;
+        }
+        if (showAttachmentMenu) {
+          e.preventDefault();
+          setShowAttachmentMenu(false);
+          return;
+        }
+        if (showMobileActionMenu) {
+          e.preventDefault();
+          setShowMobileActionMenu(false);
+          return;
+        }
+        if (contextMenu) {
+          e.preventDefault();
+          setContextMenu(null);
+          return;
+        }
+        if (activeContactMenu) {
+          e.preventDefault();
+          setActiveContactMenu(null);
+          return;
+        }
+        if (contactContextMenu) {
+          e.preventDefault();
+          setContactContextMenu(null);
+          return;
+        }
+        if (activeMessageMenu) {
+          e.preventDefault();
+          setActiveMessageMenu(null);
+          return;
+        }
+
+        // Priority 3: Transient selection / input modes
+        if (isSelectMode) {
+          e.preventDefault();
+          setIsSelectMode(false);
+          setSelectedMessageIds(new Set());
+          return;
+        }
+        if (replyingTo) {
+          e.preventDefault();
+          setReplyingTo(null);
+          return;
+        }
+        if (editingMessage) {
+          e.preventDefault();
+          setEditingMessage(null);
+          setInputText('');
+          return;
+        }
+        if (selectedFiles.length > 0 || selectedFile) {
+          e.preventDefault();
+          setSelectedFiles([]);
+          setSelectedFile(null);
+          setFilePreview(null);
+          return;
+        }
+
+        // Priority 4: If an active conversation is open (or mobile view is active), exit conversation!
+        if (activeContactRef.current || isMobileChatOpen) {
+          e.preventDefault();
+          if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+          }
+          hasUserClosedChatRef.current = true;
+          setActiveContact(null);
+          setIsMobileChatOpen(false);
+          if (location.search) {
+            navigate(location.pathname, { replace: true });
+          }
+          return;
+        }
+
+        // Priority 5: If search query is active in sidebar, clear it
+        if (searchQuery) {
+          e.preventDefault();
+          setSearchQuery('');
+          return;
+        }
+
+        // Priority 6: If already at messages root (no conversation open), exit the chat page and navigate back
+        e.preventDefault();
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+          document.activeElement.blur();
+        }
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          const isMentor = location.pathname.startsWith('/mentor-dashboard');
+          navigate(isMentor ? '/mentor-dashboard' : '/dashboard');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    fullscreenAttachment,
+    isCameraModalOpen,
+    forwardModalOpen,
+    isExportModalOpen,
+    isShareProfileModalOpen,
+    deleteModalMsg,
+    bulkDeleteModalOpen,
+    personToDelete,
+    showEmojiPicker,
+    showMoreMenu,
+    showAttachmentMenu,
+    showMobileActionMenu,
+    contextMenu,
+    activeContactMenu,
+    contactContextMenu,
+    activeMessageMenu,
+    isSelectMode,
+    replyingTo,
+    editingMessage,
+    selectedFiles,
+    selectedFile,
+    isMobileChatOpen,
+    searchQuery,
+    location.search,
+    location.pathname,
+    navigate
+  ]);
+
   // Load contacts list for current user
   const fetchContacts = async () => {
     if (!user) return;
@@ -426,8 +608,8 @@ const RealtimeChat = () => {
         });
         setContacts(updatedData);
 
-        // ONLY auto-select first contact if NO contact is selected yet AND no targetUserId
-        if (updatedData.length > 0 && !currentActive && !targetUserId) {
+        // ONLY auto-select first contact if NO contact is selected yet AND no targetUserId AND user hasn't explicitly closed chat
+        if (updatedData.length > 0 && !currentActive && !targetUserId && !hasUserClosedChatRef.current) {
           setActiveContact(updatedData[0]);
         }
       }
@@ -469,6 +651,7 @@ const RealtimeChat = () => {
       if (existing) {
         const currentActiveId = activeContactRef.current?.clerkId || activeContactRef.current?.id;
         if (currentActiveId !== targetUserId) {
+          hasUserClosedChatRef.current = false;
           setActiveContact(existing);
           setIsMobileChatOpen(true);
         }
@@ -493,6 +676,7 @@ const RealtimeChat = () => {
             unread: 0
           };
           setContacts((prev) => [newContact, ...prev.filter((c) => c.clerkId !== u.clerkId)]);
+          hasUserClosedChatRef.current = false;
           setActiveContact(newContact);
           setIsMobileChatOpen(true);
         }
@@ -2264,6 +2448,7 @@ const RealtimeChat = () => {
                         );
                       }
                     }
+                    hasUserClosedChatRef.current = false;
                     const currentActiveId = activeContactRef.current?.clerkId || activeContactRef.current?.id;
                     const targetId = contact.clerkId || contact.id;
                     if (currentActiveId !== targetId) {
@@ -2452,8 +2637,15 @@ const RealtimeChat = () => {
             <div className="h-16 px-3 sm:px-6 border-b border-border/40 flex items-center justify-between bg-card/90 backdrop-blur z-20 shrink-0 relative w-full max-w-full min-w-0">
               <div className="flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 flex-1 mr-2" onClick={viewPartnerProfile}>
                 <button 
-                  onClick={(e) => { e.stopPropagation(); setIsMobileChatOpen(false); }}
-                  className="md:hidden p-2 -ml-1 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0"
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    hasUserClosedChatRef.current = true;
+                    setActiveContact(null);
+                    setIsMobileChatOpen(false); 
+                    if (location.search) navigate(location.pathname, { replace: true });
+                  }}
+                  className="p-2 -ml-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  title="Exit Chat (Esc)"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
                 </button>
@@ -3189,7 +3381,7 @@ const RealtimeChat = () => {
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <p className="text-sm font-medium">Say hello to {activeContact.name} 👋</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">Messages are end-to-end connected via Socket.io</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Messages are end-to-end encrypted and securely delivered</p>
               </div>
             )}
 
@@ -3654,7 +3846,7 @@ const RealtimeChat = () => {
             </div>
             <h3 className="text-lg font-bold text-foreground">Your Messages</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Select a conversation from the sidebar to start chatting live with Socket.io real-time connection.
+              Select a conversation from the sidebar to start chatting with secure real-time messaging.
             </p>
           </div>
         </div>

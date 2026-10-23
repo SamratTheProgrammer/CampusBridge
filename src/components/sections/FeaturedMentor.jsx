@@ -172,11 +172,17 @@ const FeaturedMentor = () => {
       })
 
       if (res.ok) {
-        setConnections(prev => ({ ...prev, [mentorId]: 'pending' }))
-        toast.success(`Connection request sent to ${mentor.firstName || 'Mentor'}!`)
+        const data = await res.json().catch(() => ({}));
+        if (data.autoAccepted) {
+          setConnections(prev => ({ ...prev, [mentorId]: 'accepted' }));
+          toast.success(data.message || `${mentor.firstName || 'Mentor'} had already sent you a request! Connected successfully! 🎉`);
+        } else {
+          setConnections(prev => ({ ...prev, [mentorId]: 'pending' }));
+          toast.success(`Connection request sent to ${mentor.firstName || 'Mentor'}!`);
+        }
       } else {
-        const data = await res.json().catch(() => ({}))
-        toast.error(data.message || 'Failed to send connection request')
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message || 'Failed to send connection request');
       }
     } catch (err) {
       toast.error('Network error. Please try again.')

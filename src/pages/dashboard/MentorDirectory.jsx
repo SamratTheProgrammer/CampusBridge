@@ -55,12 +55,15 @@ const MentorDirectory = () => {
               const targetClerkId = c.targetUser?.clerkId || c.targetUser?.id || (c.requesterClerkId === user?.id ? c.recipientClerkId : c.requesterClerkId);
               const targetMongoId = c.targetUser?._id ? String(c.targetUser._id) : null;
               
-              // Register status for all variations of IDs
-              if (c.recipientClerkId) connMap[c.recipientClerkId] = c.status;
-              if (c.requesterClerkId) connMap[c.requesterClerkId] = c.status;
-              if (c.targetUser?.clerkId) connMap[c.targetUser.clerkId] = c.status;
-              if (targetClerkId) connMap[targetClerkId] = c.status;
-              if (targetMongoId) connMap[targetMongoId] = c.status;
+              // Register status: if pending and current user is recipient, keep as 'none' so they can click Connect to auto-accept!
+              const isOutgoing = c.requesterClerkId === user?.id;
+              const displayStatus = (c.status === 'pending' && !isOutgoing) ? 'none' : c.status;
+
+              if (c.recipientClerkId && (isOutgoing || c.status === 'accepted')) connMap[c.recipientClerkId] = c.status;
+              if (c.requesterClerkId && (!isOutgoing || c.status === 'accepted')) connMap[c.requesterClerkId] = displayStatus;
+              if (c.targetUser?.clerkId) connMap[c.targetUser.clerkId] = displayStatus;
+              if (targetClerkId) connMap[targetClerkId] = displayStatus;
+              if (targetMongoId) connMap[targetMongoId] = displayStatus;
 
               // Check if target user is a mentor either by role or presence in mentors list
               const richMentor = allMentorsList.find(m => 
@@ -116,8 +119,14 @@ const MentorDirectory = () => {
         })
       });
       if (res.ok) {
-        setConnections(prev => ({ ...prev, [mentorId]: 'pending' }))
-        toast.success('Connection request sent!')
+        const data = await res.json().catch(() => ({}));
+        if (data.autoAccepted) {
+          setConnections(prev => ({ ...prev, [mentorId]: 'accepted' }));
+          toast.success(data.message || 'They already sent you a connection request! Connected successfully! 🎉');
+        } else {
+          setConnections(prev => ({ ...prev, [mentorId]: 'pending' }));
+          toast.success('Connection request sent!');
+        }
       } else {
         const text = await res.text()
         try {

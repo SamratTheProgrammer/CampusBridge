@@ -65,13 +65,66 @@ const populateUserDetails = async (connections, currentUserId) => {
 // Create a connection request
 router.post('/', async (req, res) => {
   try {
-    const { requesterClerkId, recipientClerkId, message } = req.body;
+    const requesterClerkId = req.body.requesterClerkId || req.body.senderClerkId || req.body.senderId;
+    const recipientClerkId = req.body.recipientClerkId || req.body.receiverClerkId || req.body.receiverId;
+    const message = req.body.message;
 
     if (!requesterClerkId || !recipientClerkId) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // Check if a connection already exists in either direction
+    if (requesterClerkId === recipientClerkId) {
+      return res.status(400).json({ message: 'Cannot connect with yourself' });
+    }
+
+    // 1. Check if recipient has ALREADY sent a pending request to this requester!
+    // Auto-accept it directly instead of throwing an error, and notify the original sender.
+    const reversePending = await Connection.findOne({
+      requesterClerkId: recipientClerkId,
+      recipientClerkId: requesterClerkId,
+      status: 'pending'
+    });
+
+    if (reversePending) {
+      reversePending.status = 'accepted';
+      await reversePending.save();
+
+      // Trigger notification to original requester (recipientClerkId)
+      const [responder, originalSender] = await Promise.all([
+        User.findOne({ clerkId: requesterClerkId }),
+        User.findOne({ clerkId: recipientClerkId })
+      ]);
+
+      const responderName = responder ? `${responder.firstName} ${responder.lastName || ''}`.trim() : 'User';
+      const responderRole = (responder?.role || 'student').toLowerCase();
+      const originalSenderRole = (originalSender?.role || 'student').toLowerCase();
+
+      const isMentorship = (originalSenderRole === 'student' && responderRole === 'mentor') || (responderRole === 'student' && originalSenderRole === 'mentor');
+
+      const acceptTitle = 'Request Accepted! 🎉';
+      const acceptMessage = isMentorship
+        ? `${responderName} accepted your mentorship request!`
+        : `${responderName} accepted your connection request!`;
+
+      const notifLink = originalSenderRole === 'mentor' ? '/mentor-dashboard/network' : '/dashboard/network';
+
+      await createNotificationHelper({
+        recipientClerkId,
+        senderClerkId: requesterClerkId,
+        type: 'connection_accepted',
+        title: acceptTitle,
+        message: acceptMessage,
+        link: notifLink
+      });
+
+      return res.status(200).json({
+        ...reversePending.toObject(),
+        autoAccepted: true,
+        message: 'They already sent you a connection request! Connected successfully! 🎉'
+      });
+    }
+
+    // 2. Check if a connection already exists in either direction
     const existing = await Connection.findOne({
       $or: [
         { requesterClerkId, recipientClerkId },
@@ -81,7 +134,14 @@ router.post('/', async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({ message: 'Connection request already exists or is accepted' });
+      if (existing.status === 'accepted') {
+        return res.status(200).json({
+          ...existing.toObject(),
+          alreadyConnected: true,
+          message: 'You are already connected!'
+        });
+      }
+      return res.status(400).json({ message: 'Connection request already exists and is pending' });
     }
 
     const connection = new Connection({
@@ -93,16 +153,44 @@ router.post('/', async (req, res) => {
 
     await connection.save();
 
-    // Trigger notification to recipient
-    const sender = await User.findOne({ clerkId: requesterClerkId });
-    const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'A student';
+    // Trigger role-tailored notification to recipient
+    const [sender, recipient] = await Promise.all([
+      User.findOne({ clerkId: requesterClerkId }),
+      User.findOne({ clerkId: recipientClerkId })
+    ]);
+
+    const senderName = sender ? `${sender.firstName} ${sender.lastName || ''}`.trim() : 'A member';
+    const senderRole = (sender?.role || 'student').toLowerCase();
+    const recipientRole = (recipient?.role || 'student').toLowerCase();
+
+    let title = 'New Connection Request';
+    let notifMessage = `${senderName} sent you a connection request.`;
+
+    if (senderRole === 'mentor') {
+      title = 'New Mentor Connection Request';
+      notifMessage = `${senderName} (Mentor) sent you a connection request.`;
+    } else if (senderRole === 'alumni') {
+      title = 'New Alumni Connection Request';
+      notifMessage = `${senderName} (Alumni) sent you a connection request.`;
+    } else if (senderRole === 'student') {
+      if (recipientRole === 'mentor') {
+        title = 'New Mentorship Request';
+        notifMessage = `${senderName} sent you a mentorship request.`;
+      } else {
+        title = 'New Student Connection Request';
+        notifMessage = `${senderName} sent you a connection request.`;
+      }
+    }
+
+    const notifLink = recipientRole === 'mentor' ? '/mentor-dashboard/requests' : '/dashboard/network';
+
     await createNotificationHelper({
       recipientClerkId,
       senderClerkId: requesterClerkId,
       type: 'connection_request',
-      title: 'New Mentorship Request',
-      message: `${senderName} sent you a mentorship request.`,
-      link: '/mentor-dashboard/requests'
+      title,
+      message: notifMessage,
+      link: notifLink
     });
 
     res.status(201).json(connection);
@@ -129,7 +217,8 @@ router.delete('/:id', async (req, res) => {
 // Cancel a connection by requester and recipient ID
 router.post('/cancel', async (req, res) => {
   try {
-    const { requesterClerkId, recipientClerkId } = req.body;
+    const requesterClerkId = req.body.requesterClerkId || req.body.senderClerkId || req.body.senderId;
+    const recipientClerkId = req.body.recipientClerkId || req.body.receiverClerkId || req.body.receiverId;
     if (!requesterClerkId || !recipientClerkId) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
@@ -166,19 +255,41 @@ router.put('/:id', async (req, res) => {
     }
 
     // Trigger notification to requester
-    const responder = await User.findOne({ clerkId: connection.recipientClerkId });
-    const responderName = responder ? `${responder.firstName} ${responder.lastName || ''}`.trim() : 'A mentor';
+    const [responder, requester] = await Promise.all([
+      User.findOne({ clerkId: connection.recipientClerkId }),
+      User.findOne({ clerkId: connection.requesterClerkId })
+    ]);
+
+    const responderName = responder ? `${responder.firstName} ${responder.lastName || ''}`.trim() : 'User';
+    const responderRole = (responder?.role || 'student').toLowerCase();
+    const requesterRole = (requester?.role || 'student').toLowerCase();
+
     const isAccepted = status === 'accepted';
-    
+    const isMentorship = (requesterRole === 'student' && responderRole === 'mentor') || (responderRole === 'student' && requesterRole === 'mentor');
+
+    let title = '';
+    let message = '';
+    if (isAccepted) {
+      title = 'Request Accepted! 🎉';
+      message = isMentorship
+        ? `${responderName} accepted your mentorship request!`
+        : `${responderName} accepted your connection request!`;
+    } else {
+      title = 'Request Declined';
+      message = isMentorship
+        ? `${responderName} declined your mentorship request.`
+        : `${responderName} declined your connection request.`;
+    }
+
+    const acceptLink = requesterRole === 'mentor' ? '/mentor-dashboard/network' : '/dashboard/network';
+
     await createNotificationHelper({
       recipientClerkId: connection.requesterClerkId,
       senderClerkId: connection.recipientClerkId,
       type: isAccepted ? 'connection_accepted' : 'connection_declined',
-      title: isAccepted ? 'Request Accepted! 🎉' : 'Request Declined',
-      message: isAccepted 
-        ? `${responderName} accepted your mentorship request!` 
-        : `${responderName} declined your mentorship request.`,
-      link: isAccepted ? '/dashboard/my-mentors' : '/dashboard/requests'
+      title,
+      message,
+      link: acceptLink
     });
 
     res.status(200).json(connection);

@@ -519,11 +519,17 @@ const DashboardHome = () => {
         const connMap = {}
         let acceptedCount = 0
         connsData.forEach(c => {
-          if (c.requesterClerkId === user.id) connMap[c.recipientClerkId] = c.status
-          else if (c.recipientClerkId === user.id) connMap[c.requesterClerkId] = c.status
-          
           if (c.status === 'accepted') {
             acceptedCount++
+            if (c.requesterClerkId === user.id) connMap[c.recipientClerkId] = 'accepted'
+            else if (c.recipientClerkId === user.id) connMap[c.requesterClerkId] = 'accepted'
+          } else if (c.status === 'pending') {
+            if (c.requesterClerkId === user.id) {
+              connMap[c.recipientClerkId] = 'pending'
+            } else {
+              // Incoming pending request from target to user: show Connect so clicking connects/auto-accepts
+              connMap[c.requesterClerkId] = 'none'
+            }
           }
         })
         setConnections(connMap)
@@ -649,8 +655,14 @@ const DashboardHome = () => {
         })
       })
       if (res.ok) {
-        setConnections(prev => ({ ...prev, [mentorId]: 'pending' }))
-        toast.success('Connection request sent!')
+        const data = await res.json().catch(() => ({}))
+        if (data.autoAccepted) {
+          setConnections(prev => ({ ...prev, [mentorId]: 'accepted' }))
+          toast.success(data.message || 'They already sent you a connection request! Connected successfully! 🎉')
+        } else {
+          setConnections(prev => ({ ...prev, [mentorId]: 'pending' }))
+          toast.success('Connection request sent!')
+        }
       } else {
         const text = await res.text()
         try {

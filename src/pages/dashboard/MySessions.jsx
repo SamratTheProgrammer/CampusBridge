@@ -43,6 +43,14 @@ const MySessions = () => {
   const [modeFilter, setModeFilter] = useState('all') // 'all' | 'Online' | 'Offline'
   const [selectedDetailSession, setSelectedDetailSession] = useState(null)
   
+  // Seen indicators for tabs (dismisses purple dot once visited)
+  const [seenUpcomingCount, setSeenUpcomingCount] = useState(() => {
+    return parseInt(localStorage.getItem('cb_seen_tab_upcoming_count') || '0', 10)
+  })
+  const [seenPendingCount, setSeenPendingCount] = useState(() => {
+    return parseInt(localStorage.getItem('cb_seen_tab_pending_count') || '0', 10)
+  })
+  
   // Data state
   const [availableSessions, setAvailableSessions] = useState([])
   const [userSessions, setUserSessions] = useState([]) // 1-on-1 booked sessions
@@ -95,6 +103,7 @@ const MySessions = () => {
 
   useEffect(() => {
     fetchData()
+    window.dispatchEvent(new CustomEvent('campusbridge:sessions_viewed'))
   }, [user])
 
   const handleCancelSession = async (sessionId) => {
@@ -226,6 +235,53 @@ const MySessions = () => {
     if (checkIsPast(session.date, session.time)) return false;
     return true
   })
+
+  // Synchronize seen counts when user is actively viewing the respective tab
+  useEffect(() => {
+    if (activeTab === 'upcoming' && filteredUpcoming.length > 0) {
+      localStorage.setItem('cb_seen_tab_upcoming_count', String(filteredUpcoming.length))
+      setSeenUpcomingCount(filteredUpcoming.length)
+    }
+  }, [activeTab, filteredUpcoming.length])
+
+  useEffect(() => {
+    if (activeTab === 'pending' && filteredPending.length > 0) {
+      localStorage.setItem('cb_seen_tab_pending_count', String(filteredPending.length))
+      setSeenPendingCount(filteredPending.length)
+    }
+  }, [activeTab, filteredPending.length])
+
+  // If counts drop, decrease seen counts so future new items will show indicator again
+  useEffect(() => {
+    if (filteredUpcoming.length < seenUpcomingCount) {
+      localStorage.setItem('cb_seen_tab_upcoming_count', String(filteredUpcoming.length))
+      setSeenUpcomingCount(filteredUpcoming.length)
+    }
+  }, [filteredUpcoming.length, seenUpcomingCount])
+
+  useEffect(() => {
+    if (filteredPending.length < seenPendingCount) {
+      localStorage.setItem('cb_seen_tab_pending_count', String(filteredPending.length))
+      setSeenPendingCount(filteredPending.length)
+    }
+  }, [filteredPending.length, seenPendingCount])
+
+  const hasUnseenUpcoming = activeTab !== 'upcoming' && (filteredUpcoming.length - seenUpcomingCount > 0)
+  const hasUnseenPending = activeTab !== 'pending' && (filteredPending.length - seenPendingCount > 0)
+
+  const handleTabClick = (tab) => {
+    setActiveTab(tab)
+    if (tab === 'upcoming') {
+      const count = Math.max(filteredUpcoming.length, 1)
+      localStorage.setItem('cb_seen_tab_upcoming_count', String(count))
+      setSeenUpcomingCount(count)
+    }
+    if (tab === 'pending') {
+      const count = Math.max(filteredPending.length, 1)
+      localStorage.setItem('cb_seen_tab_pending_count', String(count))
+      setSeenPendingCount(count)
+    }
+  }
 
   // Render a single upcoming session card (works for both 1-on-1 and registered events)
   const renderUpcomingCard = (item) => {
@@ -468,7 +524,7 @@ const MySessions = () => {
       <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden mb-6 sm:mb-8">
         <div className="flex overflow-x-auto scrollbar-none border-b border-border/40">
           <button 
-            onClick={() => setActiveTab('available')}
+            onClick={() => handleTabClick('available')}
             className={`px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors relative shrink-0
               ${activeTab === 'available' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
@@ -478,12 +534,12 @@ const MySessions = () => {
             )}
           </button>
           <button 
-            onClick={() => setActiveTab('upcoming')}
+            onClick={() => handleTabClick('upcoming')}
             className={`px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors relative shrink-0 flex items-center gap-2
               ${activeTab === 'upcoming' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <span>My Upcoming Sessions ({filteredUpcoming.length})</span>
-            {filteredUpcoming.length > 0 && (
+            {hasUnseenUpcoming && (
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" title="Active upcoming sessions" />
             )}
             {activeTab === 'upcoming' && (
@@ -491,12 +547,12 @@ const MySessions = () => {
             )}
           </button>
           <button 
-            onClick={() => setActiveTab('pending')}
+            onClick={() => handleTabClick('pending')}
             className={`px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors relative shrink-0 flex items-center gap-2
               ${activeTab === 'pending' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <span>Pending Requests ({filteredPending.length})</span>
-            {filteredPending.length > 0 && (
+            {hasUnseenPending && (
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" title="Pending requests awaiting confirmation" />
             )}
             {activeTab === 'pending' && (
@@ -504,7 +560,7 @@ const MySessions = () => {
             )}
           </button>
           <button 
-            onClick={() => setActiveTab('completed')}
+            onClick={() => handleTabClick('completed')}
             className={`px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors relative shrink-0
               ${activeTab === 'completed' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >

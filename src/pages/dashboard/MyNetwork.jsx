@@ -23,6 +23,11 @@ const MyNetwork = () => {
   const [isConnecting, setIsConnecting] = useState(null);
   const [unfriendConfirm, setUnfriendConfirm] = useState({ isOpen: false, connectionId: null, targetName: '' });
 
+  // Seen indicator for pending tab (dismisses dot once visited)
+  const [seenPendingCount, setSeenPendingCount] = useState(() => {
+    return parseInt(localStorage.getItem('cb_network_seen_pending_count') || '0', 10);
+  });
+
   // Fetch connections and suggestions
   useEffect(() => {
     if (!user?.id) return;
@@ -96,15 +101,27 @@ const MyNetwork = () => {
 
       if (res.ok) {
         const newConn = await res.json();
-        toast.success(`Request sent to ${targetName}! 🎉`);
+        if (newConn.autoAccepted) {
+          toast.success(newConn.message || `${targetName} had already sent you a request! Connected successfully! 🎉`);
+          setConnections((prev) => [
+            {
+              ...newConn,
+              status: 'accepted',
+              targetUser: { clerkId: targetClerkId, name: targetName }
+            },
+            ...prev
+          ]);
+        } else {
+          toast.success(`Request sent to ${targetName}! 🎉`);
+          setConnections((prev) => [
+            {
+              ...newConn,
+              targetUser: { clerkId: targetClerkId, name: targetName }
+            },
+            ...prev
+          ]);
+        }
         setSuggestions((prev) => prev.filter((s) => s.clerkId !== targetClerkId));
-        setConnections((prev) => [
-          {
-            ...newConn,
-            targetUser: { clerkId: targetClerkId, name: targetName }
-          },
-          ...prev
-        ]);
       } else {
         const data = await res.json();
         toast.error(data.message || 'Failed to send request');
@@ -190,6 +207,30 @@ const MyNetwork = () => {
       s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.headline?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  useEffect(() => {
+    if (activeTab === 'pending' && incomingRequests.length > 0) {
+      localStorage.setItem('cb_network_seen_pending_count', String(incomingRequests.length));
+      setSeenPendingCount(incomingRequests.length);
+    }
+  }, [activeTab, incomingRequests.length]);
+
+  useEffect(() => {
+    if (incomingRequests.length < seenPendingCount) {
+      localStorage.setItem('cb_network_seen_pending_count', String(incomingRequests.length));
+      setSeenPendingCount(incomingRequests.length);
+    }
+  }, [incomingRequests.length, seenPendingCount]);
+
+  const hasUnseenPending = activeTab !== 'pending' && (incomingRequests.length - seenPendingCount > 0);
+
+  const handleTabClick = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'pending') {
+      const count = Math.max(incomingRequests.length, 1);
+      localStorage.setItem('cb_network_seen_pending_count', String(count));
+      setSeenPendingCount(count);
+    }
+  };
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-8 pb-10">
@@ -242,7 +283,7 @@ const MyNetwork = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('pending')}
+            onClick={() => handleTabClick('pending')}
             className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 sm:gap-2 relative ${
               activeTab === 'pending'
                 ? 'bg-primary text-primary-foreground shadow-sm'
@@ -250,7 +291,7 @@ const MyNetwork = () => {
             }`}
           >
             <Clock className="w-4 h-4" /> Pending Requests ({incomingRequests.length + outgoingRequests.length})
-            {incomingRequests.length > 0 && (
+            {hasUnseenPending && (
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
             )}
           </button>

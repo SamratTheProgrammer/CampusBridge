@@ -26,6 +26,11 @@ const MentorSessions = () => {
   const [selectedDetailSession, setSelectedDetailSession] = useState(null)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [shareConfig, setShareConfig] = useState(null)
+  
+  // Seen indicators for tabs (dismisses purple dot once visited)
+  const [seen1on1Count, setSeen1on1Count] = useState(() => {
+    return parseInt(localStorage.getItem('cb_mentor_seen_tab_1on1_count') || '0', 10)
+  })
 
   const handleShareEvent = (e, event) => {
     e.preventDefault();
@@ -208,7 +213,33 @@ const MentorSessions = () => {
   useEffect(() => {
     fetchSessions()
     fetchAvailableEvents()
+    window.dispatchEvent(new CustomEvent('campusbridge:mentor_sessions_viewed'))
   }, [user])
+
+  useEffect(() => {
+    if (activeTab === 'one-on-one' && individualSessions.length > 0) {
+      localStorage.setItem('cb_mentor_seen_tab_1on1_count', String(individualSessions.length))
+      setSeen1on1Count(individualSessions.length)
+    }
+  }, [activeTab, individualSessions.length])
+
+  useEffect(() => {
+    if (individualSessions.length < seen1on1Count) {
+      localStorage.setItem('cb_mentor_seen_tab_1on1_count', String(individualSessions.length))
+      setSeen1on1Count(individualSessions.length)
+    }
+  }, [individualSessions.length, seen1on1Count])
+
+  const hasUnseen1on1 = activeTab !== 'one-on-one' && (individualSessions.length - seen1on1Count > 0)
+
+  const handleSelectTab = (tab) => {
+    setActiveTab(tab)
+    if (tab === 'one-on-one') {
+      const count = Math.max(individualSessions.length, 1)
+      localStorage.setItem('cb_mentor_seen_tab_1on1_count', String(count))
+      setSeen1on1Count(count)
+    }
+  }
 
   const handleSessionAction = async (id, status, meetingLink = '') => {
     try {
@@ -560,13 +591,13 @@ const MentorSessions = () => {
             Group Sessions ({groupSessionsList.length})
           </button>
           <button
-            onClick={() => setActiveTab('one-on-one')}
+            onClick={() => handleSelectTab('one-on-one')}
             className={`whitespace-nowrap flex-1 sm:flex-none px-3.5 sm:px-5 py-2 text-xs font-bold rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
               activeTab === 'one-on-one' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <span>1-on-1 Bookings ({individualSessions.length})</span>
-            {individualSessions.length > 0 && (
+            {hasUnseen1on1 && (
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" title="Active 1-on-1 bookings" />
             )}
           </button>
