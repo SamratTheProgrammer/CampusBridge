@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import EventSkeleton from '../../components/skeletons/EventSkeleton'
-import { Plus, Calendar, Clock, MapPin, Users, Link as LinkIcon, Search, Loader2, X, Edit, Trash2 } from 'lucide-react'
+import { Plus, Calendar, Clock, MapPin, Users, Link as LinkIcon, Search, Loader2, X, Edit, Trash2, Phone, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
 import { format } from 'date-fns'
@@ -681,8 +681,13 @@ const MentorEvents = () => {
                                   </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-0.5">{app.applicant?.email || app.applicantDetails?.email}</p>
-                                {(app.applicant?.phone || app.applicantDetails?.phone) && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">Phone: {app.applicant?.phone || app.applicantDetails?.phone}</p>
+                                {(app.applicantDetails?.phone || app.applicant?.phone) && (
+                                  <div className="text-xs font-semibold text-foreground/90 mt-1 flex items-center gap-1.5">
+                                    <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                    <a href={`tel:${app.applicantDetails?.phone || app.applicant?.phone}`} className="text-emerald-600 dark:text-emerald-400 hover:underline font-bold whitespace-nowrap">
+                                      {app.applicantDetails?.phone || app.applicant?.phone}
+                                    </a>
+                                  </div>
                                 )}
                               </div>
                             </div>

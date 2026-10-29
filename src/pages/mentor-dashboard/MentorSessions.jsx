@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import SessionSkeleton from '../../components/skeletons/SessionSkeleton'
-import { Plus, Calendar, Clock, MapPin, Users, Link as LinkIcon, Search, Loader2, X, Edit, Trash2, Globe, Video, BookOpen, Check, Upload, CheckCircle2, ExternalLink, Share2, ChevronRight, Wifi, ArrowRight, Laptop } from 'lucide-react'
+import { Plus, Calendar, Clock, MapPin, Users, Link as LinkIcon, Search, Loader2, X, Edit, Trash2, Globe, Video, BookOpen, Check, Upload, CheckCircle2, ExternalLink, Share2, ChevronRight, Wifi, ArrowRight, Laptop, Phone, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useUser } from '@clerk/clerk-react'
 import { formatDistanceToNow, format } from 'date-fns'
@@ -1139,6 +1139,12 @@ const MentorSessions = () => {
                           {studentName}
                         </Link>
                         {student?.email && <p className="text-[11px] text-muted-foreground truncate">{student.email}</p>}
+                        {student?.phone && (
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold truncate flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3 shrink-0" />
+                            <a href={`tel:${student.phone}`} className="hover:underline">{student.phone}</a>
+                          </p>
+                        )}
                       </div>
 
                       {/* Location if Offline */}
@@ -1609,7 +1615,7 @@ const MentorSessions = () => {
       {isApplicationsModalOpen && selectedSession && (
         <ModalPortal>
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-xl shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
+          <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 w-full max-w-xl sm:max-w-2xl shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h2 className="text-xl font-bold text-foreground">Registered Students</h2>
@@ -1631,28 +1637,79 @@ const MentorSessions = () => {
             </div>
             ) : registeredStudents.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                {registeredStudents.map((app) => (
-                  <div key={app._id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border/40">
-                    <div className="flex items-center gap-3">
-                      <Link to={`/profile/${app.applicant?.username || app.applicant?.clerkId || app.applicant?._id}`} className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setIsApplicationsModalOpen(false)}>
-                        <img 
-                          src={app.applicant?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.applicant?.name}`} 
-                          alt="Student" 
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      </Link>
-                      <div>
-                        <Link to={`/profile/${app.applicant?.username || app.applicant?.clerkId || app.applicant?._id}`} className="hover:underline" onClick={() => setIsApplicationsModalOpen(false)}>
-                          <h4 className="font-bold text-sm text-foreground">{app.applicant?.name || app.applicant?.firstName}</h4>
+                {registeredStudents.map((app) => {
+                  const regName = app.applicantDetails?.name || app.applicant?.name || `${app.applicant?.firstName || ''} ${app.applicant?.lastName || ''}`.trim() || 'Student';
+                  const regEmail = app.applicantDetails?.email || app.applicant?.email;
+                  const regPhone = app.applicantDetails?.phone || app.applicant?.phone;
+                  const regRoll = app.applicantDetails?.rollNumber || app.applicant?.rollNumber;
+                  const userProfileTarget = app.applicant?.username || app.applicant?.clerkId || app.applicant?._id;
+                  const userDp = app.applicant?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(regName)}`;
+
+                  return (
+                    <div key={app._id} className="flex items-center justify-between p-3.5 bg-muted/30 hover:bg-muted/40 transition-colors rounded-xl border border-border/40 gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Link 
+                          to={userProfileTarget ? `/profile/${userProfileTarget}` : '#'} 
+                          className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+                          onClick={() => setIsApplicationsModalOpen(false)}
+                          title="View profile"
+                        >
+                          <img 
+                            src={userDp} 
+                            alt={regName} 
+                            className="w-11 h-11 rounded-full object-cover border border-border/50 shadow-2xs"
+                          />
                         </Link>
-                        <p className="text-xs text-muted-foreground">{app.applicant?.email}</p>
+                        <div className="min-w-0">
+                          <Link 
+                            to={userProfileTarget ? `/profile/${userProfileTarget}` : '#'} 
+                            className="hover:underline hover:text-primary transition-colors block truncate" 
+                            onClick={() => setIsApplicationsModalOpen(false)}
+                          >
+                            <h4 className="font-bold text-sm text-foreground truncate">{regName}</h4>
+                          </Link>
+                          {regEmail && (
+                            <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5 mt-0.5" title={regEmail}>
+                              <Mail className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                              <span className="truncate">{regEmail}</span>
+                            </p>
+                          )}
+                          {regPhone ? (
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                              <a 
+                                href={`tel:${regPhone}`} 
+                                className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-bold transition-colors whitespace-nowrap"
+                                title={`Call ${regPhone}`}
+                              >
+                                {regPhone}
+                              </a>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground/60 italic flex items-center gap-1 mt-0.5">
+                              <Phone className="w-3 h-3 opacity-40 shrink-0" /> No phone provided
+                            </p>
+                          )}
+                          {regRoll && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Roll No: <span className="font-medium text-foreground">{regRoll}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary capitalize border border-primary/20">
+                          {app.applicantRole || 'Student'}
+                        </span>
+                        {app.createdAt && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(new Date(app.createdAt), 'MMM d, yyyy')}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary capitalize">
-                      {app.applicantRole || 'Student'}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="py-12 text-center text-muted-foreground">

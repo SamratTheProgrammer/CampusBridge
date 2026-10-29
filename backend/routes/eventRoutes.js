@@ -330,6 +330,12 @@ router.post('/:id/apply', async (req, res) => {
     });
     await application.save();
 
+    // Sync phone number from registration form to user profile if available
+    if (applicantDetails?.phone && (!user.phone || user.phone !== applicantDetails.phone)) {
+      user.phone = applicantDetails.phone;
+      await user.save();
+    }
+
     // Add to event attendees array
     if (!event.attendees.includes(user._id)) {
       event.attendees.push(user._id);
@@ -396,6 +402,34 @@ router.get('/:id/applications', async (req, res) => {
     const applications = await EventApplication.find({ event: req.params.id })
       .populate('applicant', 'name firstName lastName email imageUrl headline phone role clerkId username')
       .sort({ createdAt: -1 });
+
+    const event = await Event.findById(req.params.id)
+      .populate('attendees', 'name firstName lastName email imageUrl headline phone role clerkId username');
+
+    // If any attendee registered without an explicit EventApplication, synthesize fallback entry
+    if (event && Array.isArray(event.attendees)) {
+      const existingApplicantIds = new Set(
+        applications.map(a => String(a.applicant?._id || a.applicant?.id || a.applicant))
+      );
+      for (const att of event.attendees) {
+        if (att && att._id && !existingApplicantIds.has(String(att._id))) {
+          applications.push({
+            _id: `att_${att._id}`,
+            event: event._id,
+            applicant: att,
+            applicantRole: att.role || 'student',
+            applicantDetails: {
+              name: att.name || `${att.firstName || ''} ${att.lastName || ''}`.trim() || att.username,
+              email: att.email || '',
+              phone: att.phone || ''
+            },
+            status: 'accepted',
+            createdAt: event.createdAt
+          });
+        }
+      }
+    }
+
     res.json(applications);
   } catch (error) {
     res.status(500).json({ error: error.message });
