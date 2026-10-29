@@ -1357,8 +1357,9 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
                       ? post.mediaFiles 
                       : (post.imageUrl ? [{ url: post.imageUrl, mediaType: post.mediaType || 'image' }] : []);
 
-                    const visualFiles = allMedia.filter(m => m.mediaType !== 'audio' && !m.url?.match(/\.(mp3|wav|ogg|m4a|aac|webm)(\?.*)?$/i));
-                    const audioFiles = allMedia.filter(m => m.mediaType === 'audio' || m.url?.match(/\.(mp3|wav|ogg|m4a|aac|webm)(\?.*)?$/i));
+                    const isAudioItem = (m) => m?.mediaType === 'audio' || (m?.url && m.url.match(/\.(mp3|wav|oga|m4a|aac|flac|opus|weba)(\?.*)?$/i)) || (m?.url && (m.url.includes('/audio/') || m.url.includes('voice_')));
+                    const visualFiles = allMedia.filter(m => !isAudioItem(m));
+                    const audioFiles = allMedia.filter(m => isAudioItem(m));
 
                     return (
                       <>

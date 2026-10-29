@@ -37,8 +37,18 @@ const FeedMediaGrid = ({
 }) => {
   const rawFiles = mediaFiles?.length > 0 ? mediaFiles : (imageUrl ? [{ url: imageUrl, mediaType: mediaType }] : []);
   
+  const isAudioFile = (f) => {
+    if (!f) return false;
+    if (f.mediaType === 'audio') return true;
+    if (!f.url) return false;
+    const clean = f.url.split('?')[0].toLowerCase();
+    if (['.mp3', '.wav', '.oga', '.m4a', '.aac', '.flac', '.opus', '.weba'].some(ext => clean.endsWith(ext))) return true;
+    if (f.url.includes('/audio/') || f.url.includes('/audios/') || clean.includes('voice_') || clean.includes('audio_')) return true;
+    return false;
+  };
+
   // Filter out standalone audio items handled separately
-  const validFiles = rawFiles.filter(f => f && f.mediaType !== 'audio' && !f.url?.match(/\.(mp3|wav|ogg|m4a|aac)$/i));
+  const validFiles = rawFiles.filter(f => f && !isAudioFile(f));
 
   const richLinkItems = validFiles.filter(isRichLinkItem);
   const standardMediaFiles = validFiles.filter(f => !isRichLinkItem(f));
@@ -51,7 +61,7 @@ const FeedMediaGrid = ({
 
   // Render a single media item (Image or Video) with Instagram-style pinch-to-zoom
   const MediaItem = ({ file, idx, isMain }) => {
-    const isVideo = file.mediaType === 'video' || (file.url && file.url.match(/\.(mp4|webm|ogg)$/i));
+    const isVideo = file.mediaType === 'video' || (file.url && (file.url.match(/\.(mp4|mov|m4v|mkv)(\?.*)?$/i) || (file.url.match(/\.(webm|ogg)(\?.*)?$/i) && !isAudioFile(file))));
 
     const handleTap = (e) => {
       e?.stopPropagation?.();

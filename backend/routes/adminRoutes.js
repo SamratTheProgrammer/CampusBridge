@@ -2,6 +2,7 @@ import express from 'express';
 import User from '../models/User.js';
 import Job from '../models/Job.js';
 import Event from '../models/Event.js';
+import EventApplication from '../models/EventApplication.js';
 import Post from '../models/Post.js';
 import Message from '../models/Message.js';
 import Session from '../models/Session.js';
@@ -503,9 +504,168 @@ router.put('/users/:id/role', async (req, res) => {
 });
 
 // Get All Admin Jobs (MongoDB dynamic data + seed)
+// Quick Mentors List for dropdowns (Event Host selection, etc.)
+router.get('/mentors-list', async (req, res) => {
+  try {
+    let mentors = await User.find({ role: { $in: ['mentor', 'alumni', 'admin'] } })
+      .select('name firstName lastName email imageUrl avatar role headline company position clerkId username rating')
+      .sort({ role: 1, firstName: 1 });
+
+    if (mentors.length === 0) {
+      try {
+        await User.insertMany(SAMPLE_MENTORS);
+        mentors = await User.find({ role: 'mentor' })
+          .select('name firstName lastName email imageUrl avatar role headline company position clerkId username rating');
+      } catch (e) {
+        console.error('Error auto-seeding mentors for dropdown:', e);
+      }
+    }
+
+    const formatted = mentors.map(m => ({
+      _id: m._id,
+      id: m._id,
+      clerkId: m.clerkId,
+      username: m.username || m.clerkId || String(m._id),
+      name: m.name || `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.username || m.email,
+      firstName: m.firstName || m.name?.split(' ')[0] || 'Mentor',
+      lastName: m.lastName || '',
+      email: m.email || '',
+      imageUrl: m.imageUrl || m.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(m.firstName || 'Mentor')}`,
+      role: m.role || 'mentor',
+      company: m.company || (m.headline?.includes(' at ') ? m.headline.split(' at ')[1] : 'CampusBridge'),
+      headline: m.headline || 'Campus Mentor',
+      rating: m.rating || 4.9
+    }));
+
+    return res.status(200).json({ success: true, mentors: formatted });
+  } catch (error) {
+    console.error('Fetch Mentors List Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch mentors list' });
+  }
+});
+
+// Helper to ensure an event has an organizer and calculated ratings
+async function enrichEventData(eventDoc, defaultMentor) {
+  const evObj = eventDoc.toObject ? eventDoc.toObject() : { ...eventDoc };
+
+  // If organizer missing or null, link/assign fallback mentor
+  if (!evObj.organizer) {
+    if (defaultMentor) {
+      evObj.organizer = {
+        _id: defaultMentor._id,
+        id: defaultMentor._id,
+        name: defaultMentor.name || `${defaultMentor.firstName || ''} ${defaultMentor.lastName || ''}`.trim() || defaultMentor.username || 'Mentor Host',
+        firstName: defaultMentor.firstName || 'Mentor',
+        lastName: defaultMentor.lastName || 'Host',
+        email: defaultMentor.email || 'mentor@campusbridge.com',
+        imageUrl: defaultMentor.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(defaultMentor.firstName || 'Host')}`,
+        role: defaultMentor.role || 'mentor',
+        clerkId: defaultMentor.clerkId || '',
+        username: defaultMentor.username || defaultMentor.clerkId || String(defaultMentor._id),
+        headline: defaultMentor.headline || 'CampusBridge Mentor',
+        company: defaultMentor.company || 'CampusBridge',
+        rating: defaultMentor.rating || 4.9
+      };
+      // Asynchronously update in DB to keep persisted
+      Event.updateOne({ _id: evObj._id }, { $set: { organizer: defaultMentor._id } }).exec().catch(() => {});
+    }
+  } else if (typeof evObj.organizer === 'object') {
+    evObj.organizer.name = evObj.organizer.name || `${evObj.organizer.firstName || ''} ${evObj.organizer.lastName || ''}`.trim() || evObj.organizer.username || 'Host';
+    if (!evObj.organizer.imageUrl) {
+      evObj.organizer.imageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(evObj.organizer.firstName || 'Host')}`;
+    }
+  }
+
+  // Calculate dynamic ratings and review count
+  try {
+    const reviews = await Review.find({ referenceId: evObj._id })
+      .populate('reviewer', 'name firstName lastName email imageUrl username clerkId')
+      .sort({ createdAt: -1 });
+
+    if (reviews && reviews.length > 0) {
+      const sum = reviews.reduce((acc, r) => acc + (r.contentRating || r.mentorRating || 5), 0);
+      evObj.rating = Number((sum / reviews.length).toFixed(1));
+      evObj.reviewsCount = reviews.length;
+      evObj.reviews = reviews;
+    } else {
+      evObj.rating = Number((evObj.organizer?.rating || 4.9).toFixed(1));
+      evObj.reviewsCount = Math.max(evObj.attendees?.length || 0, 8);
+      evObj.reviews = [];
+    }
+  } catch (e) {
+    evObj.rating = Number((evObj.organizer?.rating || 4.9).toFixed(1));
+    evObj.reviewsCount = Math.max(evObj.attendees?.length || 0, 8);
+    evObj.reviews = [];
+  }
+
+  return evObj;
+}
+
+// Get All Admin Events
+router.get('/events', async (req, res) => {
+  try {
+    let defaultMentor = await User.findOne({ role: 'mentor', verificationStatus: 'Approved' });
+    if (!defaultMentor) {
+      defaultMentor = await User.findOne({ role: 'mentor' }) || await User.findOne({ role: { $in: ['admin', 'alumni'] } });
+    }
+
+    if (!defaultMentor) {
+      try {
+        const seeded = await User.insertMany(SAMPLE_MENTORS);
+        defaultMentor = seeded[0];
+      } catch (e) {
+        // Fallback
+      }
+    }
+
+    const events = await Event.find()
+      .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company username rating')
+      .populate('attendees', 'name firstName lastName email imageUrl username clerkId headline role')
+      .sort({ createdAt: -1 });
+
+    const enrichedEvents = await Promise.all(events.map(ev => enrichEventData(ev, defaultMentor)));
+
+    return res.status(200).json({ success: true, events: enrichedEvents });
+  } catch (error) {
+    console.error('Admin Fetch Events Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch events' });
+  }
+});
+
+// Get Event Attendees and Applications for Admin
+router.get('/events/:id/attendees', async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id)
+      .populate('organizer', 'name firstName lastName email imageUrl role clerkId headline position company username rating')
+      .populate('attendees', 'name firstName lastName email imageUrl username clerkId headline role');
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    let defaultMentor = await User.findOne({ role: 'mentor' }) || await User.findOne();
+    const enrichedEvent = await enrichEventData(event, defaultMentor);
+
+    const applications = await EventApplication.find({ event: req.params.id })
+      .populate('applicant', 'name firstName lastName email imageUrl headline phone role clerkId username')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      event: enrichedEvent,
+      attendees: event.attendees || [],
+      applications: applications || [],
+      reviews: enrichedEvent.reviews || []
+    });
+  } catch (error) {
+    console.error('Fetch Event Attendees Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch attendees' });
+  }
+});
+
 router.get('/jobs', async (req, res) => {
   try {
-    let jobs = await Job.find().sort({ createdAt: -1 });
+    let jobs = await Job.find()
+      .populate('applicants', 'name firstName lastName email imageUrl role clerkId headline username')
+      .populate('postedBy', 'name firstName lastName email imageUrl role clerkId headline username')
+      .sort({ createdAt: -1 });
 
     // Seed sample jobs if none exist in database
     if (jobs.length === 0) {
@@ -576,6 +736,7 @@ router.get('/jobs', async (req, res) => {
 
     const formattedJobs = jobs.map(j => ({
       id: j._id,
+      _id: j._id,
       title: j.title,
       company: j.company,
       companyLogo: j.companyLogo || '',
@@ -583,11 +744,17 @@ router.get('/jobs', async (req, res) => {
       type: j.type || 'Full-time',
       salary: j.salary || 'Competitive',
       description: j.description || '',
+      eligibility: j.eligibility || {},
+      deadline: j.deadline || null,
+      postedBy: j.postedBy || null,
+      applicants: j.applicants || [],
       posted: new Date(j.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       applications: j.applicants ? j.applicants.length : 0,
       status: j.status || 'Approved',
       moderationStatus: j.moderationStatus || (j.active === false ? 'paused' : 'approved'),
-      active: !!j.active
+      active: !!j.active,
+      createdAt: j.createdAt,
+      updatedAt: j.updatedAt
     }));
 
     return res.status(200).json({ success: true, jobs: formattedJobs });

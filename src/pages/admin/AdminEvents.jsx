@@ -1,13 +1,30 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Edit3, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2, Search, Eye } from 'lucide-react'
+import { Plus, Trash2, Edit3, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2, Search, Eye, AlertTriangle, Clock, Users, ExternalLink, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import { useUser } from '@clerk/clerk-react'
 import API_BASE from '../../utils/api'
 import ImageInputWithUrl from '../../components/common/ImageInputWithUrl'
+
+
+const isEventExpired = (event) => {
+  if (!event || !event.date) return false;
+  const eventDate = new Date(event.date);
+  return eventDate.getTime() < new Date().setHours(0, 0, 0, 0);
+};
+
+const isRegistrationClosed = (event) => {
+  if (!event) return false;
+  if (event.lastRegDate) {
+    const deadline = new Date(event.lastRegDate);
+    deadline.setHours(23, 59, 59, 999);
+    return deadline.getTime() < Date.now();
+  }
+  return isEventExpired(event);
+};
 
 const AdminEvents = () => {
   const navigate = useNavigate()
@@ -24,6 +41,8 @@ const AdminEvents = () => {
   // Remark Modal state
   const [remarkModal, setRemarkModal] = useState({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
   const [viewEventModal, setViewEventModal] = useState({ isOpen: false, event: null })
+  const [eventApplications, setEventApplications] = useState([])
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false)
 
   // Form fields state
   const [title, setTitle] = useState('')
@@ -44,10 +63,19 @@ const AdminEvents = () => {
   const fetchEvents = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE}/api/events?category=event&admin_override=true`)
+      // First try dedicated admin events endpoint
+      const adminRes = await fetch(`${API_BASE}/api/admin/events`)
+      if (adminRes.ok) {
+        const adminData = await adminRes.json()
+        if (adminData.success && Array.isArray(adminData.events)) {
+          setEvents(adminData.events)
+          return
+        }
+      }
+      const res = await fetch(`${API_BASE}/api/events?category=all&admin_override=true`)
       if (res.ok) {
         const data = await res.json()
-        setEvents(data)
+        setEvents(Array.isArray(data) ? data : [])
       } else {
         toast.error('Failed to load events')
       }
@@ -62,6 +90,47 @@ const AdminEvents = () => {
   useEffect(() => {
     fetchEvents()
   }, [])
+
+  useEffect(() => {
+    if (!viewEventModal.isOpen || !viewEventModal.event) {
+      setEventApplications([])
+      return
+    }
+    const eventId = viewEventModal.event._id || viewEventModal.event.id
+    if (!eventId) return
+
+    let isMounted = true
+    setIsLoadingApplications(true)
+
+    // Try admin attendees endpoint first
+    fetch(`${API_BASE}/api/admin/events/${eventId}/attendees`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!isMounted) return
+        if (data && data.success) {
+          if (data.event) {
+            setViewEventModal(prev => ({
+              ...prev,
+              event: { ...prev.event, ...data.event }
+            }))
+          }
+          setEventApplications(Array.isArray(data.applications) ? data.applications : [])
+        } else {
+          // Fallback to /api/events/:id/applications
+          fetch(`${API_BASE}/api/events/${eventId}/applications?admin_override=true`)
+            .then(r => r.ok ? r.json() : [])
+            .then(appData => {
+              if (isMounted) setEventApplications(Array.isArray(appData) ? appData : [])
+            })
+        }
+      })
+      .catch(err => console.error('Error loading event attendees:', err))
+      .finally(() => {
+        if (isMounted) setIsLoadingApplications(false)
+      })
+
+    return () => { isMounted = false }
+  }, [viewEventModal.isOpen, viewEventModal.event?._id, viewEventModal.event?.id])
 
   const resetForm = () => {
     setTitle('')
@@ -109,6 +178,7 @@ const AdminEvents = () => {
     setDescription(event.description || '')
     setImageUrl(event.imageUrl || '')
     setImageFile(null)
+    setOrganizerId(event.organizer?._id || event.organizer?.id || '')
     setIsModalOpen(true)
   }
 
@@ -258,8 +328,14 @@ const AdminEvents = () => {
                           e.description?.toLowerCase().includes(search.toLowerCase()) ||
                           e.location?.toLowerCase().includes(search.toLowerCase()) ||
                           (e.organizer?.name && e.organizer.name.toLowerCase().includes(search.toLowerCase()))
-    const currentStatus = e.moderationStatus === 'paused' ? 'Paused' : 'Active'
-    const matchesStatus = statusFilter === 'All' || currentStatus === statusFilter
+    
+    let matchesStatus = true
+    if (statusFilter === 'Active') matchesStatus = e.moderationStatus !== 'paused' && !isEventExpired(e)
+    else if (statusFilter === 'Paused') matchesStatus = e.moderationStatus === 'paused'
+    else if (statusFilter === 'Expired') matchesStatus = isEventExpired(e)
+    else if (statusFilter === 'Upcoming') matchesStatus = !isEventExpired(e)
+    else if (statusFilter === 'RegClosed') matchesStatus = isRegistrationClosed(e)
+
     return matchesSearch && matchesStatus
   })
 
@@ -305,11 +381,14 @@ const AdminEvents = () => {
         <select 
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[140px] w-full md:w-auto"
+          className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[150px] w-full md:w-auto"
         >
-          <option value="All">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Paused">Paused</option>
+          <option value="All">All Events &amp; Status</option>
+          <option value="Upcoming">🟢 Upcoming Events</option>
+          <option value="Expired">🔴 Expired Events</option>
+          <option value="RegClosed">⚠️ Registration Closed</option>
+          <option value="Active">Active (Unpaused)</option>
+          <option value="Paused">Paused / Held</option>
         </select>
       </div>
 
@@ -324,16 +403,20 @@ const AdminEvents = () => {
                 <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-3.5">Event</th>
                   <th className="px-3 py-3.5 whitespace-nowrap">Mode &amp; Type</th>
-                  <th className="px-3 py-3.5 whitespace-nowrap">Date &amp; Time</th>
+                  <th className="px-3 py-3.5 whitespace-nowrap">Schedule &amp; Reg Deadline</th>
                   <th className="px-3 py-3.5 whitespace-nowrap">Registrations</th>
-                  <th className="px-3 py-3.5 whitespace-nowrap">Status</th>
+                  <th className="px-3 py-3.5 whitespace-nowrap">Status &amp; Expiry</th>
                   <th className="px-4 py-3.5 whitespace-nowrap text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 text-sm">
                 {filteredEvents.length > 0 ? (
                   filteredEvents.map((event) => (
-                    <tr key={event._id} className="hover:bg-muted/10 transition-colors">
+                    <tr 
+                      key={event._id} 
+                      onClick={() => setViewEventModal({ isOpen: true, event })}
+                      className="hover:bg-muted/10 transition-colors cursor-pointer"
+                    >
                       <td className="px-4 py-3 font-bold text-foreground">
                         <div className="flex items-center gap-3 min-w-0">
                           {event.imageUrl ? (
@@ -389,25 +472,79 @@ const AdminEvents = () => {
                           <span className="text-[11px] text-muted-foreground font-medium">{event.type || 'Event'}</span>
                         </div>
                       </td>
+                      {/* Schedule & Reg Deadline */}
                       <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
-                        <p className="font-medium text-foreground text-xs">{event.date ? new Date(event.date).toLocaleDateString() : 'TBD'}</p>
-                        <p className="text-[11px] text-muted-foreground">{event.time || 'N/A'}</p>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
+                            <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span>{event.date ? new Date(event.date).toLocaleDateString() : 'TBD'}</span>
+                            {event.time && <span className="text-[11px] text-muted-foreground font-normal">({event.time})</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px]">
+                            <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+                            {event.lastRegDate ? (
+                              (() => {
+                                const isRegEnded = new Date(event.lastRegDate).setHours(23, 59, 59, 999) < Date.now();
+                                return isRegEnded ? (
+                                  <span className="text-rose-500 dark:text-rose-400 font-bold">
+                                    Last Reg: {new Date(event.lastRegDate).toLocaleDateString()} (Closed)
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    Last Reg: {new Date(event.lastRegDate).toLocaleDateString()}
+                                  </span>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-muted-foreground/60">No deadline set</span>
+                            )}
+                          </div>
+                        </div>
                       </td>
+
+                      {/* Registrations count */}
                       <td className="px-3 py-3 whitespace-nowrap text-foreground text-xs font-semibold">
-                        {event.attendees?.length || 0} Registered
+                        <div className="flex items-center gap-1.5">
+                          <span className="p-1 rounded-md bg-primary/10 text-primary">
+                            <Users className="w-3.5 h-3.5" />
+                          </span>
+                          <span>{event.attendees?.length || 0} Registered</span>
+                        </div>
                       </td>
+
+                      {/* Status & Expiry */}
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          event.moderationStatus === 'paused'
-                            ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                            : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                        }`}>
-                          {event.moderationStatus === 'paused' ? 'Paused' : 'Active'}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          {/* Expiry Pill */}
+                          {isEventExpired(event) ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" /> Expired
+                            </span>
+                          ) : isRegistrationClosed(event) ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Reg Closed
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Upcoming
+                            </span>
+                          )}
+
+                          {/* Moderation Pill */}
+                          {event.moderationStatus === 'paused' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                              Paused
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium text-muted-foreground">
+                              Active
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right space-x-1 shrink-0">
                         <button 
-                          onClick={() => setViewEventModal({ isOpen: true, event })}
+                          onClick={(e) => { e.stopPropagation(); setViewEventModal({ isOpen: true, event }); }}
                           className="p-1.5 text-sky-500 hover:bg-sky-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                           title="View Details"
                         >
@@ -415,7 +552,7 @@ const AdminEvents = () => {
                         </button>
                         {event.moderationStatus !== 'paused' ? (
                           <button 
-                            onClick={() => handleStatusChange(event._id, 'paused')}
+                            onClick={(e) => { e.stopPropagation(); handleStatusChange(event._id, 'paused'); }}
                             className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Pause / Hold Event"
                           >
@@ -423,7 +560,7 @@ const AdminEvents = () => {
                           </button>
                         ) : (
                           <button 
-                            onClick={() => handleStatusChange(event._id, 'approved')}
+                            onClick={(e) => { e.stopPropagation(); handleStatusChange(event._id, 'approved'); }}
                             className="p-1.5 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Resume Event"
                           >
@@ -431,14 +568,14 @@ const AdminEvents = () => {
                           </button>
                         )}
                         <button 
-                          onClick={() => handleOpenEditModal(event)}
+                          onClick={(e) => { e.stopPropagation(); handleOpenEditModal(event); }}
                           className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                           title="Edit Event"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => confirmDelete(event._id, event.title)}
+                          onClick={(e) => { e.stopPropagation(); confirmDelete(event._id, event.title); }}
                           className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                           title="Delete Event"
                         >
@@ -449,7 +586,7 @@ const AdminEvents = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="text-center py-10 text-muted-foreground">
+                    <td colSpan="7" className="text-center py-10 text-muted-foreground">
                       No events found matching current filter.
                     </td>
                   </tr>
@@ -701,29 +838,121 @@ const AdminEvents = () => {
                 )}
 
                 <div className="p-6 space-y-6">
-                  <div>
-                    <h3 className="text-3xl font-black text-foreground leading-tight">{viewEventModal.event.title}</h3>
-                    <div className="flex items-center gap-2 mt-3">
-                      <span className="inline-block text-xs uppercase font-bold tracking-wider bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
-                        {viewEventModal.event.type || 'Event'}
-                      </span>
-                      <span className={`inline-block text-xs uppercase font-bold tracking-wider px-3 py-1 rounded-full border ${viewEventModal.event.mode === 'Offline' || (!viewEventModal.event.mode && viewEventModal.event.location) ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-sky-500/10 text-sky-500 border-sky-500/20'}`}>
-                        {viewEventModal.event.mode === 'Offline' || (!viewEventModal.event.mode && viewEventModal.event.location) ? 'Offline' : 'Online'}
-                      </span>
-                    </div>
-                  </div>
+                  {(() => {
+                    const isExp = isEventExpired(viewEventModal.event);
+                    const isRegDone = isRegistrationClosed(viewEventModal.event);
 
+                    return (
+                      <div>
+                        <h3 className="text-2xl sm:text-3xl font-black text-foreground leading-tight">{viewEventModal.event.title}</h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                          <span className="inline-block text-xs uppercase font-bold tracking-wider bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
+                            {viewEventModal.event.type || 'Event'}
+                          </span>
+                          <span className={`inline-block text-xs uppercase font-bold tracking-wider px-3 py-1 rounded-full border ${viewEventModal.event.mode === 'Offline' || (!viewEventModal.event.mode && viewEventModal.event.location) ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-sky-500/10 text-sky-500 border-sky-500/20'}`}>
+                            {viewEventModal.event.mode === 'Offline' || (!viewEventModal.event.mode && viewEventModal.event.location) ? 'Offline' : 'Online'}
+                          </span>
+                          
+                          {/* Expiration Status Badge */}
+                          {isExp ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> Event Expired
+                            </span>
+                          ) : isRegDone ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                              <span className="w-2 h-2 rounded-full bg-amber-500" /> Registration Closed
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" /> Active &amp; Upcoming
+                            </span>
+                          )}
+
+                          {viewEventModal.event.moderationStatus === 'paused' && (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                              Paused / Held
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 4 Key Details Cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Event Date & Time */}
                     <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1"><Calendar className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Date & Time</span></div>
-                      <p className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <Calendar className="w-4 h-4 text-primary"/> 
+                        <span className="text-xs font-bold uppercase tracking-wider">Event Date &amp; Time</span>
+                      </div>
+                      <p className="font-semibold text-foreground text-sm">
                         {viewEventModal.event.date ? new Date(viewEventModal.event.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
                         {viewEventModal.event.time ? ` at ${viewEventModal.event.time}` : ''}
                       </p>
+                      <p className="text-[11px] mt-1">
+                        {isEventExpired(viewEventModal.event) ? (
+                          <span className="text-rose-500 font-bold">Event date has passed (Expired)</span>
+                        ) : (
+                          <span className="text-emerald-500 font-medium">Scheduled in future</span>
+                        )}
+                      </p>
                     </div>
+
+                    {/* Registration Deadline (lastRegDate) */}
                     <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1"><MapPin className="w-4 h-4"/> <span className="text-xs font-bold uppercase tracking-wider">Location / Link</span></div>
-                      <p className="font-semibold text-foreground truncate" title={viewEventModal.event.location || viewEventModal.event.link}>{viewEventModal.event.location || viewEventModal.event.link || 'TBD'}</p>
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <Clock className="w-4 h-4 text-amber-500"/> 
+                        <span className="text-xs font-bold uppercase tracking-wider">Registration Deadline (Last Date)</span>
+                      </div>
+                      <p className="font-semibold text-foreground text-sm">
+                        {viewEventModal.event.lastRegDate 
+                          ? new Date(viewEventModal.event.lastRegDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) 
+                          : 'No Deadline Specified (Open until Event)'}
+                      </p>
+                      <p className="text-[11px] mt-1">
+                        {isRegistrationClosed(viewEventModal.event) ? (
+                          <span className="text-rose-500 font-bold">Registration has ended</span>
+                        ) : (
+                          <span className="text-emerald-500 font-medium">Currently accepting registrations</span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Location or Meeting Link */}
+                    <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <MapPin className="w-4 h-4 text-sky-500"/> 
+                        <span className="text-xs font-bold uppercase tracking-wider">Location / Meeting Link</span>
+                      </div>
+                      <p className="font-semibold text-foreground truncate text-sm" title={viewEventModal.event.location || viewEventModal.event.link}>
+                        {viewEventModal.event.location || viewEventModal.event.link || 'TBD'}
+                      </p>
+                      {viewEventModal.event.link && (
+                        <a 
+                          href={viewEventModal.event.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-[11px] text-primary hover:underline flex items-center gap-1 mt-1 font-medium"
+                        >
+                          Join URL <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Registration Status Count */}
+                    <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <Users className="w-4 h-4 text-purple-500"/> 
+                        <span className="text-xs font-bold uppercase tracking-wider">Total Registered Users</span>
+                      </div>
+                      <p className="font-bold text-foreground text-lg">
+                        {viewEventModal.event.attendees?.length || eventApplications?.length || 0}
+                        <span className="text-xs font-normal text-muted-foreground ml-1.5">Registered</span>
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {isRegistrationClosed(viewEventModal.event) ? 'Registration Closed' : 'Accepting participants'}
+                      </p>
                     </div>
                   </div>
 
@@ -751,6 +980,136 @@ const AdminEvents = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Registered Attendees Section ("ke ke reg krlo") */}
+                  {(() => {
+                    const attendeesMap = new Map();
+
+                    // 1. Process attendees array from event object
+                    if (Array.isArray(viewEventModal.event.attendees)) {
+                      viewEventModal.event.attendees.forEach(att => {
+                        if (att && typeof att === 'object') {
+                          const key = att.clerkId || att._id || att.id || att.username;
+                          if (key) {
+                            attendeesMap.set(String(key), {
+                              ...att,
+                              name: att.name || `${att.firstName || ''} ${att.lastName || ''}`.trim() || att.username || 'Participant',
+                              email: att.email || '',
+                              imageUrl: att.imageUrl || '',
+                              role: att.role || 'Attendee',
+                              headline: att.headline || '',
+                              username: att.username || att.clerkId || att._id
+                            });
+                          }
+                        }
+                      });
+                    }
+
+                    // 2. Process applications list from backend
+                    if (Array.isArray(eventApplications)) {
+                      eventApplications.forEach(app => {
+                        const userObj = app.applicant || {};
+                        const key = userObj.clerkId || userObj._id || userObj.id || userObj.username || app._id;
+                        if (key) {
+                          const existing = attendeesMap.get(String(key)) || {};
+                          attendeesMap.set(String(key), {
+                            ...existing,
+                            ...userObj,
+                            name: app.applicantDetails?.name || existing.name || userObj.name || `${userObj.firstName || ''} ${userObj.lastName || ''}`.trim() || 'Participant',
+                            email: app.applicantDetails?.email || existing.email || userObj.email || '',
+                            phone: app.applicantDetails?.phone || existing.phone || userObj.phone || '',
+                            rollNumber: app.applicantDetails?.rollNumber || existing.rollNumber || '',
+                            role: app.applicantRole || existing.role || userObj.role || 'Student',
+                            appliedAt: app.createdAt || existing.appliedAt,
+                            status: app.status || existing.status || 'Registered'
+                          });
+                        }
+                      });
+                    }
+
+                    const allAttendees = Array.from(attendeesMap.values());
+
+                    return (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                            <span>👥 Registered Users &amp; Participants</span>
+                            <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold">
+                              {allAttendees.length}
+                            </span>
+                          </h4>
+                          {isLoadingApplications && (
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Loading registrations...
+                            </span>
+                          )}
+                        </div>
+
+                        {allAttendees.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                            {allAttendees.map((att, attIdx) => {
+                              const dp = att.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(att.name || att.firstName || 'User')}&background=random`;
+                              const targetUser = att.username || att.clerkId || att._id || att.id;
+                              return (
+                                <div 
+                                  key={att._id || att.clerkId || attIdx}
+                                  className="flex items-center justify-between gap-3 p-3 bg-muted/20 hover:bg-muted/40 rounded-xl border border-border/40 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <img 
+                                      src={dp} 
+                                      alt={att.name || 'User'} 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (targetUser) navigate(`/admin/users/${targetUser}`);
+                                      }}
+                                      className="w-10 h-10 rounded-full object-cover border border-border/50 shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/60 transition-all shadow-xs"
+                                      title="Click to view user profile"
+                                    />
+                                    <div className="min-w-0">
+                                      <p 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (targetUser) navigate(`/admin/users/${targetUser}`);
+                                        }}
+                                        className="font-bold text-foreground text-sm truncate hover:text-primary cursor-pointer transition-colors"
+                                        title={att.name || 'Participant'}
+                                      >
+                                        {att.name || 'Participant'}
+                                      </p>
+                                      <p className="text-[11px] text-muted-foreground truncate" title={att.email || att.headline || att.role}>
+                                        {att.email || att.headline || (att.role ? `Role: ${att.role}` : 'Registered Participant')}
+                                      </p>
+                                      {att.phone && (
+                                        <p className="text-[10px] text-muted-foreground/70 truncate">📞 {att.phone}</p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right shrink-0">
+                                    <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                      Confirmed
+                                    </span>
+                                    {att.appliedAt && (
+                                      <p className="text-[10px] text-muted-foreground/70 mt-1">
+                                        {new Date(att.appliedAt).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="p-6 rounded-xl bg-muted/10 border border-border/30 text-center text-xs text-muted-foreground space-y-1">
+                            <Users className="w-6 h-6 mx-auto opacity-40 mb-1" />
+                            <p className="font-semibold text-foreground/80">No users have registered for this event yet.</p>
+                            <p className="text-[11px] text-muted-foreground">When users apply or register, they will appear here with clickable profiles.</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
               

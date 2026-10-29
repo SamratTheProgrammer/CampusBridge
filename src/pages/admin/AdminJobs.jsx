@@ -1,6 +1,7 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause, Eye, IndianRupee } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Search, Trash2, CheckCircle2, AlertCircle, Loader2, X, Briefcase, MapPin, DollarSign, Building, Pause, Eye, IndianRupee, FileText, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import ModalPortal from '../../components/modals/ModalPortal'
@@ -10,6 +11,7 @@ import { formatSalaryWithLPA, calculateSalaryEquivalents } from '../../utils/sal
 import CourseSelector from '../../components/common/CourseSelector'
 
 const AdminJobs = () => {
+  const navigate = useNavigate()
   const [jobs, setJobs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -18,6 +20,8 @@ const AdminJobs = () => {
   // Modal states
   const [remarkModal, setRemarkModal] = useState({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
   const [viewJobModal, setViewJobModal] = useState({ isOpen: false, job: null })
+  const [jobApplications, setJobApplications] = useState([])
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false)
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -83,6 +87,31 @@ const AdminJobs = () => {
   useEffect(() => {
     fetchJobs()
   }, [])
+
+  useEffect(() => {
+    if (!viewJobModal.isOpen || !viewJobModal.job) {
+      setJobApplications([])
+      return
+    }
+    const jobId = viewJobModal.job.id || viewJobModal.job._id
+    if (!jobId) return
+
+    let isMounted = true
+    setIsLoadingApplications(true)
+    fetch(`${API_BASE}/api/jobs/${jobId}/applications`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (isMounted) {
+          setJobApplications(Array.isArray(data) ? data : [])
+        }
+      })
+      .catch(err => console.error('Error fetching job applications:', err))
+      .finally(() => {
+        if (isMounted) setIsLoadingApplications(false)
+      })
+
+    return () => { isMounted = false }
+  }, [viewJobModal.isOpen, viewJobModal.job])
 
   // Confirm delete handler
   const confirmDelete = (id, title) => {
@@ -297,7 +326,11 @@ const AdminJobs = () => {
               <tbody className="divide-y divide-border/40 text-sm">
                 {filteredJobs.length > 0 ? (
                   filteredJobs.map((job) => (
-                    <tr key={job.id || job._id} className="hover:bg-muted/10 transition-colors">
+                    <tr 
+                      key={job.id || job._id} 
+                      onClick={() => setViewJobModal({ isOpen: true, job })}
+                      className="hover:bg-muted/10 transition-colors cursor-pointer"
+                    >
                       <td className="px-6 py-4 font-bold text-foreground">
                         <div>
                           <span className="block text-foreground font-bold">{job.title}</span>
@@ -328,7 +361,7 @@ const AdminJobs = () => {
                       </td>
                       <td className="px-6 py-4 text-right space-x-1">
                         <button 
-                          onClick={() => setViewJobModal({ isOpen: true, job })}
+                          onClick={(e) => { e.stopPropagation(); setViewJobModal({ isOpen: true, job }); }}
                           className="p-2 text-sky-500 hover:bg-sky-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                           title="View Details"
                         >
@@ -336,7 +369,7 @@ const AdminJobs = () => {
                         </button>
                         {job.moderationStatus !== 'paused' ? (
                           <button 
-                            onClick={() => handleStatusChange(job.id || job._id, 'paused')}
+                            onClick={(e) => { e.stopPropagation(); handleStatusChange(job.id || job._id, 'paused'); }}
                             className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Pause Job"
                           >
@@ -344,7 +377,7 @@ const AdminJobs = () => {
                           </button>
                         ) : (
                           <button 
-                            onClick={() => handleStatusChange(job.id || job._id, 'approved')}
+                            onClick={(e) => { e.stopPropagation(); handleStatusChange(job.id || job._id, 'approved'); }}
                             className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Resume Job"
                           >
@@ -352,7 +385,7 @@ const AdminJobs = () => {
                           </button>
                         )}
                         <button 
-                          onClick={() => confirmDelete(job.id || job._id, job.title)}
+                          onClick={(e) => { e.stopPropagation(); confirmDelete(job.id || job._id, job.title); }}
                           className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                           title="Delete Job"
                         >
@@ -839,6 +872,50 @@ const AdminJobs = () => {
                   </div>
                 )}
 
+                {viewJobModal.job.deadline && (
+                  <div className="bg-muted/30 p-4 rounded-xl border border-border/40 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="w-4 h-4 text-amber-500"/>
+                      <span className="text-xs font-bold uppercase tracking-wider">Application Deadline</span>
+                    </div>
+                    <p className="font-bold text-foreground text-sm">
+                      {new Date(viewJobModal.job.deadline).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                )}
+
+                {viewJobModal.job.postedBy && (
+                  <div className="bg-muted/20 p-4 rounded-xl border border-border/40 flex items-center gap-3.5">
+                    <img 
+                      src={viewJobModal.job.postedBy.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(viewJobModal.job.postedBy.name || 'Mentor')}&background=random`}
+                      alt="Posted By" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const t = viewJobModal.job.postedBy.username || viewJobModal.job.postedBy.clerkId || viewJobModal.job.postedBy._id;
+                        if (t) navigate(`/admin/users/${t}`);
+                      }}
+                      className="w-11 h-11 rounded-full object-cover border border-border/50 cursor-pointer hover:ring-2 hover:ring-primary/60 transition-all shadow-xs"
+                      title="Click to view mentor profile"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Job Posted By</p>
+                      <p 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const t = viewJobModal.job.postedBy.username || viewJobModal.job.postedBy.clerkId || viewJobModal.job.postedBy._id;
+                          if (t) navigate(`/admin/users/${t}`);
+                        }}
+                        className="font-bold text-foreground text-sm hover:text-primary cursor-pointer transition-colors truncate"
+                      >
+                        {viewJobModal.job.postedBy.name || `${viewJobModal.job.postedBy.firstName || ''} ${viewJobModal.job.postedBy.lastName || ''}`.trim() || 'CampusBridge Mentor'}
+                      </p>
+                      {viewJobModal.job.postedBy.email && (
+                        <p className="text-[11px] text-muted-foreground truncate">{viewJobModal.job.postedBy.email}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {viewJobModal.job.description && (
                   <div>
                     <h4 className="font-bold text-foreground mb-2">Description</h4>
@@ -847,6 +924,117 @@ const AdminJobs = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Applicants / Candidates Section */}
+                {(() => {
+                  const applicantsMap = new Map();
+                  // 1. Check applicants populated in job
+                  if (Array.isArray(viewJobModal.job.applicants)) {
+                    viewJobModal.job.applicants.forEach(cand => {
+                      if (cand && typeof cand === 'object') {
+                        const key = cand.clerkId || cand._id || cand.id || cand.username;
+                        if (key) applicantsMap.set(String(key), cand);
+                      }
+                    });
+                  }
+                  // 2. Merge applications from /api/jobs/:id/applications
+                  if (Array.isArray(jobApplications)) {
+                    jobApplications.forEach(app => {
+                      const u = app.applicant || {};
+                      const key = u.clerkId || u._id || u.id || u.username;
+                      if (key) {
+                        applicantsMap.set(String(key), {
+                          ...u,
+                          ...(applicantsMap.get(String(key)) || {}),
+                          resumeLink: app.resumeLink || applicantsMap.get(String(key))?.resumeLink,
+                          coverLetter: app.coverLetter || applicantsMap.get(String(key))?.coverLetter,
+                          appliedAt: app.createdAt || applicantsMap.get(String(key))?.appliedAt,
+                          appStatus: app.status || applicantsMap.get(String(key))?.appStatus
+                        });
+                      }
+                    });
+                  }
+
+                  const allApplicants = Array.from(applicantsMap.values());
+
+                  return (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                          <span>👥 Applied Candidates</span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold">
+                            {allApplicants.length}
+                          </span>
+                        </h4>
+                        {isLoadingApplications && (
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Loading candidates...
+                          </span>
+                        )}
+                      </div>
+
+                      {allApplicants.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
+                          {allApplicants.map((cand, cIdx) => {
+                            const dp = cand.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(cand.name || cand.firstName || 'Candidate')}&background=random`;
+                            const profileTarget = cand.username || cand.clerkId || cand._id || cand.id;
+                            return (
+                              <div 
+                                key={cand._id || cand.clerkId || cIdx}
+                                className="flex items-center justify-between gap-3 p-3 bg-muted/20 hover:bg-muted/40 rounded-xl border border-border/40 transition-colors"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <img 
+                                    src={dp} 
+                                    alt={cand.name || 'Candidate'} 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (profileTarget) navigate(`/admin/users/${profileTarget}`);
+                                    }}
+                                    className="w-10 h-10 rounded-full object-cover border border-border/50 shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/60 transition-all shadow-xs"
+                                    title="Click to view candidate profile"
+                                  />
+                                  <div className="min-w-0">
+                                    <p 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (profileTarget) navigate(`/admin/users/${profileTarget}`);
+                                      }}
+                                      className="font-bold text-foreground text-sm truncate hover:text-primary cursor-pointer transition-colors"
+                                      title={cand.name || `${cand.firstName || ''} ${cand.lastName || ''}`.trim() || 'Candidate'}
+                                    >
+                                      {cand.name || `${cand.firstName || ''} ${cand.lastName || ''}`.trim() || cand.username || 'Candidate'}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground truncate" title={cand.email || cand.headline}>
+                                      {cand.email || cand.headline || (cand.role ? `Role: ${cand.role}` : 'Applicant')}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {cand.resumeLink && (
+                                  <a 
+                                    href={cand.resumeLink} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="px-2.5 py-1 text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg border border-primary/20 shrink-0 flex items-center gap-1 transition-colors"
+                                    title="View Resume"
+                                  >
+                                    <FileText className="w-3 h-3" /> Resume
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl bg-muted/10 border border-border/30 text-center text-xs text-muted-foreground">
+                          No candidates have applied for this position yet.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               
               <div className="p-4 border-t border-border/50 bg-muted/10 flex justify-end">

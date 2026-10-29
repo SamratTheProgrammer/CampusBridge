@@ -17,19 +17,33 @@ import {
   Calendar,
   Clock,
   MapPin,
-  Briefcase
+  Briefcase,
+  Volume2
 } from 'lucide-react'
+import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import API_BASE from '../../utils/api'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 
+const isAudioUrl = (url, mediaType) => {
+  if (mediaType === 'audio') return true
+  if (!url) return false
+  const clean = url.split('?')[0].toLowerCase()
+  if (['.mp3', '.wav', '.oga', '.m4a', '.aac', '.flac', '.opus', '.weba'].some(ext => clean.endsWith(ext))) return true
+  if (url.includes('/audio/') || url.includes('/audios/') || clean.includes('voice_') || clean.includes('audio_')) return true
+  return false
+}
+
 const isVideoUrl = (url, mediaType) => {
+  if (isAudioUrl(url, mediaType)) return false
   if (mediaType === 'video') return true
   if (!url) return false
-  if (url.match(/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i)) return true
-  if (url.includes('/video/upload/') || url.includes('/video/')) return true
+  const clean = url.split('?')[0].toLowerCase()
+  if (['.mp4', '.mov', '.m4v', '.mkv', '.avi'].some(ext => clean.endsWith(ext))) return true
+  if (['.webm', '.ogg'].some(ext => clean.endsWith(ext)) && !url.includes('voice_') && !url.includes('audio_')) return true
+  if ((url.includes('/video/upload/') || url.includes('/video/')) && !isAudioUrl(url, mediaType)) return true
   return false
 }
 
@@ -208,17 +222,26 @@ const AdminPosts = () => {
               <tbody className="divide-y divide-border/40 text-sm">
                 {filteredPosts.length > 0 ? (
                   filteredPosts.map((post) => {
-                    const hasVideo = post.mediaFiles?.some(m => isVideoUrl(m.url, m.mediaType)) || isVideoUrl(post.imageUrl)
-                    const hasImages = (post.mediaFiles?.length > 0 && !hasVideo) || (post.imageUrl && !hasVideo)
+                    const hasAudio = post.mediaFiles?.some(m => isAudioUrl(m.url, m.mediaType)) || isAudioUrl(post.imageUrl, post.mediaType)
+                    const hasVideo = post.mediaFiles?.some(m => isVideoUrl(m.url, m.mediaType)) || (!isAudioUrl(post.imageUrl, post.mediaType) && isVideoUrl(post.imageUrl, post.mediaType))
+                    const visualImages = post.mediaFiles?.filter(m => !isVideoUrl(m.url, m.mediaType) && !isAudioUrl(m.url, m.mediaType)) || []
+                    const hasImages = visualImages.length > 0 || (post.imageUrl && !isVideoUrl(post.imageUrl, post.mediaType) && !isAudioUrl(post.imageUrl, post.mediaType))
                     const isEvent = post.eventDetails && post.eventDetails.title
                     const isJob = post.jobDetails && post.jobDetails.title
 
                     return (
-                      <tr key={post._id} className="hover:bg-muted/10 transition-colors">
+                      <tr 
+                        key={post._id} 
+                        onClick={() => setSelectedPostDetails(post)}
+                        className="hover:bg-muted/10 transition-colors cursor-pointer"
+                      >
                         {/* Author Profile Link */}
                         <td className="px-6 py-4 font-bold text-foreground">
                           <div 
-                            onClick={() => navigate(`/admin/users/${post.author?.username || post.author?.clerkId || post.author?.id}`)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/users/${post.author?.username || post.author?.clerkId || post.author?.id}`);
+                            }}
                             className="flex items-center gap-3 cursor-pointer group w-fit"
                             title="Click to view full user profile"
                           >
@@ -250,31 +273,53 @@ const AdminPosts = () => {
                         <td className="px-6 py-4 text-xs">
                           {isEvent ? (
                             <span 
-                              onClick={() => setSelectedPostDetails(post)}
+                              onClick={(e) => { e.stopPropagation(); setSelectedPostDetails(post); }}
                               className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-full border border-amber-500/20 cursor-pointer transition-all"
                             >
                               <Calendar className="w-3.5 h-3.5" /> {post.eventDetails.type || 'Event / Hackathon'}
                             </span>
                           ) : isJob ? (
                             <span 
-                              onClick={() => setSelectedPostDetails(post)}
+                              onClick={(e) => { e.stopPropagation(); setSelectedPostDetails(post); }}
                               className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 rounded-full border border-indigo-500/20 cursor-pointer transition-all"
                             >
                               <Briefcase className="w-3.5 h-3.5" /> Job Post
                             </span>
+                          ) : (hasImages && hasAudio) ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span 
+                                onClick={(e) => { e.stopPropagation(); setSelectedPostDetails(post); }}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-2.5 py-0.5 rounded-full border border-blue-500/20 cursor-pointer transition-all"
+                              >
+                                <ImageIcon className="w-3 h-3" /> {visualImages.length || 1} Photo(s)
+                              </span>
+                              <span 
+                                onClick={(e) => { e.stopPropagation(); setSelectedPostDetails(post); }}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 py-0.5 rounded-full border border-purple-500/20 cursor-pointer transition-all"
+                              >
+                                <Volume2 className="w-3 h-3" /> Audio
+                              </span>
+                            </div>
                           ) : hasVideo ? (
                             <span 
-                              onClick={() => setSelectedPostDetails(post)}
+                              onClick={(e) => { e.stopPropagation(); setSelectedPostDetails(post); }}
                               className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 py-1 rounded-full border border-purple-500/20 cursor-pointer transition-all"
                             >
                               <Video className="w-3.5 h-3.5" /> Video Post
                             </span>
+                          ) : hasAudio ? (
+                            <span 
+                              onClick={(e) => { e.stopPropagation(); setSelectedPostDetails(post); }}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 py-1 rounded-full border border-purple-500/20 cursor-pointer transition-all"
+                            >
+                              <Volume2 className="w-3.5 h-3.5" /> Audio Note
+                            </span>
                           ) : hasImages ? (
                             <span 
-                              onClick={() => setSelectedPostDetails(post)}
+                              onClick={(e) => { e.stopPropagation(); setSelectedPostDetails(post); }}
                               className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-2.5 py-1 rounded-full border border-blue-500/20 cursor-pointer transition-all"
                             >
-                              <ImageIcon className="w-3.5 h-3.5" /> {post.mediaFiles?.length || 1} Photo(s)
+                              <ImageIcon className="w-3.5 h-3.5" /> {visualImages.length || 1} Photo(s)
                             </span>
                           ) : (
                             <span className="text-muted-foreground text-xs font-normal">Text Post</span>
@@ -303,7 +348,7 @@ const AdminPosts = () => {
                         {/* Action buttons */}
                         <td className="px-6 py-4 text-right space-x-1">
                           <button 
-                            onClick={() => setSelectedPostDetails(post)}
+                            onClick={(e) => { e.stopPropagation(); setSelectedPostDetails(post); }}
                             className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Inspect Post, Events &amp; Media"
                           >
@@ -311,7 +356,7 @@ const AdminPosts = () => {
                           </button>
                           {post.moderationStatus !== 'paused' ? (
                             <button 
-                              onClick={() => handleStatusChange(post._id, 'paused')}
+                              onClick={(e) => { e.stopPropagation(); handleStatusChange(post._id, 'paused'); }}
                               className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                               title="Pause / Hide Post"
                             >
@@ -319,7 +364,7 @@ const AdminPosts = () => {
                             </button>
                           ) : (
                             <button 
-                              onClick={() => handleStatusChange(post._id, 'approved')}
+                              onClick={(e) => { e.stopPropagation(); handleStatusChange(post._id, 'approved'); }}
                               className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                               title="Resume / Approve Post"
                             >
@@ -327,7 +372,7 @@ const AdminPosts = () => {
                             </button>
                           )}
                           <button 
-                            onClick={() => confirmDelete(post._id)}
+                            onClick={(e) => { e.stopPropagation(); confirmDelete(post._id); }}
                             className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Delete Post"
                           >
@@ -519,46 +564,74 @@ const AdminPosts = () => {
                 </div>
               )}
               
-              {/* Media Files Display (Videos & Photos with Controls - only if not already shown in event banner) */}
+              {/* Media Files Display (Videos, Photos, Audio Player) */}
               {(() => {
-                const mediaList = selectedPostDetails.mediaFiles?.length > 0
+                const rawList = selectedPostDetails.mediaFiles?.length > 0
                   ? selectedPostDetails.mediaFiles
-                  : ((selectedPostDetails.imageUrl && (!selectedPostDetails.eventDetails || !selectedPostDetails.eventDetails.title)) ? [{ url: selectedPostDetails.imageUrl, mediaType: isVideoUrl(selectedPostDetails.imageUrl) ? 'video' : 'image' }] : [])
+                  : ((selectedPostDetails.imageUrl && (!selectedPostDetails.eventDetails || !selectedPostDetails.eventDetails.title)) ? [{ url: selectedPostDetails.imageUrl, mediaType: selectedPostDetails.mediaType || (isAudioUrl(selectedPostDetails.imageUrl) ? 'audio' : isVideoUrl(selectedPostDetails.imageUrl) ? 'video' : 'image') }] : [])
 
-                if (mediaList.length === 0) return null
+                if (rawList.length === 0) return null
+
+                const visualList = rawList.filter(item => !isAudioUrl(item.url, item.mediaType))
+                const audioList = rawList.filter(item => isAudioUrl(item.url, item.mediaType))
 
                 return (
-                  <div className="space-y-2 pt-1">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                      Attached Media &amp; Videos ({mediaList.length})
-                    </h4>
-                    <div className={`grid gap-3 ${mediaList.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-                      {mediaList.map((item, idx) => {
-                        const isVideo = isVideoUrl(item.url, item.mediaType)
-                        return (
-                          <div 
-                            key={idx} 
-                            className="relative rounded-2xl overflow-hidden bg-black/90 border border-border/60 flex items-center justify-center min-h-[220px] max-h-[420px] shadow-sm"
-                          >
-                            {isVideo ? (
-                              <video 
-                                src={item.url} 
-                                controls 
-                                playsInline
-                                preload="metadata"
-                                className="w-full max-h-[400px] object-contain rounded-2xl" 
-                              />
-                            ) : (
-                              <img 
-                                src={item.url} 
-                                alt={`Media item ${idx + 1}`} 
-                                className="w-full max-h-[400px] object-contain rounded-2xl" 
-                              />
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
+                  <div className="space-y-4 pt-1">
+                    {visualList.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                          Attached Photos &amp; Videos ({visualList.length})
+                        </h4>
+                        <div className={`grid gap-3 ${visualList.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                          {visualList.map((item, idx) => {
+                            const isVid = isVideoUrl(item.url, item.mediaType)
+                            return (
+                              <div 
+                                key={idx} 
+                                className="relative rounded-2xl overflow-hidden bg-black/90 border border-border/60 flex items-center justify-center min-h-[220px] max-h-[420px] shadow-sm"
+                              >
+                                {isVid ? (
+                                  <video 
+                                    src={item.url} 
+                                    controls 
+                                    playsInline
+                                    preload="metadata"
+                                    className="w-full max-h-[400px] object-contain rounded-2xl" 
+                                  />
+                                ) : (
+                                  <img 
+                                    src={item.url} 
+                                    alt={`Media item ${idx + 1}`} 
+                                    className="w-full max-h-[400px] object-contain rounded-2xl" 
+                                  />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {audioList.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Volume2 className="w-3.5 h-3.5 text-purple-500" />
+                          Attached Audio &amp; Voice Notes ({audioList.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {audioList.map((audioItem, aIdx) => (
+                            <AudioPlayerWidget 
+                              key={aIdx}
+                              src={audioItem.url} 
+                              duration={audioItem.duration}
+                              title={`${selectedPostDetails.author?.name || 'Author'}'s Audio`} 
+                              userAvatar={selectedPostDetails.author?.image}
+                              senderName={selectedPostDetails.author?.name}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })()}

@@ -42,22 +42,27 @@ export const isDirectImageUrl = (url) => {
   );
 };
 
-export const isDirectVideoUrl = (url) => {
-  if (!url || typeof url !== 'string') return false;
-  const clean = url.split('?')[0].toLowerCase();
-  return (
-    ['.mp4', '.webm', '.ogg', '.mov', '.m4v', '.mkv'].some(ext => clean.endsWith(ext)) ||
-    url.includes('/video/upload') ||
-    url.includes('/videos/')
-  );
-};
-
 export const isDirectAudioUrl = (url) => {
   if (!url || typeof url !== 'string') return false;
   const clean = url.split('?')[0].toLowerCase();
   return (
-    ['.mp3', '.wav', '.oga', '.m4a', '.aac', '.flac'].some(ext => clean.endsWith(ext)) ||
-    url.includes('/audio/')
+    ['.mp3', '.wav', '.oga', '.m4a', '.aac', '.flac', '.opus', '.weba'].some(ext => clean.endsWith(ext)) ||
+    url.includes('/audio/') ||
+    url.includes('/audios/') ||
+    clean.includes('voice_') ||
+    clean.includes('audio_')
+  );
+};
+
+export const isDirectVideoUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  if (isDirectAudioUrl(url)) return false;
+  const clean = url.split('?')[0].toLowerCase();
+  return (
+    ['.mp4', '.mov', '.m4v', '.mkv', '.avi', '.wmv', '.flv', '.3gp'].some(ext => clean.endsWith(ext)) ||
+    (['.webm', '.ogg'].some(ext => clean.endsWith(ext)) && !url.includes('voice_') && !url.includes('audio_')) ||
+    (url.includes('/video/upload') && !isDirectAudioUrl(url)) ||
+    url.includes('/videos/')
   );
 };
 
@@ -145,9 +150,9 @@ export const detectMediaType = (url) => {
   if (isInstagramUrl(trimmed)) return 'instagram';
   if (isFacebookUrl(trimmed)) return 'facebook';
   if (isReelUrl(trimmed)) return 'reel';
+  if (isDirectAudioUrl(trimmed)) return 'audio';
   if (isDirectImageUrl(trimmed)) return 'image';
   if (isDirectVideoUrl(trimmed)) return 'video';
-  if (isDirectAudioUrl(trimmed)) return 'audio';
 
   return 'link';
 };
