@@ -13,6 +13,8 @@ const AdminNotifications = () => {
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [notifForm, setNotifForm] = useState({ title: '', audience: 'All Users', type: 'In-App & Browser' })
 
   useEffect(() => {
     const onSoundChange = (e) => {
@@ -50,29 +52,28 @@ const AdminNotifications = () => {
     setDeleteTarget(null)
   }
 
-  const handleCreate = () => {
-    const title = prompt('Enter Notification Title:')
-    if (!title) return
-    const audience = prompt('Enter Target Audience (Students, Mentor, All Users):', 'All Users')
-    const type = prompt('Enter Delivery Type (In-App, Browser, Email):', 'In-App & Browser')
-    
+  const handleCreate = (e) => {
+    e.preventDefault()
+    if (!notifForm.title.trim()) return
+    const { title, audience, type } = notifForm
+
     setNotifications([
       ...notifications,
-      { id: notifications.length + 1, title, audience, type, sent: 'Just now', status: 'Sent' }
+      { id: notifications.length + 1, title: title.trim(), audience, type, sent: 'Just now', status: 'Sent' }
     ])
 
-    // Play notification sound if enabled
     if (soundEnabled) {
       ringtoneService.playNotificationSound(true)
     }
 
-    // Trigger browser notification
-    sendBrowserNotification(title, {
+    sendBrowserNotification(title.trim(), {
       body: `Audience: ${audience} | Sent via CampusBridge Admin`,
-      playSound: false // sound already triggered above
+      playSound: false
     })
 
     toast.success(soundEnabled ? 'Notification sent with sound alert! 🔔' : 'Notification sent (sound muted) 🔕')
+    setNotifForm({ title: '', audience: 'All Users', type: 'In-App & Browser' })
+    setIsCreateOpen(false)
   }
 
   return (

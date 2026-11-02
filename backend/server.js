@@ -140,6 +140,8 @@ const emitToUserSockets = (userId, eventName, data) => {
   }
 };
 app.set('emitToUserSockets', emitToUserSockets);
+app.set('getOnlineUserIds', getOnlineUserIds);
+app.set('onlineUsers', onlineUsers);
 
 // Map of sessionId -> Set of active socket.ids to track device sessions
 const sessionSockets = new Map();

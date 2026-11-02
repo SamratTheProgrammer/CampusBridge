@@ -24,6 +24,7 @@ import API_BASE from '../../utils/api'
 import { useTheme } from '../../components/ThemeProvider'
 import { useProfileData } from '../../context/ProfileDataContext'
 import DeviceSessionsManager from '../../components/settings/DeviceSessionsManager'
+import MutedAccountsManager from '../../components/settings/MutedAccountsManager'
 import TranslationLanguageSetting from '../../components/settings/TranslationLanguageSetting'
 import { COUNTRIES, getIso2FromFlag, formatToE164 } from '../../utils/countries'
 import WorldwideLocationSelector from '../../components/common/WorldwideLocationSelector'
@@ -1961,6 +1962,9 @@ const MentorSettings = () => {
                     </form>
                   </div>
                 </div>
+
+                {/* Muted Accounts Management */}
+                <MutedAccountsManager />
 
                 {/* Active Sessions & Multi-device Management */}
                 <DeviceSessionsManager />

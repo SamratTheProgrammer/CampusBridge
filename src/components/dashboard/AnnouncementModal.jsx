@@ -195,6 +195,8 @@ const AnnouncementModal = ({ role = 'student' }) => {
                   <img
                     src={currentAnnouncement.imageUrl}
                     alt={currentAnnouncement.title}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     className="relative z-10 max-h-[280px] sm:max-h-[300px] w-auto max-w-full object-contain mx-auto p-2 drop-shadow-sm select-none"
                   />
                 </div>
@@ -284,6 +286,114 @@ const AnnouncementModal = ({ role = 'student' }) => {
             </div>
           </div>
         </motion.div>
+      </div>
+    </ModalPortal>
+  )
+}
+
+/**
+ * AnnouncementPreviewModal
+ * 
+ * Reusable modal for Admin to preview any specific announcement
+ * exactly as it is shown on students / mentors dashboard.
+ */
+export const AnnouncementPreviewModal = ({ announcement, isOpen, onClose }) => {
+  if (!isOpen || !announcement) return null
+
+  const priorityConfig = {
+    High: {
+      badgeBg: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+      icon: Flame,
+      label: 'High Priority'
+    },
+    Medium: {
+      badgeBg: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+      icon: AlertTriangle,
+      label: 'Important Update'
+    },
+    Low: {
+      badgeBg: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+      icon: Info,
+      label: 'Notice'
+    }
+  }
+
+  const pConfig = priorityConfig[announcement.priority] || priorityConfig.Medium
+  const PriorityIcon = pConfig.icon
+
+  return (
+    <ModalPortal>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0" onClick={onClose} />
+
+        <div className="relative z-10 w-full max-w-lg bg-card border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] my-auto animate-in zoom-in-95 duration-200">
+          {/* Top Bar with Priority and Close */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-card shrink-0 z-20">
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${pConfig.badgeBg}`}>
+                <PriorityIcon className="w-3.5 h-3.5" />
+                {pConfig.label}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border bg-primary/10 text-primary border-primary/20">
+                Dashboard View
+              </span>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Banner Image */}
+            {announcement.imageUrl ? (
+              <div className="relative w-full bg-muted/30 overflow-hidden flex items-center justify-center min-h-[140px] max-h-[300px] sm:max-h-[320px] shrink-0 border-b border-border/40">
+                <div 
+                  className="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-125 pointer-events-none"
+                  style={{ backgroundImage: `url(${announcement.imageUrl})` }}
+                />
+                <img
+                  src={announcement.imageUrl}
+                  alt={announcement.title}
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  className="relative z-10 max-h-[280px] sm:max-h-[300px] w-auto max-w-full object-contain mx-auto p-2 drop-shadow-sm select-none"
+                />
+              </div>
+            ) : (
+              <div className="px-6 pt-5 pb-1 flex items-center gap-3 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                  <Megaphone className="w-5 h-5" />
+                </div>
+              </div>
+            )}
+
+            {/* Modal Content */}
+            <div className="p-6 pt-4 overflow-y-auto flex-1 space-y-3">
+              <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight leading-snug">
+                {announcement.title}
+              </h2>
+
+              <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line space-y-2 font-normal">
+                {announcement.details}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Action */}
+          <div className="p-4 sm:p-5 bg-muted/20 border-t border-border/50 flex items-center justify-end gap-3 shrink-0">
+            <button
+              onClick={onClose}
+              className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl text-sm transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Check className="w-4 h-4" /> Close Preview
+            </button>
+          </div>
+        </div>
       </div>
     </ModalPortal>
   )

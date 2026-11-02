@@ -19,6 +19,7 @@ import ringtoneService from '../../utils/ringtone'
 import DeviceSessionsManager from '../../components/settings/DeviceSessionsManager'
 import TranslationLanguageSetting from '../../components/settings/TranslationLanguageSetting'
 import LanguagesManager from '../../components/settings/LanguagesManager'
+import MutedAccountsManager from '../../components/settings/MutedAccountsManager'
 import { COUNTRIES, getIso2FromFlag, formatToE164 } from '../../utils/countries'
 import WorldwideLocationSelector from '../../components/common/WorldwideLocationSelector'
 const JOB_TITLES = [
@@ -2130,6 +2131,9 @@ const Settings = () => {
                     </select>
                   </div>
                 </div>
+
+                {/* Muted Accounts Management */}
+                <MutedAccountsManager />
 
                 {/* Active Sessions & Multi-device Management */}
                 <DeviceSessionsManager />

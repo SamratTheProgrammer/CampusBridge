@@ -25,16 +25,24 @@ import API_BASE from '../../utils/api'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { socket } from '../../services/socket'
 
 const AdminUserManagement = () => {
   const navigate = useNavigate()
   const [students, setStudents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
+  const getAdminToken = () => {
+    return sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || ''
+  }
+
   const fetchUsers = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE}/api/admin/users`)
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/users`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.users) {
@@ -46,10 +54,12 @@ const AdminUserManagement = () => {
             name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
             email: u.email,
             dept: u.headline || 'General',
+            role: (u.role || 'student').toLowerCase(),
             year: u.role ? u.role.toUpperCase() : 'STUDENT',
             status: u.isBlocked ? 'Blocked' : 'Active',
             isBlocked: !!u.isBlocked,
-            blockReason: u.blockReason || ''
+            blockReason: u.blockReason || '',
+            isOnline: !!u.isOnline
           }))
           setStudents(formatted)
         }
@@ -62,12 +72,56 @@ const AdminUserManagement = () => {
     }
   }
 
+  // Real-time Online/Offline Presence Tracking
+  const [onlineUserIds, setOnlineUserIds] = useState([])
+  const [onlineFilter, setOnlineFilter] = useState('All')
+
   useEffect(() => {
     fetchUsers()
+
+    // Fetch initial online users list from REST API
+    const fetchOnlineUsers = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/online-users`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && Array.isArray(data.onlineUsers)) {
+            setOnlineUserIds(data.onlineUsers)
+          }
+        }
+      } catch (err) {
+        // silent fallback
+      }
+    }
+    fetchOnlineUsers()
+
+    // Listen to live socket presence updates
+    const handleOnlineUpdate = (usersList) => {
+      if (Array.isArray(usersList)) {
+        setOnlineUserIds(usersList)
+      }
+    }
+
+    socket.on('online_users_update', handleOnlineUpdate)
+    socket.emit('get_online_users')
+
+    return () => {
+      socket.off('online_users_update', handleOnlineUpdate)
+    }
   }, [])
 
+  const isUserOnline = (student) => {
+    if (!student) return false
+    return Boolean(
+      (student.clerkId && onlineUserIds.includes(student.clerkId)) ||
+      (student.id && onlineUserIds.includes(student.id)) ||
+      (student._id && onlineUserIds.includes(student._id)) ||
+      student.isOnline
+    )
+  }
+
   const [searchQuery, setSearchQuery] = useState('')
-  const [deptFilter, setDeptFilter] = useState('All')
+  const [roleFilter, setRoleFilter] = useState('All')
   const [yearFilter, setYearFilter] = useState('All')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   
@@ -189,7 +243,7 @@ const AdminUserManagement = () => {
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       const now = new Date().toLocaleString()
-      const filterText = deptFilter !== 'All' ? ` | Department: ${deptFilter}` : ''
+      const filterText = roleFilter !== 'All' ? ` | Role: ${roleFilter.toUpperCase()}` : ''
       const searchTxt = searchQuery ? ` | Search: "${searchQuery}"` : ''
       doc.text(`Generated on: ${now} | Total Records: ${data.length}${filterText}${searchTxt}`, 36, 75)
 
@@ -289,9 +343,13 @@ const AdminUserManagement = () => {
 
     try {
       setIsBlocking(true)
+      const token = getAdminToken()
       const res = await fetch(`${API_BASE}/api/admin/users/${blockTargetUser.id}/block`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ isBlocked: true, blockReason: blockReasonInput })
       })
 
@@ -320,9 +378,13 @@ const AdminUserManagement = () => {
   // Unblock API
   const handleUnblockUser = async (student) => {
     try {
+      const token = getAdminToken()
       const res = await fetch(`${API_BASE}/api/admin/users/${student.id}/block`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ isBlocked: false })
       })
 
@@ -353,8 +415,10 @@ const AdminUserManagement = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return
     try {
+      const token = getAdminToken()
       const res = await fetch(`${API_BASE}/api/admin/users/${deleteTarget.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       })
       const data = await res.json()
       if (res.ok && data.success) {
@@ -395,12 +459,27 @@ const AdminUserManagement = () => {
     toast.success(`${newName} added successfully!`)
   }
 
+  const onlineCount = students.filter(s => isUserOnline(s)).length
+  const offlineCount = Math.max(0, students.length - onlineCount)
+
+  const mentorsCount = students.filter(s => (s.role || '').toLowerCase() === 'mentor' || s.year === 'MENTOR').length
+  const studentsCount = students.filter(s => (s.role || '').toLowerCase() === 'student' || s.year === 'STUDENT' || (s.role || '').toLowerCase() === 'user').length
+  const alumniCount = students.filter(s => (s.role || '').toLowerCase() === 'alumni' || s.year === 'ALUMNI').length
+
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           student.email.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesDept = deptFilter === 'All' || student.dept === deptFilter
+    const userRole = (student.role || '').toLowerCase()
+    const matchesRole = roleFilter === 'All' || 
+      (roleFilter === 'mentor' && (userRole === 'mentor' || student.year === 'MENTOR')) ||
+      (roleFilter === 'student' && (userRole === 'student' || student.year === 'STUDENT' || userRole === 'user')) ||
+      (roleFilter === 'alumni' && (userRole === 'alumni' || student.year === 'ALUMNI'))
     const matchesYear = yearFilter === 'All' || student.year === yearFilter
-    return matchesSearch && matchesDept && matchesYear
+    const isOnline = isUserOnline(student)
+    const matchesOnline = onlineFilter === 'All' || 
+      (onlineFilter === 'Online' && isOnline) || 
+      (onlineFilter === 'Offline' && !isOnline)
+    return matchesSearch && matchesRole && matchesYear && matchesOnline
   })
 
   return (
@@ -408,8 +487,14 @@ const AdminUserManagement = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">User Management</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage, moderate, block, or remove registered user records.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">User Management</h1>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              {onlineCount} Online Now
+            </span>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Manage, moderate, block, and monitor real-time online/offline presence of all registered users.</p>
         </div>
         <div className="flex gap-2 self-start sm:self-auto">
           <button 
@@ -429,80 +514,92 @@ const AdminUserManagement = () => {
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row gap-4 items-center">
-          <div className="flex-1 w-full relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input 
-              type="text" 
-              placeholder="Search user by name or email..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-            />
-          </div>
+      {/* Sticky Header: Filters and Search */}
+      <div className="sticky top-16 z-30 bg-background pt-2 pb-3 -mx-4 sm:-mx-8 px-4 sm:px-8 border-b border-border/40 shadow-sm transition-all">
+        <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex-1 w-full relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder="Search user by name or email..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+              />
+            </div>
 
-          <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full md:w-auto">
-            <select 
-              value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-              className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[120px]"
-            >
-              <option value="All">All Depts</option>
-              <option value="Computer Science">Computer Science</option>
-              <option value="CSE">CSE</option>
-              <option value="IT">IT</option>
-              <option value="ECE">ECE</option>
-            </select>
-
-            <div className="relative" ref={exportRef}>
-              <button 
-                onClick={() => setIsExportOpen(!isExportOpen)}
-                className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold flex items-center gap-2 hover:bg-muted/60 transition-colors cursor-pointer"
+            <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full md:w-auto">
+              {/* Online Presence Filter */}
+              <select 
+                value={onlineFilter}
+                onChange={(e) => setOnlineFilter(e.target.value)}
+                className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[145px]"
               >
-                <Download className="w-4 h-4 text-primary" />
-                <span>Export</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${isExportOpen ? 'rotate-180' : ''}`} />
-              </button>
+                <option value="All">All Presence ({students.length})</option>
+                <option value="Online">Online Now 🟢 ({onlineCount})</option>
+                <option value="Offline">Offline ({offlineCount})</option>
+              </select>
 
-              {isExportOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-card border border-border/60 rounded-xl shadow-xl z-50 py-1.5 overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40">
-                    Export {filteredStudents.length} Records
+              <select 
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[130px]"
+              >
+                <option value="All">All Roles</option>
+                <option value="mentor">Mentors ({mentorsCount})</option>
+                <option value="student">Students ({studentsCount})</option>
+                <option value="alumni">Alumni ({alumniCount})</option>
+              </select>
+
+              <div className="relative" ref={exportRef}>
+                <button 
+                  onClick={() => setIsExportOpen(!isExportOpen)}
+                  className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold flex items-center gap-2 hover:bg-muted/60 transition-colors cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-primary" />
+                  <span>Export</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${isExportOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isExportOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-card border border-border/60 rounded-xl shadow-xl z-50 py-1.5 overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40">
+                      Export {filteredStudents.length} Records
+                    </div>
+                    <button 
+                      onClick={exportToExcel}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <div>
+                        <div className="font-bold">Excel Sheet</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">.xlsx spreadsheet format</div>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={exportToPDF}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4 text-rose-500 shrink-0" />
+                      <div>
+                        <div className="font-bold">PDF Document</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">.pdf formatted table report</div>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={exportToCSV}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-primary/10 hover:text-primary flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-4 h-4 text-primary shrink-0" />
+                      <div>
+                        <div className="font-bold">CSV File</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">.csv plain tabular format</div>
+                      </div>
+                    </button>
                   </div>
-                  <button 
-                    onClick={exportToExcel}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <div>
-                      <div className="font-bold">Excel Sheet</div>
-                      <div className="text-[10px] text-muted-foreground font-normal">.xlsx spreadsheet format</div>
-                    </div>
-                  </button>
-                  <button 
-                    onClick={exportToPDF}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4 text-rose-500 shrink-0" />
-                    <div>
-                      <div className="font-bold">PDF Document</div>
-                      <div className="text-[10px] text-muted-foreground font-normal">.pdf formatted table report</div>
-                    </div>
-                  </button>
-                  <button 
-                    onClick={exportToCSV}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-primary/10 hover:text-primary flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <Download className="w-4 h-4 text-primary shrink-0" />
-                    <div>
-                      <div className="font-bold">CSV File</div>
-                      <div className="text-[10px] text-muted-foreground font-normal">.csv plain tabular format</div>
-                    </div>
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -515,9 +612,9 @@ const AdminUserManagement = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="whitespace-nowrap w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-6 py-4">Name</th>
+              <thead className="bg-card border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm">
+                <tr className="bg-muted/40">
+                  <th className="px-6 py-4">Name & Presence</th>
                   <th className="px-6 py-4">Email</th>
                   <th className="px-6 py-4">Department / Headline</th>
                   <th className="px-6 py-4">Role</th>
@@ -535,20 +632,44 @@ const AdminUserManagement = () => {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          {student.imageUrl ? (
-                            <img 
-                              src={student.imageUrl} 
-                              alt={student.name} 
-                              className="w-9 h-9 rounded-full object-cover border border-border/50 shrink-0" 
+                          <div className="relative shrink-0">
+                            {student.imageUrl ? (
+                              <img 
+                                src={student.imageUrl} 
+                                alt={student.name} 
+                                className="w-10 h-10 rounded-full object-cover border border-border/50 shrink-0" 
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0 border border-primary/20">
+                                {student.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            {/* Live Online / Offline Avatar Dot */}
+                            <span 
+                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card ${
+                                isUserOnline(student) 
+                                  ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' 
+                                  : 'bg-muted-foreground/40'
+                              }`} 
+                              title={isUserOnline(student) ? 'User is Online Now' : 'User is Offline'}
                             />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0 border border-primary/20">
-                              {student.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
+                          </div>
                           <div>
-                            <div className="font-bold text-foreground group-hover:text-primary transition-colors">
-                              {student.name}
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-foreground group-hover:text-primary transition-colors">
+                                {student.name}
+                              </span>
+                              {isUserOnline(student) ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                  Online
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-muted/70 text-muted-foreground/70 border border-border/40 shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40"></span>
+                                  Offline
+                                </span>
+                              )}
                             </div>
                             {student.username && (
                               <div className="text-[11px] text-muted-foreground">@{student.username}</div>

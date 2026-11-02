@@ -17,7 +17,8 @@ const AdminDashboard = () => {
       internshipPosts: 0,
       upcomingEvents: 0,
       messagesCount: 0,
-      pendingApprovals: 0
+      pendingApprovals: 0,
+      onlineUsersCount: 0
     },
     recentActivity: []
   })
@@ -45,6 +46,7 @@ const AdminDashboard = () => {
   }, [])
 
   const stats = [
+    { title: 'Online Users', value: (data.stats.onlineUsersCount || 0).toLocaleString(), trend: 'Live Now', isUp: true, icon: Activity, color: 'text-emerald-500 bg-emerald-500/10' },
     { title: 'Total Students', value: (data.stats.totalStudents || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: GraduationCap, color: 'text-blue-500 bg-blue-500/10' },
     { title: 'Total Mentors', value: (data.stats.totalMentors || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: UserCheck, color: 'text-emerald-500 bg-emerald-500/10' },
     { title: 'Total Alumni', value: (data.stats.totalAlumni || 0).toLocaleString(), trend: 'Realtime', isUp: true, icon: Users, color: 'text-orange-500 bg-orange-500/10' },
@@ -216,15 +218,23 @@ const AdminDashboard = () => {
           {/* Recent Activity Section */}
           <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-foreground text-lg">Recent Activity</h3>
+              <div>
+                <h3 className="font-bold text-foreground text-lg">Recent Activity</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Audit log of recent user registrations and actions.</p>
+              </div>
+              {data.recentActivity && data.recentActivity.length > 0 && (
+                <span className="text-xs font-semibold text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full border border-border/50">
+                  {data.recentActivity.length} Events Logged
+                </span>
+              )}
             </div>
 
             {data.recentActivity && data.recentActivity.length > 0 ? (
-              <div className="divide-y divide-border/40">
+              <div className="divide-y divide-border/40 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
                 {data.recentActivity.map((activity) => (
-                  <div key={activity.id} className="py-3.5 flex justify-between items-center text-sm first:pt-0 last:pb-0">
+                  <div key={activity.id} className="py-3.5 flex justify-between items-center text-sm first:pt-0 last:pb-0 hover:bg-muted/10 px-2 rounded-xl transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs uppercase">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs uppercase shrink-0">
                         {(activity.user || 'U').charAt(0)}
                       </div>
                       <div>
@@ -233,7 +243,7 @@ const AdminDashboard = () => {
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 shrink-0 ml-4">
                       <Clock className="w-3 h-3" /> {activity.time}
                     </span>
                   </div>

@@ -24,6 +24,7 @@ export const useRealtimePosts = ({
   onPostLiked,
   onCommentsUpdated,
   onPostSharesUpdated,
+  onPostReported,
 } = {}) => {
   useEffect(() => {
     if (!socket) return;
@@ -108,6 +109,51 @@ export const useRealtimePosts = ({
       if (onPostSharesUpdated) onPostSharesUpdated({ postId, sharesCount });
     };
 
+    const handlePostReported = (data) => {
+      const { postId, reportCount, reports } = data || {};
+      if (!postId) return;
+      if (setPosts) {
+        setPosts((prev) =>
+          Array.isArray(prev)
+            ? prev.map((p) => ((p._id || p.id) === postId ? { ...p, reportCount, reports } : p))
+            : prev
+        );
+      }
+      if (onPostReported) onPostReported(data);
+    };
+
+    const handleReportsDismissed = ({ postId, dismissedReports }) => {
+      if (!postId) return;
+      if (setPosts) {
+        setPosts((prev) =>
+          Array.isArray(prev)
+            ? prev.map((p) => ((p._id || p.id) === postId ? { 
+                ...p, 
+                reportCount: 0, 
+                reports: [], 
+                dismissedReports: dismissedReports || p.reports || [] 
+              } : p))
+            : prev
+        );
+      }
+    };
+
+    const handleReportsRestored = ({ postId, reports, reportCount }) => {
+      if (!postId) return;
+      if (setPosts) {
+        setPosts((prev) =>
+          Array.isArray(prev)
+            ? prev.map((p) => ((p._id || p.id) === postId ? { 
+                ...p, 
+                reportCount: reportCount || reports?.length || 0, 
+                reports: reports || [], 
+                dismissedReports: [] 
+              } : p))
+            : prev
+        );
+      }
+    };
+
     socket.on('new_post', handleNewPost);
     socket.on('post_created', handleNewPost);
     socket.on('post_deleted', handlePostDeleted);
@@ -115,6 +161,9 @@ export const useRealtimePosts = ({
     socket.on('post_liked', handlePostLiked);
     socket.on('post_comments_updated', handleCommentsUpdated);
     socket.on('post_shares_updated', handlePostSharesUpdated);
+    socket.on('post_reported', handlePostReported);
+    socket.on('post_reports_dismissed', handleReportsDismissed);
+    socket.on('post_reports_restored', handleReportsRestored);
 
     return () => {
       socket.off('new_post', handleNewPost);
@@ -124,8 +173,11 @@ export const useRealtimePosts = ({
       socket.off('post_liked', handlePostLiked);
       socket.off('post_comments_updated', handleCommentsUpdated);
       socket.off('post_shares_updated', handlePostSharesUpdated);
+      socket.off('post_reported', handlePostReported);
+      socket.off('post_reports_dismissed', handleReportsDismissed);
+      socket.off('post_reports_restored', handleReportsRestored);
     };
-  }, [setPosts, userFilterId, onNewPost, onPostDeleted, onPostUpdated, onPostLiked, onCommentsUpdated, onPostSharesUpdated]);
+  }, [setPosts, userFilterId, onNewPost, onPostDeleted, onPostUpdated, onPostLiked, onCommentsUpdated, onPostSharesUpdated, onPostReported]);
 };
 
 export default useRealtimePosts;

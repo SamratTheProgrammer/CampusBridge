@@ -1,7 +1,7 @@
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Edit3, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2, Search, Eye, AlertTriangle, Clock, Users, ExternalLink, Star } from 'lucide-react'
+import { Plus, Trash2, Calendar, MapPin, Loader2, Globe, X, Pause, CheckCircle2, Search, Eye, AlertTriangle, Clock, Users, ExternalLink, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RemarkModal from '../../components/modals/RemarkModal'
 import ModalPortal from '../../components/modals/ModalPortal'
@@ -365,31 +365,33 @@ const AdminEvents = () => {
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        <div className="flex-1 w-full relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Search events by title, location, or organizer..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-          />
-        </div>
+      {/* Sticky Header: Search & Filter Bar */}
+      <div className="sticky top-16 z-30 bg-background pt-2 pb-3 -mx-4 sm:-mx-8 px-4 sm:px-8 border-b border-border/40 shadow-sm transition-all">
+        <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-1 w-full relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input 
+              type="text" 
+              placeholder="Search events by title, location, or organizer..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+            />
+          </div>
 
-        <select 
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[150px] w-full md:w-auto"
-        >
-          <option value="All">All Events &amp; Status</option>
-          <option value="Upcoming">🟢 Upcoming Events</option>
-          <option value="Expired">🔴 Expired Events</option>
-          <option value="RegClosed">⚠️ Registration Closed</option>
-          <option value="Active">Active (Unpaused)</option>
-          <option value="Paused">Paused / Held</option>
-        </select>
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[150px] w-full md:w-auto"
+          >
+            <option value="All">All Events &amp; Status</option>
+            <option value="Upcoming">🟢 Upcoming Events</option>
+            <option value="Expired">🔴 Expired Events</option>
+            <option value="RegClosed">⚠️ Registration Closed</option>
+            <option value="Active">Active (Unpaused)</option>
+            <option value="Paused">Paused / Held</option>
+          </select>
+        </div>
       </div>
 
       {/* Events Table */}
@@ -399,8 +401,8 @@ const AdminEvents = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse table-auto">
-              <thead>
-                <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <thead className="bg-card border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm">
+                <tr className="bg-muted/40">
                   <th className="px-4 py-3.5">Event</th>
                   <th className="px-3 py-3.5 whitespace-nowrap">Mode &amp; Type</th>
                   <th className="px-3 py-3.5 whitespace-nowrap">Schedule &amp; Reg Deadline</th>
@@ -567,13 +569,6 @@ const AdminEvents = () => {
                             <CheckCircle2 className="w-4 h-4" />
                           </button>
                         )}
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleOpenEditModal(event); }}
-                          className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
-                          title="Edit Event"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
                         <button 
                           onClick={(e) => { e.stopPropagation(); confirmDelete(event._id, event.title); }}
                           className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"

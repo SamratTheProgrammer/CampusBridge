@@ -67,13 +67,25 @@ router.get('/', async (req, res) => {
       }
     }
 
+    let requestingUser = null;
     let query = { moderationStatus: { $ne: 'deleted' } };
     if (isAdmin) {
       // Admin sees everything except deleted (handled above)
     } else if (userId) {
+      requestingUser = await User.findOne({ clerkId: userId }).select('hiddenPosts mutedAuthors');
+      const hiddenIds = requestingUser?.hiddenPosts || [];
+      const mutedClerkIds = requestingUser?.mutedAuthors || [];
+
       query = {
         $and: [
           { moderationStatus: { $ne: 'deleted' } },
+          { _id: { $nin: hiddenIds } },
+          { 
+            $or: [
+              { authorClerkId: userId },
+              { authorClerkId: { $nin: mutedClerkIds } }
+            ]
+          },
           { $or: [ { moderationStatus: { $ne: 'paused' } }, { authorClerkId: userId } ] }
         ]
       };
@@ -81,7 +93,17 @@ router.get('/', async (req, res) => {
       query.moderationStatus = { $ne: 'paused' };
     }
 
-    const posts = await Post.find(query).sort({ createdAt: -1 });
+    const isPaginated = Boolean(req.query.page);
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit, 10) || 6);
+    const skip = (page - 1) * limit;
+
+    const total = isPaginated ? await Post.countDocuments(query) : 0;
+    const postQueryExec = Post.find(query).sort({ createdAt: -1 });
+    if (isPaginated) {
+      postQueryExec.skip(skip).limit(limit);
+    }
+    const posts = await postQueryExec;
     
     // We manually fetch user details since authorClerkId is a string reference
     const enrichedPosts = await Promise.all(
@@ -133,6 +155,17 @@ router.get('/', async (req, res) => {
       }
     }
 
+    if (isPaginated) {
+      const hasMore = skip + posts.length < total;
+      return res.status(200).json({
+        posts: enrichedPosts,
+        hasMore,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit)
+      });
+    }
+
     res.status(200).json(enrichedPosts);
   } catch (error) {
     console.error('Error fetching posts:', error);
@@ -166,7 +199,17 @@ router.get('/user/:clerkId', async (req, res) => {
       postQuery.moderationStatus = { $nin: ['paused', 'deleted'] };
     }
 
-    const posts = await Post.find(postQuery).sort({ createdAt: -1 });
+    const isPaginated = Boolean(req.query.page);
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit, 10) || 6);
+    const skip = (page - 1) * limit;
+
+    const total = isPaginated ? await Post.countDocuments(postQuery) : 0;
+    const postQueryExec = Post.find(postQuery).sort({ createdAt: -1 });
+    if (isPaginated) {
+      postQueryExec.skip(skip).limit(limit);
+    }
+    const posts = await postQueryExec;
     
     const enrichedPosts = await Promise.all(
       posts.map(async (post) => {
@@ -205,6 +248,17 @@ router.get('/user/:clerkId', async (req, res) => {
         };
       })
     );
+
+    if (isPaginated) {
+      const hasMore = skip + posts.length < total;
+      return res.status(200).json({
+        posts: enrichedPosts,
+        hasMore,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit)
+      });
+    }
 
     res.status(200).json(enrichedPosts);
   } catch (error) {
@@ -897,6 +951,322 @@ router.post('/:id/share', async (req, res) => {
   } catch (error) {
     console.error('Error tracking post share:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+// Report a post
+router.post('/:id/report', async (req, res) => {
+  try {
+    const { reporterClerkId, reason, details } = req.body;
+    if (!reason) {
+      return res.status(400).json({ success: false, error: 'Reason for report is required' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Post not found' });
+    }
+
+    let reporterName = 'User';
+    let reporterUsername = '';
+    if (reporterClerkId) {
+      const reporter = await User.findOne({ clerkId: reporterClerkId });
+      if (reporter) {
+        reporterName = reporter.firstName + (reporter.lastName ? ' ' + reporter.lastName : '');
+        reporterUsername = reporter.username || reporter.clerkId;
+        if (!reporter.hiddenPosts) reporter.hiddenPosts = [];
+        if (!reporter.hiddenPosts.some(id => id.toString() === post._id.toString())) {
+          reporter.hiddenPosts.push(post._id);
+          await reporter.save();
+        }
+      }
+    }
+
+    if (!post.reports) post.reports = [];
+    
+    // Check if this user already reported this post
+    const existingIndex = post.reports.findIndex(r => r.reporterClerkId === reporterClerkId);
+    if (existingIndex >= 0) {
+      post.reports[existingIndex].reason = reason;
+      post.reports[existingIndex].details = details || '';
+      post.reports[existingIndex].createdAt = new Date();
+    } else {
+      post.reports.push({
+        reporterClerkId: reporterClerkId || 'anonymous',
+        reporterName,
+        reporterUsername,
+        reason,
+        details: details || '',
+        createdAt: new Date()
+      });
+    }
+
+    post.reportCount = post.reports.length;
+    await post.save();
+
+    // Broadcast realtime event so Admin dashboard updates live
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_reported', {
+        postId: post._id.toString(),
+        reportCount: post.reportCount,
+        report: post.reports[post.reports.length - 1]
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Post reported successfully and submitted for moderation',
+      reportCount: post.reportCount
+    });
+  } catch (error) {
+    console.error('Report post error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to report post' });
+  }
+});
+
+// Dismiss all reports on a post (Admin action)
+router.post('/:id/dismiss-reports', async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Post not found' });
+    }
+
+    // Preserve reports into dismissedReports so dismissal can be undone
+    post.dismissedReports = Array.isArray(post.reports) && post.reports.length > 0 
+      ? [...post.reports] 
+      : (post.dismissedReports || []);
+    post.reports = [];
+    post.reportCount = 0;
+    await post.save();
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_reports_dismissed', { 
+        postId: post._id.toString(),
+        dismissedReports: post.dismissedReports
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'All reports on this post have been dismissed',
+      post
+    });
+  } catch (error) {
+    console.error('Dismiss reports error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to dismiss reports' });
+  }
+});
+
+// Undo dismiss reports on a post (Restore reports)
+router.post('/:id/undo-dismiss-reports', async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Post not found' });
+    }
+
+    if (!post.dismissedReports || post.dismissedReports.length === 0) {
+      return res.status(400).json({ success: false, error: 'No dismissed reports found to restore' });
+    }
+
+    // Restore reports from dismissedReports
+    post.reports = [...post.dismissedReports];
+    post.reportCount = post.reports.length;
+    post.dismissedReports = [];
+    await post.save();
+
+    const io = req.app?.get('io') || req.io;
+    if (io) {
+      io.emit('post_reports_restored', { 
+        postId: post._id.toString(), 
+        reports: post.reports,
+        reportCount: post.reportCount 
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dismissed reports restored successfully',
+      post
+    });
+  } catch (error) {
+    console.error('Undo dismiss reports error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to restore reports' });
+  }
+});
+
+// Hide a post for a specific user
+router.post('/:id/hide', async (req, res) => {
+  try {
+    const { userClerkId } = req.body;
+    if (!userClerkId) return res.status(400).json({ success: false, error: 'User ID is required' });
+
+    const user = await User.findOne({ clerkId: userClerkId });
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+    if (!user.hiddenPosts) user.hiddenPosts = [];
+    if (!user.hiddenPosts.some(id => id.toString() === req.params.id)) {
+      user.hiddenPosts.push(req.params.id);
+      await user.save();
+    }
+
+    return res.status(200).json({ success: true, message: 'Post hidden from your feed' });
+  } catch (error) {
+    console.error('Hide post error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to hide post' });
+  }
+});
+
+// Mute an author for a specific user
+router.post('/mute-author', async (req, res) => {
+  try {
+    const { userClerkId, targetClerkId } = req.body;
+    if (!userClerkId || !targetClerkId) {
+      return res.status(400).json({ success: false, error: 'Both userClerkId and targetClerkId are required' });
+    }
+
+    const user = await User.findOne({ clerkId: userClerkId });
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+    if (!user.mutedAuthors) user.mutedAuthors = [];
+    if (!user.mutedAuthors.includes(targetClerkId)) {
+      user.mutedAuthors.push(targetClerkId);
+      await user.save();
+    }
+
+    return res.status(200).json({ success: true, message: 'Author muted successfully' });
+  } catch (error) {
+    console.error('Mute author error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to mute author' });
+  }
+});
+
+// Unmute an author
+router.post('/unmute-author', async (req, res) => {
+  try {
+    const { userClerkId, targetClerkId } = req.body;
+    if (!userClerkId || !targetClerkId) {
+      return res.status(400).json({ success: false, error: 'Both userClerkId and targetClerkId are required' });
+    }
+
+    const user = await User.findOne({ clerkId: userClerkId });
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+    if (user.mutedAuthors) {
+      user.mutedAuthors = user.mutedAuthors.filter(id => id !== targetClerkId);
+      await user.save();
+    }
+
+    return res.status(200).json({ success: true, message: 'Author unmuted successfully' });
+  } catch (error) {
+    console.error('Unmute author error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to unmute author' });
+  }
+});
+
+// Unhide a post for a specific user
+router.post('/:id/unhide', async (req, res) => {
+  try {
+    const { userClerkId } = req.body;
+    if (!userClerkId) {
+      return res.status(400).json({ success: false, error: 'userClerkId is required' });
+    }
+
+    const user = await User.findOne({ clerkId: userClerkId });
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+    if (user.hiddenPosts) {
+      user.hiddenPosts = user.hiddenPosts.filter(id => id.toString() !== req.params.id);
+      await user.save();
+    }
+
+    return res.status(200).json({ success: true, message: 'Post unhidden' });
+  } catch (error) {
+    console.error('Unhide post error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to unhide post' });
+  }
+});
+
+// Unreport a post (Undo report)
+router.post('/:id/unreport', async (req, res) => {
+  try {
+    const { reporterClerkId } = req.body;
+    if (!reporterClerkId) {
+      return res.status(400).json({ success: false, error: 'reporterClerkId is required' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Post not found' });
+    }
+
+    if (post.reports) {
+      post.reports = post.reports.filter(r => r.reporterClerkId !== reporterClerkId);
+      post.reportCount = post.reports.length;
+      await post.save();
+    }
+
+    // Also unhide the post for this reporter
+    const user = await User.findOne({ clerkId: reporterClerkId });
+    if (user && user.hiddenPosts) {
+      user.hiddenPosts = user.hiddenPosts.filter(id => id.toString() !== post._id.toString());
+      await user.save();
+    }
+
+    // Emit realtime event if io available
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('post_reported', {
+          postId: post._id,
+          reportCount: post.reportCount,
+          reports: post.reports
+        });
+      }
+    } catch (e) {
+      console.error('Socket emit error on unreport:', e);
+    }
+
+    return res.status(200).json({ success: true, message: 'Report removed successfully' });
+  } catch (error) {
+    console.error('Unreport post error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to cancel report' });
+  }
+});
+
+// Get muted authors details for a user
+router.get('/muted-authors', async (req, res) => {
+  try {
+    const { userClerkId } = req.query;
+    if (!userClerkId) {
+      return res.status(400).json({ success: false, error: 'userClerkId is required' });
+    }
+    const user = await User.findOne({ clerkId: userClerkId });
+    if (!user || !user.mutedAuthors || user.mutedAuthors.length === 0) {
+      return res.status(200).json({ success: true, mutedAuthors: [] });
+    }
+
+    const mutedUsers = await User.find({ clerkId: { $in: user.mutedAuthors } })
+      .select('clerkId firstName lastName username imageUrl profilePicture role headline');
+
+    return res.status(200).json({
+      success: true,
+      mutedAuthors: mutedUsers.map(u => ({
+        clerkId: u.clerkId,
+        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+        username: u.username,
+        image: u.imageUrl || u.profilePicture,
+        role: u.role,
+        headline: u.headline
+      }))
+    });
+  } catch (error) {
+    console.error('Get muted authors error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to fetch muted authors' });
   }
 });
 

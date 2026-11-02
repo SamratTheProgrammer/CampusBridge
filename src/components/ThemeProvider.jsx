@@ -18,13 +18,23 @@ export function ThemeProvider({
   globalStorageKey = "vite-ui-global-theme",
   ...props
 }) {
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem(storageKey) || defaultTheme
+  const [theme, setThemeState] = useState(
+    () => {
+      try {
+        return localStorage.getItem(storageKey) || defaultTheme;
+      } catch (e) {
+        return defaultTheme;
+      }
+    }
   )
   const [globalTheme, setGlobalThemeState] = useState(
     () => {
-      const saved = localStorage.getItem(globalStorageKey);
-      return saved === "system" ? "none" : (saved || "none");
+      try {
+        const saved = localStorage.getItem(globalStorageKey);
+        return saved === "system" ? "none" : (saved || "none");
+      } catch (e) {
+        return "none";
+      }
     }
   )
 
@@ -125,8 +135,29 @@ export function ThemeProvider({
     theme,
     globalTheme,
     setTheme: (newTheme) => {
-      localStorage.setItem(storageKey, newTheme)
-      setTheme(newTheme)
+      try {
+        localStorage.setItem(storageKey, newTheme);
+      } catch (e) {}
+
+      // Immediate synchronous DOM class application for instantaneous theme response
+      const root = window.document.documentElement;
+      root.classList.add("no-transitions");
+      root.classList.remove("light", "dark");
+
+      let baseTheme = newTheme;
+      if (newTheme === "system") {
+        baseTheme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      }
+      root.classList.add(baseTheme);
+      root.style.colorScheme = baseTheme;
+
+      setThemeState(newTheme);
+
+      window.dispatchEvent(new CustomEvent('campusbridge_theme_changed', { detail: { theme: newTheme, baseTheme } }));
+
+      setTimeout(() => {
+        root.classList.remove("no-transitions");
+      }, 50);
     },
     setGlobalTheme,
   }

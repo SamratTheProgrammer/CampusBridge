@@ -341,6 +341,11 @@ const getUserProfileHandler = async (req, res) => {
       }
     }
 
+    // Attach real-time online status
+    const getOnlineUserIds = req.app?.get('getOnlineUserIds');
+    const onlineIds = getOnlineUserIds ? getOnlineUserIds() : [];
+    userObj.isOnline = onlineIds.includes(String(user.clerkId)) || onlineIds.includes(String(user._id));
+
     res.status(200).json(userObj);
   } catch (error) {
     console.error('Error fetching user:', error);

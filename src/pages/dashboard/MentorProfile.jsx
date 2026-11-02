@@ -1,7 +1,7 @@
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, ArrowUp, ChevronUp, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, Languages, Cake, Smartphone, Users } from 'lucide-react'
+import { MapPin, Mail, CheckCircle2, MessageSquare, UserPlus, Briefcase, GraduationCap, Calendar, Loader2, X, Heart, Send, Clock, Video, Lock, AlertCircle, ArrowRight, ArrowLeft, ArrowUp, ChevronUp, Share2, Star, ThumbsUp, MessageCircle, FileText, Shield, MessageSquareOff, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, Languages, Cake, Smartphone, Users, VolumeX, Volume2 } from 'lucide-react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram as Instagram, FaFacebook as Facebook, FaTwitter as Twitter } from 'react-icons/fa'
 import { Globe } from 'lucide-react'
@@ -30,6 +30,8 @@ import ReviewModal from '../../components/modals/ReviewModal'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import BirthdayBanner, { checkIsBirthdayToday } from '../../components/common/BirthdayBanner'
 import { getProficiencyBadgeClass } from '../../components/settings/LanguagesManager'
+import { getMutedAuthors, addMutedAuthor, removeMutedAuthor } from '../../utils/postInteractions'
+import { socket } from '../../services/socket'
 
 const MentorProfile = ({ initialUser, isAdmin = false }) => {
   const navigate = useNavigate();
@@ -52,6 +54,10 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   // Post states
   const [posts, setPosts] = useState([])
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const loadMoreRef = useRef(null)
   const [activeDropdownId, setActiveDropdownId] = useState(null)
   const [editingPostId, setEditingPostId] = useState(null)
   const [editContent, setEditContent] = useState('')
@@ -79,6 +85,88 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
   const [showScrollTop, setShowScrollTop] = useState(false)
 
   const [isLaunchingTop, setIsLaunchingTop] = useState(false)
+
+  const [isMuted, setIsMuted] = useState(false)
+
+  // Live online/offline presence tracking
+  const [onlineUserIds, setOnlineUserIds] = useState([])
+  useEffect(() => {
+    const handleOnline = (list) => {
+      if (Array.isArray(list)) setOnlineUserIds(list)
+    }
+    socket.on('online_users_update', handleOnline)
+    socket.on('connect', () => {
+      socket.emit('get_online_users')
+      if (user?.id) socket.emit('register_user', user.id)
+    })
+    socket.emit('get_online_users')
+    if (user?.id) socket.emit('register_user', user.id)
+
+    // Initial fetch from backend API for zero latency
+    fetch(`${API_BASE}/api/admin/online-users`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.onlineUsers && Array.isArray(d.onlineUsers)) {
+          setOnlineUserIds(prev => Array.from(new Set([...prev, ...d.onlineUsers])))
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      socket.off('online_users_update', handleOnline)
+      socket.off('connect')
+    }
+  }, [user?.id])
+
+  const isOwnerProfile = Boolean(
+    user?.id && (
+      mentor?.clerkId === user.id ||
+      mentor?._id === user.id ||
+      mentor?.id === user.id ||
+      (user?.username && mentor?.username && String(user.username).toLowerCase() === String(mentor.username).toLowerCase()) ||
+      (user?.primaryEmailAddress?.emailAddress && mentor?.email && user.primaryEmailAddress.emailAddress === mentor.email)
+    )
+  )
+
+  const isTargetOnline = Boolean(
+    isOwnerProfile ||
+    (mentor?.clerkId && onlineUserIds.some(id => String(id) === String(mentor.clerkId))) ||
+    (mentor?._id && onlineUserIds.some(id => String(id) === String(mentor?._id))) ||
+    (mentor?.id && onlineUserIds.some(id => String(id) === String(mentor?.id))) ||
+    (mentor?.username && onlineUserIds.some(id => String(id).toLowerCase() === String(mentor.username).toLowerCase())) ||
+    mentor?.isOnline
+  )
+
+  useEffect(() => {
+    if (mentor?.clerkId) {
+      setIsMuted(getMutedAuthors().includes(String(mentor.clerkId)))
+    }
+  }, [mentor?.clerkId])
+
+  useEffect(() => {
+    const handleSync = () => {
+      if (mentor?.clerkId) {
+        setIsMuted(getMutedAuthors().includes(String(mentor.clerkId)))
+      }
+    }
+    window.addEventListener('campusbridge_muted_authors_changed', handleSync)
+    return () => window.removeEventListener('campusbridge_muted_authors_changed', handleSync)
+  }, [mentor?.clerkId])
+
+  const handleToggleMute = async () => {
+    if (!mentor?.clerkId) return
+    const authorId = String(mentor.clerkId)
+    const authorName = mentor.firstName || mentor.name || 'this mentor'
+    if (isMuted) {
+      await removeMutedAuthor(authorId, user?.id)
+      setIsMuted(false)
+      toast.success(`Unmuted ${authorName}. You will now see their posts in your feed.`)
+    } else {
+      await addMutedAuthor(authorId, user?.id)
+      setIsMuted(true)
+      toast.success(`Muted posts from ${authorName}.`)
+    }
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -223,24 +311,67 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
     fetchMentorAndConnection()
   }, [identifier, user, initialUser, isAdminView])
 
-  // Fetch posts by this mentor
+  // Fetch posts by this mentor (Instagram-style chunked pagination)
+  const fetchMentorPosts = async (targetPage = 1, append = false) => {
+    if (!mentor?.clerkId) return;
+    try {
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoadingPosts(true);
+      }
+      const res = await fetch(`${API_BASE}/api/posts/user/${mentor.clerkId}?requestingUserId=${user?.id}&page=${targetPage}&limit=6`);
+      if (res.ok) {
+        const data = await res.json();
+        const incomingPosts = Array.isArray(data) ? data : (data.posts || []);
+        const incomingHasMore = Boolean(data.hasMore);
+
+        if (append) {
+          setPosts(prev => {
+            const existingIds = new Set(prev.map(p => p._id || p.id));
+            const newUnique = incomingPosts.filter(p => !existingIds.has(p._id || p.id));
+            return [...prev, ...newUnique];
+          });
+        } else {
+          setPosts(incomingPosts);
+        }
+
+        setPage(targetPage);
+        setHasMore(Array.isArray(data) ? incomingPosts.length >= 6 : incomingHasMore);
+      }
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+    } finally {
+      setIsLoadingPosts(false);
+      setIsLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     if (!mentor?.clerkId) return;
-    const fetchPosts = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/posts/user/${mentor.clerkId}?requestingUserId=${user?.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setPosts(data);
-        }
-      } catch (err) {
-        console.error('Error fetching posts:', err);
-      } finally {
-        setIsLoadingPosts(false)
-      }
-    };
-    fetchPosts();
+    setPage(1);
+    setHasMore(true);
+    fetchMentorPosts(1, false);
   }, [mentor?.clerkId, user?.id]);
+
+  // Instagram-style infinite scroll intersection observer
+  useEffect(() => {
+    if (!hasMore || isLoadingMore || isLoadingPosts || !mentor?.clerkId) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        fetchMentorPosts(page + 1, true);
+      }
+    }, { rootMargin: '400px' });
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) observer.unobserve(currentRef);
+    };
+  }, [hasMore, isLoadingMore, isLoadingPosts, page, mentor?.clerkId, user?.id]);
 
   useEffect(() => {
     if (!mentor?.clerkId) return;
@@ -678,13 +809,22 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
             
             {/* Top Row: Avatar and Actions */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end w-full -mt-16 sm:-mt-22 md:-mt-24 relative z-10 gap-4 sm:gap-0">
-              <div className="shrink-0 sm:ml-2 md:ml-3">
+              <div className="shrink-0 sm:ml-2 md:ml-3 relative">
                 <img
                   src={avatarUrl}
                   alt={fullName}
                   onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getAvatarFallback(); }}
                   className={`w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
                   onClick={isLocked ? undefined : () => setViewerData({ files: [avatarUrl], index: 0 })}
+                />
+                {/* Live Online / Offline Avatar Dot */}
+                <span 
+                  className={`absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-3.5 md:right-3.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] sm:border-2 border-card z-20 pointer-events-none transition-all duration-200 ${
+                    isTargetOnline 
+                      ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' 
+                      : 'bg-muted-foreground/40'
+                  }`}
+                  title={isTargetOnline ? 'Online Now' : 'Offline'}
                 />
               </div>
               
@@ -822,7 +962,9 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
             
             {/* User Info Stack */}
             <div className="mt-3 sm:mt-4 flex flex-col gap-1.5 text-left w-full sm:pl-2 md:pl-3">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">{fullName}</h1>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">{fullName}</h1>
+              </div>
               {mentor?.username && (
                 <p className="text-sm text-muted-foreground font-medium">@{mentor.username}</p>
               )}
@@ -898,6 +1040,27 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                 </button>
               </div>
             </div>
+
+            {/* Muted Warning Banner */}
+            {isMuted && !isOwner && !isAdminView && (
+              <div className="mt-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm animate-in fade-in duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <VolumeX className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">You have muted posts from this mentor</h4>
+                    <p className="text-xs text-muted-foreground">Their posts are currently hidden from your feeds.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleToggleMute}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer self-start sm:self-auto"
+                >
+                  Unmute Posts
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1791,6 +1954,18 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
         ) : (
           <div className="text-center py-10 bg-card border border-border/50 rounded-2xl">
             <p className="text-muted-foreground text-sm">No posts yet.</p>
+          </div>
+        )}
+
+        {/* Instagram-style Infinite Scroll Loading Spinner & Sentinel */}
+        {posts.length > 0 && hasMore && (
+          <div ref={loadMoreRef} className="flex items-center justify-center py-6 w-full">
+            {isLoadingMore && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                <span>Loading more posts...</span>
+              </div>
+            )}
           </div>
         )}
       </div>

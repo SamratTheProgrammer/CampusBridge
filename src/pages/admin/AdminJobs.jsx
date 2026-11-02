@@ -282,28 +282,30 @@ const AdminJobs = () => {
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        <div className="flex-1 w-full relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Search job title or company..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-          />
-        </div>
+      {/* Sticky Header: Filter & Search Bar */}
+      <div className="sticky top-16 z-30 bg-background pt-2 pb-3 -mx-4 sm:-mx-8 px-4 sm:px-8 border-b border-border/40 shadow-sm transition-all">
+        <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-1 w-full relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input 
+              type="text" 
+              placeholder="Search job title or company..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+            />
+          </div>
 
-        <select 
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[140px] w-full md:w-auto"
-        >
-          <option value="All">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Paused">Paused</option>
-        </select>
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[140px] w-full md:w-auto"
+          >
+            <option value="All">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Paused">Paused</option>
+          </select>
+        </div>
       </div>
 
       {/* Jobs Table */}
@@ -313,8 +315,8 @@ const AdminJobs = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="whitespace-nowrap w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <thead className="bg-card border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm">
+                <tr className="bg-muted/40">
                   <th className="px-6 py-4">Job Title</th>
                   <th className="px-6 py-4">Company</th>
                   <th className="px-6 py-4">Posted On</th>

@@ -8,6 +8,7 @@ import API_BASE from '../../utils/api'
 import socket from '../../services/socket'
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import ModalPortal from '../../components/modals/ModalPortal'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 
 // Helper to generate domain-smart webmail URLs with prefilled reply
 const getEmailLinks = (email, subject = '', bodyText = '') => {
@@ -65,6 +66,7 @@ const AdminSupportMessages = () => {
   
   // Profile modal state
   const [userProfileModal, setUserProfileModal] = useState(null)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: null, targetId: null, title: '', message: '' })
   const [fetchedUserData, setFetchedUserData] = useState(null)
   const [isFetchingUser, setIsFetchingUser] = useState(false)
 
@@ -193,49 +195,69 @@ const AdminSupportMessages = () => {
     }
   }
 
-  const handleDeleteMessage = async (msgId) => {
-    if (!window.confirm('Are you sure you want to delete this support message?')) return
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/support-messages/${msgId}`, {
-        method: 'DELETE'
-      })
-      const data = await res.json()
-      if (data.success) {
-        toast.success('Support message deleted successfully.')
-        const remaining = messages.filter(m => m._id !== msgId)
-        setMessages(remaining)
-        if (selectedMessage?._id === msgId) {
-          setSelectedMessage(remaining[0] || null)
-        }
-        fetchMessages()
-      } else {
-        toast.error('Failed to delete message.')
-      }
-    } catch (err) {
-      console.error('Delete message error:', err)
-      toast.error('Failed to delete message.')
-    }
+  const handleDeleteMessage = (msgId) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'delete_one',
+      targetId: msgId,
+      title: 'Delete Support Message',
+      message: 'Are you sure you want to delete this support message?'
+    })
   }
 
-  const handleClearAllMessages = async () => {
-    if (!window.confirm('Are you sure you want to clear ALL support messages from the database? This action cannot be undone.')) return
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/support-messages-clear-all`, {
-        method: 'DELETE'
-      })
-      const data = await res.json()
-      if (data.success) {
-        toast.success('All support messages cleared successfully.')
-        setMessages([])
-        setSelectedMessage(null)
-        setCounts({ total: 0, pending: 0, replied: 0, resolved: 0 })
-      } else {
+  const handleClearAllMessages = () => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'clear_all',
+      targetId: null,
+      title: 'Clear All Support Messages',
+      message: 'Are you sure you want to clear ALL support messages from the database? This action cannot be undone.'
+    })
+  }
+
+  const handleExecuteConfirm = async () => {
+    const { type, targetId } = confirmModal
+    if (type === 'delete_one' && targetId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/support-messages/${targetId}`, {
+          method: 'DELETE'
+        })
+        const data = await res.json()
+        if (data.success) {
+          toast.success('Support message deleted successfully.')
+          const remaining = messages.filter(m => m._id !== targetId)
+          setMessages(remaining)
+          if (selectedMessage?._id === targetId) {
+            setSelectedMessage(remaining[0] || null)
+          }
+          fetchMessages()
+        } else {
+          toast.error('Failed to delete message.')
+        }
+      } catch (err) {
+        console.error('Delete message error:', err)
+        toast.error('Failed to delete message.')
+      }
+    } else if (type === 'clear_all') {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/support-messages-clear-all`, {
+          method: 'DELETE'
+        })
+        const data = await res.json()
+        if (data.success) {
+          toast.success('All support messages cleared successfully.')
+          setMessages([])
+          setSelectedMessage(null)
+          setCounts({ total: 0, pending: 0, replied: 0, resolved: 0 })
+        } else {
+          toast.error('Failed to clear messages.')
+        }
+      } catch (err) {
+        console.error('Clear all error:', err)
         toast.error('Failed to clear messages.')
       }
-    } catch (err) {
-      console.error('Clear all error:', err)
-      toast.error('Failed to clear messages.')
     }
+    setConfirmModal({ isOpen: false, type: null, targetId: null, title: '', message: '' })
   }
 
   // Filter messages based on search query and status filter
@@ -760,6 +782,16 @@ const AdminSupportMessages = () => {
           </ModalPortal>
         )
       })()}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={handleExecuteConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.type === 'clear_all' ? 'Clear All' : 'Delete'}
+        isDestructive={true}
+      />
     </div>
   )
 }

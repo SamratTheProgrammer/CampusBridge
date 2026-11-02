@@ -111,6 +111,17 @@ router.get('/settings/theme', async (req, res) => {
   }
 });
 
+// Get Live Online Users for Admin and Clients
+router.get('/online-users', (req, res) => {
+  try {
+    const getOnlineUserIds = req.app.get('getOnlineUserIds');
+    const onlineIds = getOnlineUserIds ? getOnlineUserIds() : [];
+    return res.status(200).json({ success: true, onlineUsers: onlineIds, count: onlineIds.length });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch online users' });
+  }
+});
+
 // Apply requireAdmin middleware to ALL following admin routes
 router.use(requireAdmin);
 
@@ -244,10 +255,15 @@ router.get('/stats', async (req, res) => {
     const pendingMentorsCount = await User.countDocuments({ role: 'mentor', verificationStatus: 'Pending' });
     const pendingApprovals = pendingSessionsCount + pendingMentorsCount;
 
-    // Recent Users for Recent Activity stream
+    // Real-time online users
+    const getOnlineUserIds = req.app.get('getOnlineUserIds');
+    const onlineIds = getOnlineUserIds ? getOnlineUserIds() : [];
+    const onlineUsersCount = onlineIds.length;
+
+    // Recent Users for Recent Activity stream (expanded so admins can scroll through older activities)
     const recentUsers = await User.find()
       .sort({ createdAt: -1 })
-      .limit(6)
+      .limit(60)
       .select('firstName lastName email role createdAt imageUrl');
 
     const formattedRecentActivity = recentUsers.map(u => ({
@@ -322,7 +338,8 @@ router.get('/stats', async (req, res) => {
         internshipPosts,
         upcomingEvents,
         messagesCount,
-        pendingApprovals
+        pendingApprovals,
+        onlineUsersCount
       },
       recentActivity: formattedRecentActivity,
       userGrowth: {
@@ -477,11 +494,17 @@ router.put('/verifications/:id/status', async (req, res) => {
   }
 });
 
-// Get All Users (for Admin User Management)
+// Get All Users (for Admin User Management) with live online status
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.find().sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, users });
+    const getOnlineUserIds = req.app.get('getOnlineUserIds');
+    const onlineIds = getOnlineUserIds ? getOnlineUserIds() : [];
+    const users = await User.find().sort({ createdAt: -1 }).lean();
+    const enrichedUsers = users.map(u => ({
+      ...u,
+      isOnline: onlineIds.includes(u.clerkId) || onlineIds.includes(u._id.toString())
+    }));
+    return res.status(200).json({ success: true, users: enrichedUsers, onlineCount: onlineIds.length });
   } catch (error) {
     console.error('Admin Fetch Users Error:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch users' });

@@ -26,7 +26,7 @@ import {
   ChevronRight,
   Megaphone
 } from 'lucide-react'
-import { useClerk } from '@clerk/clerk-react'
+import { useClerk, useUser } from '@clerk/clerk-react'
 import ThemeToggle from '../components/ThemeToggle'
 import NotificationDropdown from '../components/NotificationDropdown'
 import AdminSpinner from '../components/admin/AdminSpinner'
@@ -34,18 +34,59 @@ import API_BASE from '../utils/api'
 import logoLight from '../assets/CampusLogoLight.png'
 import logoDark from '../assets/CampusLogoDark.png'
 import logoHalf from '../assets/CampusLogoHalf.png'
+import { socket } from '../services/socket'
+import notificationSound from '../assets/audio/notification-sound.mp3'
 
 const AdminLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isVerifying, setIsVerifying] = useState(true)
+  const [hasUnreadReports, setHasUnreadReports] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { signOut } = useClerk()
+  const { user } = useUser()
 
-  // Auto-close mobile drawer on location change
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!socket) return
+    const adminUser = JSON.parse(localStorage.getItem('campusbridge_admin_user') || '{}')
+    const registerId = user?.id || adminUser?.id || adminUser?._id || adminUser?.email
+    if (registerId) {
+      socket.emit('register_user', registerId)
+    }
+    const handleConnect = () => {
+      if (registerId) socket.emit('register_user', registerId)
+    }
+    socket.on('connect', handleConnect)
+    return () => socket.off('connect', handleConnect)
+  }, [user?.id])
+
+  // Auto-close mobile drawer on location change and clear unread reports when on /admin/posts
+  useEffect(() => {
     setIsMobileSidebarOpen(false)
+    if (location.pathname === '/admin/posts') {
+      setHasUnreadReports(false)
+      localStorage.setItem('campusbridge_admin_last_seen_report_time', Date.now().toString())
+    }
+  }, [location.pathname])
+
+  // Listen for socket post_reported events across Admin layout
+  useEffect(() => {
+    if (!socket) return
+    const handleReportEvent = (data) => {
+      if (location.pathname !== '/admin/posts') {
+        setHasUnreadReports(true)
+        try {
+          const audio = new Audio(notificationSound)
+          audio.play().catch(() => {})
+        } catch (e) {}
+        toast.error('🚩 New Post Report received! Check Posts Moderation.', {
+          duration: 5000
+        })
+      }
+    }
+    socket.on('post_reported', handleReportEvent)
+    return () => socket.off('post_reported', handleReportEvent)
   }, [location.pathname])
 
   // Protect Admin Layout: Verify session token with backend before mounting child routes
@@ -185,6 +226,12 @@ const AdminLayout = () => {
                   >
                     <Icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110`} />
                     {!isCollapsed && <span>{item.name}</span>}
+                    {item.path === '/admin/posts' && hasUnreadReports && (
+                      <span className="relative flex h-2 w-2 ml-auto">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                      </span>
+                    )}
                   </Link>
                 )
               })}
@@ -237,6 +284,12 @@ const AdminLayout = () => {
                 >
                   <Icon className="w-4 h-4 shrink-0" />
                   <span>{item.name}</span>
+                  {item.path === '/admin/posts' && hasUnreadReports && (
+                    <span className="relative flex h-2.5 w-2.5 ml-auto">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                    </span>
+                  )}
                 </Link>
               )
             })}

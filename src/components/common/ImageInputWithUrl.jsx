@@ -1,6 +1,59 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Upload, Link as LinkIcon, Image as ImageIcon, X, AlertCircle } from 'lucide-react'
+import { Upload, Link as LinkIcon, Image as ImageIcon, X, AlertCircle, HelpCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+/**
+ * Smart URL sanitizer for common image links
+ */
+export const sanitizeImageUrl = (rawUrl) => {
+  if (!rawUrl || typeof rawUrl !== 'string') return ''
+  let url = rawUrl.trim()
+
+  // Google Images redirect URL extraction
+  if (url.includes('google.') && url.includes('imgurl=')) {
+    try {
+      const match = url.match(/[?&]imgurl=([^&]+)/)
+      if (match && match[1]) {
+        url = decodeURIComponent(match[1])
+      }
+    } catch (e) {}
+  }
+
+  // Google Drive share link -> direct thumbnail/image link
+  const gDriveMatch = url.match(/drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+))/)
+  if (gDriveMatch) {
+    const fileId = gDriveMatch[1] || gDriveMatch[2]
+    if (fileId) {
+      return `https://lh3.googleusercontent.com/d/${fileId}`
+    }
+  }
+
+  // Dropbox link -> raw direct download
+  if (url.includes('dropbox.com')) {
+    url = url.replace('?dl=0', '?raw=1')
+    if (!url.includes('raw=1')) {
+      url += (url.includes('?') ? '&' : '?') + 'raw=1'
+    }
+    return url
+  }
+
+  return url
+}
+
+/**
+ * Checks if a URL looks like an HTML webpage rather than a direct image
+ */
+const isLikelyWebpageUrl = (url) => {
+  if (!url) return false
+  const lower = url.toLowerCase().split('?')[0].split('#')[0]
+  return (
+    lower.endsWith('.php') ||
+    lower.endsWith('.html') ||
+    lower.endsWith('.htm') ||
+    lower.endsWith('.aspx') ||
+    lower.endsWith('.jsp')
+  )
+}
 
 /**
  * ImageInputWithUrl
@@ -28,6 +81,7 @@ const ImageInputWithUrl = ({
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(value || initialUrl || '')
   const [hasError, setHasError] = useState(false)
+  const [webpageWarning, setWebpageWarning] = useState(false)
   const fileInputRef = useRef(null)
 
   // Sync external value / initialUrl changes
@@ -35,11 +89,15 @@ const ImageInputWithUrl = ({
     if (value !== undefined && value !== null) {
       if (!file) {
         setUrl(value)
-        setPreview(value)
+        const cleaned = sanitizeImageUrl(value)
+        setPreview(cleaned)
+        setWebpageWarning(isLikelyWebpageUrl(value))
       }
     } else if (initialUrl && !preview && !file) {
       setUrl(initialUrl)
-      setPreview(initialUrl)
+      const cleaned = sanitizeImageUrl(initialUrl)
+      setPreview(cleaned)
+      setWebpageWarning(isLikelyWebpageUrl(initialUrl))
     }
   }, [value, initialUrl])
 
@@ -49,6 +107,7 @@ const ImageInputWithUrl = ({
     if (selectedFile) {
       setFile(selectedFile)
       setHasError(false)
+      setWebpageWarning(false)
       const objectUrl = URL.createObjectURL(selectedFile)
       setPreview(objectUrl)
       if (onChangeFile) onChangeFile(selectedFile)
@@ -58,13 +117,17 @@ const ImageInputWithUrl = ({
 
   // Handle URL input change
   const handleUrlChange = (e) => {
-    const newUrl = e.target.value
-    setUrl(newUrl)
+    const rawVal = e.target.value
+    const cleaned = sanitizeImageUrl(rawVal)
+    setUrl(rawVal)
     setHasError(false)
+    const isWebpage = isLikelyWebpageUrl(rawVal)
+    setWebpageWarning(isWebpage)
+
     if (!file) {
-      setPreview(newUrl)
+      setPreview(cleaned)
     }
-    if (onChangeUrl) onChangeUrl(newUrl)
+    if (onChangeUrl) onChangeUrl(cleaned)
   }
 
   // Clear / remove current image
@@ -73,6 +136,7 @@ const ImageInputWithUrl = ({
     setUrl('')
     setPreview('')
     setHasError(false)
+    setWebpageWarning(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -99,6 +163,7 @@ const ImageInputWithUrl = ({
           <img 
             src={preview} 
             alt="Preview" 
+            referrerPolicy="no-referrer"
             onError={() => {
               // If it's a broken URL, notify user gracefully
               if (!file) setHasError(true)
@@ -117,12 +182,20 @@ const ImageInputWithUrl = ({
         </div>
       )}
 
+      {/* Webpage Warning if user pasted an HTML/PHP page instead of direct image */}
+      {webpageWarning && (
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-medium">
+          <HelpCircle className="w-4 h-4 shrink-0" />
+          <span>Webpage URL detected. To use an image from this page, right-click the photo on that page and select &quot;Copy image address&quot;.</span>
+        </div>
+      )}
+
       {/* Broken Image Warning if URL failed */}
       {hasError && (
         <div className="flex items-center justify-between p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>Unable to load image from the provided URL. Please check the link.</span>
+            <span>Image failed to load. Please verify the URL points directly to an image (.jpg, .png, .webp).</span>
           </div>
           <button 
             type="button" 

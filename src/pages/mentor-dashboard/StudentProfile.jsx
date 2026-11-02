@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import CardSkeleton from '../../components/skeletons/CardSkeleton'
 import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton'
-import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, ArrowUp, ChevronUp, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, MessageSquareOff, MessageCircle, Languages, Cake, Smartphone, Users, Globe } from 'lucide-react'
+import { MapPin, Mail, BookOpen, GraduationCap, Calendar, Loader2, ArrowLeft, ArrowUp, ChevronUp, X, Heart, MessageSquare, Send, Video, Briefcase, FileText, Code, Lock, UserPlus, Clock, CheckCircle2, AlertCircle, ArrowRight, Share2, Shield, MoreHorizontal, Edit3, Trash2, Eye, EyeOff, Download, Copy, MessageSquareOff, MessageCircle, Languages, Cake, Smartphone, Users, Globe, VolumeX, Volume2 } from 'lucide-react'
 import AutoPlayVideo from '../../components/AutoPlayVideo'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { FaLinkedin as Linkedin, FaGithub as Github, FaInstagram, FaFacebook, FaTwitter } from 'react-icons/fa'
@@ -27,6 +27,8 @@ import { getTotalCommentsCount } from '../../utils/textFormatters'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import BirthdayBanner, { checkIsBirthdayToday } from '../../components/common/BirthdayBanner'
 import { getProficiencyBadgeClass } from '../../components/settings/LanguagesManager'
+import { getMutedAuthors, addMutedAuthor, removeMutedAuthor } from '../../utils/postInteractions'
+import { socket } from '../../services/socket'
 
 const StudentProfile = ({ initialUser, isAdmin = false }) => {
   const navigate = useNavigate();
@@ -49,6 +51,10 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
   // Post states
   const [posts, setPosts] = useState([])
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const loadMoreRef = useRef(null)
   const [connectionsCount, setConnectionsCount] = useState(0)
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
   const [activeDropdownId, setActiveDropdownId] = useState(null)
@@ -59,6 +65,86 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [shareConfig, setShareConfig] = useState(null)
   const [likesModalPost, setLikesModalPost] = useState(null)
+  const [isMuted, setIsMuted] = useState(false)
+
+  // Live online/offline presence tracking
+  const [onlineUserIds, setOnlineUserIds] = useState([])
+  useEffect(() => {
+    const handleOnline = (list) => {
+      if (Array.isArray(list)) setOnlineUserIds(list)
+    }
+    socket.on('online_users_update', handleOnline)
+    socket.on('connect', () => {
+      socket.emit('get_online_users')
+      if (user?.id) socket.emit('register_user', user.id)
+    })
+    socket.emit('get_online_users')
+    if (user?.id) socket.emit('register_user', user.id)
+
+    fetch(`${API_BASE}/api/admin/online-users`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.onlineUsers && Array.isArray(d.onlineUsers)) {
+          setOnlineUserIds(prev => Array.from(new Set([...prev, ...d.onlineUsers])))
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      socket.off('online_users_update', handleOnline)
+      socket.off('connect')
+    }
+  }, [user?.id])
+
+  const isOwnerProfile = Boolean(
+    user?.id && (
+      student?.clerkId === user.id ||
+      student?._id === user.id ||
+      student?.id === user.id ||
+      (user?.username && student?.username && String(user.username).toLowerCase() === String(student.username).toLowerCase()) ||
+      (user?.primaryEmailAddress?.emailAddress && student?.email && user.primaryEmailAddress.emailAddress === student.email)
+    )
+  )
+
+  const isTargetOnline = Boolean(
+    isOwnerProfile ||
+    (student?.clerkId && onlineUserIds.some(id => String(id) === String(student.clerkId))) ||
+    (student?._id && onlineUserIds.some(id => String(id) === String(student?._id))) ||
+    (student?.id && onlineUserIds.some(id => String(id) === String(student?.id))) ||
+    (student?.username && onlineUserIds.some(id => String(id).toLowerCase() === String(student.username).toLowerCase())) ||
+    student?.isOnline
+  )
+
+  useEffect(() => {
+    if (student?.clerkId) {
+      setIsMuted(getMutedAuthors().includes(String(student.clerkId)))
+    }
+  }, [student?.clerkId])
+
+  useEffect(() => {
+    const handleSync = () => {
+      if (student?.clerkId) {
+        setIsMuted(getMutedAuthors().includes(String(student.clerkId)))
+      }
+    }
+    window.addEventListener('campusbridge_muted_authors_changed', handleSync)
+    return () => window.removeEventListener('campusbridge_muted_authors_changed', handleSync)
+  }, [student?.clerkId])
+
+  const handleToggleMute = async () => {
+    if (!student?.clerkId) return
+    const authorId = String(student.clerkId)
+    const authorName = student.firstName || student.name || 'this user'
+    if (isMuted) {
+      await removeMutedAuthor(authorId, user?.id)
+      setIsMuted(false)
+      toast.success(`Unmuted ${authorName}. You will now see their posts in your feed.`)
+    } else {
+      await addMutedAuthor(authorId, user?.id)
+      setIsMuted(true)
+      toast.success(`Muted posts from ${authorName}.`)
+    }
+  }
 
   // Real-time synchronization of posts, comments, likes for this student
   useRealtimePosts({ setPosts, userFilterId: student?.clerkId })
@@ -211,24 +297,67 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
     fetchStudent()
   }, [identifier, user, initialUser, isAdminView])
 
-  // Fetch posts by this student once we have their clerkId
+  // Fetch posts by this student (Instagram-style chunked pagination)
+  const fetchStudentPosts = async (targetPage = 1, append = false) => {
+    if (!student?.clerkId) return;
+    try {
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoadingPosts(true);
+      }
+      const res = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}?requestingUserId=${user?.id}&page=${targetPage}&limit=6`);
+      if (res.ok) {
+        const data = await res.json();
+        const incomingPosts = Array.isArray(data) ? data : (data.posts || []);
+        const incomingHasMore = Boolean(data.hasMore);
+
+        if (append) {
+          setPosts(prev => {
+            const existingIds = new Set(prev.map(p => p._id || p.id));
+            const newUnique = incomingPosts.filter(p => !existingIds.has(p._id || p.id));
+            return [...prev, ...newUnique];
+          });
+        } else {
+          setPosts(incomingPosts);
+        }
+
+        setPage(targetPage);
+        setHasMore(Array.isArray(data) ? incomingPosts.length >= 6 : incomingHasMore);
+      }
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+    } finally {
+      setIsLoadingPosts(false);
+      setIsLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     if (!student?.clerkId) return;
-    const fetchPosts = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/posts/user/${student.clerkId}?requestingUserId=${user?.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setPosts(data);
-        }
-      } catch (err) {
-        console.error('Error fetching posts:', err);
-      } finally {
-        setIsLoadingPosts(false);
-      }
-    };
-    fetchPosts();
+    setPage(1);
+    setHasMore(true);
+    fetchStudentPosts(1, false);
   }, [student?.clerkId, user?.id]);
+
+  // Instagram-style infinite scroll intersection observer
+  useEffect(() => {
+    if (!hasMore || isLoadingMore || isLoadingPosts || !student?.clerkId) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        fetchStudentPosts(page + 1, true);
+      }
+    }, { rootMargin: '400px' });
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) observer.unobserve(currentRef);
+    };
+  }, [hasMore, isLoadingMore, isLoadingPosts, page, student?.clerkId, user?.id]);
 
   useEffect(() => {
     if (!student?.clerkId) return;
@@ -602,13 +731,22 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
             
             {/* Top Row: Avatar and Actions */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end w-full -mt-16 sm:-mt-22 md:-mt-24 relative z-10 gap-4 sm:gap-0">
-              <div className="shrink-0 sm:ml-2 md:ml-3">
+              <div className="shrink-0 sm:ml-2 md:ml-3 relative">
                 <img 
                   src={student.imageUrl || student.image || getAvatarFallback()} 
                   alt={student.firstName || student.name || 'Student'} 
                   onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getAvatarFallback(); }}
                   className={`w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
                   onClick={isLocked ? undefined : () => setViewerData({ files: [student.imageUrl || student.image || getAvatarFallback()], index: 0 })}
+                />
+                {/* Live Online / Offline Avatar Dot */}
+                <span 
+                  className={`absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-3.5 md:right-3.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] sm:border-2 border-card z-20 pointer-events-none transition-all duration-200 ${
+                    isTargetOnline 
+                      ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' 
+                      : 'bg-muted-foreground/40'
+                  }`}
+                  title={isTargetOnline ? 'Online Now' : 'Offline'}
                 />
               </div>
               
@@ -719,9 +857,11 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
             
             {/* User Info Stack */}
             <div className="mt-3 sm:mt-4 flex flex-col gap-1.5 text-left w-full sm:pl-2 md:pl-3">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">
-                {student?.firstName && student?.lastName ? `${student.firstName} ${student.lastName}` : (student?.name || student?.username || 'Student')}
-              </h1>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-0.5">
+                  {student?.firstName && student?.lastName ? `${student.firstName} ${student.lastName}` : (student?.name || student?.username || 'Student')}
+                </h1>
+              </div>
               {student?.username && (
                 <p className="text-sm text-muted-foreground font-medium">@{student.username}</p>
               )}
@@ -795,6 +935,27 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
                 )}
               </div>
             </div>
+
+            {/* Muted Warning Banner */}
+            {isMuted && !isOwner && !isAdminView && (
+              <div className="mt-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm animate-in fade-in duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <VolumeX className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">You have muted posts from this student</h4>
+                    <p className="text-xs text-muted-foreground">Their posts are currently hidden from your feeds.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleToggleMute}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer self-start sm:self-auto"
+                >
+                  Unmute Posts
+                </button>
+              </div>
+            )}
           </div>
           
           <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40 sm:pl-2 md:pl-3">
@@ -1484,6 +1645,18 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
         ) : (
           <div className="text-center py-10 bg-card border border-border/50 rounded-2xl">
             <p className="text-muted-foreground text-sm">No posts yet.</p>
+          </div>
+        )}
+
+        {/* Instagram-style Infinite Scroll Loading Spinner & Sentinel */}
+        {posts.length > 0 && hasMore && (
+          <div ref={loadMoreRef} className="flex items-center justify-center py-6 w-full">
+            {isLoadingMore && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                <span>Loading more posts...</span>
+              </div>
+            )}
           </div>
         )}
         </div>

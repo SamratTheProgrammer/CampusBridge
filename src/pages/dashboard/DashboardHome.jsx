@@ -50,7 +50,9 @@ import {
   MessageSquareOff,
   Eye,
   EyeOff,
-  Check
+  Check,
+  VolumeX,
+  Flag
 } from 'lucide-react'
 import EmojiPicker from 'emoji-picker-react'
 import API_BASE from '../../utils/api'
@@ -63,6 +65,8 @@ import ImageViewerModal from '../../components/ImageViewerModal'
 import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
 import VoiceRecorderModal from '../../components/modals/VoiceRecorderModal'
 import { downloadMediaFile } from '../../utils/downloadHelper'
+import ReportPostModal from '../../components/modals/ReportPostModal'
+import { getHiddenPosts, addHiddenPost, removeHiddenPost, getMutedAuthors, addMutedAuthor, removeMutedAuthor, unhidePost, unreportPost } from '../../utils/postInteractions'
 import { useRealtimePosts } from '../../hooks/useRealtimePosts'
 import LinkPreviewCard from '../../components/LinkPreviewCard'
 import { checkUserJobEligibility } from '../../utils/salaryHelper'
@@ -96,6 +100,10 @@ const DashboardHome = () => {
   const feedScrollRef = useRef(null)
 
   const [posts, setPosts] = useState([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const loadMoreRef = useRef(null)
   const [recommendedMentors, setRecommendedMentors] = useState([])
   const [recentJobs, setRecentJobs] = useState([])
   const [isLoadingWidgets, setIsLoadingWidgets] = useState(true)
@@ -278,6 +286,9 @@ const DashboardHome = () => {
   const [shareConfig, setShareConfig] = useState(null)
 
   const [activeDropdownId, setActiveDropdownId] = useState(null)
+  const [hiddenPostIds, setHiddenPostIds] = useState(() => getHiddenPosts())
+  const [mutedAuthorIds, setMutedAuthorIds] = useState(() => getMutedAuthors())
+  const [reportModalData, setReportModalData] = useState({ isOpen: false, post: null })
   const [editingPostId, setEditingPostId] = useState(null)
   const [editContent, setEditContent] = useState('')
   const [showEditEmojiPicker, setShowEditEmojiPicker] = useState(false)
@@ -285,6 +296,14 @@ const DashboardHome = () => {
   const [postToDelete, setPostToDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [likesModalPost, setLikesModalPost] = useState(null)
+
+  const visiblePosts = posts.filter(post => {
+    const pId = String(post._id || post.id);
+    const authorId = String(post.authorClerkId);
+    if (hiddenPostIds.includes(pId)) return false;
+    if (mutedAuthorIds.includes(authorId) && authorId !== user?.id) return false;
+    return true;
+  });
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -298,7 +317,33 @@ const DashboardHome = () => {
     }
   }, [showEditEmojiPicker])
   
-  // Image states
+  // Close post dropdown when clicking anywhere outside
+  useEffect(() => {
+    if (!activeDropdownId) return
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('[data-dropdown-container]')) {
+        setActiveDropdownId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [activeDropdownId])
+
+  // Sync muted and hidden posts across views/profiles
+  useEffect(() => {
+    const handleMutedSync = () => setMutedAuthorIds(getMutedAuthors())
+    const handleHiddenSync = () => setHiddenPostIds(getHiddenPosts())
+    window.addEventListener('campusbridge_muted_authors_changed', handleMutedSync)
+    window.addEventListener('campusbridge_hidden_posts_changed', handleHiddenSync)
+    return () => {
+      window.removeEventListener('campusbridge_muted_authors_changed', handleMutedSync)
+      window.removeEventListener('campusbridge_hidden_posts_changed', handleHiddenSync)
+    }
+  }, [])
   const [cropModalData, setCropModalData] = useState(null)
   const [viewerData, setViewerData] = useState(null)
 
@@ -317,44 +362,69 @@ const DashboardHome = () => {
   const [isPullRefreshing, setIsPullRefreshing] = useState(false)
   const touchStartYRef = useRef(0)
 
-  // Fetch Posts: Only shuffles when explicitly requested (page reload or pull-to-refresh)
-  const fetchPosts = async ({ shuffle = false } = {}) => {
+  // Fetch Posts (Instagram-style chunked pagination)
+  const fetchPosts = async ({ shuffle = false, targetPage = 1, append = false } = {}) => {
     try {
-      setIsLoadingPosts(true)
-      const res = await fetch(`${API_BASE}/api/posts?shuffle=${shuffle ? 'true' : 'false'}&t=${Date.now()}`)
+      if (append) {
+        setIsLoadingMore(true)
+      } else {
+        setIsLoadingPosts(true)
+      }
+      const res = await fetch(`${API_BASE}/api/posts?shuffle=${shuffle ? 'true' : 'false'}&page=${targetPage}&limit=6&t=${Date.now()}`)
       if (res.ok) {
         const data = await res.json()
-        if (Array.isArray(data)) {
-          if (shuffle) {
-            // Instagram-style shuffle ONLY on explicit page reload or pull-to-refresh
-            const shuffled = [...data]
-            for (let i = shuffled.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-            }
-            setPosts(shuffled)
-          } else {
-            // In-place merge: preserve existing post order and scroll position!
-            setPosts(prev => {
-              if (!prev || prev.length === 0) return data;
-              const dataMap = new Map(data.map(p => [p._id, p]));
-              const updatedExisting = prev.map(p => dataMap.get(p._id) || p);
-              const existingIds = new Set(prev.map(p => p._id));
-              const newlyAdded = data.filter(p => !existingIds.has(p._id));
-              return [...newlyAdded, ...updatedExisting];
-            })
+        const incomingPosts = Array.isArray(data) ? data : (data.posts || [])
+        const incomingHasMore = Boolean(data.hasMore)
+
+        if (append) {
+          setPosts(prev => {
+            const existingIds = new Set(prev.map(p => p._id || p.id))
+            const newUnique = incomingPosts.filter(p => !existingIds.has(p._id || p.id))
+            return [...prev, ...newUnique]
+          })
+        } else if (shuffle) {
+          const shuffled = [...incomingPosts]
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
           }
+          setPosts(shuffled)
         } else {
-          setPosts([])
+          setPosts(incomingPosts)
         }
+
+        setPage(targetPage)
+        setHasMore(Array.isArray(data) ? incomingPosts.length >= 6 : incomingHasMore)
+      } else {
+        if (!append) setPosts([])
       }
     } catch (err) {
       console.error('Failed to fetch posts', err)
     } finally {
       setIsLoadingPosts(false)
+      setIsLoadingMore(false)
       setIsPullRefreshing(false)
     }
   }
+
+  // Instagram-style infinite scroll intersection observer
+  useEffect(() => {
+    if (!hasMore || isLoadingMore || isLoadingPosts) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        fetchPosts({ targetPage: page + 1, append: true });
+      }
+    }, { rootMargin: '400px' });
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) observer.unobserve(currentRef);
+    };
+  }, [hasMore, isLoadingMore, isLoadingPosts, page]);
 
   // Refresh or update ONLY a single post (for comments, likes) without ever shuffling or shifting the feed!
   const refreshSinglePost = useCallback(async (postId, updatedComments) => {
@@ -1041,6 +1111,112 @@ const DashboardHome = () => {
       }
     })()
   }
+
+  const handleHidePost = (postId) => {
+    setActiveDropdownId(null);
+    addHiddenPost(postId, user?.id);
+    setHiddenPostIds(prev => [...prev, String(postId)]);
+    toast((t) => (
+      <div className="flex items-center justify-between gap-4 w-full">
+        <div className="flex items-center gap-2">
+          <EyeOff className="w-4 h-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium">Post hidden from feed</span>
+        </div>
+        <button
+          onClick={async () => {
+            await unhidePost(postId, user?.id);
+            setHiddenPostIds(prev => prev.filter(id => id !== String(postId)));
+            toast.dismiss(t.id);
+            toast.success('Post restored to feed');
+          }}
+          className="px-3 py-1 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors cursor-pointer shadow-sm shrink-0"
+        >
+          Undo
+        </button>
+      </div>
+    ), { 
+      duration: 6000,
+      style: {
+        background: 'var(--card, #18191c)',
+        color: 'var(--foreground, #fff)',
+        border: '1px solid var(--border, rgba(255,255,255,0.1))',
+        borderRadius: '1rem',
+        padding: '10px 14px'
+      }
+    });
+  };
+
+  const handleMuteAuthor = (authorClerkId, authorName) => {
+    setActiveDropdownId(null);
+    addMutedAuthor(authorClerkId, user?.id);
+    setMutedAuthorIds(prev => [...prev, String(authorClerkId)]);
+    toast((t) => (
+      <div className="flex items-center justify-between gap-4 w-full">
+        <div className="flex items-center gap-2">
+          <VolumeX className="w-4 h-4 text-amber-500 shrink-0" />
+          <span className="text-sm font-medium">Muted posts from {authorName}</span>
+        </div>
+        <button
+          onClick={async () => {
+            await removeMutedAuthor(authorClerkId, user?.id);
+            setMutedAuthorIds(prev => prev.filter(id => id !== String(authorClerkId)));
+            toast.dismiss(t.id);
+            toast.success(`Unmuted ${authorName}`);
+          }}
+          className="px-3 py-1 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors cursor-pointer shadow-sm shrink-0"
+        >
+          Undo
+        </button>
+      </div>
+    ), { 
+      duration: 6000,
+      style: {
+        background: 'var(--card, #18191c)',
+        color: 'var(--foreground, #fff)',
+        border: '1px solid var(--border, rgba(255,255,255,0.1))',
+        borderRadius: '1rem',
+        padding: '10px 14px'
+      }
+    });
+  };
+
+  const handleReportPost = (post) => {
+    setActiveDropdownId(null);
+    setReportModalData({ isOpen: true, post });
+  };
+
+  const onReportSubmitted = (postId) => {
+    addHiddenPost(postId, user?.id);
+    setHiddenPostIds(prev => [...prev, String(postId)]);
+    toast((t) => (
+      <div className="flex items-center justify-between gap-4 w-full">
+        <div className="flex items-center gap-2">
+          <Flag className="w-4 h-4 text-rose-500 shrink-0" />
+          <span className="text-sm font-medium">Report submitted to moderators</span>
+        </div>
+        <button
+          onClick={async () => {
+            await unreportPost(postId, user?.id);
+            setHiddenPostIds(prev => prev.filter(id => id !== String(postId)));
+            toast.dismiss(t.id);
+            toast.success('Report cancelled & post restored');
+          }}
+          className="px-3 py-1 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors cursor-pointer shadow-sm shrink-0"
+        >
+          Undo
+        </button>
+      </div>
+    ), { 
+      duration: 7000,
+      style: {
+        background: 'var(--card, #18191c)',
+        color: 'var(--foreground, #fff)',
+        border: '1px solid var(--border, rgba(255,255,255,0.1))',
+        borderRadius: '1rem',
+        padding: '10px 14px'
+      }
+    });
+  };
 
   const handleDeletePost = (postId) => {
     setPostToDelete(postId)
@@ -1964,8 +2140,8 @@ const DashboardHome = () => {
                 <PostSkeleton />
                 <PostSkeleton />
               </div>
-            ) : posts.length > 0 ? (
-            posts.map(post => {
+            ) : visiblePosts.length > 0 ? (
+            visiblePosts.map(post => {
               const safeLikes = post.likes || []
               const hasLiked = user && safeLikes.some(like => (like.clerkId || like) === user.id)
               const commentsArray = post.comments || []
@@ -2055,19 +2231,27 @@ const DashboardHome = () => {
                       {(() => {
                         const isAuthor = post.authorClerkId === user?.id;
                         const hasMedia = (post.mediaFiles && post.mediaFiles.length > 0) || post.imageUrl;
-                        if (!isAuthor && !hasMedia) return null;
 
                         return (
-                          <div className="relative">
+                          <div className="relative" data-dropdown-container="true">
                             <button 
                               onClick={() => setActiveDropdownId(activeDropdownId === post._id ? null : post._id)}
-                              className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors"
+                              className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors cursor-pointer"
+                              title="Post options"
                             >
                               <MoreHorizontal className="w-5 h-5" />
                             </button>
                             {activeDropdownId === post._id && (
-                              <div className="absolute right-0 mt-2 w-52 bg-background border border-border/50 rounded-xl shadow-lg z-10 overflow-hidden py-1">
-                                {isAuthor && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-10 cursor-default" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownId(null);
+                                  }} 
+                                />
+                                <div className="absolute right-0 mt-2 w-56 bg-card border border-border/60 rounded-2xl shadow-xl z-20 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150">
+                                {isAuthor ? (
                                   <>
                                     <button 
                                       onClick={() => {
@@ -2075,16 +2259,16 @@ const DashboardHome = () => {
                                         setEditContent(post.content)
                                         setActiveDropdownId(null)
                                       }}
-                                      className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors"
+                                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
                                     >
-                                      <Edit3 className="w-4 h-4" /> Edit
+                                      <Edit3 className="w-4 h-4 text-primary" /> Edit Post
                                     </button>
                                     <button 
                                       onClick={() => {
                                         setActiveDropdownId(null)
                                         handleToggleComments(post)
                                       }}
-                                      className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors border-t border-border/50"
+                                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors border-t border-border/40 cursor-pointer"
                                     >
                                       {post.commentsDisabled ? (
                                         <>
@@ -2101,7 +2285,7 @@ const DashboardHome = () => {
                                         setActiveDropdownId(null)
                                         handleToggleLikesVisibility(post)
                                       }}
-                                      className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors border-t border-border/50"
+                                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors border-t border-border/40 cursor-pointer"
                                     >
                                       {post.hideLikes ? (
                                         <>
@@ -2115,9 +2299,42 @@ const DashboardHome = () => {
                                     </button>
                                     <button 
                                       onClick={() => handleDeletePost(post._id)}
-                                      className="w-full text-left px-4 py-2 text-sm hover:bg-rose-500/10 text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 font-medium flex items-center gap-2 transition-colors border-t border-border/50 cursor-pointer"
+                                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-rose-500/10 text-rose-500 dark:text-rose-400 font-medium flex items-center gap-2.5 transition-colors border-t border-border/40 cursor-pointer"
                                     >
-                                      <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete
+                                      <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete Post
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button 
+                                      onClick={() => handleHidePost(post._id)}
+                                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                      <EyeOff className="w-4 h-4 text-muted-foreground shrink-0" />
+                                      <div className="min-w-0">
+                                        <span className="block font-medium">Hide post</span>
+                                        <span className="block text-[10px] text-muted-foreground">See fewer posts like this</span>
+                                      </div>
+                                    </button>
+                                    <button 
+                                      onClick={() => handleMuteAuthor(post.authorClerkId, post.author?.name || 'this user')}
+                                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors border-t border-border/40 cursor-pointer"
+                                    >
+                                      <VolumeX className="w-4 h-4 text-muted-foreground shrink-0" />
+                                      <div className="min-w-0">
+                                        <span className="block font-medium truncate">Mute @{post.author?.username || post.author?.name?.split(' ')[0] || 'author'}</span>
+                                        <span className="block text-[10px] text-muted-foreground">Stop seeing posts from this author</span>
+                                      </div>
+                                    </button>
+                                    <button 
+                                      onClick={() => handleReportPost(post)}
+                                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-rose-500/10 text-rose-500 dark:text-rose-400 font-medium flex items-center gap-2.5 transition-colors border-t border-border/40 cursor-pointer"
+                                    >
+                                      <Flag className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" />
+                                      <div className="min-w-0">
+                                        <span className="block font-semibold">Report post</span>
+                                        <span className="block text-[10px] text-muted-foreground">I'm concerned about this post</span>
+                                      </div>
                                     </button>
                                   </>
                                 )}
@@ -2127,12 +2344,13 @@ const DashboardHome = () => {
                                       setActiveDropdownId(null);
                                       handleDownloadPostMedia(post);
                                     }}
-                                    className={`w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors ${isAuthor ? 'border-t border-border/50' : ''}`}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted flex items-center gap-2.5 transition-colors border-t border-border/40 cursor-pointer"
                                   >
-                                    <Download className="w-4 h-4 text-primary" /> Download Media
+                                    <Download className="w-4 h-4 text-primary shrink-0" /> Download Media
                                   </button>
                                 )}
                               </div>
+                            </>
                             )}
                           </div>
                         );
@@ -2439,6 +2657,18 @@ const DashboardHome = () => {
           ) : (
             <div className="text-center py-10 bg-card border border-border/50 rounded-2xl">
               <p className="text-muted-foreground text-sm">No posts yet. Be the first to share something!</p>
+            </div>
+          )}
+
+          {/* Instagram-style Infinite Scroll Loading Spinner & Sentinel */}
+          {visiblePosts.length > 0 && hasMore && (
+            <div ref={loadMoreRef} className="flex items-center justify-center py-6 w-full">
+              {isLoadingMore && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span>Loading more posts...</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -3311,6 +3541,14 @@ const DashboardHome = () => {
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
         onAudioReady={handleAudioReady}
+      />
+      {/* Report Post Modal */}
+      <ReportPostModal
+        isOpen={reportModalData.isOpen}
+        onClose={() => setReportModalData({ isOpen: false, post: null })}
+        post={reportModalData.post}
+        currentUser={user}
+        onReportSubmitted={onReportSubmitted}
       />
     </div>
   )

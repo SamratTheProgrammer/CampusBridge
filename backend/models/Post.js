@@ -15,6 +15,15 @@ const commentSchema = new mongoose.Schema({
   replies: [replySchema]
 });
 
+const reportSchema = new mongoose.Schema({
+  reporterClerkId: { type: String, required: true },
+  reporterName: { type: String, default: 'User' },
+  reporterUsername: { type: String, default: '' },
+  reason: { type: String, required: true },
+  details: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const postSchema = new mongoose.Schema({
   authorClerkId: {
     type: String,
@@ -108,6 +117,12 @@ const postSchema = new mongoose.Schema({
     default: false
   },
   sharesCount: {
+    type: Number,
+    default: 0
+  },
+  reports: [reportSchema],
+  dismissedReports: [reportSchema],
+  reportCount: {
     type: Number,
     default: 0
   }

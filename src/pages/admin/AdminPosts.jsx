@@ -18,7 +18,9 @@ import {
   Clock,
   MapPin,
   Briefcase,
-  Volume2
+  Volume2,
+  Flag,
+  RotateCcw
 } from 'lucide-react'
 import AudioPlayerWidget from '../../components/common/AudioPlayerWidget'
 import toast from 'react-hot-toast'
@@ -149,20 +151,102 @@ const AdminPosts = () => {
     setRemarkModal({ isOpen: false, action: null, target: null, title: '', placeholder: '', buttonText: '' })
   }
 
+  const handleDismissReports = async (postId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}/dismiss-reports`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const updatedPost = data.post;
+        setPosts(prev => prev.map(p => (p._id || p.id) === postId ? { 
+          ...p, 
+          reports: [], 
+          reportCount: 0,
+          dismissedReports: updatedPost?.dismissedReports || p.reports || []
+        } : p));
+
+        if (selectedPostDetails && (selectedPostDetails._id || selectedPostDetails.id) === postId) {
+          setSelectedPostDetails(prev => ({ 
+            ...prev, 
+            reports: [], 
+            reportCount: 0,
+            dismissedReports: updatedPost?.dismissedReports || prev.reports || []
+          }));
+        }
+
+        // Actionable Toast with instant Undo option
+        toast((t) => (
+          <div className="flex items-center justify-between gap-3 w-full">
+            <span className="text-xs sm:text-sm font-semibold text-foreground">All reports dismissed</span>
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id);
+                await handleUndoDismissReports(postId);
+              }}
+              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-xs cursor-pointer shrink-0"
+            >
+              <RotateCcw className="w-3 h-3" /> Undo
+            </button>
+          </div>
+        ), { duration: 6000, id: `dismiss-reports-${postId}` });
+      } else {
+        toast.error(data.error || 'Failed to dismiss reports');
+      }
+    } catch (err) {
+      console.error('Error dismissing reports:', err);
+      toast.error('Server error while dismissing reports');
+    }
+  };
+
+  const handleUndoDismissReports = async (postId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${postId}/undo-dismiss-reports`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success('Dismissed reports have been restored!');
+        const restoredReports = data.post?.reports || [];
+        const restoredCount = data.post?.reportCount || restoredReports.length;
+
+        setPosts(prev => prev.map(p => (p._id || p.id) === postId ? { 
+          ...p, 
+          reports: restoredReports, 
+          reportCount: restoredCount,
+          dismissedReports: []
+        } : p));
+
+        if (selectedPostDetails && (selectedPostDetails._id || selectedPostDetails.id) === postId) {
+          setSelectedPostDetails(prev => ({ 
+            ...prev, 
+            reports: restoredReports, 
+            reportCount: restoredCount,
+            dismissedReports: []
+          }));
+        }
+      } else {
+        toast.error(data.error || 'Failed to restore reports');
+      }
+    } catch (err) {
+      console.error('Error restoring reports:', err);
+      toast.error('Server error while restoring reports');
+    }
+  };
+
   const filteredPosts = posts.filter(post => {
     const matchesSearch = post.content?.toLowerCase().includes(search.toLowerCase()) || 
                           post.author?.name?.toLowerCase().includes(search.toLowerCase()) ||
                           post.eventDetails?.title?.toLowerCase().includes(search.toLowerCase()) ||
                           post.jobDetails?.title?.toLowerCase().includes(search.toLowerCase())
     
-    const status = post.moderationStatus === 'paused' ? 'Paused' : 'Active'
-    const matchesStatus = statusFilter === 'All' || status === statusFilter
+    const isReported = (post.reportCount > 0) || (post.reports && post.reports.length > 0)
+    let matchesStatus = true
+    if (statusFilter === 'Active') matchesStatus = post.moderationStatus !== 'paused'
+    else if (statusFilter === 'Paused') matchesStatus = post.moderationStatus === 'paused'
+    else if (statusFilter === 'Reported') matchesStatus = isReported
     
     return matchesSearch && matchesStatus
   })
 
   return (
-    <div className="w-full space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="w-full space-y-6 max-w-6xl mx-auto pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -179,27 +263,30 @@ const AdminPosts = () => {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Search by content, author, event, or job..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm font-medium transition-all text-foreground"
-          />
+      {/* Sticky Header: Filter & Search Bar */}
+      <div className="sticky top-16 z-30 bg-background pt-2 pb-3 -mx-4 sm:-mx-8 px-4 sm:px-8 border-b border-border/40 shadow-sm transition-all">
+        <div className="bg-card border border-border/50 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-1 w-full relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input 
+              type="text" 
+              placeholder="Search by content, author, event, or job..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/50 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+            />
+          </div>
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[160px] w-full md:w-auto"
+          >
+            <option value="All">All Status ({posts.length})</option>
+            <option value="Reported">🚩 Reported ({posts.filter(p => p.reportCount > 0 || (p.reports && p.reports.length > 0)).length})</option>
+            <option value="Active">Active ({posts.filter(p => p.moderationStatus !== 'paused').length})</option>
+            <option value="Paused">Paused ({posts.filter(p => p.moderationStatus === 'paused').length})</option>
+          </select>
         </div>
-        <select 
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-muted/40 border border-border/50 rounded-xl px-4 py-2.5 text-foreground text-xs font-semibold focus:outline-none cursor-pointer appearance-none min-w-[140px] w-full md:w-auto"
-        >
-          <option value="All">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Paused">Paused</option>
-        </select>
       </div>
 
       {/* Posts Table */}
@@ -209,8 +296,8 @@ const AdminPosts = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="whitespace-nowrap w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <thead className="bg-card border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm">
+                <tr className="bg-muted/40">
                   <th className="px-6 py-4">Author</th>
                   <th className="px-6 py-4">Content</th>
                   <th className="px-6 py-4">Type / Media</th>
@@ -334,15 +421,36 @@ const AdminPosts = () => {
                           </div>
                         </td>
 
-                        {/* Status badge */}
+                        {/* Status & Reports badge */}
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            post.moderationStatus === 'paused'
-                              ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                              : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
-                          }`}>
-                            {post.moderationStatus === 'paused' ? 'Paused' : 'Active'}
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            {(post.reportCount > 0 || (post.reports && post.reports.length > 0)) && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                                <Flag className="w-3 h-3 fill-rose-500 text-rose-500" />
+                                Reported ({post.reportCount || post.reports?.length})
+                              </span>
+                            )}
+                            {post.dismissedReports?.length > 0 && (!post.reports || post.reports.length === 0) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUndoDismissReports(post._id);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                                title="Click to undo dismissal and restore reports"
+                              >
+                                <RotateCcw className="w-2.5 h-2.5" />
+                                Undo Dismiss ({post.dismissedReports.length})
+                              </button>
+                            )}
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                              post.moderationStatus === 'paused'
+                                ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                            }`}>
+                              {post.moderationStatus === 'paused' ? 'Paused' : 'Active'}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Action buttons */}
@@ -457,6 +565,112 @@ const AdminPosts = () => {
 
             {/* Content Text (or gradient text) */}
             <div className="space-y-4">
+              {/* User Reports & Moderation Flags Box */}
+              {(selectedPostDetails.reportCount > 0 || (selectedPostDetails.reports && selectedPostDetails.reports.length > 0)) && (
+                <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-2 border-b border-rose-500/20 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Flag className="w-5 h-5 fill-rose-500 text-rose-500" />
+                      <h4 className="text-sm font-black text-rose-600 dark:text-rose-400">
+                        User Reported Concerns ({selectedPostDetails.reports?.length || selectedPostDetails.reportCount})
+                      </h4>
+                    </div>
+                    <button
+                      onClick={() => handleDismissReports(selectedPostDetails._id)}
+                      className="px-3 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                      title="Dismiss all reports and clear flag"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Dismiss Reports
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    {selectedPostDetails.reports && selectedPostDetails.reports.length > 0 ? (
+                      selectedPostDetails.reports.map((rep, rIdx) => (
+                        <div key={rIdx} className="bg-background/80 p-3 rounded-xl border border-rose-500/20 text-xs flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-extrabold text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md bg-rose-500/10">
+                              {rep.reason}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {rep.createdAt ? new Date(rep.createdAt).toLocaleString() : 'Recently'}
+                            </span>
+                          </div>
+                          {rep.details && (
+                            <p className="text-foreground/90 italic mt-0.5 font-medium">"{rep.details}"</p>
+                          )}
+                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-1">
+                            <span>Reported by:</span>
+                            {rep.reporterUsername ? (
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedPostDetails(null);
+                                  navigate(`/admin/users/${rep.reporterUsername}`);
+                                }}
+                                className="font-bold text-primary hover:underline cursor-pointer"
+                              >
+                                @{rep.reporterUsername} ({rep.reporterName})
+                              </span>
+                            ) : (
+                              <span className="font-semibold text-foreground">{rep.reporterName || 'Anonymous User'}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-rose-600 dark:text-rose-400 font-medium italic">
+                        Post flagged for review by community members.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Dismissed Reports Box with Undo Option */}
+              {selectedPostDetails.dismissedReports?.length > 0 && (!selectedPostDetails.reports || selectedPostDetails.reports.length === 0) && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-2 border-b border-amber-500/20 pb-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                      <div>
+                        <h4 className="text-sm font-black text-foreground">
+                          Reports Dismissed ({selectedPostDetails.dismissedReports.length})
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground">
+                          These reports were previously reviewed and dismissed by an admin.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleUndoDismissReports(selectedPostDetails._id)}
+                      className="px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                      title="Undo dismiss and restore reports"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" /> Undo Dismiss
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-36 overflow-y-auto pr-1 custom-scrollbar opacity-90">
+                    {selectedPostDetails.dismissedReports.map((rep, rIdx) => (
+                      <div key={rIdx} className="bg-background/80 p-2.5 rounded-xl border border-border/50 text-xs flex flex-col gap-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-muted-foreground px-2 py-0.5 rounded bg-muted text-[11px]">
+                            {rep.reason}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {rep.createdAt ? new Date(rep.createdAt).toLocaleString() : 'Past'}
+                          </span>
+                        </div>
+                        {rep.details && <p className="text-foreground/80 italic text-[11px] mt-0.5">"{rep.details}"</p>}
+                        {rep.reporterName && (
+                          <span className="text-[10px] text-muted-foreground mt-0.5">Reported by {rep.reporterName}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {selectedPostDetails.bgGradient ? (
                 <div className={`p-8 rounded-2xl flex items-center justify-center text-center ${selectedPostDetails.bgGradient}`}>
                   <p className="text-white text-lg font-bold drop-shadow-md whitespace-pre-wrap">

@@ -39,6 +39,10 @@ const MyProfile = () => {
   // Post states
   const [posts, setPosts] = useState([])
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const loadMoreRef = useRef(null)
   const [connectionsCount, setConnectionsCount] = useState(0)
   const [activeCommentPostId, setActiveCommentPostId] = useState(null)
   const [commentText, setCommentText] = useState('')
@@ -284,19 +288,58 @@ const MyProfile = () => {
     }
   }
 
-  const fetchUserPosts = async () => {
+  const fetchUserPosts = async (targetPage = 1, append = false) => {
     try {
-      const res = await fetch(`${API_BASE}/api/posts/user/${user.id}?requestingUserId=${user.id}`)
+      if (append) {
+        setIsLoadingMore(true)
+      } else {
+        setIsLoadingPosts(true)
+      }
+      const res = await fetch(`${API_BASE}/api/posts/user/${user.id}?requestingUserId=${user.id}&page=${targetPage}&limit=6`)
       if (res.ok) {
         const data = await res.json()
-        setPosts(data)
+        const incomingPosts = Array.isArray(data) ? data : (data.posts || [])
+        const incomingHasMore = Boolean(data.hasMore)
+
+        if (append) {
+          setPosts(prev => {
+            const existingIds = new Set(prev.map(p => p._id || p.id))
+            const newUnique = incomingPosts.filter(p => !existingIds.has(p._id || p.id))
+            return [...prev, ...newUnique]
+          })
+        } else {
+          setPosts(incomingPosts)
+        }
+
+        setPage(targetPage)
+        setHasMore(Array.isArray(data) ? incomingPosts.length >= 6 : incomingHasMore)
       }
     } catch (err) {
       console.error(err)
     } finally {
       setIsLoadingPosts(false)
+      setIsLoadingMore(false)
     }
   }
+
+  // Instagram-style infinite scroll intersection observer
+  useEffect(() => {
+    if (!hasMore || isLoadingMore || isLoadingPosts || !user?.id) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        fetchUserPosts(page + 1, true);
+      }
+    }, { rootMargin: '400px' });
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) observer.unobserve(currentRef);
+    };
+  }, [hasMore, isLoadingMore, isLoadingPosts, page, user?.id]);
 
   const handleCoverPhotoSelect = (e) => {
     const file = e.target.files?.[0]
@@ -741,6 +784,11 @@ const MyProfile = () => {
                 onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                 className="w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg cursor-pointer transition-all hover:brightness-90"
                 onClick={() => setViewerData({ files: [profilePhotoUrl], index: 0 })}
+              />
+              {/* Live Online Avatar Dot */}
+              <span 
+                className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-3.5 md:right-3.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] sm:border-2 border-card bg-emerald-500 shadow-md shadow-emerald-500/50 z-20 pointer-events-none transition-all duration-200"
+                title="Online Now"
               />
               <input type="file" ref={profilePicInputRef} onChange={handleProfilePicSelect} accept="image/*" className="hidden" />
               <button 
@@ -1681,6 +1729,18 @@ const MyProfile = () => {
               ) : (
                 <div className="text-center py-10 bg-card border border-border/50 rounded-2xl">
                   <p className="text-muted-foreground text-sm">You haven't posted anything yet.</p>
+                </div>
+              )}
+
+              {/* Instagram-style Infinite Scroll Loading Spinner & Sentinel */}
+              {posts.length > 0 && hasMore && (
+                <div ref={loadMoreRef} className="flex items-center justify-center py-6 w-full">
+                  {isLoadingMore && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      <span>Loading more posts...</span>
+                    </div>
+                  )}
                 </div>
               )}
             </>

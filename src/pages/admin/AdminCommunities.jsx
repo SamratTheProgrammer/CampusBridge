@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, ShieldCheck, ToggleLeft, ToggleRight, MessageSquare } from 'lucide-react'
+import { Plus, Trash2, ShieldCheck, ToggleLeft, ToggleRight, MessageSquare, X } from 'lucide-react'
+import ModalPortal from '../../components/modals/ModalPortal'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 
@@ -14,6 +15,8 @@ const AdminCommunities = () => {
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [communityName, setCommunityName] = useState('')
 
   const confirmDelete = (id, name) => {
     setDeleteTarget({ id, name })
@@ -39,15 +42,16 @@ const AdminCommunities = () => {
     }))
   }
 
-  const handleCreateCommunity = () => {
-    const name = prompt('Enter Community Name:')
-    if (name) {
-      setCommunities([
-        ...communities,
-        { id: communities.length + 1, name, members: '0', posts: 0, status: 'Active' }
-      ])
-      toast.success('Community created!')
-    }
+  const handleCreateCommunity = (e) => {
+    e.preventDefault()
+    if (!communityName.trim()) return
+    setCommunities([
+      ...communities,
+      { id: communities.length + 1, name: communityName.trim(), members: '0', posts: 0, status: 'Active' }
+    ])
+    toast.success('Community created successfully!')
+    setCommunityName('')
+    setIsCreateOpen(false)
   }
 
   return (
@@ -59,8 +63,8 @@ const AdminCommunities = () => {
           <p className="text-muted-foreground text-sm mt-1">Manage and moderate campus interest groups and sub-forums.</p>
         </div>
         <button 
-          onClick={handleCreateCommunity}
-          className="bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 flex items-center gap-2 transition-all shadow-md shadow-primary/10 text-sm self-start sm:self-auto"
+          onClick={() => setIsCreateOpen(true)}
+          className="bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 flex items-center gap-2 transition-all shadow-md shadow-primary/10 text-sm self-start sm:self-auto cursor-pointer"
         >
           <Plus className="w-4.5 h-4.5" /> Create Community
         </button>
@@ -126,6 +130,55 @@ const AdminCommunities = () => {
         title="Delete Community Group"
         message={`Are you sure you want to delete community group "${deleteTarget?.name}"?`}
       />
+
+      {isCreateOpen && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-card border border-border/50 rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between p-6 border-b border-border/40">
+                <h3 className="text-lg font-bold text-foreground">Create New Community</h3>
+                <button
+                  onClick={() => { setIsCreateOpen(false); setCommunityName(''); }}
+                  className="text-muted-foreground hover:bg-muted p-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateCommunity} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Community Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={communityName}
+                    onChange={(e) => setCommunityName(e.target.value)}
+                    placeholder="e.g. Data Science & Analytics"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setIsCreateOpen(false); setCommunityName(''); }}
+                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-xl text-sm transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl text-sm transition-colors shadow-sm cursor-pointer"
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   )
 }

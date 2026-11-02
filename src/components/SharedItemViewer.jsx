@@ -2,7 +2,7 @@ import CardSkeleton from './skeletons/CardSkeleton'
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { X, Heart, MessageCircle, Share2, Loader2, MapPin, Building, Calendar as CalendarIcon, ExternalLink, MoreVertical, Edit3, Trash2 } from 'lucide-react';
+import { X, Heart, MessageCircle, Share2, Loader2, MapPin, Building, Calendar as CalendarIcon, ExternalLink, MoreVertical, Edit3, Trash2, VolumeX, Flag, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API_BASE from '../utils/api';
 import { formatDistanceToNow } from 'date-fns';
@@ -11,6 +11,9 @@ import AutoPlayVideo from './AutoPlayVideo';
 import PostComments from './PostComments';
 import ShareModal from './modals/ShareModal';
 import ImageViewerModal from './ImageViewerModal';
+import ConfirmModal from './modals/ConfirmModal';
+import ReportPostModal from './modals/ReportPostModal';
+import { addHiddenPost, addMutedAuthor, removeMutedAuthor, unhidePost, unreportPost } from '../utils/postInteractions';
 import ModalPortal from './modals/ModalPortal';
 import PinchZoomMedia from './common/PinchZoomMedia';
 import { socket } from '../services/socket';
@@ -54,6 +57,8 @@ const SharedItemViewer = () => {
   const [showCommentInput, setShowCommentInput] = useState(true);
   const [isMobileCommentsOpen, setIsMobileCommentsOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [mediaSlideDirection, setMediaSlideDirection] = useState(0);
@@ -73,6 +78,21 @@ const SharedItemViewer = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('[data-menu-container]')) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   const customFormatTime = (date) => {
     if (!date) return '';
@@ -350,8 +370,11 @@ const SharedItemViewer = () => {
     }
   };
 
-  const handleDeletePost = async () => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
+  const handleDeletePost = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeletePost = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/posts/${data._id}`, {
         method: 'DELETE',
@@ -360,6 +383,7 @@ const SharedItemViewer = () => {
       });
       if (res.ok) {
         toast.success('Post deleted');
+        setIsDeleteModalOpen(false);
         closeModal();
       } else {
         toast.error('Failed to delete post');
@@ -367,6 +391,79 @@ const SharedItemViewer = () => {
     } catch (err) {
       console.error(err);
       toast.error('Server error');
+    }
+  };
+
+  const handleHideSharedPost = () => {
+    setIsMenuOpen(false);
+    if (data?._id) {
+      const postId = data._id;
+      addHiddenPost(postId, user?.id);
+      closeModal();
+      toast((t) => (
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div className="flex items-center gap-2">
+            <EyeOff className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium">Post hidden from feed</span>
+          </div>
+          <button
+            onClick={async () => {
+              await unhidePost(postId, user?.id);
+              toast.dismiss(t.id);
+              toast.success('Post restored to feed');
+            }}
+            className="px-3 py-1 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors cursor-pointer shadow-sm shrink-0"
+          >
+            Undo
+          </button>
+        </div>
+      ), { 
+        duration: 6000,
+        style: {
+          background: 'var(--card, #18191c)',
+          color: 'var(--foreground, #fff)',
+          border: '1px solid var(--border, rgba(255,255,255,0.1))',
+          borderRadius: '1rem',
+          padding: '10px 14px'
+        }
+      });
+    }
+  };
+
+  const handleMuteSharedAuthor = () => {
+    setIsMenuOpen(false);
+    if (data?.authorClerkId) {
+      const authorClerkId = data.authorClerkId;
+      const authorName = data.author?.name || 'this user';
+      addMutedAuthor(authorClerkId, user?.id);
+      closeModal();
+      toast((t) => (
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div className="flex items-center gap-2">
+            <VolumeX className="w-4 h-4 text-amber-500 shrink-0" />
+            <span className="text-sm font-medium">Muted posts from {authorName}</span>
+          </div>
+          <button
+            onClick={async () => {
+              await removeMutedAuthor(authorClerkId, user?.id);
+              toast.dismiss(t.id);
+              toast.success(`Unmuted ${authorName}`);
+            }}
+            className="px-3 py-1 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors cursor-pointer shadow-sm shrink-0"
+          >
+            Undo
+          </button>
+        </div>
+      ), { 
+        duration: 6000,
+        style: {
+          background: 'var(--card, #18191c)',
+          color: 'var(--foreground, #fff)',
+          border: '1px solid var(--border, rgba(255,255,255,0.1))',
+          borderRadius: '1rem',
+          padding: '10px 14px'
+        }
+      });
     }
   };
 
@@ -944,36 +1041,74 @@ const SharedItemViewer = () => {
                   </button>
 
                   {/* Post Options Menu (Mobile) */}
-                  {user?.id === data.authorClerkId && (
-                    <div className="relative">
+                  {data && (
+                    <div className="relative" data-menu-container="true">
                       <button
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        className="flex flex-col items-center gap-1 transition-transform active:scale-95 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+                        className="flex flex-col items-center gap-1 transition-transform active:scale-95 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] cursor-pointer"
+                        title="Options"
                       >
                         <MoreVertical className="w-8 h-8" />
                       </button>
                       {isMenuOpen && (
-                        <div className="absolute right-full bottom-0 mr-4 w-32 bg-popover border border-border/50 rounded-xl shadow-lg shadow-black/10 py-1 z-[60]">
-                          <button
-                            onClick={() => {
-                              setEditingPostId(data._id);
-                              setEditContent(data.content);
+                        <>
+                          <div 
+                            className="fixed inset-0 z-[55] cursor-default" 
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setIsMenuOpen(false);
                             }}
-                            className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors"
-                          >
-                            <Edit3 className="w-4 h-4" /> Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              handleDeletePost();
-                            }}
-                            className="w-full text-left px-3 py-2 text-sm text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-500/10 font-medium flex items-center gap-2 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete
-                          </button>
+                          />
+                          <div className="absolute right-full bottom-0 mr-4 w-44 bg-popover border border-border/50 rounded-xl shadow-xl py-1 z-[60] overflow-hidden">
+                          {user?.id === data.authorClerkId ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingPostId(data._id);
+                                  setEditContent(data.content);
+                                  setIsMenuOpen(false);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Edit3 className="w-4 h-4 text-primary" /> Edit Post
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setIsMenuOpen(false);
+                                  handleDeletePost();
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-sm text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 font-medium flex items-center gap-2 transition-colors border-t border-border/40 cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete Post
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={handleHideSharedPost}
+                                className="w-full text-left px-3.5 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <EyeOff className="w-4 h-4 text-muted-foreground" /> Hide post
+                              </button>
+                              <button
+                                onClick={handleMuteSharedAuthor}
+                                className="w-full text-left px-3.5 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors border-t border-border/40 cursor-pointer"
+                              >
+                                <VolumeX className="w-4 h-4 text-muted-foreground" /> Mute author
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setIsMenuOpen(false);
+                                  setIsReportModalOpen(true);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-sm text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 font-medium flex items-center gap-2 transition-colors border-t border-border/40 cursor-pointer"
+                              >
+                                <Flag className="w-4 h-4 text-rose-500 shrink-0" /> Report post
+                              </button>
+                            </>
+                          )}
                         </div>
+                      </>
                       )}
                     </div>
                   )}
@@ -1083,36 +1218,74 @@ const SharedItemViewer = () => {
                         </div>
 
                         {/* Post Options Menu (Desktop) */}
-                        {user?.id === data.authorClerkId && (
-                          <div className="relative shrink-0 hidden md:block">
+                        {data && (
+                          <div className="relative shrink-0 hidden md:block" data-menu-container="true">
                             <button
                               onClick={() => setIsMenuOpen(!isMenuOpen)}
-                              className="p-1 hover:bg-muted rounded-full transition-colors text-muted-foreground"
+                              className="p-1 hover:bg-muted rounded-full transition-colors text-muted-foreground cursor-pointer"
+                              title="Options"
                             >
                               <MoreVertical className="w-5 h-5" />
                             </button>
                             {isMenuOpen && (
-                              <div className="absolute right-0 bottom-full mb-1 md:bottom-auto md:top-full md:mt-1 w-32 bg-popover border border-border/50 rounded-xl shadow-lg shadow-black/10 py-1 z-[60]">
-                                <button
-                                  onClick={() => {
-                                    setEditingPostId(data._id);
-                                    setEditContent(data.content);
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-[55] cursor-default" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setIsMenuOpen(false);
                                   }}
-                                  className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors"
-                                >
-                                  <Edit3 className="w-4 h-4" /> Edit
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setIsMenuOpen(false);
-                                    handleDeletePost();
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-500/10 font-medium flex items-center gap-2 transition-colors cursor-pointer"
-                                >
-                                  <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete
-                                </button>
+                                />
+                                <div className="absolute right-0 bottom-full mb-1 md:bottom-auto md:top-full md:mt-1 w-44 bg-popover border border-border/50 rounded-xl shadow-xl py-1 z-[60] overflow-hidden">
+                                {user?.id === data.authorClerkId ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setEditingPostId(data._id);
+                                        setEditContent(data.content);
+                                        setIsMenuOpen(false);
+                                      }}
+                                      className="w-full text-left px-3.5 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors cursor-pointer"
+                                    >
+                                      <Edit3 className="w-4 h-4 text-primary" /> Edit Post
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setIsMenuOpen(false);
+                                        handleDeletePost();
+                                      }}
+                                      className="w-full text-left px-3.5 py-2 text-sm text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 font-medium flex items-center gap-2 transition-colors border-t border-border/40 cursor-pointer"
+                                    >
+                                      <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" /> Delete Post
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={handleHideSharedPost}
+                                      className="w-full text-left px-3.5 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors cursor-pointer"
+                                    >
+                                      <EyeOff className="w-4 h-4 text-muted-foreground" /> Hide post
+                                    </button>
+                                    <button
+                                      onClick={handleMuteSharedAuthor}
+                                      className="w-full text-left px-3.5 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors border-t border-border/40 cursor-pointer"
+                                    >
+                                      <VolumeX className="w-4 h-4 text-muted-foreground" /> Mute author
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setIsMenuOpen(false);
+                                        setIsReportModalOpen(true);
+                                      }}
+                                      className="w-full text-left px-3.5 py-2 text-sm text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 font-medium flex items-center gap-2 transition-colors border-t border-border/40 cursor-pointer"
+                                    >
+                                      <Flag className="w-4 h-4 text-rose-500 shrink-0" /> Report post
+                                    </button>
+                                  </>
+                                )}
                               </div>
+                            </>
                             )}
                           </div>
                         )}
@@ -1304,6 +1477,59 @@ const SharedItemViewer = () => {
         shareUrl={window.location.href}
         shareType={itemType}
         itemId={itemId}
+      />
+
+      {/* Delete Post Confirm Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDeletePost}
+        title="Delete Post"
+        message="Are you sure you want to delete this post? This action cannot be undone."
+        confirmText="Delete Post"
+        isDestructive={true}
+      />
+
+      {/* Report Post Modal */}
+      <ReportPostModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        post={data}
+        currentUser={user}
+        onReportSubmitted={() => {
+          if (data?._id) {
+            const postId = data._id;
+            addHiddenPost(postId, user?.id);
+            closeModal();
+            toast((t) => (
+              <div className="flex items-center justify-between gap-4 w-full">
+                <div className="flex items-center gap-2">
+                  <Flag className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span className="text-sm font-medium">Report submitted to moderators</span>
+                </div>
+                <button
+                  onClick={async () => {
+                    await unreportPost(postId, user?.id);
+                    toast.dismiss(t.id);
+                    toast.success('Report cancelled & post restored');
+                  }}
+                  className="px-3 py-1 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors cursor-pointer shadow-sm shrink-0"
+                >
+                  Undo
+                </button>
+              </div>
+            ), { 
+              duration: 7000,
+              style: {
+                background: 'var(--card, #18191c)',
+                color: 'var(--foreground, #fff)',
+                border: '1px solid var(--border, rgba(255,255,255,0.1))',
+                borderRadius: '1rem',
+                padding: '10px 14px'
+              }
+            });
+          }
+        }}
       />
     </div>
     </ModalPortal>

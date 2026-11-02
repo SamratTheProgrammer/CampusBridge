@@ -149,6 +149,13 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Job'
   }],
+  hiddenPosts: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post'
+  }],
+  mutedAuthors: [{
+    type: String
+  }],
   profileViews: {
     type: Number,
     default: 0

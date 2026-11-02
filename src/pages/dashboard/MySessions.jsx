@@ -10,6 +10,7 @@ import API_BASE from '../../utils/api'
 import ReviewListModal from '../../components/modals/ReviewListModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import SessionDetailsModal from '../../components/modals/SessionDetailsModal'
+import ConfirmModal from '../../components/modals/ConfirmModal'
 import NewRibbon, { isPostNew } from '../../components/common/NewRibbon'
 import { Star } from 'lucide-react'
 
@@ -66,6 +67,7 @@ const MySessions = () => {
   const [isReviewListModalOpen, setIsReviewListModalOpen] = useState(false)
   const [selectedReviews, setSelectedReviews] = useState([])
   const [selectedSessionTitle, setSelectedSessionTitle] = useState('')
+  const [cancelModal, setCancelModal] = useState({ isOpen: false, sessionId: null, title: '' })
 
   const fetchData = async () => {
     try {
@@ -106,18 +108,29 @@ const MySessions = () => {
     window.dispatchEvent(new CustomEvent('campusbridge:sessions_viewed'))
   }, [user])
 
-  const handleCancelSession = async (sessionId) => {
-    if (!window.confirm('Are you sure you want to cancel this session?')) return;
+  const handleCancelSession = (sessionId, sessionTitle = '') => {
+    setCancelModal({
+      isOpen: true,
+      sessionId,
+      title: sessionTitle || ''
+    })
+  }
+
+  const handleExecuteCancelSession = async () => {
+    const sessionId = cancelModal.sessionId
+    if (!sessionId) return
     try {
       const res = await fetch(`${API_BASE}/api/sessions/${sessionId}`, { method: 'DELETE' })
       if (res.ok) {
-        toast.success('Session cancelled')
-        setUserSessions(userSessions.filter(s => s._id !== sessionId))
+        toast.success('Session request cancelled successfully')
+        setUserSessions(prev => prev.filter(s => s._id !== sessionId))
       } else {
         toast.error('Failed to cancel session')
       }
     } catch (err) {
       toast.error('Error cancelling session')
+    } finally {
+      setCancelModal({ isOpen: false, sessionId: null, title: '' })
     }
   }
 
@@ -457,7 +470,7 @@ const MySessions = () => {
 
             {!isEvent && !(isPast || item.status === 'completed' || item.status === 'declined' || item.status === 'cancelled') && (
               <button 
-                onClick={() => handleCancelSession(item._id)}
+                onClick={() => handleCancelSession(item._id, item.title || item.topic)}
                 className="p-2.5 rounded-xl bg-muted/60 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 hover:border-rose-500/25 border border-transparent transition-all shrink-0" 
                 title="Cancel Session"
               >
@@ -929,7 +942,7 @@ const MySessions = () => {
                     {/* Bottom Action Bar */}
                     <div className="flex items-center gap-2 mt-auto pt-2">
                       <button 
-                        onClick={() => handleCancelSession(session._id)}
+                        onClick={() => handleCancelSession(session._id, session.title || session.topic)}
                         className="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/25 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm"
                       >
                         <XCircle className="w-3.5 h-3.5" /> Cancel Request
@@ -1018,7 +1031,18 @@ const MySessions = () => {
         onClose={() => setSelectedDetailSession(null)}
         session={selectedDetailSession}
         currentUserRole="student"
-        onCancel={handleCancelSession}
+        onCancel={(sessionId) => handleCancelSession(sessionId, selectedDetailSession?.title || '')}
+      />
+
+      {/* Cancel Session Confirmation Modal */}
+      <ConfirmModal
+        isOpen={cancelModal.isOpen}
+        onClose={() => setCancelModal({ isOpen: false, sessionId: null, title: '' })}
+        onConfirm={handleExecuteCancelSession}
+        title="Cancel Session Request"
+        message={`Are you sure you want to cancel your session request${cancelModal.title ? ` for "${cancelModal.title}"` : ''}? This action cannot be undone.`}
+        confirmText="Cancel Session"
+        isDestructive={true}
       />
     </div>
   )

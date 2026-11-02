@@ -26,6 +26,8 @@ import ConfirmModal from '../../components/modals/ConfirmModal'
 import ModalPortal from '../../components/modals/ModalPortal'
 import AdminSpinner from '../../components/admin/AdminSpinner'
 import API_BASE from '../../utils/api'
+import ImageInputWithUrl from '../../components/common/ImageInputWithUrl'
+import { AnnouncementPreviewModal } from '../../components/dashboard/AnnouncementModal'
 
 const toDatetimeLocal = (dateStr) => {
   if (!dateStr) return ''
@@ -65,6 +67,9 @@ const AdminAnnouncements = () => {
 
   // Image Preview Modal for table view
   const [previewImageModal, setPreviewImageModal] = useState(null)
+
+  // Dashboard popup preview modal when clicking on any announcement row
+  const [viewAnnouncement, setViewAnnouncement] = useState(null)
 
   const fetchAnnouncements = async () => {
     try {
@@ -374,64 +379,66 @@ const AdminAnnouncements = () => {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input 
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search announcements by title or description..."
-            className="w-full pl-10 pr-4 py-2 text-sm bg-background border border-border/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
-          />
-          {search && (
-            <button 
-              onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Status filter */}
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/40 px-2 py-1 rounded-xl border border-border/50">
-            <span>Status:</span>
-            {['All', 'Published', 'Paused'].map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                  statusFilter === s
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
+      {/* Sticky Header: Filter and Search Bar */}
+      <div className="sticky top-16 z-30 bg-background pt-2 pb-3 -mx-4 sm:-mx-8 px-4 sm:px-8 border-b border-border/40 shadow-sm transition-all">
+        <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input 
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search announcements by title or description..."
+              className="w-full pl-10 pr-4 py-2 text-sm bg-background border border-border/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
+            />
+            {search && (
+              <button 
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                {s}
+                <X className="w-3.5 h-3.5" />
               </button>
-            ))}
+            )}
           </div>
 
-          {/* Audience filter */}
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/40 px-2 py-1 rounded-xl border border-border/50">
-            <span>Audience:</span>
-            {['All', 'All Users', 'Students', 'Mentors'].map((aud) => (
-              <button
-                key={aud}
-                onClick={() => setAudienceFilter(aud)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                  audienceFilter === aud
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {aud}
-              </button>
-            ))}
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Status filter */}
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/40 px-2 py-1 rounded-xl border border-border/50">
+              <span>Status:</span>
+              {['All', 'Published', 'Paused'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                    statusFilter === s
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            {/* Audience filter */}
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/40 px-2 py-1 rounded-xl border border-border/50">
+              <span>Audience:</span>
+              {['All', 'All Users', 'Students', 'Mentors'].map((aud) => (
+                <button
+                  key={aud}
+                  onClick={() => setAudienceFilter(aud)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                    audienceFilter === aud
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {aud}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -443,8 +450,8 @@ const AdminAnnouncements = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="whitespace-nowrap w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-muted/30 border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <thead className="bg-card border-b border-border/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm">
+                <tr className="bg-muted/40">
                   <th className="px-5 py-3.5">Announcement</th>
                   <th className="px-4 py-3.5">Target Audience</th>
                   <th className="px-4 py-3.5">Priority</th>
@@ -458,20 +465,27 @@ const AdminAnnouncements = () => {
                   filteredAnnouncements.map((a) => {
                     const sched = getScheduleStatus(a)
                     return (
-                      <tr key={a._id} className="hover:bg-muted/20 transition-colors group">
+                      <tr 
+                        key={a._id} 
+                        onClick={() => setViewAnnouncement(a)}
+                        className="hover:bg-muted/20 transition-colors group cursor-pointer"
+                        title="Click to preview announcement exactly as seen on user dashboard"
+                      >
                         {/* Announcement Info */}
                         <td className="px-5 py-3.5 max-w-[320px]">
                           <div className="flex items-center gap-3">
                             {/* Thumbnail */}
                             {a.imageUrl ? (
                               <div 
-                                onClick={() => setPreviewImageModal(a.imageUrl)}
+                                onClick={(e) => { e.stopPropagation(); setPreviewImageModal(a.imageUrl); }}
                                 className="w-12 h-12 rounded-xl border border-border overflow-hidden shrink-0 cursor-pointer relative group/img bg-muted shadow-xs"
                                 title="Click to view full image"
                               >
                                 <img 
                                   src={a.imageUrl} 
                                   alt={a.title} 
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                   className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-200"
                                 />
                                 <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
@@ -486,7 +500,7 @@ const AdminAnnouncements = () => {
 
                             {/* Title & snippet */}
                             <div className="truncate">
-                              <p className="font-bold text-foreground truncate text-sm flex items-center gap-1.5" title={a.title}>
+                              <p className="font-bold text-foreground truncate text-sm flex items-center gap-1.5 group-hover:text-primary transition-colors" title={a.title}>
                                 {a.title}
                               </p>
                               <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-[260px]" title={a.details}>
@@ -545,7 +559,7 @@ const AdminAnnouncements = () => {
                         </td>
 
                         {/* Actions */}
-                        <td className="px-5 py-3.5 text-right">
+                        <td className="px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Toggle Pause / Resume */}
                             <button
@@ -748,67 +762,26 @@ const AdminAnnouncements = () => {
                 </div>
               </div>
 
-              {/* Image Upload or URL */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
-                  Announcement Banner Image (Optional)
-                </label>
-
-                {imagePreview ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-border bg-muted/40 flex items-center justify-center p-2 min-h-[140px] max-h-[320px] group">
-                    {/* Ambient blur background for smooth presentation of any aspect ratio */}
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center blur-2xl opacity-25 scale-125 pointer-events-none"
-                      style={{ backgroundImage: `url(${imagePreview})` }}
-                    />
-                    <img 
-                      src={imagePreview} 
-                      alt="Preview" 
-                      className="relative z-10 max-h-[300px] w-auto max-w-full object-contain rounded-xl shadow-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute top-3 right-3 z-20 p-1.5 bg-black/70 hover:bg-rose-600 text-white rounded-lg transition-colors shadow-md cursor-pointer"
-                      title="Remove image"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* File Upload Button */}
-                    <label className="border-2 border-dashed border-border/80 hover:border-primary/60 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer transition-colors bg-muted/10 hover:bg-muted/30">
-                      <Upload className="w-5 h-5 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-foreground">Upload Image File</span>
-                      <span className="text-[10px] text-muted-foreground">PNG, JPG, WEBP (Max 5MB)</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleImageFileChange}
-                        className="hidden"
-                      />
-                    </label>
-
-                    {/* Or URL Input */}
-                    <div className="flex flex-col justify-center">
-                      <span className="text-xs text-muted-foreground mb-1">Or paste image URL:</span>
-                      <div className="relative">
-                        <ImageIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <input 
-                          type="url"
-                          value={imageUrl}
-                          onChange={(e) => {
-                            setImageUrl(e.target.value)
-                            setImagePreview(e.target.value)
-                          }}
-                          placeholder="https://images.unsplash.com/..."
-                          className="w-full pl-9 pr-3 py-2 text-xs bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+              {/* Image Upload or URL with Smart Sanitizer & Live Preview */}
+              <div>
+                <ImageInputWithUrl
+                  label="Announcement Banner Image (Optional)"
+                  value={imageUrl}
+                  initialUrl={editingItem?.imageUrl || ''}
+                  onChangeUrl={(val) => {
+                    setImageUrl(val)
+                    setImagePreview(val)
+                  }}
+                  onChangeFile={(file) => {
+                    setImageFile(file)
+                  }}
+                  onClear={() => {
+                    setImageUrl('')
+                    setImagePreview('')
+                    setImageFile(null)
+                  }}
+                  placeholder="https://images.unsplash.com/..."
+                />
               </div>
 
               {/* Details Textarea */}
@@ -877,6 +850,13 @@ const AdminAnnouncements = () => {
           </div>
         </ModalPortal>
       )}
+
+      {/* DASHBOARD POPUP PREVIEW MODAL (Shows announcement exactly as on normal users' dashboard) */}
+      <AnnouncementPreviewModal 
+        announcement={viewAnnouncement}
+        isOpen={Boolean(viewAnnouncement)}
+        onClose={() => setViewAnnouncement(null)}
+      />
 
       {/* CONFIRM DELETE MODAL */}
       <ConfirmModal
