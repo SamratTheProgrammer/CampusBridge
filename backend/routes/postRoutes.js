@@ -6,7 +6,7 @@ import Message from '../models/Message.js';
 import { createNotificationHelper } from './notificationRoutes.js';
 import { escapeRegex } from '../utils/regexHelper.js';
 import { verifyAdminToken } from '../middleware/adminAuth.js';
-import { fetchUrlMetadata } from '../utils/linkPreviewHelper.js';
+import { fetchUrlMetadata, generateReelPosterUrl } from '../utils/linkPreviewHelper.js';
 
 const router = express.Router();
 
@@ -51,6 +51,21 @@ const enrichCommentsList = async (comments) => {
       };
     })
   );
+};
+
+// Helper to sanitize post link preview and prevent 403 Forbidden on expired/hotlinked Meta CDN URLs
+const sanitizePostLinkPreview = (postObj) => {
+  if (postObj?.linkPreview) {
+    const lpImg = postObj.linkPreview.image || postObj.linkPreview.thumbnailUrl || '';
+    if (lpImg.includes('cdninstagram.com') || lpImg.includes('fbcdn.net')) {
+      const shortcode = postObj.linkPreview.shortcode || (postObj.linkPreview.url?.match(/instagram\.com\/(?:p|reel|reels|tv)\/([a-zA-Z0-9_-]+)/i)?.[1] || '');
+      const isReel = postObj.linkPreview.isReel || Boolean(postObj.linkPreview.url?.includes('/reel'));
+      const fallback = generateReelPosterUrl({ platform: 'instagram', shortcode, isReel, title: postObj.linkPreview.title });
+      postObj.linkPreview.image = fallback;
+      postObj.linkPreview.thumbnailUrl = fallback;
+    }
+  }
+  return postObj;
 };
 
 // Get all posts with author details
@@ -231,7 +246,7 @@ router.get('/user/:clerkId', async (req, res) => {
           })
         );
 
-        return {
+        return sanitizePostLinkPreview({
           ...post.toObject(),
           author: postAuthor ? {
             name: postAuthor.firstName + (postAuthor.lastName ? ' ' + postAuthor.lastName : ''),
@@ -245,7 +260,7 @@ router.get('/user/:clerkId', async (req, res) => {
           },
           comments: enrichedComments,
           likes: enrichedLikes
-        };
+        });
       })
     );
 
@@ -326,7 +341,7 @@ router.get('/:id', async (req, res) => {
       likes: enrichedLikes
     };
 
-    res.status(200).json(enrichedPost);
+    res.status(200).json(sanitizePostLinkPreview(enrichedPost));
   } catch (error) {
     console.error('Error fetching single post:', error);
     res.status(500).json({ message: 'Server error' });
@@ -489,7 +504,7 @@ router.get('/:id', async (req, res) => {
       likes: enrichedLikes
     };
 
-    res.status(200).json(enrichedPost);
+    res.status(200).json(sanitizePostLinkPreview(enrichedPost));
   } catch (error) {
     console.error('Error fetching single post:', error);
     res.status(500).json({ message: 'Server error' });

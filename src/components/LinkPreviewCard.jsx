@@ -281,7 +281,9 @@ export const LinkPreviewCard = ({
     const finalShortcode = videoId || preview.shortcode || (url.match(/instagram\.com\/(?:p|reel|reels|tv)\/([a-zA-Z0-9_-]+)/i)?.[1] || '');
     const finalEmbed = embedUrl || (finalShortcode ? `https://www.instagram.com/p/${finalShortcode}/embed` : '');
     const fallbackPoster = generateReelPosterUrl({ platform: 'instagram', shortcode: finalShortcode, isReel, title });
-    const currentImg = displayImage && !imgError ? displayImage : fallbackPoster;
+    // Meta CDN links (scontent.cdninstagram.com / fbcdn.net) expire and return 403 Forbidden on hotlinking; strictly use safe fallback poster
+    const isMetaCdn = Boolean(displayImage && (displayImage.includes('cdninstagram.com') || displayImage.includes('fbcdn.net')));
+    const currentImg = displayImage && !imgError && !isMetaCdn ? displayImage : fallbackPoster;
 
     return (
       <div className={`w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all hover:border-pink-500/40 ${className}`}>
@@ -348,6 +350,7 @@ export const LinkPreviewCard = ({
                 src={currentImg}
                 alt={title || 'Instagram Reel thumbnail'}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
               />
 
@@ -403,7 +406,8 @@ export const LinkPreviewCard = ({
       ? `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&width=500`
       : `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url)}&show_text=true&width=500`);
     const fallbackPoster = generateReelPosterUrl({ platform: 'facebook', isReel, title: cleanTitle });
-    const currentImg = displayImage && !imgError ? displayImage : fallbackPoster;
+    const isMetaCdn = Boolean(displayImage && (displayImage.includes('cdninstagram.com') || displayImage.includes('fbcdn.net')));
+    const currentImg = displayImage && !imgError && !isMetaCdn ? displayImage : fallbackPoster;
 
     return (
       <div className={`w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all hover:border-blue-600/40 ${className}`}>
@@ -470,6 +474,7 @@ export const LinkPreviewCard = ({
                 src={currentImg}
                 alt={cleanTitle || 'Facebook thumbnail'}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
               />
 
@@ -525,7 +530,8 @@ export const LinkPreviewCard = ({
   if (mediaType === 'reel' || url.includes('/reel/') || url.includes('/reels/') || url.includes('tiktok.com')) {
     const isReel = true;
     const fallbackPoster = generateReelPosterUrl({ platform: 'reel', isReel, title: cleanTitle });
-    const currentImg = displayImage && !imgError ? displayImage : fallbackPoster;
+    const isMetaCdn = Boolean(displayImage && (displayImage.includes('cdninstagram.com') || displayImage.includes('fbcdn.net')));
+    const currentImg = displayImage && !imgError && !isMetaCdn ? displayImage : fallbackPoster;
 
     return (
       <div className={`w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all hover:border-purple-500/40 ${className}`}>
@@ -602,6 +608,7 @@ export const LinkPreviewCard = ({
                 src={currentImg}
                 alt={cleanTitle || 'Reel thumbnail'}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
               />
 
@@ -650,8 +657,8 @@ export const LinkPreviewCard = ({
   // 6. Generic Web Link (OpenGraph Card)
   return (
     <div className={`w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all hover:border-primary/50 hover:shadow-md ${className}`}>
-      {/* Top Banner Image if available */}
-      {displayImage && !imgError && (
+      {/* Top Banner Image if available (ignore expired/blocked Meta CDN links) */}
+      {displayImage && !imgError && !displayImage.includes('cdninstagram.com') && !displayImage.includes('fbcdn.net') && (
         <a 
           href={url} 
           target="_blank" 
@@ -662,6 +669,7 @@ export const LinkPreviewCard = ({
             src={displayImage}
             alt={cleanTitle || 'Link preview banner'}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
           />
           <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />

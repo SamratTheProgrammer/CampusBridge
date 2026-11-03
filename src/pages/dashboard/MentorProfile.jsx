@@ -768,6 +768,8 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
 
   const isConnected = connectionStatus === 'accepted';
   const isMentorRole = user?.unsafeMetadata?.role === 'mentor';
+  // Dynamically verify if target user is actually a mentor - reviews strictly for mentors
+  const isTargetMentor = (mentor?.role || initialUser?.role || '').toLowerCase() === 'mentor';
   
   let isLocked = false;
   if (!isAdminView && !isOwner) {
@@ -817,15 +819,17 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                   className={`w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
                   onClick={isLocked ? undefined : () => setViewerData({ files: [avatarUrl], index: 0 })}
                 />
-                {/* Live Online / Offline Avatar Dot */}
-                <span 
-                  className={`absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-3.5 md:right-3.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] sm:border-2 border-card z-20 pointer-events-none transition-all duration-200 ${
-                    isTargetOnline 
-                      ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' 
-                      : 'bg-muted-foreground/40'
-                  }`}
-                  title={isTargetOnline ? 'Online Now' : 'Offline'}
-                />
+                {/* Live Online / Offline Avatar Dot (Hidden on own profile) */}
+                {!isOwner && !isOwnerProfile && (
+                  <span 
+                    className={`absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-3.5 md:right-3.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] sm:border-2 border-card z-20 pointer-events-none transition-all duration-200 ${
+                      isTargetOnline 
+                        ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' 
+                        : 'bg-muted-foreground/40'
+                    }`}
+                    title={isTargetOnline ? 'Online Now' : 'Offline'}
+                  />
+                )}
               </div>
               
               {/* Action Buttons on Right */}
@@ -1022,22 +1026,24 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                     🎈 Birthday Today!
                   </span>
                 )}
-                <button 
-                  onClick={() => {
-                    setActiveTab('reviews');
-                    const tabEl = document.getElementById('profile-content-tabs');
-                    if (tabEl) {
-                      tabEl.scrollIntoView({ behavior: 'smooth' });
-                    } else {
-                      setIsReviewListModalOpen(true);
-                    }
-                  }}
-                  className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20 cursor-pointer"
-                >
-                  <Star className="w-3.5 h-3.5 fill-current" />
-                  <span className="font-bold">{mentorStats.averageRating || '0.0'}</span>
-                  <span className="text-xs">({mentorStats.totalRatings || 0} Reviews)</span>
-                </button>
+                {isTargetMentor && (
+                  <button 
+                    onClick={() => {
+                      setActiveTab('reviews');
+                      const tabEl = document.getElementById('profile-content-tabs');
+                      if (tabEl) {
+                        tabEl.scrollIntoView({ behavior: 'smooth' });
+                      } else {
+                        setIsReviewListModalOpen(true);
+                      }
+                    }}
+                    className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 px-2 py-1 rounded-lg transition-colors border border-yellow-400/20 cursor-pointer"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span className="font-bold">{mentorStats.averageRating || '0.0'}</span>
+                    <span className="text-xs">({mentorStats.totalRatings || 0} Reviews)</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1281,23 +1287,25 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                       {posts.length}
                     </span>
                   </button>
-                  <button
-                    onClick={() => setActiveTab('reviews')}
-                    className={`pb-3 px-4 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
-                      activeTab === 'reviews'
-                        ? 'text-primary border-b-2 border-primary'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <Star className="w-3.5 h-3.5 fill-current text-yellow-500" />
-                    Reviews
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 font-semibold border border-yellow-400/20">
-                      {mentorStats?.totalRatings || 0}
-                    </span>
-                  </button>
+                  {isTargetMentor && (
+                    <button
+                      onClick={() => setActiveTab('reviews')}
+                      className={`pb-3 px-4 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+                        activeTab === 'reviews'
+                          ? 'text-primary border-b-2 border-primary'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Star className="w-3.5 h-3.5 fill-current text-yellow-500" />
+                      Reviews
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 font-semibold border border-yellow-400/20">
+                        {mentorStats?.totalRatings || 0}
+                      </span>
+                    </button>
+                  )}
                 </div>
 
-                {activeTab === 'reviews' && user && user.id !== (mentor?.clerkId || mentor?._id) && (
+                {isTargetMentor && activeTab === 'reviews' && user && user.id !== (mentor?.clerkId || mentor?._id) && (
                   <button
                     onClick={() => {
                       setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
@@ -1340,7 +1348,7 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
                 </AnimatePresence>
               </div>
 
-      {activeTab === 'reviews' ? (
+      {isTargetMentor && activeTab === 'reviews' ? (
         <div className="space-y-6 mt-6 animate-in fade-in duration-200">
           {/* Reviews Summary Card */}
           <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -2019,26 +2027,30 @@ const MentorProfile = ({ initialUser, isAdmin = false }) => {
         onClose={() => setViewerData(null)} 
       />
 
-      <ReviewListModal
-        isOpen={isReviewListModalOpen}
-        onClose={() => setIsReviewListModalOpen(false)}
-        reviews={mentorStats.reviews || []}
-        title={`Reviews for ${fullName}`}
-        type="mentor"
-        mentorId={mentor?.clerkId}
-        onReviewUpdated={fetchMentorStats}
-        onAddReview={user && user.id !== (mentor?.clerkId || mentor?._id) ? () => {
-          setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
-          setIsReviewModalOpen(true);
-        } : null}
-      />
+      {isTargetMentor && (
+        <>
+          <ReviewListModal
+            isOpen={isReviewListModalOpen}
+            onClose={() => setIsReviewListModalOpen(false)}
+            reviews={mentorStats.reviews || []}
+            title={`Reviews for ${fullName}`}
+            type="mentor"
+            mentorId={mentor?.clerkId}
+            onReviewUpdated={fetchMentorStats}
+            onAddReview={user && user.id !== (mentor?.clerkId || mentor?._id) ? () => {
+              setPendingReview({ type: 'mentor', referenceId: mentor._id || mentor.clerkId, title: 'Mentor Profile', mentor: null });
+              setIsReviewModalOpen(true);
+            } : null}
+          />
 
-      <ReviewModal
-        isOpen={isReviewModalOpen}
-        onClose={() => setIsReviewModalOpen(false)}
-        pendingReview={pendingReview}
-        onReviewSubmitted={fetchMentorStats}
-      />
+          <ReviewModal
+            isOpen={isReviewModalOpen}
+            onClose={() => setIsReviewModalOpen(false)}
+            pendingReview={pendingReview}
+            onReviewSubmitted={fetchMentorStats}
+          />
+        </>
+      )}
 
       <ConfirmModal
         isOpen={unfriendConfirm}

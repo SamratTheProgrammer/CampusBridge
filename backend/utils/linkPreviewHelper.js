@@ -407,7 +407,8 @@ export const fetchUrlMetadata = async (targetUrl) => {
   const instaData = parseInstagramUrl(formattedUrl);
   if (instaData) {
     const scraped = await tryScrapeOg(formattedUrl);
-    if (scraped?.image) {
+    // Never use raw cdninstagram.com or fbcdn.net URLs as they are signed and 403 on client browser hotlinking
+    if (scraped?.image && !scraped.image.includes('cdninstagram.com') && !scraped.image.includes('fbcdn.net')) {
       instaData.thumbnailUrl = scraped.image;
       instaData.image = scraped.image;
     }
@@ -421,7 +422,8 @@ export const fetchUrlMetadata = async (targetUrl) => {
   const fbData = parseFacebookUrl(formattedUrl);
   if (fbData) {
     const scraped = await tryScrapeOg(formattedUrl);
-    if (scraped?.image) {
+    // Never use raw fbcdn.net URLs as they 403 on client browser hotlinking
+    if (scraped?.image && !scraped.image.includes('fbcdn.net') && !scraped.image.includes('cdninstagram.com')) {
       fbData.thumbnailUrl = scraped.image;
       fbData.image = scraped.image;
     }

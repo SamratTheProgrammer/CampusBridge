@@ -200,7 +200,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, onClose, onOpenSearch }) => {
         >
           <Search className="w-4 h-4 text-primary shrink-0 transition-transform group-hover:scale-110" />
           <span className="flex-1 text-left truncate">Search anything...</span>
-          <kbd className="text-[10px] bg-background/80 px-1.5 py-0.5 rounded border border-border/60 text-muted-foreground font-mono">⌘K</kbd>
         </button>
       </div>
 

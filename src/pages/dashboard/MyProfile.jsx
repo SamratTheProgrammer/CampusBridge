@@ -67,9 +67,8 @@ const MyProfile = () => {
   const [replyText, setReplyText] = useState('')
   const [isSubmittingReply, setIsSubmittingReply] = useState(false)
 
-  const isMentorUser = dbUser?.role === 'mentor' || dbUser?.role === 'alumni' ||
-    user?.publicMetadata?.role === 'mentor' || user?.unsafeMetadata?.role === 'mentor' ||
-    sessionStorage.getItem('campusbridge_user_role') === 'mentor'
+  // Dynamically verify if current profile user is actually a mentor - reviews & ratings strictly apply to mentors only
+  const isMentorUser = Boolean(dbUser ? dbUser.role === 'mentor' : user?.publicMetadata?.role === 'mentor')
 
   const coverPhotoInputRef = useRef(null)
   const profilePicInputRef = useRef(null)
@@ -205,7 +204,9 @@ const MyProfile = () => {
       fetchUserProfile()
       fetchUserPosts()
       fetchConnectionsCount()
-      fetchMentorStats()
+      if (isMentorUser) {
+        fetchMentorStats()
+      }
     }
   }, [isLoaded, user])
 
@@ -223,7 +224,7 @@ const MyProfile = () => {
   }
 
   const fetchMentorStats = async () => {
-    if (!user?.id) return
+    if (!user?.id || !isMentorUser) return
     try {
       const res = await fetch(`${API_BASE}/api/reviews/mentor/${user.id}`)
       if (res.ok) {
@@ -784,11 +785,6 @@ const MyProfile = () => {
                 onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultPP; }}
                 className="w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg cursor-pointer transition-all hover:brightness-90"
                 onClick={() => setViewerData({ files: [profilePhotoUrl], index: 0 })}
-              />
-              {/* Live Online Avatar Dot */}
-              <span 
-                className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-3.5 md:right-3.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] sm:border-2 border-card bg-emerald-500 shadow-md shadow-emerald-500/50 z-20 pointer-events-none transition-all duration-200"
-                title="Online Now"
               />
               <input type="file" ref={profilePicInputRef} onChange={handleProfilePicSelect} accept="image/*" className="hidden" />
               <button 
@@ -1767,15 +1763,17 @@ const MyProfile = () => {
           />
         )}
       </AnimatePresence>
-      <ReviewListModal
-        isOpen={isReviewListModalOpen}
+      {isMentorUser && (
+        <ReviewListModal
+          isOpen={isReviewListModalOpen}
         onClose={() => setIsReviewListModalOpen(false)}
         reviews={mentorStats?.reviews || []}
         title={`Reviews for ${user?.fullName}`}
         type="mentor"
         mentorId={user?.id}
-        onReviewUpdated={fetchMentorStats}
-      />
+          onReviewUpdated={fetchMentorStats}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>

@@ -739,15 +739,17 @@ const StudentProfile = ({ initialUser, isAdmin = false }) => {
                   className={`w-28 h-28 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-4 sm:border-[5px] border-card bg-card shadow-lg transition-all ${isLocked ? '' : 'cursor-pointer hover:brightness-90'}`}
                   onClick={isLocked ? undefined : () => setViewerData({ files: [student.imageUrl || student.image || getAvatarFallback()], index: 0 })}
                 />
-                {/* Live Online / Offline Avatar Dot */}
-                <span 
-                  className={`absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-3.5 md:right-3.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] sm:border-2 border-card z-20 pointer-events-none transition-all duration-200 ${
-                    isTargetOnline 
-                      ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' 
-                      : 'bg-muted-foreground/40'
-                  }`}
-                  title={isTargetOnline ? 'Online Now' : 'Offline'}
-                />
+                {/* Live Online / Offline Avatar Dot (Hidden on own profile) */}
+                {!isOwner && !isOwnerProfile && (
+                  <span 
+                    className={`absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-3.5 md:right-3.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] sm:border-2 border-card z-20 pointer-events-none transition-all duration-200 ${
+                      isTargetOnline 
+                        ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' 
+                        : 'bg-muted-foreground/40'
+                    }`}
+                    title={isTargetOnline ? 'Online Now' : 'Offline'}
+                  />
+                )}
               </div>
               
               {/* Action Buttons on Right */}

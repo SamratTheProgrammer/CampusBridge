@@ -19,6 +19,13 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Reviewer not found' });
     }
 
+    if (mentorId) {
+      const mentorUser = await User.findById(mentorId);
+      if (!mentorUser || mentorUser.role !== 'mentor') {
+        return res.status(400).json({ error: 'Only mentors can receive ratings and reviews' });
+      }
+    }
+
     const typeModel = type === 'session' ? 'Session' : type === 'event' ? 'Event' : 'User';
 
     const newReview = new Review({
@@ -161,6 +168,15 @@ router.get('/mentor/:clerkId', async (req, res) => {
     const mentorUser = await User.findOne({ clerkId: req.params.clerkId });
     if (!mentorUser) {
       return res.status(404).json({ error: 'Mentor not found' });
+    }
+
+    // If target user is not a mentor (e.g. student or alumni), strictly return empty reviews
+    if (mentorUser.role !== 'mentor') {
+      return res.json({
+        averageRating: 0,
+        totalRatings: 0,
+        reviews: []
+      });
     }
 
     const reviews = await Review.find({ mentor: mentorUser._id, mentorRating: { $exists: true, $ne: null } })
